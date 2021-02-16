@@ -317,7 +317,7 @@ CONTAINS
     ! ===== The SMB model =====
     ! =========================    
     
-    CALL initialise_SMB_model( region%grid, region%init, region%SMB)     
+    CALL initialise_SMB_model( region%grid, region%init, region%SMB, region%name)     
     
     ! ===== The BMB model =====
     ! =========================    

@@ -104,9 +104,9 @@ CONTAINS
         ! Determine albation as function af surface temperature and albedo/insolation
         ! according to Bintanja et al. (2002) 
     
-        SMB%Melt( m,j,i) = MAX(0._dp, ( C%C_abl_Ts         * (climate%T2m( m,j,i) - T0) + &
-                                        C%C_abl_Q          * (1.0_dp - SMB%Albedo( m,j,i)) * climate%Q_TOA( m,j,i) - &
-                                        C%C_abl_constant)  * sec_per_year / (L_fusion * 1000._dp * 12._dp))
+        SMB%Melt( m,j,i) = MAX(0._dp, ( SMB%C_abl_Ts         * (climate%T2m( m,j,i) - T0) + &
+                                        SMB%C_abl_Q          * (1.0_dp - SMB%Albedo( m,j,i)) * climate%Q_TOA( m,j,i) - &
+                                        SMB%C_abl_constant)  * sec_per_year / (L_fusion * 1000._dp * 12._dp))
                 
         ! Determine accumulation with snow/rain fraction from Ohmura et al. (1999),
         ! liquid water content (rain and melt water) and snowdepth
@@ -135,7 +135,7 @@ CONTAINS
       ! This resolves the problem with refreezing, where liquid water is mostly available in summer
       ! but "refreezing potential" mostly in winter, and there is no proper meltwater retention.
       
-      sup_imp_wat  = C%C_refr * MAX(0._dp, T0 - SUM(climate%T2m( :,j,i))/12._dp)
+      sup_imp_wat  = SMB%C_refr * MAX(0._dp, T0 - SUM(climate%T2m( :,j,i))/12._dp)
       liquid_water = SUM(SMB%Rainfall( :,j,i)) + SUM(SMB%Melt( :,j,i))
       
       SMB%Refreezing_year( j,i) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,j,i)))
@@ -276,7 +276,7 @@ CONTAINS
   END FUNCTION Bueler_solution_MB
   
   ! Initialise the SMB model (allocating shared memory)
-  SUBROUTINE initialise_SMB_model( grid, init, SMB)
+  SUBROUTINE initialise_SMB_model( grid, init, SMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
     
     IMPLICIT NONE
@@ -285,13 +285,14 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_init_data_fields),         INTENT(IN)    :: init
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables
     INTEGER                                            :: i,j
     
     IF (par%master) WRITE (0,*) '  Initialising SMB model...'
     
-    ! Allocate memory
+    ! Allocate shared memory
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%AlbedoSurf      , SMB%wAlbedoSurf      )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%MeltPreviousYear, SMB%wMeltPreviousYear)
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%FirnDepth       , SMB%wFirnDepth       )
@@ -305,6 +306,37 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Albedo          , SMB%wAlbedo          )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%SMB             , SMB%wSMB             )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%SMB_year        , SMB%wSMB_year        )
+    
+    ! Tuning parameters
+    CALL allocate_shared_dp_0D( SMB%C_abl_constant, SMB%wC_abl_constant)
+    CALL allocate_shared_dp_0D( SMB%C_abl_Ts,       SMB%wC_abl_Ts      )
+    CALL allocate_shared_dp_0D( SMB%C_abl_Q,        SMB%wC_abl_Q       )
+    CALL allocate_shared_dp_0D( SMB%C_refr,         SMB%wC_refr        )
+    
+    IF (par%master) THEN
+      IF     (region_name == 'NAM') THEN
+        SMB%C_abl_constant = C%C_abl_constant_NAM
+        SMB%C_abl_Ts       = C%C_abl_Ts_NAM
+        SMB%C_abl_Q        = C%C_abl_Q_NAM
+        SMB%C_refr         = C%C_refr_NAM
+      ELSEIF (region_name == 'EAS') THEN
+        SMB%C_abl_constant = C%C_abl_constant_EAS
+        SMB%C_abl_Ts       = C%C_abl_Ts_EAS
+        SMB%C_abl_Q        = C%C_abl_Q_EAS
+        SMB%C_refr         = C%C_refr_EAS
+      ELSEIF (region_name == 'GRL') THEN
+        SMB%C_abl_constant = C%C_abl_constant_GRL
+        SMB%C_abl_Ts       = C%C_abl_Ts_GRL
+        SMB%C_abl_Q        = C%C_abl_Q_GRL
+        SMB%C_refr         = C%C_refr_GRL
+      ELSEIF (region_name == 'ANT') THEN
+        SMB%C_abl_constant = C%C_abl_constant_ANT
+        SMB%C_abl_Ts       = C%C_abl_Ts_ANT
+        SMB%C_abl_Q        = C%C_abl_Q_ANT
+        SMB%C_refr         = C%C_refr_ANT
+      END IF
+    END IF ! IF (par%master) THEN
+    CALL sync
     
     ! Initialise albedo to background albedo
     DO i = grid%i1, grid%i2

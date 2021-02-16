@@ -350,6 +350,14 @@ MODULE data_types_module
   TYPE type_SMB_model
     ! The different SMB components, calculated from the prescribed climate
     
+    ! Tuning parameters (different for each region, set from config)
+    REAL(dp),                   POINTER     :: C_abl_constant
+    REAL(dp),                   POINTER     :: C_abl_Ts
+    REAL(dp),                   POINTER     :: C_abl_Q
+    REAL(dp),                   POINTER     :: C_refr
+    INTEGER :: wC_abl_constant, wC_abl_Ts, wC_abl_Q, wC_refr
+    
+    ! Data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: AlbedoSurf                    ! Surface albedo underneath the snow layer (water, rock or ice)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear              ! Total melt that occurred during the previous year (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth                     ! Depth of the firn layer (m)

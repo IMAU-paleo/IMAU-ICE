@@ -196,13 +196,25 @@ MODULE configuration_module
   REAL(dp)           :: inverse_d18O_to_CO2_scaling_config      = 68._dp        ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
   REAL(dp)           :: inverse_d18O_to_CO2_initial_CO2_config  = 280._dp       ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
   
-  ! SMB melt tuning
-  ! ===============
+  ! SMB tuning
+  ! ==========
   
-  REAL(dp)           :: C_abl_constant_config     = -49._dp      ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
-  REAL(dp)           :: C_abl_Ts_config           = 10._dp       ! 10._dp     and this has since been fixed, these values will still not give the same results as
-  REAL(dp)           :: C_abl_Q_config            = 0.0227_dp    ! 0.513_dp   they used to in ANICE.)
-  REAL(dp)           :: C_refr_config             = 0.051_dp     ! 0.012_dp
+  REAL(dp)           :: C_abl_constant_NAM_config = -49._dp       ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+  REAL(dp)           :: C_abl_constant_EAS_config = -49._dp       !            and this has since been fixed, these values will still not give the same results as
+  REAL(dp)           :: C_abl_constant_GRL_config = -49._dp       !            they used to in ANICE.)
+  REAL(dp)           :: C_abl_constant_ANT_config = -49._dp
+  REAL(dp)           :: C_abl_Ts_NAM_config       = 10._dp        ! 10._dp
+  REAL(dp)           :: C_abl_Ts_EAS_config       = 10._dp
+  REAL(dp)           :: C_abl_Ts_GRL_config       = 10._dp
+  REAL(dp)           :: C_abl_Ts_ANT_config       = 10._dp
+  REAL(dp)           :: C_abl_Q_NAM_config        = 0.0227_dp     ! 0.513_dp
+  REAL(dp)           :: C_abl_Q_EAS_config        = 0.0227_dp
+  REAL(dp)           :: C_abl_Q_GRL_config        = 0.0227_dp
+  REAL(dp)           :: C_abl_Q_ANT_config        = 0.0227_dp
+  REAL(dp)           :: C_refr_NAM_config         = 0.051_dp      ! 0.012_dp
+  REAL(dp)           :: C_refr_EAS_config         = 0.051_dp 
+  REAL(dp)           :: C_refr_GRL_config         = 0.051_dp 
+  REAL(dp)           :: C_refr_ANT_config         = 0.051_dp
   
   ! Sub-shelf melt parameterisation
   ! ===============================
@@ -372,10 +384,22 @@ MODULE configuration_module
     ! SMB melt tuning
     ! ===============
     
-    REAL(dp)                 :: C_abl_constant
-    REAL(dp)                 :: C_abl_Ts
-    REAL(dp)                 :: C_abl_Q
-    REAL(dp)                 :: C_refr
+    REAL(dp)                 :: C_abl_constant_NAM
+    REAL(dp)                 :: C_abl_constant_EAS
+    REAL(dp)                 :: C_abl_constant_GRL
+    REAL(dp)                 :: C_abl_constant_ANT
+    REAL(dp)                 :: C_abl_Ts_NAM
+    REAL(dp)                 :: C_abl_Ts_EAS
+    REAL(dp)                 :: C_abl_Ts_GRL
+    REAL(dp)                 :: C_abl_Ts_ANT
+    REAL(dp)                 :: C_abl_Q_NAM
+    REAL(dp)                 :: C_abl_Q_EAS
+    REAL(dp)                 :: C_abl_Q_GRL
+    REAL(dp)                 :: C_abl_Q_ANT
+    REAL(dp)                 :: C_refr_NAM
+    REAL(dp)                 :: C_refr_EAS
+    REAL(dp)                 :: C_refr_GRL
+    REAL(dp)                 :: C_refr_ANT
   
     ! Sub-shelf melt parameterisation
     ! ===============================
@@ -552,10 +576,22 @@ CONTAINS
                      CO2_inverse_averaging_window_config,        &
                      inverse_d18O_to_CO2_scaling_config,         &
                      inverse_d18O_to_CO2_initial_CO2_config,     &
-                     C_abl_constant_config,                      &
-                     C_abl_Ts_config,                            &
-                     C_abl_Q_config,                             &
-                     C_refr_config,                              &
+                     C_abl_constant_NAM_config,                  &
+                     C_abl_constant_EAS_config,                  &
+                     C_abl_constant_GRL_config,                  &
+                     C_abl_constant_ANT_config,                  &
+                     C_abl_Ts_NAM_config,                        &
+                     C_abl_Ts_EAS_config,                        &
+                     C_abl_Ts_GRL_config,                        &
+                     C_abl_Ts_ANT_config,                        &
+                     C_abl_Q_NAM_config,                         &
+                     C_abl_Q_EAS_config,                         &
+                     C_abl_Q_GRL_config,                         &
+                     C_abl_Q_ANT_config,                         &
+                     C_refr_NAM_config,                          &
+                     C_refr_EAS_config,                          &
+                     C_refr_GRL_config,                          &
+                     C_refr_ANT_config,                          &
                      BMB_deepocean_PD_config,                    &
                      BMB_deepocean_cold_config,                  &
                      BMB_deepocean_warm_config,                  &
@@ -763,10 +799,22 @@ CONTAINS
     ! SMB melt tuning
     ! ===============
     
-    C%C_abl_constant                      = C_abl_constant_config
-    C%C_abl_Ts                            = C_abl_Ts_config
-    C%C_abl_Q                             = C_abl_Q_config
-    C%C_refr                              = C_refr_config
+    C%C_abl_constant_NAM                  = C_abl_constant_NAM_config
+    C%C_abl_constant_EAS                  = C_abl_constant_EAS_config
+    C%C_abl_constant_GRL                  = C_abl_constant_GRL_config
+    C%C_abl_constant_ANT                  = C_abl_constant_ANT_config
+    C%C_abl_Ts_NAM                        = C_abl_Ts_NAM_config
+    C%C_abl_Ts_EAS                        = C_abl_Ts_EAS_config
+    C%C_abl_Ts_GRL                        = C_abl_Ts_GRL_config
+    C%C_abl_Ts_ANT                        = C_abl_Ts_ANT_config
+    C%C_abl_Q_NAM                         = C_abl_Q_NAM_config
+    C%C_abl_Q_EAS                         = C_abl_Q_EAS_config
+    C%C_abl_Q_GRL                         = C_abl_Q_GRL_config
+    C%C_abl_Q_ANT                         = C_abl_Q_ANT_config
+    C%C_refr_NAM                          = C_refr_NAM_config
+    C%C_refr_EAS                          = C_refr_EAS_config
+    C%C_refr_GRL                          = C_refr_GRL_config
+    C%C_refr_ANT                          = C_refr_ANT_config
     
     ! Sub-shelf melt parameterisation
     ! ===============================
