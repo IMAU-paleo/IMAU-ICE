@@ -676,10 +676,6 @@ CONTAINS
         WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialize_main_constants!'
         STOP
       END IF
-      
-      WRITE(0,'(A)'    ) ''
-      WRITE(0,'(A,A,A)') ' Running benchmark experiment "', TRIM(C%choice_benchmark_experiment), '"'
-      
     END IF ! IF (C%do_benchmark_experiment) THEN
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder

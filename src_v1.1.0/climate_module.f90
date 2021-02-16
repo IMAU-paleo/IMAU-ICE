@@ -1018,8 +1018,8 @@ CONTAINS
         CALL correct_snapshot_PD_bias( grid, climate%GCM_LGM, climate%GCM_PI, climate%PD_obs)
         
         ! Get reference absorbed insolation for the GCM snapshots
-        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_PI )
-        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_LGM)
+        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_PI , region_name)
+        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_LGM, region_name)
         
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in initialise_climate_model!'
@@ -1081,7 +1081,7 @@ CONTAINS
     CALL allocate_shared_dp_0D(                       subclimate%T_ocean_mean, subclimate%wT_ocean_mean)
     
   END SUBROUTINE initialise_subclimate
-  SUBROUTINE initialise_subclimate_absorbed_insolation( grid, snapshot)
+  SUBROUTINE initialise_subclimate_absorbed_insolation( grid, snapshot, region_name)
     ! Calculate the yearly absorbed insolation for this (regional) GCM snapshot, to be used in the matrix interpolation
      
     IMPLICIT NONE
@@ -1089,6 +1089,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid  
     TYPE(type_subclimate_region),        INTENT(INOUT) :: snapshot
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables:
     INTEGER                                            :: cerr, ierr
@@ -1175,6 +1176,37 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%SMB             , SMB_dummy%wSMB             )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%SMB_year        , SMB_dummy%wSMB_year        )
     
+    ! Tuning parameters
+    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_constant, SMB_dummy%wC_abl_constant)
+    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Ts,       SMB_dummy%wC_abl_Ts      )
+    CALL allocate_shared_dp_0D( SMB_dummy%C_abl_Q,        SMB_dummy%wC_abl_Q       )
+    CALL allocate_shared_dp_0D( SMB_dummy%C_refr,         SMB_dummy%wC_refr        )
+    
+    IF (par%master) THEN
+      IF     (region_name == 'NAM') THEN
+        SMB_dummy%C_abl_constant = C%C_abl_constant_NAM
+        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_NAM
+        SMB_dummy%C_abl_Q        = C%C_abl_Q_NAM
+        SMB_dummy%C_refr         = C%C_refr_NAM
+      ELSEIF (region_name == 'EAS') THEN
+        SMB_dummy%C_abl_constant = C%C_abl_constant_EAS
+        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_EAS
+        SMB_dummy%C_abl_Q        = C%C_abl_Q_EAS
+        SMB_dummy%C_refr         = C%C_refr_EAS
+      ELSEIF (region_name == 'GRL') THEN
+        SMB_dummy%C_abl_constant = C%C_abl_constant_GRL
+        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_GRL
+        SMB_dummy%C_abl_Q        = C%C_abl_Q_GRL
+        SMB_dummy%C_refr         = C%C_refr_GRL
+      ELSEIF (region_name == 'ANT') THEN
+        SMB_dummy%C_abl_constant = C%C_abl_constant_ANT
+        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_ANT
+        SMB_dummy%C_abl_Q        = C%C_abl_Q_ANT
+        SMB_dummy%C_refr         = C%C_refr_ANT
+      END IF
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
     ! Fill in the dummy ice and ocean mask (the only two variables the SMB model needs) with the ice thickness and surface elevation
     ! data read from the GCM snapshot netcdf file
     ice_dummy%mask_ocean_Aa( :,grid%i1:grid%i2) = 0
@@ -1225,6 +1257,10 @@ CONTAINS
     CALL deallocate_shared( SMB_dummy%wAlbedo)
     CALL deallocate_shared( SMB_dummy%wSMB)
     CALL deallocate_shared( SMB_dummy%wSMB_year)
+    CALL deallocate_shared( SMB_dummy%wC_abl_constant)
+    CALL deallocate_shared( SMB_dummy%wC_abl_Ts)
+    CALL deallocate_shared( SMB_dummy%wC_abl_Q)
+    CALL deallocate_shared( SMB_dummy%wC_refr)
     
   END SUBROUTINE initialise_subclimate_absorbed_insolation
   SUBROUTINE initialise_subclimate_spatially_variable_lapserate( grid, snapshot, snapshot_PI)

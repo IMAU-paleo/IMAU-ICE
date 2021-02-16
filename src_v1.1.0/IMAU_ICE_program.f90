@@ -187,7 +187,7 @@ PROGRAM IMAU_ICE_program
   
   IF (C%do_benchmark_experiment) THEN
     IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) '  Running benchmark experiment "', TRIM(C%choice_benchmark_experiment), '"'
+    IF (par%master) WRITE(0,*) ' Running benchmark experiment "', TRIM(C%choice_benchmark_experiment), '"'
   END IF
     
   ! Create a new output directory (can only be done by the master process)
