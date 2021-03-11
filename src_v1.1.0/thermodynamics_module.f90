@@ -99,8 +99,7 @@ CONTAINS
     CALL sync
     
     ! Calculate the geothermal heat flux and bottom frictional heating
-    IF (C%choice_1D_geothermal_heat_flux) ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
-!    ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
+    IF (C%choice_geothermal_heat_flux == '0D') ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
 
     CALL bottom_frictional_heating(  grid, ice)
       

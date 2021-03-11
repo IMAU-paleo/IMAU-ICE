@@ -215,8 +215,12 @@ PROGRAM IMAU_ICE_program
   CALL initialise_CO2_record
   CALL initialise_d18O_record
   CALL initialise_inverse_routine_data
-  IF (.NOT. C%choice_1D_geothermal_heat_flux) CALL initialise_geothermal_heat_flux
-  
+  IF (C%choice_geothermal_heat_flux == '2D') THEN
+    CALL initialise_geothermal_heat_flux
+  ELSE IF (C%choice_geothermal_heat_flux /= '0D') THEN
+    IF (par%master) WRITE(0,*) '  ERROR: choice_geothermal_heat_flux "', TRIM(C%choice_geothermal_heat_flux), '" not implemented!'
+    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+  END IF
   ! ===== Initialise the climate matrix =====
   ! =========================================
   

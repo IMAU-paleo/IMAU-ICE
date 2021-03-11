@@ -342,7 +342,7 @@ CONTAINS
     CALL update_general_ice_model_data( region%grid, region%ice, C%start_time_of_run)
 
     ! If you don't use a scalar geothermal heat flux, map the global field to the regional field.
-    IF (.NOT. C%choice_1D_geothermal_heat_flux) CALL map_glob_to_grid_2D( forcing%ghf_nlat, forcing%ghf_nlon, forcing%ghf_lat, forcing%ghf_lon, region%grid, forcing%ghf_ghf, region%ice%Fr_Aa)
+    IF (C%choice_geothermal_heat_flux == '2D') CALL map_glob_to_grid_2D( forcing%ghf_nlat, forcing%ghf_nlon, forcing%ghf_lat, forcing%ghf_lon, region%grid, forcing%ghf_ghf, region%ice%Fr_Aa)
     
     ! Calculate ice sheet metadata (volume, area, GMSL contribution) for writing to the first line of the output file
     CALL calculate_icesheet_volume_and_area(region)
