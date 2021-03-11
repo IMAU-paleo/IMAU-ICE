@@ -9,7 +9,7 @@ MODULE IMAU_ICE_main_model
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_model_region, type_ice_model, type_PD_data_fields, type_init_data_fields, &
-                                             type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data
+                                             type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
   USE utilities_module,                ONLY: inverse_oblique_sg_projection
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
   USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
@@ -18,7 +18,7 @@ MODULE IMAU_ICE_main_model
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
   USE ice_dynamics_module,             ONLY: initialise_ice_model, calculate_ice_thickness_change, solve_SIA, solve_SSA
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, update_ice_temperature
-  USE climate_module,                  ONLY: initialise_climate_model,  run_climate_model
+  USE climate_module,                  ONLY: initialise_climate_model,  run_climate_model, map_glob_to_grid_2D
   USE SMB_module,                      ONLY: initialise_SMB_model,      run_SMB_model
   USE BMB_module,                      ONLY: initialise_BMB_model,      run_BMB_model
   USE isotopes_module,                 ONLY: initialise_isotopes_model, run_isotopes_model
@@ -326,7 +326,7 @@ CONTAINS
   
     ! ===== The ice dynamics model
     ! ============================
-    
+
     CALL initialise_ice_model( region%grid, region%ice, region%init)
     
     ! Run the climate, BMB and SMB models once, to get the correct surface temperature field for the ice temperature initialisation,
@@ -337,9 +337,12 @@ CONTAINS
     
     ! Initialise the ice temperature profile
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init)
-    
+
     ! Calculate physical properties again, now with the initialised temperature profile, determine the masks and slopes
     CALL update_general_ice_model_data( region%grid, region%ice, C%start_time_of_run)
+
+    ! If you don't use a scalar geothermal heat flux, map the global field to the regional field.
+    IF (.NOT. C%choice_1D_geothermal_heat_flux) CALL map_glob_to_grid_2D( forcing%ghf_nlat, forcing%ghf_nlon, forcing%ghf_lat, forcing%ghf_lon, region%grid, forcing%ghf_ghf, region%ice%Fr_Aa)
     
     ! Calculate ice sheet metadata (volume, area, GMSL contribution) for writing to the first line of the output file
     CALL calculate_icesheet_volume_and_area(region)

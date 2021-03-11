@@ -99,7 +99,9 @@ CONTAINS
     CALL sync
     
     ! Calculate the geothermal heat flux and bottom frictional heating
-    ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
+    IF (C%choice_1D_geothermal_heat_flux) ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
+!    ice%Fr_Aa( :,grid%i1:grid%i2) = C%geothermal_heat_flux
+
     CALL bottom_frictional_heating(  grid, ice)
       
     ! Calculate upwind temperature gradient
@@ -167,7 +169,7 @@ CONTAINS
         ! Neumann accoring to GHF
         alpha( C%nZ) = 1._dp
         beta ( C%nZ) = -1._dp
-        delta( C%nZ) = (C%zeta(C%nZ) - C%zeta(C%nZ-1)) * (C%geothermal_heat_flux + ice%frictional_heating_Aa( j,i)) / (ice%dzeta_dz_Aa( j,i) * ice%Ki_Aa( C%nZ,j,i)) 
+        delta( C%nZ) = (C%zeta(C%nZ) - C%zeta(C%nZ-1)) * (ice%Fr_Aa(j,i) + ice%frictional_heating_Aa( j,i)) / (ice%dzeta_dz_Aa( j,i) * ice%Ki_Aa( C%nZ,j,i))
         ! Mixed boundary condition depending on PMP limit
         IF (ice%Ti_Aa( C%nZ,j,i) >= ice%Ti_pmp_Aa( C%nZ,j,i)) THEN
           ! Dirichlet at PMP
@@ -186,7 +188,7 @@ CONTAINS
       
       IF (Ti_new( C%nZ,j,i) >= ice%Ti_pmp_Aa( C%nZ,j,i)) THEN
         Ti_new( C%nZ,j,i) = MIN( ice%Ti_pmp_Aa( C%nZ,j,i), ice%Ti_Aa( C%nZ-1,j,i) - (C%zeta(C%nZ) - C%zeta(C%nZ-1)) * &
-          (C%geothermal_heat_flux + ice%frictional_heating_Aa( j,i)) / (ice%dzeta_dz_Aa( j,i) * ice%Ki_Aa( C%nZ,j,i)))
+          (ice%Fr_Aa(j,i) + ice%frictional_heating_Aa( j,i)) / (ice%dzeta_dz_Aa( j,i) * ice%Ki_Aa( C%nZ,j,i)))
       END IF
     
       ! Safety - to prevent the rare instabilities in the heat equation solver from stopping the entire simulation,
@@ -355,7 +357,7 @@ CONTAINS
     
     thermal_conductivity_robin        = kappa_0_ice_conductivity * sec_per_year * EXP(-kappa_e_ice_conductivity * T0)  ! Thermal conductivity            [J m^-1 K^-1 y^-1]
     thermal_diffusivity_robin         = thermal_conductivity_robin / (ice_density * c_0_specific_heat)                 ! Thermal diffusivity             [m^2 y^-1]
-    bottom_temperature_gradient_robin = - C%geothermal_heat_flux / thermal_conductivity_robin                          ! Temperature gradient at bedrock
+    bottom_temperature_gradient_robin = - ice%Fr_Aa(j,i) / thermal_conductivity_robin                          ! Temperature gradient at bedrock
     
     Ts = MIN( T0, SUM(climate%T2m( :,j,i)) / 12._dp)
     

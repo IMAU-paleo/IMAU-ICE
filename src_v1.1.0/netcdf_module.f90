@@ -10,6 +10,8 @@ MODULE netcdf_module
   USE configuration_module,            ONLY: dp, C
   USE data_types_module,               ONLY: type_model_region, type_PD_data_fields, type_forcing_data, &
                                              type_init_data_fields, type_subclimate_global, type_netcdf_output
+  USE parameters_module,               ONLY: sec_per_year
+  
   IMPLICIT NONE
 
 CONTAINS
@@ -146,6 +148,7 @@ CONTAINS
     CALL write_data_to_file_3D( ncid, nx, ny, nZ, region%help_fields%id_var_W_3D,             region%ice%W_3D_Aa,              (/1, 1, 1, ti/))
     CALL write_data_to_file_3D( ncid, nx, ny, nZ, region%help_fields%id_var_A_flow,           region%ice%A_flow_Aa,            (/1, 1, 1, ti/))
     CALL write_data_to_file_2D( ncid, nx, ny,     region%help_fields%id_var_A_flow_mean,      region%ice%A_flow_mean_Aa,       (/1, 1,    ti/))
+    CALL write_data_to_file_2D( ncid, nx, ny,     region%help_fields%id_var_Fr_Aa,            region%ice%Fr_Aa,                (/1, 1,    ti/))
     
     IF (C%do_write_dummy_output) THEN
     CALL write_data_to_file_2D( ncid, nx, ny,     region%help_fields%id_var_dummy2D_01,       region%ice%dummy2D_01,           (/1, 1,    ti/))
@@ -383,6 +386,7 @@ CONTAINS
     CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_W_3D,        [x, y, z,    t], region%help_fields%id_var_W_3D,        long_name='3D SIA z ice velocity (m/yr)')
     CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_A_flow,      [x, y, z,    t], region%help_fields%id_var_A_flow,      long_name='3D ice flow factor')
     CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_A_flow_mean, [x, y,       t], region%help_fields%id_var_A_flow_mean, long_name='Vertically averaged ice flow factor')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_Fr_Aa,       [x, y,       t], region%help_fields%id_var_Fr_Aa, long_name='Geothermal heat flux')
     
     ! Dummy variables (useful for debugging)
     IF (C%do_write_dummy_output) THEN
@@ -1100,6 +1104,62 @@ CONTAINS
     CALL close_netcdf_file(forcing%netcdf%ncid)
     
   END SUBROUTINE inquire_insolation_data_file
+
+  SUBROUTINE inquire_geothermal_heat_flux_file( forcing)
+    IMPLICIT NONE
+  
+    ! Output variable
+    TYPE(type_forcing_data), INTENT(INOUT) :: forcing
+          
+    ! Open the netcdf file
+    CALL open_netcdf_file(forcing%netcdf_ghf%filename, forcing%netcdf_ghf%ncid)
+
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%name_dim_lon,      forcing%ghf_nlon,                 forcing%netcdf_ghf%id_dim_lon)
+    CALL inquire_dim( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%name_dim_lat,      forcing%ghf_nlat,                 forcing%netcdf_ghf%id_dim_lat)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%name_var_lon,   (/ forcing%netcdf_ghf%id_dim_lon                                                          /), forcing%netcdf_ghf%id_var_lon)
+    CALL inquire_double_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%name_var_lat,   (/ forcing%netcdf_ghf%id_dim_lat                                                          /), forcing%netcdf_ghf%id_var_lat)
+    CALL inquire_double_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%name_var_ghf, (/ forcing%netcdf_ghf%id_dim_lon, forcing%netcdf_ghf%id_dim_lat /), forcing%netcdf_ghf%id_var_ghf)
+      
+    ! Close the netcdf file
+    CALL close_netcdf_file(forcing%netcdf_ghf%ncid)
+  
+  END SUBROUTINE inquire_geothermal_heat_flux_file
+
+  SUBROUTINE read_geothermal_heat_flux_file( forcing, ghf_ghf)
+    IMPLICIT NONE
+  
+    ! In/output variables:
+    TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
+    REAL(dp), DIMENSION(:,:),       INTENT(OUT)   :: ghf_ghf
+  
+    ! Local variables:
+    INTEGER                                       :: mi, li
+    REAL(dp), DIMENSION(:,:), ALLOCATABLE         :: GHF
+  
+    ! Temporary memory to store the data read from the netCDF file
+    ALLOCATE( GHF(forcing%ghf_nlon, forcing%ghf_nlat))
+      
+    ! Read data
+    CALL open_netcdf_file(forcing%netcdf_ghf%filename, forcing%netcdf_ghf%ncid)
+    CALL handle_error(nf90_get_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%id_var_lon,     forcing%ghf_lon,    start=(/1      /)))
+    CALL handle_error(nf90_get_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%id_var_lat,     forcing%ghf_lat,    start=(/1      /)))
+    CALL handle_error(nf90_get_var( forcing%netcdf_ghf%ncid, forcing%netcdf_ghf%id_var_ghf, GHF, start=(/1, 1/), count=(/forcing%ghf_nlon, forcing%ghf_nlat/), stride=(/1, 1/) ))
+    CALL close_netcdf_file(forcing%netcdf_ghf%ncid)
+  
+    ! Store the data in the shared memory structure
+    DO mi = 1, forcing%ghf_nlat
+    DO li = 1, forcing%ghf_nlon
+      ghf_ghf( li,mi) = GHF( li,mi) * sec_per_year ! Convert from W m-2 (J m-2 s-1) to J m-2 yr-1
+    END DO
+    END DO
+      
+    ! Clean up temporary memory
+    DEALLOCATE(GHF)
+ 
+  END SUBROUTINE read_geothermal_heat_flux_file
 
   SUBROUTINE get_output_filenames( region)
    

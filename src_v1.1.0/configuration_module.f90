@@ -131,7 +131,9 @@ MODULE configuration_module
   REAL(dp)           :: C_sliding_config                        = 1.0E7_dp               ! Factor   in Weertman sliding law
   REAL(dp)           :: m_sliding_config                        = 1._dp/3._dp            ! Exponent in Weertman sliding law
   LOGICAL            :: use_analytical_GL_flux_config           = .FALSE.                ! Whether or not the analytical grounding line flux solution is used
+  LOGICAL            :: choice_1D_geothermal_heat_flux_config   = .TRUE.                 ! Whether or not to use the scalar geothermal heat flux specified by geothermal_heat_flux_config
   REAL(dp)           :: geothermal_heat_flux_config             = 1.72E06_dp             ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
+  CHARACTER(LEN=256) :: filename_geothermal_heat_flux_config    = '/Users/berends/Documents/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
   CHARACTER(LEN=256) :: choice_calving_law_config               = 'threshold_thickness'  ! Choice of calving law (currently only "threshold_thickness" is implemented)
   REAL(dp)           :: calving_threshold_thickness_config      = 200._dp                ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   
@@ -324,7 +326,9 @@ MODULE configuration_module
     REAL(dp)                 :: C_sliding
     REAL(dp)                 :: m_sliding
     LOGICAL                  :: use_analytical_GL_flux
+    LOGICAL                  :: choice_1D_geothermal_heat_flux
     REAL(dp)                 :: geothermal_heat_flux
+    CHARACTER(LEN=256)       :: filename_geothermal_heat_flux
     CHARACTER(LEN=256)       :: choice_calving_law
     REAL(dp)                 :: calving_threshold_thickness
   
@@ -539,7 +543,9 @@ CONTAINS
                      C_sliding_config,                           &
                      m_sliding_config,                           &
                      use_analytical_GL_flux_config,              &
+                     choice_1D_geothermal_heat_flux_config,      &
                      geothermal_heat_flux_config,                &
+                     filename_geothermal_heat_flux_config,       &
                      choice_calving_law_config,                  &
                      calving_threshold_thickness_config,         &
                      SSA_RN_tol_config,                          &
@@ -735,7 +741,9 @@ CONTAINS
     C%C_sliding                           = C_sliding_config
     C%m_sliding                           = m_sliding_config
     C%use_analytical_GL_flux              = use_analytical_GL_flux_config
+    C%choice_1D_geothermal_heat_flux      = choice_1D_geothermal_heat_flux_config
     C%geothermal_heat_flux                = geothermal_heat_flux_config
+    C%filename_geothermal_heat_flux       = filename_geothermal_heat_flux_config
     C%choice_calving_law                  = choice_calving_law_config
     C%calving_threshold_thickness         = calving_threshold_thickness_config
   

@@ -24,7 +24,8 @@ PROGRAM IMAU_ICE_program
   USE data_types_module,               ONLY: type_model_region, type_climate_matrix
   USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
                                              initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
-                                             calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2
+                                             calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
+                                             initialise_geothermal_heat_flux
   USE climate_module,                  ONLY: initialise_climate_matrix
   USE global_text_output_module,       ONLY: create_text_output_file, write_text_output
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
@@ -214,6 +215,7 @@ PROGRAM IMAU_ICE_program
   CALL initialise_CO2_record
   CALL initialise_d18O_record
   CALL initialise_inverse_routine_data
+  IF (.NOT. C%choice_1D_geothermal_heat_flux) CALL initialise_geothermal_heat_flux
   
   ! ===== Initialise the climate matrix =====
   ! =========================================

@@ -10,7 +10,8 @@ MODULE forcing_module
                                          deallocate_shared
   USE data_types_module,           ONLY: type_forcing_data, type_model_region, type_grid
   USE netcdf_module,               ONLY: inquire_insolation_data_file, read_insolation_data_file_time_lat, read_insolation_data_file, &
-                                         read_inverse_routine_history_dT_glob, read_inverse_routine_history_dT_glob_inverse, read_inverse_routine_history_CO2_inverse
+                                         read_inverse_routine_history_dT_glob, read_inverse_routine_history_dT_glob_inverse, read_inverse_routine_history_CO2_inverse, &
+                                         inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file
 
   IMPLICIT NONE
   
@@ -928,5 +929,52 @@ CONTAINS
     CALL update_insolation_data( C%start_time_of_run)
     
   END SUBROUTINE initialise_insolation_data
+  SUBROUTINE initialise_geothermal_heat_flux
+
+    IMPLICIT NONE
+
+    INTEGER :: cerr, ierr
+
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE(0,*) ' Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
+
+    ! Not needed for benchmark experiments
+    IF (C%do_benchmark_experiment) THEN
+      IF (C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
+          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+          C%choice_benchmark_experiment == 'mesh_generation_test' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream') THEN
+        RETURN
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_geothermal_heat_flux!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END IF ! IF (C%do_benchmark_experiment) THEN
+
+    ! Inquire into the insolation forcing netcdf file
+    CALL allocate_shared_int_0D( forcing%ghf_nlat,   forcing%wghf_nlat  )
+    CALL allocate_shared_int_0D( forcing%ghf_nlon,   forcing%wghf_nlon  )
+
+    forcing%netcdf_ghf%filename = C%filename_geothermal_heat_flux
+
+    IF (par%master) CALL inquire_geothermal_heat_flux_file( forcing)
+    CALL sync
+  
+    ! Geothermal heat flux
+    CALL allocate_shared_dp_1D( forcing%ghf_nlon,     forcing%ghf_lon,     forcing%wghf_lon    )
+    CALL allocate_shared_dp_1D( forcing%ghf_nlat,     forcing%ghf_lat,     forcing%wghf_lat    )
+    CALL allocate_shared_dp_2D( forcing%ghf_nlon,     forcing%ghf_nlat,    forcing%ghf_ghf,  forcing%wghf_ghf )
+
+    IF (par%master) CALL read_geothermal_heat_flux_file( forcing, forcing%ghf_ghf)
+    CALL sync
+
+  END SUBROUTINE initialise_geothermal_heat_flux
 
 END MODULE forcing_module

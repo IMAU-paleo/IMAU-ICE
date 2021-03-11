@@ -6,7 +6,7 @@ MODULE data_types_module
 
   USE configuration_module,        ONLY: dp, C
   USE data_types_netcdf_module,    ONLY: type_netcdf_climate_data, type_netcdf_PD_data, type_netcdf_init_data, &
-                                         type_netcdf_insolation, type_netcdf_output
+                                         type_netcdf_insolation, type_netcdf_output, type_netcdf_geothermal_heat_flux
 
   IMPLICIT NONE
   
@@ -489,6 +489,15 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: ins_t0, ins_t1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ins_Q_TOA0, ins_Q_TOA1
     INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
+
+    ! External forcing: insolation
+    TYPE(type_netcdf_geothermal_heat_flux)  :: netcdf_ghf
+    INTEGER,                    POINTER     :: ghf_nlon
+    INTEGER,                    POINTER     :: ghf_nlat
+    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lon
+    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lat
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ghf_ghf
+    INTEGER :: wghf_nlon, wghf_nlat, wghf_lon, wghf_lat, wghf_ghf
     
   END TYPE type_forcing_data
   

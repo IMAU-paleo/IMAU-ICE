@@ -63,7 +63,7 @@ CONTAINS
     
     ! Update insolation forcing at model time
     CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA)
-    
+        
     ! Different kinds of climate forcing for realistic experiments
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! Use the global temperature offset as calculated by the inverse routine

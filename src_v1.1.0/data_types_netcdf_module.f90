@@ -114,6 +114,7 @@ MODULE data_types_netcdf_module
     INTEGER :: id_var_Runoff
     INTEGER :: id_var_A_flow
     INTEGER :: id_var_A_flow_mean
+    INTEGER :: id_var_Fr_Aa
     
     INTEGER :: id_var_dummy2D_01
     INTEGER :: id_var_dummy2D_02
@@ -159,6 +160,7 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_Runoff                = 'Runoff               '
     CHARACTER(LEN=256) :: name_var_A_flow                = 'A_flow               '
     CHARACTER(LEN=256) :: name_var_A_flow_mean           = 'A_flow_mean          '
+    CHARACTER(LEN=256) :: name_var_Fr_Aa                 = 'GHF                  '
     
     CHARACTER(LEN=256) :: name_var_dummy2D_01            = 'dummy2D_01           '
     CHARACTER(LEN=256) :: name_var_dummy2D_02            = 'dummy2D_02           '
@@ -390,6 +392,38 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_Q_TOA                 = 'Q_TOA                '
         
   END TYPE type_netcdf_insolation
+
+  TYPE type_netcdf_geothermal_heat_flux
+    ! For reading an input file containing geothermal heat flux (e.g. Shapiro and Ritzwoller, 2004),
+    ! describing geothermal heat flux at a lon-lat grid.
+
+    ! Integers describing open ports to different variables in an opened NetCDF file.
+  
+    CHARACTER(LEN=256) :: filename
+  
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+  
+    ! ID's for variables:
+    ! ===================
+  
+    ! Dimensions
+    INTEGER :: id_dim_lon
+    INTEGER :: id_dim_lat
+  
+    CHARACTER(LEN=256) :: name_dim_lon                   = 'Longitude            '
+    CHARACTER(LEN=256) :: name_dim_lat                   = 'Latitude             '
+  
+    ! Variables
+    INTEGER :: id_var_lon
+    INTEGER :: id_var_lat
+    INTEGER :: id_var_ghf
+  
+    CHARACTER(LEN=256) :: name_var_lon                   = 'Longitude            '
+    CHARACTER(LEN=256) :: name_var_lat                   = 'Latitude             '
+    CHARACTER(LEN=256) :: name_var_ghf                   = 'hflux                '
+      
+  END TYPE type_netcdf_geothermal_heat_flux
   
 CONTAINS
 
