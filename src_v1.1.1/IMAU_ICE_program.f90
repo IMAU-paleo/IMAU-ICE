@@ -32,7 +32,7 @@ PROGRAM IMAU_ICE_program
 
   IMPLICIT NONE
   
-  CHARACTER(LEN=256), PARAMETER          :: version_number = '1.1.0_dev'
+  CHARACTER(LEN=256), PARAMETER          :: version_number = '1.1.1'
   
   INTEGER                                :: iargc
   INTEGER                                :: process_rank, number_of_processes, cerr, ierr, p
