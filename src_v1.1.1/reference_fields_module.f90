@@ -687,15 +687,15 @@ CONTAINS
       ! Dst cell i overlaps with src cells ir_src( i,1) to ir_src( i,2)
       xcmin = x_dst( i) - dx_dst/2._dp
       xcmax = x_dst( i) + dx_dst/2._dp
-      ir_src( i,:) = MAX( 1, MIN( nx_src, [CEILING(0.5_dp + FLOOR(nx_src/2._dp) + xcmin / dx_src), &
-                                           CEILING(0.5_dp + FLOOR(nx_src/2._dp) + xcmax / dx_src)] ))
+      ir_src( i,:) = MAX( 1, MIN( nx_src, [CEILING(-0.5_dp + FLOOR(nx_src/2._dp) + xcmin / dx_src), &
+                                           CEILING( 0.5_dp + FLOOR(nx_src/2._dp) + xcmax / dx_src)] ))
     END DO ! DO i = 1, nx_dst
     DO j = 1, ny_dst
       ! Dst cell j overlaps with src cells jr_src( j,1) to ir_src( j,2)
       ycmin = y_dst( j) - dy_dst/2._dp
       ycmax = y_dst( j) + dy_dst/2._dp
-      jr_src( j,:) = MAX( 1, MIN( ny_src, [CEILING(0.5_dp + FLOOR(ny_src/2._dp) + ycmin / dy_src), &
-                                           CEILING(0.5_dp + FLOOR(ny_src/2._dp) + ycmax / dy_src)] ))
+      jr_src( j,:) = MAX( 1, MIN( ny_src, [CEILING(-0.5_dp + FLOOR(ny_src/2._dp) + ycmin / dy_src), &
+                                           CEILING( 0.5_dp + FLOOR(ny_src/2._dp) + ycmax / dy_src)] ))
     END DO ! DO j = 1, ny_dst
     
     ! Find parallelisation domains
@@ -713,6 +713,8 @@ CONTAINS
         xomax = MIN( x_dst( i) + dx_dst/2._dp, x_src( i_src) + dx_src/2._dp)
         yomin = MAX( y_dst( j) - dy_dst/2._dp, y_src( j_src) - dy_src/2._dp)
         yomax = MIN( y_dst( j) + dy_dst/2._dp, y_src( j_src) + dy_src/2._dp)
+        
+        IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
         
         A_overlap = (xomax - xomin) * (yomax - yomin)
         Aint = Aint + A_overlap
@@ -773,15 +775,15 @@ CONTAINS
       ! Dst cell i overlaps with src cells ir_src( i,1) to ir_src( i,2)
       xcmin = x_dst( i) - dx_dst/2._dp
       xcmax = x_dst( i) + dx_dst/2._dp
-      ir_src( i,:) = MAX( 1, MIN( nx_src, [CEILING(0.5_dp + FLOOR(nx_src/2._dp) + xcmin / dx_src), &
-                                           CEILING(0.5_dp + FLOOR(nx_src/2._dp) + xcmax / dx_src)] ))
+      ir_src( i,:) = MAX( 1, MIN( nx_src, [CEILING(-0.5_dp + FLOOR(nx_src/2._dp) + xcmin / dx_src), &
+                                           CEILING( 0.5_dp + FLOOR(nx_src/2._dp) + xcmax / dx_src)] ))
     END DO ! DO i = 1, nx_dst
     DO j = 1, ny_dst
       ! Dst cell j overlaps with src cells jr_src( j,1) to ir_src( j,2)
       ycmin = y_dst( j) - dy_dst/2._dp
       ycmax = y_dst( j) + dy_dst/2._dp
-      jr_src( j,:) = MAX( 1, MIN( ny_src, [CEILING(0.5_dp + FLOOR(ny_src/2._dp) + ycmin / dy_src), &
-                                           CEILING(0.5_dp + FLOOR(ny_src/2._dp) + ycmax / dy_src)] ))
+      jr_src( j,:) = MAX( 1, MIN( ny_src, [CEILING(-0.5_dp + FLOOR(ny_src/2._dp) + ycmin / dy_src), &
+                                           CEILING( 0.5_dp + FLOOR(ny_src/2._dp) + ycmax / dy_src)] ))
     END DO ! DO j = 1, ny_dst
     
     ! Find parallelisation domains
@@ -799,6 +801,8 @@ CONTAINS
         xomax = MIN( x_dst( i) + dx_dst/2._dp, x_src( i_src) + dx_src/2._dp)
         yomin = MAX( y_dst( j) - dy_dst/2._dp, y_src( j_src) - dy_src/2._dp)
         yomax = MIN( y_dst( j) + dy_dst/2._dp, y_src( j_src) + dy_src/2._dp)
+        
+        IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
         
         A_overlap = (xomax - xomin) * (yomax - yomin)
         Aint = Aint + A_overlap
