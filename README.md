@@ -18,6 +18,9 @@ This repository contains the source code of IMAU-ICE, as well as a few scripts f
 
 This runs a short 1000-year schematic experiment. If all of this works, you can move on to realistic simulations. For this, you need appropriate input files describing present-day topography/mathymetry, ice geometry, and climate, as well as some sort of forcing record. Contact me if you need these.
 
+NOTE FOR GEMINI: if you want to run IMAU-ICE on Gemini, you need to make one small manual change to src_v1.1.1/Makefile.include-gemini
+Namely, the path to MYLIB2 (line 4) needs to be changed from my username (beren017) to you own.
+
 
 Screen output for the test run in step 5:
  
