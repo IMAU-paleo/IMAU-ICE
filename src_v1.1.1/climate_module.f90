@@ -273,7 +273,9 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - 190._dp) / (280._dp - 190._dp) ))   ! Berends et al., 2018 - Eq. 1
+    !w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - 190._dp) / (280._dp - 190._dp) ))   ! Berends et al., 2018 - Eq. 1
+    !LBS: Miocene generalisation of the high and low CO2 values for the matrix method
+    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%low_CO2_value) / (C%high_CO2_value - C%low_CO2_value) ))
     
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -319,7 +321,9 @@ CONTAINS
     IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       w_tot( :,grid%i1:grid%i2) = (        w_CO2 + w_ice( :,grid%i1:grid%i2)) / 2._dp  ! Berends et al., 2018 - Eq. 5
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
-      w_tot( :,grid%i1:grid%i2) = (3._dp * w_CO2 + w_ice( :,grid%i1:grid%i2)) / 4._dp  ! Berends et al., 2018 - Eq. 9
+      !w_tot( :,grid%i1:grid%i2) = (3._dp * w_CO2 + w_ice( :,grid%i1:grid%i2)) / 4._dp  ! Berends et al., 2018 - Eq. 9
+      !LBS: Miocene generalisation of weights for the matrix method
+      w_tot( :,grid%i1:grid%i2) = (C%weight_CO2 * w_CO2) + ((1._dp - C%weight_CO2) * w_ice( :,grid%i1:grid%i2))   ! Berends et al., 2018 - Eq. 9
     END IF
 
     ! Interpolate between the GCM snapshots
@@ -395,8 +399,10 @@ CONTAINS
     ! =====================================================
     
     ! First calculate the total ice volume term (second term in the equation)
-    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_Aa) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
-    
+    !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_Aa) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
+    !LBS: Miocene generalisation of the high and low CO2 ice volumes for the matrix method
+    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
+
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
     
@@ -803,15 +809,16 @@ CONTAINS
       IF (C%choice_climate_matrix == 'PI_LGM') THEN
       
         ! Initialise the GCM snapshots
-        CALL initialise_snapshot( matrix%GCM_PI,  name = 'HadCM3_PI',  nc_filename = C%filename_GCM_snapshot_PI,  CO2 = 280._dp, orbit_time =       0._dp)
-        CALL initialise_snapshot( matrix%GCM_LGM, name = 'HadCM3_LGM', nc_filename = C%filename_GCM_snapshot_LGM, CO2 = 190._dp, orbit_time = -120000._dp)
+        CALL initialise_snapshot( matrix%GCM_PI,  name = 'GENESIS_PI',  nc_filename = C%filename_GCM_snapshot_PI,  CO2 = C%high_CO2_value, orbit_time =       0._dp)
+        CALL initialise_snapshot( matrix%GCM_LGM, name = 'GENESIS_LGM', nc_filename = C%filename_GCM_snapshot_LGM, CO2 = C%low_CO2_value, orbit_time = 0._dp)
+        CALL initialise_snapshot( matrix%PD_mod, name = 'GENESIS_PD', nc_filename = C%filename_GCM_snapshot_PD, CO2 = 280._dp, orbit_time = 0._dp)
         
         ! Initialise the two ICE5G timeframes
         CALL initialise_ICE5G_timeframe( matrix%ICE5G_PD,  nc_filename = C%filename_ICE5G_PD,  time =       0._dp)
         CALL initialise_ICE5G_timeframe( matrix%ICE5G_LGM, nc_filename = C%filename_ICE5G_LGM, time = -120000._dp)
     
         ! ICE5G defines bedrock w.r.t. sea level at that time, rather than sea level at PD. Correct for this.
-        IF (par%master) matrix%ICE5G_LGM%Hb = matrix%ICE5G_LGM%Hb - 119._dp
+        !IF (par%master) matrix%ICE5G_LGM%Hb = matrix%ICE5G_LGM%Hb - 119._dp
         CALL sync
         
       ELSE
@@ -1031,12 +1038,14 @@ CONTAINS
       IF (C%choice_climate_matrix == 'PI_LGM') THEN
       
         ! Initialise data structures for the GCM snapshots
-        CALL initialise_subclimate( grid, climate%GCM_PI,   'HadCM3_PI' )
-        CALL initialise_subclimate( grid, climate%GCM_LGM,  'HadCM3_LGM')
+        CALL initialise_subclimate( grid, climate%GCM_PI,   'GENESIS_PI' )
+        CALL initialise_subclimate( grid, climate%GCM_LGM,  'GENESIS_LGM')
+        CALL initialise_subclimate( grid, climate%PD_mod,   'GENESIS_PD'  )
         
         ! Map these subclimates from global grid to model grid
         CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,  climate%GCM_PI )
         CALL map_subclimate_to_grid( grid,  matrix%GCM_LGM, climate%GCM_LGM)
+        CALL map_subclimate_to_grid( grid,  matrix%PD_mod,  climate%PD_mod)
         
         ! Right now, no wind is read from GCM output; just use PD observations everywhere
         climate%GCM_PI%Wind_WE(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
@@ -1143,9 +1152,12 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      climate%GCM_bias_T2m(    :,j,i) =  climate%GCM_PI%T2m(    :,j,i)             -  climate%PD_obs%T2m(    :,j,i)
-      climate%GCM_bias_Precip( :,j,i) = (climate%GCM_PI%Precip( :,j,i) + P_offset) / (climate%PD_obs%Precip( :,j,i) + P_offset)
-      
+      !climate%GCM_bias_T2m(    :,j,i) =  climate%GCM_PI%T2m(    :,j,i)             -  climate%PD_obs%T2m(    :,j,i)
+      !climate%GCM_bias_Precip( :,j,i) = (climate%GCM_PI%Precip( :,j,i) + P_offset) / (climate%PD_obs%Precip( :,j,i) + P_offset)
+      !LBS: Miocene generalisation of the GCM bias for the matrix method
+      climate%GCM_bias_T2m(    :,j,i) =  climate%PD_mod%T2m(    :,j,i)             -  climate%PD_obs%T2m(    :,j,i)
+      climate%GCM_bias_Precip( :,j,i) = (climate%PD_mod%Precip( :,j,i) + P_offset) / (climate%PD_obs%Precip( :,j,i) + P_offset)
+
     END DO
     END DO
     CALL sync

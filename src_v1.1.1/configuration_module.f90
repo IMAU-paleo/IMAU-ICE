@@ -174,6 +174,7 @@ MODULE configuration_module
   CHARACTER(LEN=256) :: choice_climate_matrix_config            = 'PI_LGM'               ! 'PI_LGM' uses 2 snapshots
   CHARACTER(LEN=256) :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256) :: filename_GCM_snapshot_LGM_config        = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  CHARACTER(LEN=256) :: filename_GCM_snapshot_PD_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   
   ! Ocean temperature (used for both thermodynamics and basal melt)
   CHARACTER(LEN=256) :: choice_ocean_temperature_model_config   = 'scaled'               ! Can be "fixed" (use PD value) or "scaled" (scale between "PD", "warm", and "cold" values based on forcing (prescribed or inverse-modelled))
@@ -201,6 +202,11 @@ MODULE configuration_module
   REAL(dp)           :: CO2_inverse_averaging_window_config     = 2000._dp      ! Time window (in yr) over which CO2                             is averaged before changing it with the inverse routine
   REAL(dp)           :: inverse_d18O_to_CO2_scaling_config      = 68._dp        ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
   REAL(dp)           :: inverse_d18O_to_CO2_initial_CO2_config  = 280._dp       ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
+  REAL(dp)           :: low_CO2_value_config                    = 180._dp       ! CO2 value for the cold forcing climate
+  REAL(dp)           :: high_CO2_value_config                   = 280._dp       ! CO2 value for the warm forcing climate
+  REAL(dp)           :: low_CO2_ice_volume_config               = 26.5E+15_dp   ! Ice volume for the cold forcing climate
+  REAL(dp)           :: high_CO2_ice_volume_config              = 0._dp         ! Ice volume for the warm forcing climate
+  REAL(dp)           :: weight_CO2_config                       = 0.25_dp       ! Weight of CO2 with respect to ice volume changes 
   
   ! SMB tuning
   ! ==========
@@ -463,6 +469,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)       :: choice_climate_matrix
     CHARACTER(LEN=256)       :: filename_GCM_snapshot_PI
     CHARACTER(LEN=256)       :: filename_GCM_snapshot_LGM
+    CHARACTER(LEN=256)       :: filename_GCM_snapshot_PD
     
     CHARACTER(LEN=256)       :: choice_ocean_temperature_model
     REAL(dp)                 :: ocean_temperature_PD
@@ -485,7 +492,12 @@ MODULE configuration_module
     REAL(dp)                 :: CO2_inverse_averaging_window
     REAL(dp)                 :: inverse_d18O_to_CO2_scaling
     REAL(dp)                 :: inverse_d18O_to_CO2_initial_CO2
-    
+    REAL(dp)                 :: low_CO2_value
+    REAL(dp)                 :: high_CO2_value
+    REAL(dp)                 :: low_CO2_ice_volume
+    REAL(dp)                 :: high_CO2_ice_volume
+    REAL(dp)                 :: weight_CO2
+
     ! SMB melt tuning
     ! ===============
     
@@ -764,6 +776,7 @@ CONTAINS
                      choice_climate_matrix_config,               &
                      filename_GCM_snapshot_PI_config,            &
                      filename_GCM_snapshot_LGM_config,           &
+                     filename_GCM_snapshot_PD_config,            &
                      choice_ocean_temperature_model_config,      &
                      ocean_temperature_PD_config,                &
                      ocean_temperature_cold_config,              &
@@ -778,6 +791,11 @@ CONTAINS
                      CO2_inverse_averaging_window_config,        &
                      inverse_d18O_to_CO2_scaling_config,         &
                      inverse_d18O_to_CO2_initial_CO2_config,     &
+                     low_CO2_value_config,                       &
+                     high_CO2_value_config,                      &
+                     low_CO2_ice_volume_config,                  &
+                     high_CO2_ice_volume_config,                 &
+                     weight_CO2_config,                          &
                      C_abl_constant_NAM_config,                  &
                      C_abl_constant_EAS_config,                  &
                      C_abl_constant_GRL_config,                  &
@@ -1063,6 +1081,7 @@ CONTAINS
     C%choice_climate_matrix               = choice_climate_matrix_config
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
     C%filename_GCM_snapshot_LGM           = filename_GCM_snapshot_LGM_config
+    C%filename_GCM_snapshot_PD            = filename_GCM_snapshot_PD_config
     
     C%choice_ocean_temperature_model      = choice_ocean_temperature_model_config
     C%ocean_temperature_PD                = ocean_temperature_PD_config
@@ -1085,7 +1104,12 @@ CONTAINS
     C%CO2_inverse_averaging_window        = CO2_inverse_averaging_window_config
     C%inverse_d18O_to_CO2_scaling         = inverse_d18O_to_CO2_scaling_config
     C%inverse_d18O_to_CO2_initial_CO2     = inverse_d18O_to_CO2_initial_CO2_config
-    
+    C%low_CO2_value                       = low_CO2_value_config
+    C%high_CO2_value                      = high_CO2_value_config
+    C%low_CO2_ice_volume                  = low_CO2_ice_volume_config
+    C%high_CO2_ice_volume                 = high_CO2_ice_volume_config
+    C%weight_CO2                          = weight_CO2_config
+
     ! SMB melt tuning
     ! ===============
     

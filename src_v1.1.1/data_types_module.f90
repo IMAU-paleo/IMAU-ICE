@@ -360,6 +360,7 @@ MODULE data_types_module
     
     ! The present-day observed climate (ERA40)
     TYPE(type_subclimate_global)            :: PD_obs
+    TYPE(type_subclimate_global)            :: PD_mod
     
     ! The GCM snapshots.
     TYPE(type_subclimate_global)            :: GCM_PI
@@ -419,6 +420,7 @@ MODULE data_types_module
     ! All the relevant climate data fields (PD observations, GCM snapshots, and final, applied climate) on the model region grid
 
     TYPE(type_subclimate_region)            :: PD_obs         ! PD observations (e.g. ERA40)
+    TYPE(type_subclimate_region)            :: PD_mod         ! Modeled PD (PI) climate, for calculating the bias
     TYPE(type_subclimate_region)            :: GCM_PI         ! Pre-industrial  (e.g. HadCM3, Singarayer & Valdes, 2010)
     TYPE(type_subclimate_region)            :: GCM_LGM        ! LGM             (e.g. HadCM3, Singarayer & Valdes, 2010)
     TYPE(type_subclimate_region)            :: applied        ! Final applied climate

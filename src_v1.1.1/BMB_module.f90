@@ -119,10 +119,14 @@ CONTAINS
         ! Use the prescribed CO2 record as a glacial index
         IF (forcing%CO2_obs > 280._dp) THEN
           ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
-          weight = 2._dp - MAX( 0._dp,   MIN(1.25_dp, ((400._dp - forcing%CO2_obs) / (400._dp - 280._dp) + (3.00_dp - forcing%d18O_obs) / (3.00_dp - 3.23_dp)) / 2._dp )) + w_ins
+          ! weight = 2._dp - MAX( 0._dp,   MIN(1.25_dp, ((400._dp - forcing%CO2_obs) / (400._dp - 280._dp) + (3.00_dp - forcing%d18O_obs) / (3.00_dp - 3.23_dp)) / 2._dp )) + w_ins
+          ! LBS: Miocene generalisation of the T_ocean parametreisation for the matrix method
+          weight = MIN(1._dp+((forcing%CO2_obs - 280._dp) / (400._dp - 280._dp)), 2._dp)
         ELSE
           ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
-          weight = 1._dp - MAX(-0.25_dp, MIN(1._dp,   ((280._dp - forcing%CO2_obs) / (280._dp - 190._dp) + (3.23_dp - forcing%d18O_obs) / (3.23_dp - 4.95_dp)) / 2._dp )) + w_ins
+          ! weight = 1._dp - MAX(-0.25_dp, MIN(1._dp,   ((280._dp - forcing%CO2_obs) / (280._dp - 190._dp) + (3.23_dp - forcing%d18O_obs) / (3.23_dp - 4.95_dp)) / 2._dp )) + w_ins
+          ! LBS: Miocene generalisation of the T_ocean parametreisation for the matrix method
+          weight = MAX(((forcing%CO2_obs - 190._dp) / (280._dp - 190._dp)), 0._dp)
         END IF
         
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
@@ -130,10 +134,14 @@ CONTAINS
         ! Use modelled CO2 as a glacial index
         IF (forcing%CO2_obs > 280._dp) THEN
           ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
-          weight = 2._dp - MAX( 0._dp,   MIN(1.25_dp, ((400._dp - forcing%CO2_mod) / (400._dp - 280._dp) + (3.00_dp - forcing%d18O_obs) / (3.00_dp - 3.23_dp)) / 2._dp )) + w_ins
+          ! weight = 2._dp - MAX( 0._dp,   MIN(1.25_dp, ((400._dp - forcing%CO2_mod) / (400._dp - 280._dp) + (3.00_dp - forcing%d18O_obs) / (3.00_dp - 3.23_dp)) / 2._dp )) + w_ins
+          ! LBS: Miocene generalisation of the T_ocean parametreisation for the matrix method
+          weight = MIN(1._dp+((forcing%CO2_mod - 280._dp) / (400._dp - 280._dp)), 2._dp)
         ELSE
           ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
-          weight = 1._dp - MAX(-0.25_dp, MIN(1._dp,   ((280._dp - forcing%CO2_mod) / (280._dp - 190._dp) + (3.23_dp - forcing%d18O_obs) / (3.23_dp - 4.95_dp)) / 2._dp )) + w_ins
+          ! weight = 1._dp - MAX(-0.25_dp, MIN(1._dp,   ((280._dp - forcing%CO2_mod) / (280._dp - 190._dp) + (3.23_dp - forcing%d18O_obs) / (3.23_dp - 4.95_dp)) / 2._dp )) + w_ins
+          ! LBS: Miocene generalisation of the T_ocean parametreisation for the matrix method
+          weight = MAX(((forcing%CO2_obs - 190._dp) / (280._dp - 190._dp)), 0._dp)
         END IF
         
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
@@ -145,7 +153,7 @@ CONTAINS
         WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF ! IF (C%choice_forcing_method == 'CO2_direct') THEN
-      
+
       IF (weight < 1._dp) THEN
         w_PD   = weight
         w_cold = 1._dp - w_PD

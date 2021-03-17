@@ -581,7 +581,7 @@ CONTAINS
     
         OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
         DO i = 1, C%CO2_record_length
-          READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time(i), forcing%CO2_record(i) 
+          READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time(i), forcing%CO2_record(i)
           IF (ios /= 0) THEN
             WRITE(0,*) ' read_CO2_record - ERROR: length of text file "', TRIM(C%filename_CO2_record), '" does not match C%CO2_record_length = ', C%CO2_record_length
             CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
