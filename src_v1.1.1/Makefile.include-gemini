@@ -1,7 +1,11 @@
 
 # Adjust MYLIB and MYINC such that they match with the libraries and include paths:
   MYLIB  = /usr/lib64/
-  MYLIB2 = /nethome/beren017/IMAU_ICE/src_v1.1.0/
+<<<<<<< Updated upstream
+  MYLIB2 = /nethome/beren017/IMAU_ICE/src_v1.1.1/
+=======
+  MYLIB2 = /nethome/3137902/IMAU-ICE/src_v1.1.1/
+>>>>>>> Stashed changes
   MYINC  = /usr/lib64/gfortran/modules/
 
 # Compiler names:

@@ -2,7 +2,7 @@
 
 ! Start and end time
 start_time_of_run_config                = -120000  ! Start time (in years) of the simulations
-end_time_of_run_config                  = -119900       ! End   time (in years) of the simulations
+end_time_of_run_config                  = -0       ! End   time (in years) of the simulations
 dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
@@ -28,7 +28,7 @@ dx_ANT_config                           = 40000
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 5        ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 100     ! Time step (in years) for writing output
+dt_output_config                        = 1000     ! Time step (in years) for writing output
 
 ! Ice dynamics
 m_enh_SIA_config                        = 5.0

@@ -2,7 +2,7 @@
 
 ! Start and end time
 start_time_of_run_config                = 0  ! Start time (in years) of the simulations
-end_time_of_run_config                  = 1000       ! End   time (in years) of the simulations
+end_time_of_run_config                  = 100000       ! End   time (in years) of the simulations
 dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
@@ -20,20 +20,20 @@ do_GRL_config                           = .FALSE.
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_ANT_config                           = 20000
+dx_ANT_config                           = 40000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 5        ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 500     ! Time step (in years) for writing output
+dt_output_config                        = 10000     ! Time step (in years) for writing output
 
 ! Ice dynamics
 m_enh_SIA_config                        = 5.0
-m_enh_SSA_config                        = 0.5
+m_enh_SSA_config                        = 1.0
 
 ! Sea level and GIA
 choice_sealevel_model_config            = 'fixed'
-fixed_sealevel_config                   = 7.0
+fixed_sealevel_config                   = 0.0
 choice_GIA_model_config                 = 'ELRA'              ! Can be "none", "ELRA", or "SELEN"
 ELRA_lithosphere_flex_rigidity_config   = 1.0E+25             ! Lithospheric flexural rigidity [kg m^2 s^-2]
 ELRA_bedrock_relaxation_time_config     = 3000.0              ! Relaxation time for bedrock adjustment [yr]
@@ -46,9 +46,9 @@ filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_Shap
 
 ! Climate matrix
 filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
-filename_GCM_snapshot_PI_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_3nomebi.nc'
-filename_GCM_snapshot_LGM_config        = 'Datasets/MIO_matrixfiles/MIO_Gasson_1fumebi.nc'
-filename_GCM_snapshot_PD_config        = 'Datasets/MIO_matrixfiles/MIO_Gasson_PI_control.nc'
+filename_GCM_snapshot_PI_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_1fumebi.nc'
+filename_GCM_snapshot_LGM_config        = 'Datasets/MIO_matrixfiles/MIO_Gasson_PI_control.nc'
+filename_GCM_snapshot_PD_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_PI_control.nc'
   
 ! Ice5G ice-sheet geometry
 filename_ICE5G_PD_config                = 'Datasets/ICE5G/ice5g_v1.2_00.0k_1deg.nc'
@@ -57,7 +57,7 @@ filename_ICE5G_LGM_config               = 'Datasets/ICE5G/ice5g_v1.2_21.0k_1deg.
 constant_lapserate_config               = 0.008
 
 ! SMB tuning
-C_abl_constant_ANT_config               = 18
+C_abl_constant_ANT_config               = 32 ! 18
 C_abl_Ts_ANT_config                     = 10
 C_abl_Q_ANT_config                      = 0.513
 
@@ -76,9 +76,9 @@ inverse_d18O_to_CO2_initial_CO2_config  = 280.0
 
 low_CO2_value_config                    = 280.0 ! 280, 840
 high_CO2_value_config                   = 840.0 ! 840, 2240
-low_CO2_ice_volume_config               = 26.5E15 ! 280, 840
+low_CO2_ice_volume_config               = 26.0E15 ! 280, 840
 high_CO2_ice_volume_config              = 0.0 ! 840, 2240
-weight_CO2_config                       = 0.5
+weight_CO2_config                       = 1.0
 
 filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
 filename_CO2_record_config              = 'Datasets/CO2/dummy_CO2.dat'
@@ -114,8 +114,8 @@ help_field_19_config    = 'PD_obs_T2m'
 help_field_20_config    = 'PD_obs_Precip'
 help_field_21_config    = 'T2m'
 help_field_22_config    = 'Precip'
-help_field_23_config    = 'none'
-help_field_24_config    = 'none'
+help_field_23_config    = 'BMB_shelf'
+help_field_24_config    = 'BMB_sheet'
 help_field_25_config    = 'none'
 help_field_26_config    = 'none'
 help_field_27_config    = 'none'

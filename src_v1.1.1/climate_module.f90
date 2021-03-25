@@ -335,8 +335,8 @@ CONTAINS
       ! Find matrix-interpolated orography, lapse rate, and temperature
       Hs_ref_GCM(       j,i) = (w_tot( j,i) *  climate%GCM_PI%Hs_ref( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%Hs_ref( j,i))  ! Berends et al., 2018 - Eq. 8
       lambda_ref_GCM(   j,i) = (w_tot( j,i) *  climate%GCM_PI%lambda( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%lambda( j,i))  ! Not listed in the article, shame on me!
-      T_ref_GCM(      :,j,i) = (w_tot( j,i) * (climate%GCM_PI%T2m(  :,j,i) - climate%GCM_bias_T2m( :,j,i))) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
-      !T_ref_GCM(      :,j,i) = (w_tot( j,i) *  climate%GCM_PI%T2m(  :,j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
+      !T_ref_GCM(      :,j,i) = (w_tot( j,i) * (climate%GCM_PI%T2m(  :,j,i) - climate%GCM_bias_T2m( :,j,i))) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
+      T_ref_GCM(      :,j,i) = (w_tot( j,i) *  climate%GCM_PI%T2m(  :,j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
     
       ! Adapt temperature to model orography using matrix-derived lapse-rate
       DO m = 1, 12
@@ -344,7 +344,7 @@ CONTAINS
       END DO
       
 !      ! Correct for GCM bias
-!      climate%applied%T2m( :,j,i) = climate%applied%T2m( :,j,i) - climate%GCM_bias_T2m( :,j,i)
+      climate%applied%T2m( :,j,i) = climate%applied%T2m( :,j,i) - climate%GCM_bias_T2m( :,j,i)
     
     END DO
     END DO
@@ -402,6 +402,8 @@ CONTAINS
     !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_Aa) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
     !LBS: Miocene generalisation of the high and low CO2 ice volumes for the matrix method
     w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
+    !LBS: temporary for PD test
+    !w_tot = 1._dp
 
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
