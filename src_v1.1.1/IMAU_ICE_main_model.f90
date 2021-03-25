@@ -812,7 +812,7 @@ CONTAINS
         ice_area   = ice_area   + region%grid%dx * region%grid%dx * 1.0E-06_dp ! [km^3]
     
         ! Thickness above flotation
-        thickness_above_flotation = MAX(0._dp, region%ice%Hi_Aa( j,i) - ((0._dp - region%ice%Hb_Aa( j,i)) * (seawater_density / ice_density)))
+        thickness_above_flotation = MAX(0._dp, region%ice%Hi_Aa( j,i) - MAX(0._dp, (region%ice%SL_Aa( j,i) - region%ice%Hb_Aa( j,i) * (seawater_density / ice_density))))
         
         ice_volume_above_flotation = ice_volume_above_flotation + thickness_above_flotation * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)
       END IF     
@@ -849,7 +849,7 @@ CONTAINS
     
       ! Thickness above flotation
       IF (region%PD%Hi( j,i) > 0._dp) THEN
-        thickness_above_flotation = MAX(0._dp, region%PD%Hi( j,i) - ((0._dp - region%PD%Hb( j,i)) * (seawater_density / ice_density)))
+        thickness_above_flotation = MAX(0._dp, region%PD%Hi( j,i) - MAX(0._dp, (0._dp - region%PD%Hb( j,i)) * (seawater_density / ice_density)))
       ELSE
         thickness_above_flotation = 0._dp
       END IF
