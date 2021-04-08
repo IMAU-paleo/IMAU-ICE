@@ -44,7 +44,7 @@ CONTAINS
     ELSE IF (region_name == 'GRL') THEN
       PD%netcdf%filename   = C%filename_PD_GRL
     ELSE IF (region_name == 'ANT') THEN
-      PD%netcdf%filename   = C%filename_PD_ANT
+        PD%netcdf%filename   = C%filename_PD_ANT
     END IF
     
     ! For the benchmark experiments, use dummy input data.
@@ -205,6 +205,87 @@ CONTAINS
     END IF ! IF (C%do_benchmark_experiment) THEN
     
   END SUBROUTINE initialise_PD_data_fields
+  SUBROUTINE initialise_topo_data_fields(   topo,   region_name)
+    ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_PD_data_fields),      INTENT(INOUT) :: topo
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+  
+    ! Local variables:
+    INTEGER                                       :: i,j
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  Hi_raw_temp,  Hb_raw_temp,  Hs_raw_temp
+    INTEGER                                       :: wHi_raw_temp, wHb_raw_temp, wHs_raw_temp
+  
+    IF      (region_name == 'NAM') THEN
+      topo%netcdf%filename   = C%filename_topo_NAM
+    ELSE IF (region_name == 'EAS') THEN
+      topo%netcdf%filename   = C%filename_topo_EAS
+    ELSE IF (region_name == 'GRL') THEN
+      topo%netcdf%filename   = C%filename_topo_GRL
+    ELSE IF (region_name == 'ANT') THEN
+      topo%netcdf%filename   = C%filename_topo_ANT
+    END IF
+  
+    CALL allocate_shared_int_0D( topo%nx, topo%wnx)
+    CALL allocate_shared_int_0D( topo%ny, topo%wny)
+    
+    ! Read data from input file
+    IF (par%master) CALL inquire_PD_data_file(topo)
+    
+    CALL sync
+  
+    ! Read paleo data
+
+    ! Allocate memory - PD
+    CALL allocate_shared_dp_1D( topo%nx,               topo%x,      topo%wx     )
+    CALL allocate_shared_dp_1D(               topo%ny, topo%y,      topo%wy     )
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hi_raw, topo%wHi_raw)
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hb_raw, topo%wHb_raw)
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hs_raw, topo%wHs_raw)
+  
+    ! Read data from input file
+    IF (par%master) WRITE(0,*) '  Reading topo    data from file ', TRIM(topo%netcdf%filename), '...'
+    IF (par%master) CALL read_PD_data_file( topo)
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hi_raw_temp, wHi_raw_temp)
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hb_raw_temp, wHb_raw_temp)
+    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hs_raw_temp, wHs_raw_temp)
+    
+    IF (par%master) THEN
+      Hi_raw_temp = topo%Hi_raw
+      Hb_raw_temp = topo%Hb_raw
+      Hs_raw_temp = topo%Hs_raw
+    END IF
+    CALL sync
+    
+    CALL deallocate_shared( topo%wHi_raw)
+    CALL deallocate_shared( topo%wHb_raw)
+    CALL deallocate_shared( topo%wHs_raw)
+    
+    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hi_raw, topo%wHi_raw)
+    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hb_raw, topo%wHb_raw)
+    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hs_raw, topo%wHs_raw)
+    
+    IF (par%master) THEN
+      DO i = 1, topo%nx
+      DO j = 1, topo%ny
+        topo%Hi_raw( j,i) = Hi_raw_temp( i,j)
+        topo%Hb_raw( j,i) = Hb_raw_temp( i,j)
+        topo%Hs_raw( j,i) = Hs_raw_temp( i,j)
+      END DO
+      END DO
+    END IF
+    CALL sync
+    
+    CALL deallocate_shared( wHi_raw_temp)
+    CALL deallocate_shared( wHb_raw_temp)
+    CALL deallocate_shared( wHs_raw_temp)
+  
+  END SUBROUTINE initialise_topo_data_fields
   SUBROUTINE initialise_init_data_fields( init, region_name)
     ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
      
@@ -526,6 +607,28 @@ CONTAINS
     
     ! Local variables:
   END SUBROUTINE map_PD_data_to_model_grid
+
+  SUBROUTINE map_topo_data_to_model_grid(   grid, topo)
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_PD_data_fields),      INTENT(INOUT) :: topo
+  
+    IF (par%master) WRITE(0,*) '  Mapping topo    data to model grid...'
+  
+    ! Map the PD data from the provided grid to the model grid
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, topo%Hi, topo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, topo%Hb, topo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, topo%Hs, topo%wHs)
+  
+    CALL map_square_to_square_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hi_raw, topo%Hi)
+    CALL map_square_to_square_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hb_raw, topo%Hb)
+    CALL map_square_to_square_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hs_raw, topo%Hs)
+  
+  END SUBROUTINE map_topo_data_to_model_grid
+
   SUBROUTINE map_init_data_to_model_grid( grid, init)
      
     IMPLICIT NONE

@@ -110,7 +110,13 @@ MODULE configuration_module
   CHARACTER(LEN=256) :: filename_PD_NAM_config   = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256) :: filename_PD_EAS_config   = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256) :: filename_PD_GRL_config   = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km_noEllesmere.nc'
-  CHARACTER(LEN=256) :: filename_PD_ANT_config   = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc' 
+  CHARACTER(LEN=256) :: filename_PD_ANT_config   = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+  ! Topographies (NetCDF)
+  CHARACTER(LEN=256) :: filename_topo_NAM_config = 'dummy.nc'
+  CHARACTER(LEN=256) :: filename_topo_EAS_config = 'dummy.nc'
+  CHARACTER(LEN=256) :: filename_topo_GRL_config = 'dummy.nc'
+  CHARACTER(LEN=256) :: filename_topo_ANT_config = '/Datasets/Paleotopographies_ANT/5Ma_Topo_Hochmuth_Paxman_IMAUICE_20km.nc'
    
   ! Insolation forcing (NetCDF) (Laskar et al., 2004)
   CHARACTER(LEN=256) :: filename_insolation_config = '/Datasets/Insolation_laskar/Insolation_Laskar_etal_2004.nc'
@@ -407,6 +413,11 @@ MODULE configuration_module
     CHARACTER(LEN=256)       :: filename_PD_EAS
     CHARACTER(LEN=256)       :: filename_PD_GRL
     CHARACTER(LEN=256)       :: filename_PD_ANT
+
+    CHARACTER(LEN=256)       :: filename_topo_NAM
+    CHARACTER(LEN=256)       :: filename_topo_EAS
+    CHARACTER(LEN=256)       :: filename_topo_GRL
+    CHARACTER(LEN=256)       :: filename_topo_ANT
     
     CHARACTER(LEN=256)       :: filename_insolation
     
@@ -726,6 +737,10 @@ CONTAINS
                      filename_PD_EAS_config,                     &
                      filename_PD_GRL_config,                     &
                      filename_PD_ANT_config,                     &
+                     filename_topo_NAM_config,                   &
+                     filename_topo_EAS_config,                   &
+                     filename_topo_GRL_config,                   &
+                     filename_topo_ANT_config,                   &
                      filename_insolation_config,                 &
                      filename_CO2_record_config,                 &
                      CO2_record_length_config,                   &
@@ -1007,6 +1022,11 @@ CONTAINS
     C%filename_PD_EAS                     = filename_PD_EAS_config
     C%filename_PD_GRL                     = filename_PD_GRL_config
     C%filename_PD_ANT                     = filename_PD_ANT_config
+
+    C%filename_topo_NAM                   = filename_topo_NAM_config
+    C%filename_topo_EAS                   = filename_topo_EAS_config
+    C%filename_topo_GRL                   = filename_topo_GRL_config
+    C%filename_topo_ANT                   = filename_topo_ANT_config
     
     C%filename_insolation                 = filename_insolation_config
     

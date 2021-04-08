@@ -53,7 +53,7 @@ CONTAINS
     
     ! If needed, update the bedrock deformation rate
     IF (region%do_ELRA) THEN
-      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%ice, region%PD)
+      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%ice, region%topo)
       region%t0_ELRA = region%time
     END IF
     
@@ -68,15 +68,15 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE run_ELRA_model
-  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, ice, PD)
+  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, ice, topo)
     ! Use the ELRA model to update bedrock deformation rates.
-  
+      
     IMPLICIT NONE  
     
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
     
     ! Local variables:
     INTEGER                                            :: i,j,n,k,l
@@ -146,13 +146,13 @@ CONTAINS
     ! Calculate the bedrock deformation rate
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%dHb_dt_Aa( j,i) = (PD%Hb( j,i) - ice%Hb_Aa( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
+      ice%dHb_dt_Aa( j,i) = (topo%Hb( j,i) - ice%Hb_Aa( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
     END DO
     END DO
     CALL sync
     
   END SUBROUTINE calculate_ELRA_bedrock_deformation_rate
-  SUBROUTINE initialise_ELRA_model( grid, ice, PD)
+  SUBROUTINE initialise_ELRA_model( grid, ice, topo)
     ! Allocate and initialise the ELRA GIA model
       
     IMPLICIT NONE
@@ -160,7 +160,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
     
     ! Local variables:
     INTEGER                                            :: i,j,n,k,l
@@ -204,10 +204,10 @@ CONTAINS
     ! Calculate PD reference load
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (is_floating( PD%Hi( j,i), PD%Hb( j,i), 0._dp)) THEN
-        ice%surface_load_PD( j,i) = -PD%Hb( j,i) * grid%dx**2 * seawater_density
-      ELSEIF (PD%Hi( j,i) > 0._dp) THEN
-        ice%surface_load_PD( j,i) = PD%Hi( j,i) * grid%dx**2 * ice_density
+      IF (is_floating( topo%Hi( j,i), topo%Hb( j,i), 0._dp)) THEN
+        ice%surface_load_PD( j,i) = -topo%Hb( j,i) * grid%dx**2 * seawater_density
+      ELSEIF (topo%Hi( j,i) > 0._dp) THEN
+        ice%surface_load_PD( j,i) = topo%Hi( j,i) * grid%dx**2 * ice_density
       END IF
     END DO
     END DO

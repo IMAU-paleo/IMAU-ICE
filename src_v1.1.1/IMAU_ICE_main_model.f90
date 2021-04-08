@@ -12,7 +12,8 @@ MODULE IMAU_ICE_main_model
                                              type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
   USE utilities_module,                ONLY: inverse_oblique_sg_projection
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
-  USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
+  USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid, &
+                                             initialise_topo_data_fields, map_topo_data_to_model_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                              create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file
   USE forcing_module,                  ONLY: forcing
@@ -294,11 +295,12 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%d18O_contribution            , region%wd18O_contribution            )
     CALL allocate_shared_dp_0D( region%d18O_contribution_PD         , region%wd18O_contribution_PD         )
     
-    ! ===== PD and init reference data fields =====
+    ! ===== PD, topo and init reference data fields =====
     ! =============================================
     
     CALL initialise_PD_data_fields(   region%PD,   region%name)
     CALL initialise_init_data_fields( region%init, region%name)
+    CALL initialise_topo_data_fields ( region%topo, region%name)
     
     ! ===== Initialise this region's grid =====
     ! =========================================
@@ -310,11 +312,13 @@ CONTAINS
     
     CALL initialise_debug_fields( region)
 
-    ! ===== Map PD and init data to the model grid =====
+    ! ===== Map PD, topo and init data to the model grid =====
     ! ==================================================
     
     CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
     CALL map_init_data_to_model_grid( region%grid, region%init)
+
+    CALL map_topo_data_to_model_grid(   region%grid, region%topo  )
     
     CALL calculate_PD_sealevel_contribution(region)
     
@@ -402,7 +406,7 @@ CONTAINS
     ! ==============================
     
     IF (C%choice_GIA_model == 'ELRA') THEN
-      CALL initialise_ELRA_model( region%grid, region%ice, region%PD)
+        CALL initialise_ELRA_model( region%grid, region%ice, region%topo)
     ELSE
       WRITE(0,*) '  ERROR - choice_GIA_model "', C%choice_GIA_model, '" not implemented in initialise_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
