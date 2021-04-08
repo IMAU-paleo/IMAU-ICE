@@ -44,7 +44,7 @@ CONTAINS
     ELSE IF (region_name == 'GRL') THEN
       PD%netcdf%filename   = C%filename_PD_GRL
     ELSE IF (region_name == 'ANT') THEN
-        PD%netcdf%filename   = C%filename_PD_ANT
+      PD%netcdf%filename   = C%filename_PD_ANT
     END IF
     
     ! For the benchmark experiments, use dummy input data.
@@ -205,13 +205,14 @@ CONTAINS
     END IF ! IF (C%do_benchmark_experiment) THEN
     
   END SUBROUTINE initialise_PD_data_fields
-  SUBROUTINE initialise_topo_data_fields(   topo,   region_name)
+  SUBROUTINE initialise_topo_data_fields(   topo,  PD,   region_name)
     ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
    
     IMPLICIT NONE
     
     ! In/output variables:
     TYPE(type_PD_data_fields),      INTENT(INOUT) :: topo
+    TYPE(type_PD_data_fields),      INTENT(IN)    :: PD
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
   
     ! Local variables:
@@ -232,58 +233,80 @@ CONTAINS
     CALL allocate_shared_int_0D( topo%nx, topo%wnx)
     CALL allocate_shared_int_0D( topo%ny, topo%wny)
     
-    ! Read data from input file
-    IF (par%master) CALL inquire_PD_data_file(topo)
-    
+    IF (C%do_benchmark_experiment) THEN
+      ! Just use the same field as PD
+      IF (par%master) THEN
+        topo%nx = PD%nx
+        topo%ny = PD%ny
+      END IF
+    ELSE
+      ! Read data from input file
+      IF (par%master) CALL inquire_PD_data_file(topo)
+    END IF ! (C%do_benchmark_experiment)
     CALL sync
-  
+
     ! Read paleo data
 
     ! Allocate memory - PD
-    CALL allocate_shared_dp_1D( topo%nx,               topo%x,      topo%wx     )
-    CALL allocate_shared_dp_1D(               topo%ny, topo%y,      topo%wy     )
+    CALL allocate_shared_dp_1D( topo%nx,               topo%x,      topo%wx)
+    CALL allocate_shared_dp_1D(               topo%ny, topo%y,      topo%wy)
     CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hi_raw, topo%wHi_raw)
     CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hb_raw, topo%wHb_raw)
     CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hs_raw, topo%wHs_raw)
+
+    IF (C%do_benchmark_experiment) THEN
   
-    ! Read data from input file
-    IF (par%master) WRITE(0,*) '  Reading topo    data from file ', TRIM(topo%netcdf%filename), '...'
-    IF (par%master) CALL read_PD_data_file( topo)
+      IF (par%master) THEN
+        ! Just use the same field as PD
+        topo%x      = PD%x
+        topo%y      = PD%y
+        topo%Hi_raw = PD%Hi_raw
+        topo%Hs_raw = PD%Hs_raw
+        topo%Hb_raw = PD%Hb_raw
+      END IF ! IF (par%master) THEN
+      CALL sync
+
+    ELSE
+      ! Read data from input file
+      IF (par%master) WRITE(0,*) '  Reading topo    data from file ', TRIM(topo%netcdf%filename), '...'
+      IF (par%master) CALL read_PD_data_file( topo)
     
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hi_raw_temp, wHi_raw_temp)
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hb_raw_temp, wHb_raw_temp)
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hs_raw_temp, wHs_raw_temp)
+      ! Since we want data represented as [j,i] internally, transpose the data we just read.
+      CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hi_raw_temp, wHi_raw_temp)
+      CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hb_raw_temp, wHb_raw_temp)
+      CALL allocate_shared_dp_2D( topo%nx, topo%ny, Hs_raw_temp, wHs_raw_temp)
     
-    IF (par%master) THEN
-      Hi_raw_temp = topo%Hi_raw
-      Hb_raw_temp = topo%Hb_raw
-      Hs_raw_temp = topo%Hs_raw
-    END IF
-    CALL sync
+      IF (par%master) THEN
+        Hi_raw_temp = topo%Hi_raw
+        Hb_raw_temp = topo%Hb_raw
+        Hs_raw_temp = topo%Hs_raw
+      END IF
+      CALL sync
     
-    CALL deallocate_shared( topo%wHi_raw)
-    CALL deallocate_shared( topo%wHb_raw)
-    CALL deallocate_shared( topo%wHs_raw)
+      CALL deallocate_shared( topo%wHi_raw)
+      CALL deallocate_shared( topo%wHb_raw)
+      CALL deallocate_shared( topo%wHs_raw)
     
-    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hi_raw, topo%wHi_raw)
-    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hb_raw, topo%wHb_raw)
-    CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hs_raw, topo%wHs_raw)
+      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hi_raw, topo%wHi_raw)
+      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hb_raw, topo%wHb_raw)
+      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hs_raw, topo%wHs_raw)
     
-    IF (par%master) THEN
-      DO i = 1, topo%nx
-      DO j = 1, topo%ny
-        topo%Hi_raw( j,i) = Hi_raw_temp( i,j)
-        topo%Hb_raw( j,i) = Hb_raw_temp( i,j)
-        topo%Hs_raw( j,i) = Hs_raw_temp( i,j)
-      END DO
-      END DO
-    END IF
-    CALL sync
+      IF (par%master) THEN
+        DO i = 1, topo%nx
+        DO j = 1, topo%ny
+          topo%Hi_raw( j,i) = Hi_raw_temp( i,j)
+          topo%Hb_raw( j,i) = Hb_raw_temp( i,j)
+          topo%Hs_raw( j,i) = Hs_raw_temp( i,j)
+        END DO
+        END DO
+      END IF
+      CALL sync
     
-    CALL deallocate_shared( wHi_raw_temp)
-    CALL deallocate_shared( wHb_raw_temp)
-    CALL deallocate_shared( wHs_raw_temp)
+      CALL deallocate_shared( wHi_raw_temp)
+      CALL deallocate_shared( wHb_raw_temp)
+      CALL deallocate_shared( wHs_raw_temp)
+
+    END IF !(C%do_benchmark_experiment)
   
   END SUBROUTINE initialise_topo_data_fields
   SUBROUTINE initialise_init_data_fields( init, region_name)

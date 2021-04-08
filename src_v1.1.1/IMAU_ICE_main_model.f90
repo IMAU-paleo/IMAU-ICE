@@ -298,9 +298,9 @@ CONTAINS
     ! ===== PD, topo and init reference data fields =====
     ! =============================================
     
-    CALL initialise_PD_data_fields(   region%PD,   region%name)
-    CALL initialise_init_data_fields( region%init, region%name)
-    CALL initialise_topo_data_fields ( region%topo, region%name)
+    CALL initialise_PD_data_fields(   region%PD,              region%name)
+    CALL initialise_init_data_fields( region%init,            region%name)
+    CALL initialise_topo_data_fields( region%topo, region%PD, region%name)
     
     ! ===== Initialise this region's grid =====
     ! =========================================
@@ -318,7 +318,7 @@ CONTAINS
     CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
     CALL map_init_data_to_model_grid( region%grid, region%init)
 
-    CALL map_topo_data_to_model_grid(   region%grid, region%topo  )
+    CALL map_topo_data_to_model_grid( region%grid, region%topo)
     
     CALL calculate_PD_sealevel_contribution(region)
     
