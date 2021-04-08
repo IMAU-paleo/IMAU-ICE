@@ -2,7 +2,7 @@
 
 ! Start and end time
 start_time_of_run_config                = 0  ! Start time (in years) of the simulations
-end_time_of_run_config                  = 100000       ! End   time (in years) of the simulations
+end_time_of_run_config                  = 1000      ! End   time (in years) of the simulations
 dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
@@ -46,8 +46,8 @@ filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_Shap
 
 ! Climate matrix
 filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
-filename_GCM_snapshot_PI_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_1fumebi.nc'
-filename_GCM_snapshot_LGM_config        = 'Datasets/MIO_matrixfiles/MIO_Gasson_PI_control.nc'
+filename_GCM_snapshot_PI_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_3nomebi.nc'
+filename_GCM_snapshot_LGM_config        = 'Datasets/MIO_matrixfiles/MIO_Gasson_1fumebi.nc'
 filename_GCM_snapshot_PD_config         = 'Datasets/MIO_matrixfiles/MIO_Gasson_PI_control.nc'
   
 ! Ice5G ice-sheet geometry
@@ -87,10 +87,14 @@ filename_d18O_record_config             = 'Datasets/d18O/Ahn2017_d18O.dat'
 d18O_record_length_config               = 2051
 
 ! Initial and PD reference data
-filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+!filename_init_ANT_config               = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+filename_init_ANT_config                = 'Datasets/Paleotopographies_ANT/23-24Ma_Topo_Hochmuth_Paxman_IMAUICE_20km.nc'
   
   ! PD reference data (NetCDF)
 filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+  ! Topo data (NetCDF)
+filename_topo_ANT_config                = 'Datasets/Paleotopographies_ANT/23-24Ma_Topo_Hochmuth_Paxman_IMAUICE_20km.nc'
 
 help_field_01_config    = 'lat'
 help_field_02_config    = 'lon'

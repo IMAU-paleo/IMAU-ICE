@@ -651,6 +651,7 @@ MODULE data_types_module
         
     ! Reference data fields
     TYPE(type_PD_data_fields)               :: PD               ! The present-day data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_PD_data_fields)               :: topo             ! The topo data fields for this model region, on a high-res Cartesian grid
     TYPE(type_init_data_fields)             :: init             ! The initial     data fields for this model region, on a high-res Cartesian grid
     
     ! Mask where ice is not allowed to form (so Greenland is not included in NAM and EAS, and Ellesmere is not included in GRL)

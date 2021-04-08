@@ -23,7 +23,7 @@
   F90FLAGS                = ${F90FLAGS_CHOICE_1}
 
 # Linking flags of libaries:
-  LINK_FLAGS_NETCDF       = -L/usr/local/lib -lnetcdf -lnetcdff
+  LINK_FLAGS_NETCDF       = -L/usr/local/lib -lnetcdf -lnetcdff -llapack -lblas
   LDFLAGS                 = ${LINK_FLAGS_NETCDF}
   
   
