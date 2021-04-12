@@ -237,6 +237,12 @@ CONTAINS
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%Precip, (/1, 1, 1/))
       
+    ! Forcing reference heights
+    ELSEIF (field_name == 'Hs_ref_PI') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%GCM_PI%Hs_ref,   (/1, 1        /))
+    ELSEIF (field_name == 'Hs_ref_LGM') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%GCM_LGM%Hs_ref,  (/1, 1        /))   
+      
     ! Fields with a time dimension
     ! ============================
       
@@ -837,6 +843,12 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_T2m',              [x, y, m], id_var, long_name='Base PD monthly mean 2-m air temperature', units='K')
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_Precip',           [x, y, m], id_var, long_name='Base PD monthly total precipitation', units='mm')
+      
+    ! Forcing reference heights  
+    ELSEIF (field_name == 'Hs_ref_PI') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_Hs_ref',              [x, y      ], id_var, long_name='Warm climate reference surface height', units='m')
+    ELSEIF (field_name == 'Hs_ref_LGM') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_Hs_ref',              [x, y      ], id_var, long_name='Cold climate reference surface height', units='m')    
       
     ! Fields with a time dimension
     ! ============================
