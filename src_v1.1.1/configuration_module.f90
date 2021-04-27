@@ -1005,7 +1005,7 @@ CONTAINS
    
     C%create_new_output_dir               = create_new_output_dir_config
     C%output_dir                          = output_dir_config
-    C%do_write_debug_data               = do_write_debug_data_config
+    C%do_write_debug_data                 = do_write_debug_data_config
   
     ! Whether or not the simulation is a restart of a previous simulation
     ! ===================================================================
@@ -1497,7 +1497,8 @@ CONTAINS
     END DO
 
     IF (C%create_new_output_dir) THEN
-      C%output_dir = TRIM(output_folder_name)
+      !C%output_dir = TRIM(output_folder_name)
+      C%output_dir = TRIM(C%output_dir)
     END IF
     
     C%output_dir = TRIM(C%output_dir(1:255)) // '/'
