@@ -393,12 +393,20 @@ CONTAINS
     REAL(dp), DIMENSION(C%nZ)                          :: D_deformation
     REAL(dp)                                           :: D_uv_2D 
     REAL(dp), DIMENSION(C%nZ)                          :: D_SIA_3D_prof
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  D_SIA_Aa_from_Acx,  D_SIA_Aa_from_Acy
-    INTEGER                                            :: wD_SIA_Aa_from_Acx, wD_SIA_Aa_from_Acy
-    REAL(dp), DIMENSION(:,:,:), POINTER                ::  D_SIA_3D_Aa_from_Acx,  D_SIA_3D_Aa_from_Acy
-    INTEGER                                            :: wD_SIA_3D_Aa_from_Acx, wD_SIA_3D_Aa_from_Acy
+    !REAL(dp), DIMENSION(:,:  ), POINTER                ::  D_SIA_Aa_from_Acx,  D_SIA_Aa_from_Acy
+    !INTEGER                                            :: wD_SIA_Aa_from_Acx, wD_SIA_Aa_from_Acy
+    !REAL(dp), DIMENSION(:,:,:), POINTER                ::  D_SIA_3D_Aa_from_Acx,  D_SIA_3D_Aa_from_Acy
+    !INTEGER                                            :: wD_SIA_3D_Aa_from_Acx, wD_SIA_3D_Aa_from_Acy
     
     REAL(dp), PARAMETER                                :: D_uv_3D_cutoff = -1E5_dp
+    
+    ! Initialise everything at zero
+    ice%D_SIA_3D_Acx( :,:,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
+    ice%D_SIA_3D_Acy( :,:,grid%i1:              grid%i2 ) = 0._dp
+    ice%D_SIA_Acx(      :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
+    ice%D_SIA_Acy(      :,grid%i1:              grid%i2 ) = 0._dp
+    ice%U_vav_SIA_Acx(  :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
+    ice%V_vav_SIA_Acy(  :,grid%i1:              grid%i2 ) = 0._dp
     
     ! Calculate 3D ice diffusivity
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -472,24 +480,24 @@ CONTAINS
     END DO
     CALL sync
     
-    ! Map data to Aa grid for writing to output (not actually used anywhere...)
-    CALL allocate_shared_dp_2D(       grid%ny, grid%nx, D_SIA_Aa_from_Acx,    wD_SIA_Aa_from_Acx   )
-    CALL allocate_shared_dp_2D(       grid%ny, grid%nx, D_SIA_Aa_from_Acy,    wD_SIA_Aa_from_Acy   )
-    CALL allocate_shared_dp_3D( C%nZ, grid%ny, grid%nx, D_SIA_3D_Aa_from_Acx, wD_SIA_3D_Aa_from_Acx)
-    CALL allocate_shared_dp_3D( C%nZ, grid%ny, grid%nx, D_SIA_3D_Aa_from_Acy, wD_SIA_3D_Aa_from_Acy)
-    
-    CALL map_Acx_to_Aa_2D( grid, ice%D_SIA_Acx,    D_SIA_Aa_from_Acx)
-    CALL map_Acy_to_Aa_2D( grid, ice%D_SIA_Acy,    D_SIA_Aa_from_Acy)
-    CALL map_Acx_to_Aa_3D( grid, ice%D_SIA_3D_Acx, D_SIA_3D_Aa_from_Acx)
-    CALL map_Acy_to_Aa_3D( grid, ice%D_SIA_3D_Acy, D_SIA_3D_Aa_from_Acy)
-    
-    ice%D_SIA_Aa(      :,grid%i1:grid%i2) = (D_SIA_Aa_from_Acx(      :,grid%i1:grid%i2) + D_SIA_Aa_from_Acy(      :,grid%i1:grid%i2)) / 2._dp
-    ice%D_SIA_3D_Aa( :,:,grid%i1:grid%i2) = (D_SIA_3D_Aa_from_Acx( :,:,grid%i1:grid%i2) + D_SIA_3D_Aa_from_Acy( :,:,grid%i1:grid%i2)) / 2._dp
-    
-    CALL deallocate_shared( wD_SIA_Aa_from_Acx)
-    CALL deallocate_shared( wD_SIA_Aa_from_Acy)
-    CALL deallocate_shared( wD_SIA_3D_Aa_from_Acx)
-    CALL deallocate_shared( wD_SIA_3D_Aa_from_Acy)
+    !! Map data to Aa grid for writing to output (not actually used anywhere...)
+    !CALL allocate_shared_dp_2D(       grid%ny, grid%nx, D_SIA_Aa_from_Acx,    wD_SIA_Aa_from_Acx   )
+    !CALL allocate_shared_dp_2D(       grid%ny, grid%nx, D_SIA_Aa_from_Acy,    wD_SIA_Aa_from_Acy   )
+    !CALL allocate_shared_dp_3D( C%nZ, grid%ny, grid%nx, D_SIA_3D_Aa_from_Acx, wD_SIA_3D_Aa_from_Acx)
+    !CALL allocate_shared_dp_3D( C%nZ, grid%ny, grid%nx, D_SIA_3D_Aa_from_Acy, wD_SIA_3D_Aa_from_Acy)
+    !
+    !CALL map_Acx_to_Aa_2D( grid, ice%D_SIA_Acx,    D_SIA_Aa_from_Acx)
+    !CALL map_Acy_to_Aa_2D( grid, ice%D_SIA_Acy,    D_SIA_Aa_from_Acy)
+    !CALL map_Acx_to_Aa_3D( grid, ice%D_SIA_3D_Acx, D_SIA_3D_Aa_from_Acx)
+    !CALL map_Acy_to_Aa_3D( grid, ice%D_SIA_3D_Acy, D_SIA_3D_Aa_from_Acy)
+    !
+    !ice%D_SIA_Aa(      :,grid%i1:grid%i2) = (D_SIA_Aa_from_Acx(      :,grid%i1:grid%i2) + D_SIA_Aa_from_Acy(      :,grid%i1:grid%i2)) / 2._dp
+    !ice%D_SIA_3D_Aa( :,:,grid%i1:grid%i2) = (D_SIA_3D_Aa_from_Acx( :,:,grid%i1:grid%i2) + D_SIA_3D_Aa_from_Acy( :,:,grid%i1:grid%i2)) / 2._dp
+    !
+    !CALL deallocate_shared( wD_SIA_Aa_from_Acx)
+    !CALL deallocate_shared( wD_SIA_Aa_from_Acy)
+    !CALL deallocate_shared( wD_SIA_3D_Aa_from_Acx)
+    !CALL deallocate_shared( wD_SIA_3D_Aa_from_Acy)
     
     CALL map_Acx_to_Aa_2D( grid, ice%U_vav_SIA_Acx, ice%U_vav_SIA_Aa)
     CALL map_Acy_to_Aa_2D( grid, ice%V_vav_SIA_Acy, ice%V_vav_SIA_Aa)
