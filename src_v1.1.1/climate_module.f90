@@ -401,9 +401,11 @@ CONTAINS
     ! First calculate the total ice volume term (second term in the equation)
     !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_Aa) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
     !LBS: Miocene generalisation of the high and low CO2 ice volumes for the matrix method
-    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
+    !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
     !LBS: temporary for PD test
-    !w_tot = 1._dp
+    w_tot = 1._dp
+    !LBS: for pseudo-index runs
+    !w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%low_CO2_value) / (C%high_CO2_value - C%low_CO2_value) )) )
 
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
@@ -454,19 +456,21 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      T_ref_GCM(  :,j,i) =      (w_PD( j,i) *     (climate%GCM_PI%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))  + (w_LGM( j,i) *     climate%GCM_LGM%T2m(    :,j,i))   ! Berends et al., 2018 - Eq. 6
+      !T_ref_GCM(  :,j,i) =      (w_PD( j,i) *     (climate%GCM_PI%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))  + (w_LGM( j,i) *     climate%GCM_LGM%T2m(    :,j,i))   ! Berends et al., 2018 - Eq. 6
+      !LBS: overrule, use bias corrections for both GCM snapshots
+      T_ref_GCM(  :,j,i) =      (w_PD( j,i) *     (climate%GCM_PI%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))  + (w_LGM( j,i) *    (climate%GCM_LGM%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))
       lambda_GCM(   j,i) =      (w_PD( j,i) *      climate%GCM_PI%lambda(   j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%lambda(   j,i))
       Hs_GCM(       j,i) =      (w_PD( j,i) *      climate%GCM_PI%Hs(       j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%Hs(       j,i))   ! Berends et al., 2018 - Eq. 8
       Hs_ref_GCM(   j,i) =      (w_PD( j,i) *      climate%GCM_PI%Hs_ref(   j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%Hs_ref(   j,i))
      !P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i) / climate%GCM_bias_Precip( :,j,i))) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
      
-      P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
-      P_ref_GCM(  :,j,i) = P_ref_GCM( :,j,i) / (1._dp + (w_PD( j,i) * (climate%GCM_bias_Precip( :,j,i) - 1._dp)))
+     !P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
+     !P_ref_GCM(  :,j,i) = P_ref_GCM( :,j,i) / (1._dp + (w_PD( j,i) * (climate%GCM_bias_Precip( :,j,i) - 1._dp)))
       
       P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
       
 !      ! Correct for GCM bias
-!      P_ref_GCM( :,j,i) = P_ref_GCM( :,j,i) / climate%GCM_bias_Precip( :,j,i)
+      P_ref_GCM( :,j,i) = P_ref_GCM( :,j,i) / climate%GCM_bias_Precip( :,j,i)
       
     END DO
     END DO
@@ -1541,10 +1545,11 @@ CONTAINS
     END IF
         
     ! Correct for GCM bias (only for the PI snapshot, as the GCM data is still assumed to be The Truth (TM) for the LGM)
-    IF (snapshot%name == 'HadCM3_PI') THEN
-      climate_dummy%T2m(    :,:,grid%i1:grid%i2) = climate_dummy%T2m(    :,:,grid%i1:grid%i2) - GCM_bias_T2m(    :,:,grid%i1:grid%i2)
-      climate_dummy%Precip( :,:,grid%i1:grid%i2) = climate_dummy%Precip( :,:,grid%i1:grid%i2) / GCM_bias_Precip( :,:,grid%i1:grid%i2)
-    END IF
+    ! LBS: overrule, use bias corrections for both GCM snapshots
+    !IF (snapshot%name == 'HadCM3_PI') THEN
+    climate_dummy%T2m(    :,:,grid%i1:grid%i2) = climate_dummy%T2m(    :,:,grid%i1:grid%i2) - GCM_bias_T2m(    :,:,grid%i1:grid%i2)
+    climate_dummy%Precip( :,:,grid%i1:grid%i2) = climate_dummy%Precip( :,:,grid%i1:grid%i2) / GCM_bias_Precip( :,:,grid%i1:grid%i2)
+    !END IF
     
     ! Copy Q_TOA to the dummy climate
     climate_dummy%Q_TOA( :,:,grid%i1:grid%i2) = snapshot%Q_TOA( :,:,grid%i1:grid%i2)
