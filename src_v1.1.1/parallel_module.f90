@@ -3,7 +3,7 @@ MODULE parallel_module
 
   USE mpi
   USE configuration_module,        ONLY: dp
-  USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER, C_LOC
+  USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER
   
   IMPLICIT NONE
     
@@ -70,7 +70,11 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_0D: win = ', win
     
@@ -111,7 +115,11 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_1D: win = ', win
     
@@ -152,7 +160,11 @@ CONTAINS
     IF (.NOT. par%master) THEN 
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_2D: win = ', win
     
@@ -193,7 +205,11 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_3D: win = ', win
     
@@ -233,7 +249,11 @@ CONTAINS
     IF (.NOT. par%master) THEN
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0._dp
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_0D:  win = ', win
     
@@ -274,7 +294,11 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0._dp
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_1D:  win = ', win
     
@@ -315,7 +339,11 @@ CONTAINS
     IF (.NOT. par%master) THEN    
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0._dp
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_2D:  win = ', win
     
@@ -356,7 +384,11 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = 0._dp
     END IF
+    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_3D:  win = ', win
     
@@ -397,7 +429,11 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    ELSE
+      ! Initialise memory with zero
+      p = .FALSE.
     END IF
+    CALL sync
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
