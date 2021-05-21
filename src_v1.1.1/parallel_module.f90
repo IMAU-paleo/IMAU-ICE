@@ -70,16 +70,16 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0
     END IF
-    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_0D: win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p)
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0
+    CALL sync
   
   END SUBROUTINE allocate_shared_int_0D  
   SUBROUTINE allocate_shared_int_1D(  n1,         p, win)
@@ -115,16 +115,16 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0
     END IF
-    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_1D: win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0
+    CALL sync
   
   END SUBROUTINE allocate_shared_int_1D  
   SUBROUTINE allocate_shared_int_2D(  n1, n2,     p, win)
@@ -160,16 +160,16 @@ CONTAINS
     IF (.NOT. par%master) THEN 
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0
     END IF
-    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_2D: win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0
+    CALL sync
   
   END SUBROUTINE allocate_shared_int_2D  
   SUBROUTINE allocate_shared_int_3D(  n1, n2, n3, p, win)
@@ -205,16 +205,16 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0
     END IF
-    CALL sync
     
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_3D: win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2, n3])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0
+    CALL sync
   
   END SUBROUTINE allocate_shared_int_3D  
   SUBROUTINE allocate_shared_dp_0D(               p, win)
@@ -249,16 +249,16 @@ CONTAINS
     IF (.NOT. par%master) THEN
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0._dp
     END IF
-    CALL sync
-    
+        
     IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_0D:  win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p)
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0
+    CALL sync
   
   END SUBROUTINE allocate_shared_dp_0D  
   SUBROUTINE allocate_shared_dp_1D(   n1,         p, win)
@@ -294,9 +294,6 @@ CONTAINS
     IF (.NOT. par%master) THEN  
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0._dp
     END IF
     CALL sync
     
@@ -304,6 +301,10 @@ CONTAINS
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0._dp
+    CALL sync
   
   END SUBROUTINE allocate_shared_dp_1D  
   SUBROUTINE allocate_shared_dp_2D(   n1, n2,     p, win)
@@ -339,9 +340,6 @@ CONTAINS
     IF (.NOT. par%master) THEN    
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0._dp
     END IF
     CALL sync
     
@@ -349,6 +347,10 @@ CONTAINS
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0._dp
+    CALL sync
   
   END SUBROUTINE allocate_shared_dp_2D  
   SUBROUTINE allocate_shared_dp_3D(   n1, n2, n3, p, win)
@@ -384,9 +386,6 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = 0._dp
     END IF
     CALL sync
     
@@ -394,6 +393,10 @@ CONTAINS
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2, n3])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = 0._dp
+    CALL sync
   
   END SUBROUTINE allocate_shared_dp_3D  
   SUBROUTINE allocate_shared_bool_1D( n1,         p, win)
@@ -429,14 +432,15 @@ CONTAINS
     IF (.NOT. par%master) THEN   
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
-    ELSE
-      ! Initialise memory with zero
-      p = .FALSE.
     END IF
     CALL sync
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
+    
+    ! Initialise memory with zeros
+    IF (par%master) p = .FALSE.
+    CALL sync
   
   END SUBROUTINE allocate_shared_bool_1D
     
