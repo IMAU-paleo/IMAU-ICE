@@ -404,8 +404,8 @@ CONTAINS
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         
-        IF (climate%GCM_PI%Hi( j,i) == 0.1_dp) THEN
-          IF (climate%GCM_LGM%Hi( j,i) == 0.1_dp) THEN
+        IF (climate%GCM_PI%Hi( j,i) < 0.1_dp) THEN
+          IF (climate%GCM_LGM%Hi( j,i) < 0.1_dp) THEN
             ! No ice in any GCM state. Use only total ice volume.
             w_LGM( j,i) = MAX(-0.25_dp, MIN(1.25_dp, w_tot ))
             w_PD( j,i) = 1._dp - w_LGM( j,i)
