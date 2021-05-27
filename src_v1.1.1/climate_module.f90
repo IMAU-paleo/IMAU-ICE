@@ -401,9 +401,9 @@ CONTAINS
     ! First calculate the total ice volume term (second term in the equation)
     !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_Aa) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
     !LBS: Miocene generalisation of the high and low CO2 ice volumes for the matrix method
-    !w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
+    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, ((SUM(ice%Hi_Aa) * grid%dx * grid%dx) - C%high_CO2_ice_volume) / (C%low_CO2_ice_volume - C%high_CO2_ice_volume) ))
     !LBS: temporary for PD test
-    w_tot = 1._dp
+    !w_tot = 1._dp
     !LBS: for pseudo-index runs
     !w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%low_CO2_value) / (C%high_CO2_value - C%low_CO2_value) )) )
 

@@ -201,6 +201,7 @@ CONTAINS
         w_expo = MAX(0._dp, MIN(1._dp, (BMB%sub_angle( j,i) - 80._dp)/30._dp)) * EXP(-BMB%dist_open( j,i) / 100000._dp)
         
         BMB%BMB_shelf( j,i) = (w_deep * BMB_deepocean) + (1._dp - w_deep) * (w_expo * BMB_shelf_exposed + (1._dp - w_expo) * BMB_shelf)
+        !BMB%BMB_shelf( j,i) = -400._dp
         
       ELSE  
         BMB%BMB_shelf( j,i) = 0._dp
