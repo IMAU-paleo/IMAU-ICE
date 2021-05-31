@@ -815,13 +815,14 @@ CONTAINS
       IF (C%choice_climate_matrix == 'PI_LGM') THEN
       
         ! Initialise the GCM snapshots
-        CALL initialise_snapshot( matrix%GCM_PI,  name = 'GENESIS_PI',  nc_filename = C%filename_GCM_snapshot_PI,  CO2 = C%high_CO2_value, orbit_time =       0._dp)
+        CALL initialise_snapshot( matrix%GCM_PI,  name = 'GENESIS_PI',  nc_filename = C%filename_GCM_snapshot_PI,  CO2 = C%high_CO2_value,orbit_time = 0._dp)
         CALL initialise_snapshot( matrix%GCM_LGM, name = 'GENESIS_LGM', nc_filename = C%filename_GCM_snapshot_LGM, CO2 = C%low_CO2_value, orbit_time = 0._dp)
-        CALL initialise_snapshot( matrix%PD_mod, name = 'GENESIS_PD', nc_filename = C%filename_GCM_snapshot_PD, CO2 = 280._dp, orbit_time = 0._dp)
+        CALL initialise_snapshot( matrix%PD_mod,  name = 'GENESIS_PD',  nc_filename = C%filename_GCM_snapshot_PD,  CO2 = 280._dp,         orbit_time = 0._dp)
         
         ! Initialise the two ICE5G timeframes
-        CALL initialise_ICE5G_timeframe( matrix%ICE5G_PD,  nc_filename = C%filename_ICE5G_PD,  time =       0._dp)
-        CALL initialise_ICE5G_timeframe( matrix%ICE5G_LGM, nc_filename = C%filename_ICE5G_LGM, time = -120000._dp)
+        ! LBS: Not needed for Miocene simulations
+        !CALL initialise_ICE5G_timeframe( matrix%ICE5G_PD,  nc_filename = C%filename_ICE5G_PD,  time =       0._dp)
+        !CALL initialise_ICE5G_timeframe( matrix%ICE5G_LGM, nc_filename = C%filename_ICE5G_LGM, time = -120000._dp)
     
         ! ICE5G defines bedrock w.r.t. sea level at that time, rather than sea level at PD. Correct for this.
         !IF (par%master) matrix%ICE5G_LGM%Hb = matrix%ICE5G_LGM%Hb - 119._dp
@@ -922,6 +923,7 @@ CONTAINS
     ! Allocate memory  
     CALL allocate_shared_dp_1D( snapshot%nlon,                    snapshot%lon,     snapshot%wlon    )
     CALL allocate_shared_dp_1D(                snapshot%nlat,     snapshot%lat,     snapshot%wlat    )
+    CALL allocate_shared_dp_2D( snapshot%nlon, snapshot%nlat,     snapshot%Hi_mask, snapshot%wHi_mask)
     CALL allocate_shared_dp_2D( snapshot%nlon, snapshot%nlat,     snapshot%Hs_ref,  snapshot%wHs_ref )
     CALL allocate_shared_dp_3D( snapshot%nlon, snapshot%nlat, 12, snapshot%T2m,     snapshot%wT2m    )
     CALL allocate_shared_dp_3D( snapshot%nlon, snapshot%nlat, 12, snapshot%Precip,  snapshot%wPrecip )
@@ -1032,7 +1034,7 @@ CONTAINS
     CALL initialise_subclimate( grid, climate%applied,  'applied')
     
     ! Map these subclimates from global grid to model grid
-    CALL map_subclimate_to_grid( grid,  matrix%PD_obs,  climate%PD_obs)
+    CALL map_subclimate_to_grid( grid,  matrix%PD_obs,  climate%PD_obs, Hi_mask_needed = .FALSE., sealevel = 0._dp)
     
     ! The differenct GCM snapshots 
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
@@ -1049,9 +1051,9 @@ CONTAINS
         CALL initialise_subclimate( grid, climate%PD_mod,   'GENESIS_PD'  )
         
         ! Map these subclimates from global grid to model grid
-        CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,  climate%GCM_PI )
-        CALL map_subclimate_to_grid( grid,  matrix%GCM_LGM, climate%GCM_LGM)
-        CALL map_subclimate_to_grid( grid,  matrix%PD_mod,  climate%PD_mod)
+        CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,  climate%GCM_PI,  Hi_mask_needed = .TRUE., sealevel = 0._dp )
+        CALL map_subclimate_to_grid( grid,  matrix%GCM_LGM, climate%GCM_LGM, Hi_mask_needed = .TRUE., sealevel = 0._dp )
+        CALL map_subclimate_to_grid( grid,  matrix%PD_mod,  climate%PD_mod,  Hi_mask_needed = .TRUE., sealevel = 0._dp )
         
         ! Right now, no wind is read from GCM output; just use PD observations everywhere
         climate%GCM_PI%Wind_WE(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
@@ -1060,8 +1062,9 @@ CONTAINS
         climate%GCM_LGM%Wind_SN( :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_SN( :,:,grid%i1:grid%i2)
         
         ! Initialise the ICE5G geometries for these two snapshots
-        CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_PI,  PD, matrix%ICE5G_PD,  matrix%ICE5G_PD, mask_noice)
-        CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_LGM, PD, matrix%ICE5G_LGM, matrix%ICE5G_PD, mask_noice)
+        ! LBS: Not needed for Miocene simulations
+        !CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_PI,  PD, matrix%ICE5G_PD,  matrix%ICE5G_PD, mask_noice)
+        !CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_LGM, PD, matrix%ICE5G_LGM, matrix%ICE5G_PD, mask_noice)
         
         ! Calculate spatially variable lapse rate
         climate%GCM_PI%lambda = 0.008_dp
@@ -1113,7 +1116,8 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, subclimate%T2m,            subclimate%wT2m           )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, subclimate%Precip,         subclimate%wPrecip        )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hs_ref,         subclimate%wHs_ref        )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hi,             subclimate%wHi            )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hi     ,        subclimate%wHi            )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hi_mask,        subclimate%wHi_mask       )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hb,             subclimate%wHb            )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hs,             subclimate%wHs            )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, subclimate%Wind_WE,        subclimate%wWind_WE       )
@@ -1316,7 +1320,9 @@ CONTAINS
     
       snapshot%lambda( j,i) = 0._dp
       
-      IF (snapshot%Hi( j,i) > 100._dp .AND. snapshot%Hs_ref( j,i) > snapshot_PI%Hs_ref( j,i)) THEN
+      !IF (snapshot%Hi( j,i) > 100._dp .AND. snapshot%Hs_ref( j,i) > snapshot_PI%Hs_ref( j,i)) THEN
+      ! LBS: No ice thickness data availabale for Miocene, use Hs instead for this condition
+      IF (snapshot%Hs_ref( j,i) > ( snapshot_PI%Hs_ref( j,i) + 100._dp) ) THEN      
       
         DO m = 1, 12
           snapshot%lambda( j,i) = snapshot%lambda( j,i) + 1/12._dp * MAX(lambda_min, MIN(lambda_max, &                        ! Berends et al., 2018 - Eq. 10
@@ -1349,7 +1355,9 @@ CONTAINS
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (.NOT. (snapshot%Hi( j,i) > 100._dp .AND. snapshot%Hs_ref( j,i) > snapshot_PI%Hs_ref( j,i))) THEN
+!      IF (.NOT. (snapshot%Hi( j,i) > 100._dp .AND. snapshot%Hs_ref( j,i) > snapshot_PI%Hs_ref( j,i))) THEN
+      ! LBS: No ice thickness data availabale for Miocene, use Hs instead for this condition
+      IF (.NOT. (snapshot%Hs_ref( j,i) > ( snapshot_PI%Hs_ref( j,i) + 100._dp))) THEN
         snapshot%lambda( j,i) = lambda_mean_ice
       END IF
     END DO
@@ -1473,13 +1481,17 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      IF (snapshot%Hb( j,i) < snapshot%sealevel) THEN
+      !IF (snapshot%Hb( j,i) < snapshot%sealevel) THEN
+      ! LBS: For the Miocene, use surface height, because bedrock height is unavailable
+      IF (snapshot%Hs( j,i) <= snapshot%sealevel) THEN
         ice_dummy%mask_ocean_Aa( j,i) = 1
       ELSE
         ice_dummy%mask_ocean_Aa( j,i) = 0
       END IF
       
-      IF (snapshot%Hi( j,i) > 0._dp) THEN
+      !IF (snapshot%Hi( j,i) > 0._dp) THEN
+      ! LBS: For the Miocene, use ice mask instead of ice thickness
+      IF (snapshot%Hi_mask( j,i) > 0._dp) THEN
         ice_dummy%mask_ice_Aa(   j,i) = 1
       ELSE
         ice_dummy%mask_ice_Aa(   j,i) = 0
@@ -1663,7 +1675,7 @@ CONTAINS
   END SUBROUTINE initialise_subclimate_absorbed_insolation
   
   ! Map a global subclimate from the matrix (PD observed or GCM snapshot) to a region grid
-  SUBROUTINE map_subclimate_to_grid( grid,  cglob, creg)
+  SUBROUTINE map_subclimate_to_grid( grid,  cglob, creg, Hi_mask_needed, sealevel)
     ! Map data from a global "subclimate" (PD observed or GCM snapshot) to the grid
     
     IMPLICIT NONE
@@ -1672,12 +1684,22 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_subclimate_global),        INTENT(IN)    :: cglob  ! Global climate
     TYPE(type_subclimate_region),        INTENT(INOUT) :: creg   ! grid   climate
+    LOGICAL,                             INTENT(IN)    :: Hi_mask_needed ! LBS: Do we need to interpolate the Hi_mask?
+    REAL(dp),                            INTENT(IN)    :: sealevel ! Specify the sea level
       
     CALL map_glob_to_grid_2D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Hs_ref,      creg%Hs_ref         )
     CALL map_glob_to_grid_3D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%T2m,         creg%T2m    , 12    )
     CALL map_glob_to_grid_3D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Precip,      creg%Precip , 12    )
     CALL map_glob_to_grid_3D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Wind_WE,     creg%Wind_WE, 12    )
     CALL map_glob_to_grid_3D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Wind_SN,     creg%Wind_SN, 12    )
+    
+    ! LBS: for the Miocene, include ice mask, and surface height (otherwise done using ICE5G)
+    CALL map_glob_to_grid_2D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Hs_ref,      creg%Hs             )
+    creg%sealevel = sealevel
+    
+    IF (Hi_mask_needed) THEN
+      CALL map_glob_to_grid_2D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Hi_mask,     creg%Hi_mask      )
+    END IF
     
     ! Rotate zonal/meridional wind to x,y wind
     CALL rotate_wind_to_model_grid( grid, creg%wind_WE, creg%wind_SN, creg%wind_LR, creg%wind_DU)

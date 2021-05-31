@@ -241,7 +241,7 @@ CONTAINS
     ELSEIF (field_name == 'Hs_ref_PI') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%GCM_PI%Hs_ref,   (/1, 1        /))
     ELSEIF (field_name == 'Hs_ref_LGM') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%GCM_LGM%Hs_ref,  (/1, 1        /))   
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%GCM_LGM%Hs_ref,  (/1, 1        /))
       
     ! Fields with a time dimension
     ! ============================
@@ -2107,7 +2107,7 @@ CONTAINS
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lat,      (/ snapshot%netcdf%id_dim_lat                                                           /),  snapshot%netcdf%id_var_lat)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lon,      (/ snapshot%netcdf%id_dim_lon                                                           /),  snapshot%netcdf%id_var_lon)
-    !CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_Hi,       (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat                               /),  snapshot%netcdf%id_var_Hi)
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_Hi_mask,  (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat                               /),  snapshot%netcdf%id_var_Hi_mask)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_Hs,       (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat                               /),  snapshot%netcdf%id_var_Hs)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_T2m,      (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_month /),  snapshot%netcdf%id_var_T2m)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_Precip,   (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_month /),  snapshot%netcdf%id_var_Precip)
@@ -2132,7 +2132,7 @@ CONTAINS
     ! Read the data
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_lon,     snapshot%lon,     start = (/ 1       /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_lat,     snapshot%lat,     start = (/ 1       /) ))
-   !CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_Hi,      snapshot%Hi,      start = (/ 1, 1    /) ))
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_Hi_mask, snapshot%Hi_mask, start = (/ 1, 1    /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_Hs,      snapshot%Hs_ref,  start = (/ 1, 1    /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_T2m,     snapshot%T2m,     start = (/ 1, 1, 1 /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_Precip,  snapshot%Precip,  start = (/ 1, 1, 1 /) ))

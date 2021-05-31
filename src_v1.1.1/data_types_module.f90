@@ -320,9 +320,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T2m                           ! Monthly mean 2m air temperature (K)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Precip                        ! Monthly mean precipitation (m)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_ref                        ! Orography     that was used to force the GCM (m w.r.t. PD sea-level)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_mask                       !  LBS: Mask of the ice sheet, to calculate absorbed insolation 
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_WE                       ! Monthly mean west-east wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south_north wind speed (m/s)
-    INTEGER :: wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN ! MPI windows to all these memory spaces
+    INTEGER :: wT2m, wPrecip, wHs_ref, wHi_mask, wWind_WE, wWind_SN ! MPI windows to all these memory spaces
     
     ! Paralelisation
     INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
@@ -391,13 +392,14 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Precip                        ! Monthly mean precipitation (m)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_ref                        ! Orography      that was used to force the GCM (m w.r.t. PD sea-level) (coarse GCM resolution)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi                            ! Ice thickness  that was used to force the GCM (m)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_mask                       ! LBS: Use a mask, rather than the actual height ! 
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb                            ! Bed topography that was used to force the GCM (m w.r.t. PD sea-level)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs                            ! Orography      that was used to force the GCM (m w.r.t. PD sea-level) (fine   ISM resolution)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_WE                       ! Monthly mean west-east   wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south-north wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_LR                       ! Monthly mean wind speed in the x-direction (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
-    INTEGER :: wT2m, wPrecip, wHs_ref, wHi, wHb, wHs, wWind_WE, wWind_SN, wWind_LR, wWind_DU ! MPI windows to all these memory spaces
+    INTEGER :: wT2m, wPrecip, wHs_ref, wHi, wHi_mask, wHb, wHs, wWind_WE, wWind_SN, wWind_LR, wWind_DU ! MPI windows to all these memory spaces
     
     ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: lambda
