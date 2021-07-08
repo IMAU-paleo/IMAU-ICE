@@ -1,0 +1,170 @@
+=================================
+IMAU-ICE v2.0 changelog
+=================================
+
+Tijn Berends, July 2021
+
+BIG CHANGES: version 2.0 added DIVA ice dynamics, and the GIA+sea-level equation solver SELEN.
+
+NOTE: relative to v1.1.1, there are some minor changes to config variable names and help_fields
+      output field names, so config files and plot scripts from earlier model versions might
+      need to be updated.
+
+                             -----  Introduction: DIVA  -----
+                                    
+  The Depth-Integrated Viscosity Approximation (DIVA) was first described by Goldberg (2011).
+It is the result of neglecting all stresses in the Navier-Stokes equations except for
+du/dz & dv/dz (SIA) and du/dx, du/dy, dv/dx, dv/dy (SSA). It can be viewed as the vertically
+integrated version of the Blatter-Pattyn stress balance, or the mathematically correct solution
+to which the hybrid SIA/SSA is a heuristic approximation. Since it also includes the stress
+from longitudinal stretching caused by vertical shear (i.e. dU_SIA/dx), it is much more accurate
+than the SIA/SSA for small topographical features. Goldberg (2011) showed this by performing the
+ISMIP-HOM experiments, showing that DIVA reproduces the higher-order / full-Stokes solutions
+very well up to feature scales of about 20 km.
+  The DIVA solver implemented in IMAU-ICE is based on that from Yelmo (Robinson et al., 2020),
+which in turn uses the staggered SSA solver from SICOPOLIS (Greve, 1997?). I made some minor
+changes to the way the effective viscosity is staggered, which allows the model to reproduce the
+Schoof 2006 analytical SSA solution, but makes it more difficult to maintain numerical stability.
+Other than that, the solver is identical to the one in Yelmo, only the code has been restructured
+to match the rest of IMAU-ICE.
+
+                             -----  Introduction: SELEN  -----
+
+  SELEN (Spada and Stocchi, 2007) is a model that solves the sea-level equation. It includes
+the solid-Earth model TABOO (Spada, 2003) to calculate the Love numbers for the solid Earth
+deformation part. The gravitationally self-consistent sea-level equation is then solved for
+the global ice loading history that is provided by the ice-sheet model, including the effects
+of solid-Earth deformation, coastline migration, and (optionally) rotational feedback.
+  The version of SELEN implemented in IMAU-ICE was copied from the code of the earlier coupled
+model ANICE-SELEN (de Boer et al, 2014). It is not entirely clear which version of SELEN was
+included there, but it was substantially changed in order to be incorporated into ANICE. In
+order to include it into IMAU-ICE, I thoroughly cleaned up the code; the way data is communicated
+between the ice model and SELEN is still mostly the same as in ANICE-SELEN, but it is done much
+more clearly and cleanly now. In short: SELEN maintains a global "ice loading history" of the
+past 80,000 years (configurable). Every 1,000 years (conf.), it solves the SLE for this entire
+history. The results for the last two SELEN time-steps are then used to extrapolate 1,000 years
+into the future; the bedrock and geoid deformation rates in IMAU-ICE are then set such that, at
+the end of this next 1,000-year interval, the bedrock and geoid match the SELEN prediction.
+
+                             -----  Actual code changes  -----
+
+Ice dynamics:
+- Created two separate modules: "ice_velocity_module" for calculating instantaneous
+  velocities, and "ice_dynamics_module" for integration those through time (including
+  different methods of time stepping).
+- Upgraded the SSA/DIVA solver from the regular (A) grid to the staggered (Cx/Cy) grid,
+  based on the solver from SICOPOLIS (as included in Yelmo). This also includes the
+  "cross-terms" which were previously neglected, as well as boundary conditions for
+  the ice margin.
+- Changed the SSA/DIVA solver from the "grid-based" SOR to matrix-based SOR. Stability is
+  improved, and it opens up the possibility to use a (fast, parallel) external solver in the future.
+- Added the predictor/corrector method of time integration (with the option of going back
+  to the old "direct" method when using SIA/SSA ice dynamics).
+- Added the semi-analytical grounding-line flux solution from Tsai et al. (2012) as a
+  boundary condition to the SSA/DIVA solver.
+- Added the option to use an implicit method for integration ice thickness through time.
+  However, this currently seems to encounter instability very often in realistic experiments,
+  so it is turned off by default for now, until an external direct matrix solver can be used.
+- Added a threshold thickness calving law, combined with a "floating margin fraction" mask to
+  determine ice thickness at the margin more accurately. This mask is also used to determine
+  marginal ice fluxes (i.e. ice is only allowed to flow from a floating margin pixel to an
+  ocean pixel once the margin is completely filled), which greatly reduces "margin flickering".
+
+Benchmark experiments:
+- Added the Schoof (2006) SSA ice stream experiment. Results match the analytical solution
+  at all resolutions. Note though that both the SOR solver and the viscosity iteration need
+  a much smaller tolerance in their stop criteria for this to work.
+- Added all of the ISMIP-HOM experiments. Config files to run all of them with both the
+  old hybrid SIA/SSA and with DIVA are included. Results agree well with those in the
+  original DIVA publication by Goldberg (2011); DIVA matches the higher-order results
+  for much smaller topographical features than the hybrid SIA/SSA.
+- Added the MISMIP_mod experiment. Config files to run this with DIVA ice dynamics at
+  different resolutions are included. Results agree quantitatively with those from UFEMISM
+  (Berends et al., 2021, GMD), showing the exact same ice thickness profiles at all resolutions.
+
+SELEN:
+- SELEN is initialised by calling "initialise_SELEN" from IMAU_ICE_program. This subroutine
+  loads the global icosahedral Tegmark grid with the global topography data from an external
+  NetCDF file, runs TABOO to obtain the solid-Earth Love numbers, sets up the ice loading
+  history, creates mapping arrays to map data from the regional ice-model grids to the global
+  SELEN grid, and sets up the spherical harmonic transfer functions.
+- SELEN is ran by calling "run_SELEN" from IMAU_ICE_program. This subroutine takes all four
+  ice model regions as input (only using those that are active), solves the sea-level equation
+  for the resulting global ice loading, and sets the bedrock and geoid deformation rates of
+  the regions according to the results.
+- SELEN is parallelised in much the same way as the rest of IMAU-ICE. However, this required
+  a few semi-elegant workarounds. As far as I've been able to find, MPI shared memory cannot
+  be indexed freely, but always starts at 1 (as God intended it). Since a lot of the arrays
+  in SELEN are indexed from 0, this poses a bit of a problem. I solved this by including an
+  intermediary pointer, since Fortran allows the indexing to change between pointers. This also
+  has the advantage that I can store the actual data in a TYPE similar to the rest of IMAU-ICE,
+  but give those intermediary pointers the names they used to have in SELEN, so that all the
+  variable names in SELEN can remain the same. This should make it easier to upgrade to a new
+  SELEN version in the future.
+  
+Calving:
+- Added a simply thickness threshold calving law, combined with a "filled fraction" mask for
+  floating ice margin pixels to make sure it is applied correctly. Also included a condition to
+  the flux calculation so that ice flow from floating pixels to ice-free ocean pixels is only
+  allowed once the floating pixel is completely filled; this significantly reduces the margin
+  "flickering" problem.
+
+=================================
+IMAU-ICE v1.1.1 changelog
+=================================
+
+Tijn Berends, March 2021
+
+Output:
+- The user can now specify which data fields are written to the help_fields NetCDF file
+	through the config. For a list of which data fields can be chosen, see the "write_help_field"
+	subroutine in the "netcdf_module".
+- A separate NetCDf file has been added for debugging. At (almost) any point in the code,
+	data can be copied to the "debug" structure, which can then be written to the 
+	"debug_REG.nc" output file. For example, if we want to inspect SIA ice diffusivity, we add:
+	  ...
+	  debug%dp_2D_01 = ice%D_SIA_Aa
+	  CALL write_to_debug_file
+	  ...
+	The debug structure currently has the following data fields:
+		int_2D_01       : 2D         (x,y     ) integer          fields (01-10 available)
+		dp_2D_01        : 2D         (x,y     ) double precision fields (01-20 available)
+		dp_3D_01        : 3D         (x,y,zeta) double precision fields (01-10 available)
+		dp_2D_monthly_01: 2D monthly (x,y,m   ) double precision fields (01-10 available)
+	The user need not worry about the grid sizes for the four model regions, this has been
+	taken care of.
+	Note also that the debug file has no time dimension; when "write_to_debug_file"
+	is called, all data fields in the NetCDF file are overwritten.
+	Note also also that the debug data structure is always there, but "write_to_debug_file"
+	only does anything if the config option "do_write_debug_data_config" is set to true.
+	
+Matrix method:
+- Added routines that read and map the ICE5G data files, for use as reference ice thickness
+  in the GCM snapshots. In ANICE2.1, this was done offline during input file generation.
+- Numerous fixes to the way the interpolation weights are calculated.
+- Numerous fixed to the way reference absorbed insolation for the GCM snapshots is calculated.
+
+SMB:
+- Reverted to the old ANICE2.1 version of the SMB model, with the "broken" refreezing. The new,
+  fixed version exists as a subroutine, but is currently not used.
+  
+BMB:
+- Small fixes to the way the interpolation weight are calculated; reintroduced d18O as an
+  interpolant, as it was in ANICE2.1
+  
+Thermodynamics:
+- Spatially variable geothermal heat flux from an external NetCDF file added as an option,
+	config variable "choice_geothermal_heat_flux" specifies this. Added by Lennert Stap.
+
+Misc.:
+- Added a "no ice" mask (region%mask_noice) to prevent the growth of ice in certain specified
+  regions, such as Greenland in the NAM and EAS regions, and Ellesmere Island in the GRL
+  region. Now it is	no longer needed to remove such regions manually in the input files.
+  The no ice mask is applied in the "calculate_ice_thickness_change" of the "ice_dynamics_module";
+  at the end of the ice thickness update, ice thickness is set to zero for all pixels where
+  region%mask_noice == 1
+- Added a small routine to remove "unconnected shelves" (i.e. shelves that are not attached
+  to any grounded ice), which would sometimes form in the corners of the model domain if
+  the SMB got very high over sea.
+- Added a floodfill routine to NAM for determining the ocean mask, so that Hudson Bay becomes
+  dry when it is no longer connected to the ocean (this was also done in ANICE2.1).
