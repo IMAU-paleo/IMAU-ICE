@@ -1,10 +1,16 @@
-#    Makefile for compiling the IMAU_ICE odel
+#    Makefile for compiling the IMAU_ICE model
 
 #    For "make" syntax search on "make tutorial", or see:
 #     http://www.gnu.org/software/make/manual/make.html
 
-include Makefile.include-local
-#include Makefile.include-gemini
+include Makefile_include_local.txt
+#include Makefile_include_Gemini.txt
+#include Makefile_include_Cartesius.txt
+
+PETSC_DIR = /usr/local/Cellar/petsc/3.15.1/
+include ${PETSC_DIR}/lib/petsc/conf/variables
+#include ${PETSC_DIR}/lib/petsc/conf/rules
+include ${PETSC_DIR}/lib/petsc/conf/test
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
@@ -12,6 +18,9 @@ MOD_PATH = module-files
 
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
 $(OBJ_PATH)/%.o : %.f90
+	$(F90) $(F90FLAGS) -c -o $@ $<
+	
+$(OBJ_PATH)/%.o : %.F90
 	$(F90) $(F90FLAGS) -c -o $@ $<
 
 # This rule is used to build an executable from the object files:
@@ -37,6 +46,7 @@ IMAU_ICE_program_objects = \
         netcdf_module.o \
         forcing_module.o \
         global_text_output_module.o \
+        petsc_module.o \
         utilities_module.o \
         derivatives_and_grids_module.o \
         reference_fields_module.o \

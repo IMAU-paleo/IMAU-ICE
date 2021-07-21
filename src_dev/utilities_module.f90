@@ -10,7 +10,9 @@ MODULE utilities_module
                                              deallocate_shared
   USE configuration_module,            ONLY: dp, C
   USE parameters_module
+  USE netcdf_module,                   ONLY: debug
   USE data_types_module,               ONLY: type_grid, type_sparse_matrix_CSR
+  USE petsc_module,                    ONLY: solve_matrix_equation_CSR_PETSc
 
 CONTAINS
 
@@ -324,6 +326,7 @@ CONTAINS
     
     ! Fill in the smoothing filters
     ALLOCATE( f( -n:n))
+    f = 0._dp
     DO i = -n, n
       f(i) = EXP( -0.5_dp * (REAL(i,dp) * grid%dx/r)**2)
     END DO
@@ -543,79 +546,82 @@ CONTAINS
     
   END SUBROUTINE smooth_Shepard_3D
   
-! == SOR solver for matrix equations in CSR format
-  SUBROUTINE initialise_matrix_equation_CSR( m, neq, nnz_max)
+! == Solve matrix equations in CSR format
+  SUBROUTINE solve_matrix_equation_CSR( CSR, choice_matrix_solver, SOR_nit, SOR_tol, SOR_omega, PETSc_rtol, PETSc_abstol)
+    ! Solve the matrix equation Ax = b
+    ! The matrix A is provided in Compressed Sparse Row (CSR) format
       
     IMPLICIT NONE
     
     ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: m
-    INTEGER,                             INTENT(IN)    :: neq, nnz_max
+    TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: CSR
+    CHARACTER(LEN=256),                  INTENT(IN)    :: choice_matrix_solver
+    INTEGER,                             INTENT(IN)    :: SOR_nit
+    REAL(dp),                            INTENT(IN)    :: SOR_tol
+    REAL(dp),                            INTENT(IN)    :: SOR_omega
+    REAL(dp),                            INTENT(IN)    :: PETSc_rtol
+    REAL(dp),                            INTENT(IN)    :: PETSc_abstol
     
-    CALL allocate_shared_int_0D( m%neq,     m%wneq    )
-    CALL allocate_shared_int_0D( m%nnz_max, m%wnnz_max)
+    IF (choice_matrix_solver == 'SOR') THEN
+      ! Use the old simple SOR solver
+      
+      CALL solve_matrix_equation_CSR_SOR( CSR, SOR_nit, SOR_tol, SOR_omega)
+      
+    ELSEIF (choice_matrix_solver == 'PETSc') THEN
+      ! Use the PETSc solver (much preferred, this is way faster and more stable!)
     
-    IF (par%master) THEN
-      m%neq     = neq
-      m%nnz_max = nnz_max
+      CALL solve_matrix_equation_CSR_PETSc( CSR, PETSc_rtol, PETSc_abstol)
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'solve_matrix_equation_CSR - ERROR: unknown choice_matrix_solver "', choice_matrix_solver, '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    CALL sync
     
-    CALL allocate_shared_int_1D( m%neq+1,   m%A_ptr,   m%wA_ptr  )
-    CALL allocate_shared_int_1D( m%nnz_max, m%A_index, m%wA_index)
-    CALL allocate_shared_dp_1D(  m%nnz_max, m%A_val,   m%wA_val  )
-    CALL allocate_shared_dp_1D(  m%neq,     m%b,       m%wb      )
-    CALL allocate_shared_dp_1D(  m%neq,     m%x,       m%wx      )
-    
-  END SUBROUTINE initialise_matrix_equation_CSR
-  SUBROUTINE solve_matrix_equation_CSR_SOR( m, omega, tol, max_it)
+  END SUBROUTINE solve_matrix_equation_CSR
+  SUBROUTINE solve_matrix_equation_CSR_SOR( CSR, nit, tol, omega)
     ! Solve the matrix equation Ax = b using successive over-relaxation (SOR)
     ! The matrix A is provided in Compressed Sparse Row (CSR) format
       
     IMPLICIT NONE
     
     ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: m
-    REAL(dp),                            INTENT(IN)    :: omega
+    TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: CSR
+    INTEGER,                             INTENT(IN)    :: nit
     REAL(dp),                            INTENT(IN)    :: tol
-    INTEGER,                             INTENT(IN)    :: max_it
+    REAL(dp),                            INTENT(IN)    :: omega
     
     ! Local variables:
     INTEGER                                            :: i,j,k,it,i1,i2
-    REAL(dp)                                           :: lhs, res, cij, res_max, res_max_prev, omega_dyn
+    REAL(dp)                                           :: lhs, res, cij, res_max, omega_dyn
     
     ! Partition equations over the processors
-    CALL partition_list( m%neq, par%i, par%n, i1, i2)
+    CALL partition_list( CSR%m, par%i, par%n, i1, i2)
     
     omega_dyn = omega
     
     res_max = tol * 2._dp
     it = 0
-    SOR_iterate: DO WHILE (res_max > tol .AND. it < max_it)
+    SOR_iterate: DO WHILE (res_max > tol .AND. it < nit)
       it = it+1
       
-      res_max_prev = res_max
-      res_max      = 0._dp
+      res_max = 0._dp
 
       DO i = i1, i2
-      !IF (par%master) THEN
-      !DO i = 1, m%neq
       
         lhs = 0._dp
         cij = 0._dp
-        DO k = m%A_ptr( i), m%A_ptr( i+1)-1
-          j = m%A_index( k)
-          lhs = lhs + m%A_val( k) * m%x( j)
-          IF (j == i) cij = m%A_val( k)
+        DO k = CSR%A_ptr( i), CSR%A_ptr( i+1)-1
+          j = CSR%A_index( k)
+          lhs = lhs + CSR%A_val( k) * CSR%x( j)
+          IF (j == i) cij = CSR%A_val( k)
         END DO
         
-        res = (lhs - m%b( i)) / cij
+        res = (lhs - CSR%b( i)) / cij
         res_max = MAX( res_max, res)
         
-        m%x( i) = m%x( i) - omega_dyn * res
+        CSR%x( i) = CSR%x( i) - omega_dyn * res
         
       END DO ! DO i = i1, i2
-      !END IF
       CALL sync
       
       ! Check if we've reached a stable solution
@@ -629,7 +635,7 @@ CONTAINS
         IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - divergence detected; decrease omega, reset solution to zero, restart SOR'
         omega_dyn = omega_dyn - 0.1_dp
         it = 0
-        m%x( i1:i2) = 0._dp
+        CSR%x( i1:i2) = 0._dp
         CALL sync
         
         IF (omega_dyn <= 0.1_dp) THEN
@@ -641,28 +647,56 @@ CONTAINS
     END DO SOR_iterate
     
   END SUBROUTINE solve_matrix_equation_CSR_SOR
-  SUBROUTINE check_CSR_for_double_entries( m)
+  SUBROUTINE initialise_matrix_equation_CSR( CSR, m, n, nnz_per_row_max)
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: CSR
+    INTEGER,                             INTENT(IN)    :: m,n,nnz_per_row_max
+    
+    CALL allocate_shared_int_0D( CSR%m,               CSR%wm              )
+    CALL allocate_shared_int_0D( CSR%n,               CSR%wn              )
+    CALL allocate_shared_int_0D( CSR%nnz_per_row_max, CSR%wnnz_per_row_max)
+    CALL allocate_shared_int_0D( CSR%nnz_max,         CSR%wnnz_max        )
+    
+    IF (par%master) THEN
+      CSR%m               = m
+      CSR%n               = n
+      CSR%nnz_per_row_max = nnz_per_row_max
+      CSR%nnz_max         = nnz_per_row_max * m
+    END IF
+    CALL sync
+    
+    CALL allocate_shared_int_1D( CSR%m+1,     CSR%A_ptr,   CSR%wA_ptr  )
+    CALL allocate_shared_int_1D( CSR%nnz_max, CSR%A_index, CSR%wA_index)
+    CALL allocate_shared_dp_1D(  CSR%nnz_max, CSR%A_val,   CSR%wA_val  )
+    CALL allocate_shared_dp_1D(  CSR%m,       CSR%b,       CSR%wb      )
+    CALL allocate_shared_dp_1D(  CSR%n,       CSR%x,       CSR%wx      )
+    
+  END SUBROUTINE initialise_matrix_equation_CSR
+  SUBROUTINE check_CSR_for_double_entries( CSR)
     ! Check a CSR matrix representation for double entries
       
     IMPLICIT NONE
     
     ! In- and output variables:
-    TYPE(type_sparse_matrix_CSR),        INTENT(IN)    :: m
+    TYPE(type_sparse_matrix_CSR),        INTENT(IN)    :: CSR
     
     ! Local variables:
     INTEGER                                            :: i,j,k,i1,i2,k2,j2
     
     ! Partition equations over the processors
-    CALL partition_list( m%neq, par%i, par%n, i1, i2)
+    CALL partition_list( CSR%m, par%i, par%n, i1, i2)
 
     DO i = i1, i2  
     
-      DO k = m%A_ptr( i), m%A_ptr( i+1)-1
-        j = m%A_index( k)
+      DO k = CSR%A_ptr( i), CSR%A_ptr( i+1)-1
+        j = CSR%A_index( k)
         
-        DO k2 = m%A_ptr( i), m%A_ptr( i+1)-1
+        DO k2 = CSR%A_ptr( i), CSR%A_ptr( i+1)-1
           IF (k2 == k) CYCLE
-          j2 = m%A_index( k2)
+          j2 = CSR%A_index( k2)
           IF (j2 == j) THEN
             WRITE(0,*) 'check_CSR_for_double_entries - ERROR: double entry detected!'
             CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

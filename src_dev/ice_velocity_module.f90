@@ -15,7 +15,7 @@ MODULE ice_velocity_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE utilities_module,                ONLY: vertical_integration_from_bottom_to_zeta, vertical_average, vertical_integrate, &
                                              SSA_Schoof2006_analytical_solution, initialise_matrix_equation_CSR, &
-                                             solve_matrix_equation_CSR_SOR, check_CSR_for_double_entries
+                                             solve_matrix_equation_CSR, check_CSR_for_double_entries
   USE derivatives_and_grids_module,    ONLY: ddx_cx_to_b_2D, ddy_cx_to_b_2D, ddy_cy_to_b_2D, ddx_cy_to_b_2D, &
                                              map_cx_to_a_2D, map_cy_to_a_2D, map_cx_to_a_3D, map_cy_to_a_3D
   USE general_ice_model_data_module,   ONLY: is_floating
@@ -123,6 +123,9 @@ CONTAINS
     INTEGER                                            :: viscosity_iteration_i
     REAL(dp)                                           :: resid_UV
     REAL(dp)                                           :: umax_analytical, tauc_analytical
+    REAL(dp)                                           :: t0
+    
+    t0 = MPI_WTIME()
     
     ! Check that this routine is called correctly
     IF (.NOT. (C%choice_ice_dynamics == 'SSA' .OR. C%choice_ice_dynamics == 'SIA/SSA')) THEN
@@ -200,7 +203,7 @@ CONTAINS
       CALL apply_velocity_limits( grid, ice%v_SSA_cy)
       
       ! "relax" subsequent viscosity iterations for improved stability
-      CALL relax_DIVA_visc_iterations( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy, C%DIVA_visc_iter_relax)
+      CALL relax_DIVA_visc_iterations( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy, C%DIVA_visc_it_relax)
       
       ! Check if the viscosity iteration has converged
       CALL calculate_visc_iter_UV_resid( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy, resid_UV)
@@ -210,9 +213,9 @@ CONTAINS
         WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_vav_cx) / umax_analytical), ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
-      IF     (resid_UV < C%DIVA_norm_dUV_tol) THEN
+      IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
         has_converged = .TRUE.
-      ELSEIF (viscosity_iteration_i >= C%DIVA_max_outer_loops) THEN
+      ELSEIF (viscosity_iteration_i >= C%DIVA_visc_it_nit) THEN
         has_converged = .TRUE.
       END IF
       
@@ -224,6 +227,8 @@ CONTAINS
     
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calculate_secondary_velocities( grid, ice)
+    
+    !IF (par%master) WRITE(0,*) '   ', TRIM(C%DIVA_choice_matrix_solver), ' solved ', TRIM(C%choice_ice_dynamics), ' in ', MPI_WTIME()-t0, ' seconds.'
     
   END SUBROUTINE solve_SSA
   SUBROUTINE solve_DIVA( grid, ice)
@@ -250,6 +255,9 @@ CONTAINS
     LOGICAL                                            :: has_converged
     INTEGER                                            :: viscosity_iteration_i
     REAL(dp)                                           :: resid_UV
+    REAL(dp)                                           :: t0
+    
+    t0 = MPI_WTIME()
     
     ! Check that this routine is called correctly
     IF (.NOT. C%choice_ice_dynamics == 'DIVA') THEN
@@ -329,16 +337,16 @@ CONTAINS
       CALL apply_velocity_limits( grid, ice%v_vav_cy)
       
       ! "relax" subsequent viscosity iterations for improved stability
-      CALL relax_DIVA_visc_iterations( grid, ice, ice%u_vav_cx, ice%v_vav_cy, C%DIVA_visc_iter_relax)
+      CALL relax_DIVA_visc_iterations( grid, ice, ice%u_vav_cx, ice%v_vav_cy, C%DIVA_visc_it_relax)
       
       ! Check if the viscosity iteration has converged
       CALL calculate_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
      ! IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
-      IF     (resid_UV < C%DIVA_norm_dUV_tol) THEN
+      IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
         has_converged = .TRUE.
-      ELSEIF (viscosity_iteration_i >= C%DIVA_max_outer_loops) THEN
+      ELSEIF (viscosity_iteration_i >= C%DIVA_visc_it_nit) THEN
         has_converged = .TRUE.
       END IF
       
@@ -359,6 +367,8 @@ CONTAINS
     
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calculate_secondary_velocities( grid, ice)
+    
+    !IF (par%master) WRITE(0,*) '   ', TRIM(C%DIVA_choice_matrix_solver), ' solved ', TRIM(C%choice_ice_dynamics), ' in ', MPI_WTIME()-t0, ' seconds.'
     
   END SUBROUTINE solve_DIVA
   SUBROUTINE calculate_secondary_velocities( grid, ice)
@@ -573,7 +583,7 @@ CONTAINS
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
     
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
         IF (ice%mask_ice_a( j  ,i  ) == 0 .AND. &
             ice%mask_ice_a( j  ,i+1) == 0 .AND. &
             ice%mask_ice_a( j+1,i  ) == 0 .AND. &
@@ -582,11 +592,11 @@ CONTAINS
           ice%visc_eff_3D_b( :,j,i) = 0._dp
           CYCLE
         END IF
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! In the "infinite slab" case, calculate effective viscosity everywhere
         ! (even when there's technically no ice present)
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
 
@@ -606,7 +616,7 @@ CONTAINS
         
         ! Get flow factor on the B-grid
         A_flow_b = 0._dp
-        IF (C%DIVA_choice_ice_margin == 'BC') THEN
+        IF (C%choice_ice_margin == 'BC') THEN
         
           A_flow_b = 0._dp
           w        = 0._dp
@@ -630,12 +640,12 @@ CONTAINS
           
           A_flow_b = A_flow_b / w
           
-        ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+        ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
           
           A_flow_b = (ice%A_flow_3D_a( k,j,i) + ice%A_flow_3D_a( k,j,i+1) + ice%A_flow_3D_a( k,j+1,i) + ice%A_flow_3D_a( k,j+1,i+1)) / 4._dp
           
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
         
@@ -648,9 +658,9 @@ CONTAINS
       ice%visc_eff_int_b( j,i) = vertical_integrate( ice%visc_eff_3D_b( :,j,i))
       
       ! Product term N = eta * H
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
         ice%N_b( j,i)  = ice%visc_eff_int_b( j,i) * ice%Hi_b( j,i)
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ice%N_b( j,i)  = ice%visc_eff_int_b( j,i) * MAX(0.1_dp,ice%Hi_b( j,i))
       END IF
 
@@ -662,7 +672,7 @@ CONTAINS
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
     
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
       
         IF (ice%mask_ice_a( j,i) == 0) THEN
           ! No ice
@@ -692,14 +702,14 @@ CONTAINS
         
         ice%visc_eff_3D_a( :,j,i) = visc_eff_3D_a / w
         
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! In the "infinite slab" case, calculate effective viscosity everywhere
         ! (even when there's technically no ice present)
         
         ice%visc_eff_3D_a( :,j,i) = (ice%visc_eff_3D_b( :,j-1,i-1) + ice%visc_eff_3D_b( :,j-1,i  ) + ice%visc_eff_3D_b( :,j  ,i-1) + ice%visc_eff_3D_b( :,j  ,i  )) / 4._dp
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
@@ -707,9 +717,9 @@ CONTAINS
       ice%visc_eff_int_a( j,i) = vertical_integrate( ice%visc_eff_3D_a( :,j,i))
       
       ! Product term N = eta * H
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
         ice%N_a( j,i) = ice%visc_eff_int_a( j,i) * ice%Hi_a( j,i)
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ice%N_a( j,i) = ice%visc_eff_int_a( j,i) * MAX(0.1_dp,ice%Hi_a( j,i))
       END IF
       
@@ -735,8 +745,6 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: u_cx
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: v_cy
     
     ! Local variables
     INTEGER                                            :: i,j
@@ -865,17 +873,17 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
         IF (ice%mask_ice_a( j,i) == 0) THEN
           ! No ice
           ice%beta_a( j,i) = 0._dp
           CYCLE
         END IF
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! In the "infinite slab" case, calculate effective viscosity everywhere
         ! (even when there's technically no ice present)
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_sliding_term_beta!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_sliding_term_beta!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     
@@ -953,14 +961,14 @@ CONTAINS
         
       ELSE
       
-        IF (C%DIVA_choice_ice_margin == 'BC') THEN
+        IF (C%choice_ice_margin == 'BC') THEN
           ice%F2_a( j,i) = 0._dp
-        ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+        ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
           ! In the "infinite slab" case, calculate effective viscosity everywhere
           ! (even when there's technically no ice present)
           ice%F2_a( j,i) = F_int_min
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_F_integral!'
+          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_F_integral!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
         
@@ -1023,7 +1031,7 @@ CONTAINS
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
 
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
       
         IF     (ice%Hi_a( j,i) >  0._dp .AND. ice%Hi_a( j,i+1) == 0._dp) THEN
           ! Ice to the left
@@ -1048,7 +1056,7 @@ CONTAINS
           END IF
         END IF
         
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! In the "infinite slab" case, calculate stuff everywhere
         ! (even when there's technically no ice present)
         
@@ -1067,7 +1075,7 @@ CONTAINS
         END IF
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in stagger_beta_eff!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in stagger_beta_eff!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
 
@@ -1079,7 +1087,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
 
         IF     (ice%Hi_a( j,i) >  0._dp .AND. ice%Hi_a( j+1,i) == 0._dp) THEN
           ! Ice to the bottom
@@ -1104,7 +1112,7 @@ CONTAINS
           END IF
         END IF
         
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! In the "infinite slab" case, calculate stuff everywhere
         ! (even when there's technically no ice present)
         
@@ -1123,7 +1131,7 @@ CONTAINS
         END IF
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in stagger_beta_eff!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in stagger_beta_eff!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
 
@@ -1244,7 +1252,7 @@ CONTAINS
       IF (i < grid%nx) THEN
       
         ! Stagger F1 column to ac-nodes
-        IF (C%DIVA_choice_ice_margin == 'BC') THEN
+        IF (C%choice_ice_margin == 'BC') THEN
           IF     (ice%Hi_a( j,i) >  0._dp .AND. ice%Hi_a( j,i+1) == 0._dp) THEN 
             F1_stag = ice%F1_3D_a( :,j,i) 
           ELSEIF (ice%Hi_a( j,i) == 0._dp .AND. ice%Hi_a( j,i+1) >  0._dp) THEN
@@ -1254,12 +1262,12 @@ CONTAINS
           ELSE
             F1_stag = 0._dp
           END IF 
-        ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+        ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
           ! In the "infinite slab" case, calculate effective viscosity everywhere
           ! (even when there's technically no ice present)
           F1_stag = 0.5_dp * (ice%F1_3D_a( :,j,i) + ice%F1_3D_a( :,j,i+1))
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
 
@@ -1272,7 +1280,7 @@ CONTAINS
       IF (j < grid%ny) THEN
       
         ! Stagger F1 column to ac-nodes 
-        IF (C%DIVA_choice_ice_margin == 'BC') THEN
+        IF (C%choice_ice_margin == 'BC') THEN
           IF     (ice%Hi_a( j,i) >  0._dp .AND. ice%Hi_a( j+1,i) == 0._dp) THEN 
             F1_stag = ice%F1_3D_a( :,j,i) 
           ELSEIF (ice%Hi_a( j,i) == 0._dp .AND. ice%Hi_a( j+1,i) >  0._dp) THEN
@@ -1282,12 +1290,12 @@ CONTAINS
           ELSE
             F1_stag = 0._dp
           END IF 
-        ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+        ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
           ! In the "infinite slab" case, calculate effective viscosity everywhere
           ! (even when there's technically no ice present)
           F1_stag = 0.5_dp * (ice%F1_3D_a(:,j,i) + ice%F1_3D_a(:,j+1,i))
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
 
@@ -1429,15 +1437,15 @@ CONTAINS
       RETURN
     END IF
     
-    IF (C%DIVA_choice_ice_margin == 'BC') THEN
+    IF (C%choice_ice_margin == 'BC') THEN
       ! Update the solve masks
-    ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+    ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
       ! Just solve the equations everywhere
       ice%DIVA_solve_mask_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1
       ice%DIVA_solve_mask_cy( :,grid%i1:              grid%i2 ) = 1
       RETURN
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in initialise_DIVA_solve_masks!'
+      IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in initialise_DIVA_solve_masks!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -1895,6 +1903,7 @@ CONTAINS
 
     ! Local variables
     INTEGER                                            :: i, j, k, n
+    REAL(dp)                                           :: t0
 
     ! Fill in the old SICOPOLIS masks (used to determine
     ! where to apply ice margin boundary conditions)
@@ -1914,11 +1923,11 @@ CONTAINS
       k = 0
       ice%DIVA_m%A_ptr(1) = 1
       
-      IF (C%DIVA_choice_ice_margin == 'BC') THEN
+      IF (C%choice_ice_margin == 'BC') THEN
         ! Apply velocity boundary conditions at the ice margin, don't solve
         ! the equations for non-ice pixels
   
-        DO n = 1, ice%DIVA_m%neq
+        DO n = 1, ice%DIVA_m%m
           IF (ice%DIVA_m_n2ij_uv( n,1) > 0) THEN
             ! Equation 1
             CALL list_DIVA_matrix_coefficients_eq_1_with_BC( grid, ice, u, k, n)
@@ -1929,10 +1938,10 @@ CONTAINS
           ice%DIVA_m%A_ptr( n+1) = k+1
         END DO ! DO n = 1, ice%DIVA_m_neq
         
-      ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+      ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
         ! Use the "infinite slab" approach from PISM and ANICE
   
-        DO n = 1, ice%DIVA_m%neq
+        DO n = 1, ice%DIVA_m%m
           IF (ice%DIVA_m_n2ij_uv( n,1) > 0) THEN
             ! Equation 1
             CALL list_DIVA_matrix_coefficients_eq_1_infinite_slab( grid, ice, u, k, n)
@@ -1944,7 +1953,7 @@ CONTAINS
         END DO ! DO n = 1, ice%DIVA_m_neq
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in solve_DIVA_stag_linearised!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in solve_DIVA_stag_linearised!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
@@ -1954,7 +1963,11 @@ CONTAINS
     ! Solve the matrix equation using SOR
     ! ===================================
     
-    CALL solve_matrix_equation_CSR_SOR( ice%DIVA_m, C%DIVA_SOR_omega, C%DIVA_max_residual_UV, C%DIVA_max_inner_loops)
+    t0 = MPI_WTIME()
+    CALL solve_matrix_equation_CSR( ice%DIVA_m, C%DIVA_choice_matrix_solver, &
+      SOR_nit = C%DIVA_SOR_nit, SOR_tol = C%DIVA_SOR_tol, SOR_omega = C%DIVA_SOR_omega, &
+      PETSc_rtol = C%DIVA_PETSc_rtol, PETSc_abstol = C%DIVA_PETSc_abstol)
+    !IF (par%master) WRITE(0,*) '   ', TRIM(C%DIVA_choice_matrix_solver), ' solved linearised ', TRIM(C%choice_ice_dynamics), ' in ', MPI_WTIME()-t0, ' seconds.'
 
     ! Map the solution back from vector format to the model grids
     ! ===========================================================
@@ -2754,11 +2767,12 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
-    INTEGER                                            :: i,j,n, neq, nnz_max
+    INTEGER                                            :: i,j,neq,nnz_per_row_max,n
     
-    neq     = (grid%nx - 1) * grid%ny + grid%nx * (grid%ny - 1)
-    nnz_max = 9 * neq
-    CALL initialise_matrix_equation_CSR( ice%DIVA_m, neq, nnz_max)
+    neq             = (grid%nx - 1) * grid%ny + grid%nx * (grid%ny - 1)
+    nnz_per_row_max = 9
+    
+    CALL initialise_matrix_equation_CSR( ice%DIVA_m, neq, neq, nnz_per_row_max)
     
     CALL allocate_shared_int_2D( grid%ny  , grid%nx-1, ice%DIVA_m_ij2n_u  , ice%wDIVA_m_ij2n_u )
     CALL allocate_shared_int_2D( grid%ny-1, grid%nx  , ice%DIVA_m_ij2n_v  , ice%wDIVA_m_ij2n_v )

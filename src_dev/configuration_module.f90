@@ -17,6 +17,8 @@ MODULE configuration_module
   ! be overwritten in the end.
   !
   ! Some day I'll figure out a more elegant solution for this...
+  
+  USE mpi
 
   IMPLICIT NONE
   
@@ -63,23 +65,23 @@ MODULE configuration_module
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
   
-  LOGICAL             :: create_new_output_dir_config            = .TRUE.
-  CHARACTER(LEN=256)  :: output_dir_config                       = 'results_IMAU_ICE'
-  LOGICAL             :: do_write_debug_data_config              = .FALSE.
+  LOGICAL             :: create_procedural_output_dir_config     = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  CHARACTER(LEN=256)  :: fixed_output_dir_config                 = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  LOGICAL             :: do_write_debug_data_config              = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   
   ! Whether or not the simulation is a restart of a previous simulation
   ! ===================================================================
   
-  LOGICAL             :: is_restart_config                       = .FALSE.
+  LOGICAL             :: is_restart_config                       = .FALSE.                          ! Whether or not the current run is a restart of a previous run
   REAL(dp)            :: time_to_restart_from_config             = 0._dp                            ! Can be different from C%start_time_of_run, though this will issue a warning
   
   ! Horizontal grid spacing and size for the four regions
   ! =====================================================
   
-  REAL(dp)            :: dx_NAM_config                           = 40000._dp
-  REAL(dp)            :: dx_EAS_config                           = 40000._dp
-  REAL(dp)            :: dx_GRL_config                           = 20000._dp
-  REAL(dp)            :: dx_ANT_config                           = 40000._dp
+  REAL(dp)            :: dx_NAM_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of North America [m]
+  REAL(dp)            :: dx_EAS_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of Eurasia       [m]
+  REAL(dp)            :: dx_GRL_config                           = 20000._dp                        ! Horizontal resolution (both X and Y) of Greenland     [m]
+  REAL(dp)            :: dx_ANT_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of Antarctica    [m]
 
   ! The scaled vertical coordinate zeta, used mainly in thermodynamics
   ! ==================================================================
@@ -135,23 +137,20 @@ MODULE configuration_module
   ! =======================
   
   CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Can be 'SIA', 'SSA', 'SIA/SSA', and 'DIVA'
+  CHARACTER(LEN=256)  :: choice_ice_margin_config                = 'infinite_slab'                  ! Choice of ice margin boundary conditions; can be "BC" or "infinite_slab"
+  LOGICAL             :: use_analytical_GL_flux_config           = .FALSE.                          ! Whether or not the analytical grounding line flux solution is used
   REAL(dp)            :: n_flow_config                           = 3.0_dp                           ! Exponent in Glen's flow law
   REAL(dp)            :: m_enh_sheet_config                      = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
   REAL(dp)            :: m_enh_shelf_config                      = 1.0_dp                           ! Ice flow enhancement factor for floating ice
-  LOGICAL             :: use_analytical_GL_flux_config           = .FALSE.                          ! Whether or not the analytical grounding line flux solution is used
   
   ! Some parameters for numerically solving the SSA/DIVA
-  CHARACTER(LEN=256)  :: DIVA_choice_ice_margin_config           = 'infinite_slab'                   ! Choice of ice margin boundary conditions; can be "BC" or "infinite_slab"
-  REAL(dp)            :: DIVA_norm_dUV_tol_config                = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
-  INTEGER             :: DIVA_max_outer_loops_config             = 50                               ! Maximum number of effective viscosity iterations
-  REAL(dp)            :: DIVA_max_residual_UV_config             = 2.5_dp                           ! The maximum residual in U and V in the SOR solver of the linearised DIVA must drop below this value [m yr^-1]
-  REAL(dp)            :: DIVA_SOR_omega_config                   = 1.0_dp                           ! The over-relaxation parameter in the SOR solver of the linearised DIVA
-  INTEGER             :: DIVA_max_inner_loops_config             = 3000                             ! Maximum number of iterations in the SOR solver of the linearised DIVA
+  REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config        = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  INTEGER             :: DIVA_visc_it_nit_config                 = 50                               ! Maximum number of effective viscosity iterations
+  REAL(dp)            :: DIVA_visc_it_relax_config               = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   REAL(dp)            :: DIVA_beta_max_config                    = 1E20_dp                          ! The DIVA is not solved (i.e. velocities are assumed to be zero) for beta values larger than this
   REAL(dp)            :: DIVA_err_lim_config                     = 1E-5_dp                          ! The DIVA is not refined (i.e. velocities are no longer updated with SOR) wherever successive velocity iterations change the velocity by less than this amount
   REAL(dp)            :: DIVA_vel_max_config                     = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
   REAL(dp)            :: DIVA_vel_min_config                     = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
-  REAL(dp)            :: DIVA_visc_iter_relax_config             = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config          = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config          = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config         = 'infinite'
@@ -160,15 +159,24 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_east_config          = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_south_config         = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_north_config         = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_choice_matrix_solver_config        = 'PETSc'                          ! Choice of matrix solver for the ice velocity equations (can be 'SOR' or 'PETSc')
+  INTEGER             :: DIVA_SOR_nit_config                     = 10000                            ! DIVA SOR   solver - maximum number of iterations
+  REAL(dp)            :: DIVA_SOR_tol_config                     = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
+  REAL(dp)            :: DIVA_SOR_omega_config                   = 1.0_dp                           ! DIVA SOR   solver - over-relaxation parameter
+  REAL(dp)            :: DIVA_PETSc_rtol_config                  = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  REAL(dp)            :: DIVA_PETSc_abstol_config                = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
   
   CHARACTER(LEN=256)  :: choice_timestepping_config              = 'pc'                             ! Can be 'direct' or 'pc' (NOTE: 'direct' does not work with DIVA ice dynamcis!)
   CHARACTER(LEN=256)  :: choice_ice_integration_method_config    = 'explicit'                       ! Can be "explicit" or "implicit"
-  REAL(dp)            :: dHi_SOR_omega_config                    = 1.2_dp                           ! The over-relaxation parameter    in the SOR solver of the mass conservation matrix equation
-  REAL(dp)            :: dHi_SOR_max_res_config                  = 10._dp                           ! The stop criterion               in the SOR solver of the mass conservation matrix equation
-  INTEGER             :: dHi_SOR_max_loops_config                = 10000                            ! The maximum number of iterations in the SOR solver of the mass conservation matrix equation
+  CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config         = 'PETSc'                          ! Choice of matrix solver for the ice thickness equation (can be 'SOR' or 'PETSc')
+  INTEGER             :: dHi_SOR_nit_config                      = 3000                             ! dHi SOR   solver - maximum number of iterations
+  REAL(dp)            :: dHi_SOR_tol_config                      = 2.5_dp                           ! dHi SOR   solver - stop criterion, absolute difference
+  REAL(dp)            :: dHi_SOR_omega_config                    = 1.0_dp                           ! dHi SOR   solver - over-relaxation parameter
+  REAL(dp)            :: dHi_PETSc_rtol_config                   = 0.01_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  REAL(dp)            :: dHi_PETSc_abstol_config                 = 0.01_dp                          ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
   REAL(dp)            :: pc_epsilon_config                       = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
@@ -456,8 +464,8 @@ MODULE configuration_module
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
    ! =======================================================================
    
-    LOGICAL                             :: create_new_output_dir
-    CHARACTER(LEN=256)                  :: output_dir
+    LOGICAL                             :: create_procedural_output_dir
+    CHARACTER(LEN=256)                  :: fixed_output_dir
     LOGICAL                             :: do_write_debug_data
   
     ! Whether or not the simulation is a restart of a previous simulation
@@ -507,23 +515,20 @@ MODULE configuration_module
     ! =======================
     
     CHARACTER(LEN=256)                  :: choice_ice_dynamics
+    CHARACTER(LEN=256)                  :: choice_ice_margin
+    LOGICAL                             :: use_analytical_GL_flux
     REAL(dp)                            :: n_flow
     REAL(dp)                            :: m_enh_sheet
     REAL(dp)                            :: m_enh_shelf
-    LOGICAL                             :: use_analytical_GL_flux
     
     ! Some parameters for numerically solving the SSA/DIVA
-    CHARACTER(LEN=256)                  :: DIVA_choice_ice_margin
-    REAL(dp)                            :: DIVA_norm_dUV_tol
-    INTEGER                             :: DIVA_max_outer_loops
-    REAL(dp)                            :: DIVA_max_residual_UV
-    REAL(dp)                            :: DIVA_SOR_omega
-    INTEGER                             :: DIVA_max_inner_loops
+    REAL(dp)                            :: DIVA_visc_it_norm_dUV_tol
+    INTEGER                             :: DIVA_visc_it_nit
+    REAL(dp)                            :: DIVA_visc_it_relax
     REAL(dp)                            :: DIVA_beta_max
     REAL(dp)                            :: DIVA_err_lim
     REAL(dp)                            :: DIVA_vel_max
     REAL(dp)                            :: DIVA_vel_min
-    REAL(dp)                            :: DIVA_visc_iter_relax
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_south
@@ -532,15 +537,24 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_v_east
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_v_south
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_v_north
+    CHARACTER(LEN=256)                  :: DIVA_choice_matrix_solver
+    INTEGER                             :: DIVA_SOR_nit
+    REAL(dp)                            :: DIVA_SOR_tol
+    REAL(dp)                            :: DIVA_SOR_omega
+    REAL(dp)                            :: DIVA_PETSc_rtol
+    REAL(dp)                            :: DIVA_PETSc_abstol
   
     ! Ice dynamics - time integration
     ! ===============================
     
     CHARACTER(LEN=256)                  :: choice_timestepping
     CHARACTER(LEN=256)                  :: choice_ice_integration_method
+    CHARACTER(LEN=256)                  :: dHi_choice_matrix_solver
+    INTEGER                             :: dHi_SOR_nit
+    REAL(dp)                            :: dHi_SOR_tol
     REAL(dp)                            :: dHi_SOR_omega
-    REAL(dp)                            :: dHi_SOR_max_res
-    INTEGER                             :: dHi_SOR_max_loops
+    REAL(dp)                            :: dHi_PETSc_rtol
+    REAL(dp)                            :: dHi_PETSc_abstol
     
     ! Predictor-corrector ice-thickness update
     REAL(dp)                            :: pc_epsilon
@@ -806,28 +820,10 @@ MODULE configuration_module
     REAL(dp)                            :: alpha_stereo_GRL
     REAL(dp)                            :: alpha_stereo_ANT
     
+    ! The output directory
+    ! ====================
     
-    ! Some useful constants for the scaled vertical coordinate transformation
-    ! =======================================================================
-
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: a_k
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: b_k
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: c_k
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: d_k
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: a_zeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: b_zeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: c_zeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: a_zetazeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: b_zetazeta
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: c_zetazeta
-
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: z_zeta_minus
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: a_zeta_minus
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: b_zeta_minus
-
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: b_zeta_plus
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: c_zeta_plus
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: d_zeta_plus
+    CHARACTER(LEN=256)                  :: output_dir
 
   END TYPE constants_type
   
@@ -858,6 +854,175 @@ MODULE configuration_module
   TYPE(constants_type_TABOO), SAVE :: C_TABOO
 
 CONTAINS
+
+  SUBROUTINE initialise_model_configuration( version_number)
+    ! Initialise the C (configuration) structure from one or two external config text files,
+    ! set up the output directory (either procedurally from the current date, or directly
+    ! from the config-specified folder name), and copy the config file(s) there.
+    
+    ! In/output variables:
+    CHARACTER(LEN=256),                  INTENT(IN)    :: version_number
+    
+    ! Local variables:
+    INTEGER                                            :: ierr, cerr, process_rank, number_of_processes, p
+    LOGICAL                                            :: master
+    CHARACTER(LEN=256)                                 :: config_filename, template_filename, variation_filename, config_mode
+    INTEGER                                            :: n
+    CHARACTER(LEN=20)                                  :: output_dir_procedural
+    LOGICAL                                            :: ex
+  
+    ! Get rank of current process and total number of processes
+    ! (needed because the configuration_module cannot access the par structure)
+    CALL MPI_COMM_RANK( MPI_COMM_WORLD, process_rank, ierr)
+    CALL MPI_COMM_SIZE( MPI_COMM_WORLD, number_of_processes, ierr)
+    master = (process_rank == 0)
+    
+  ! ===== Set up the config structure =====
+  ! =======================================
+    
+    ! The name(s) of the config file(s) are provided as input arguments when calling the IMAU_ICE_program
+    ! executable. After calling MPI_INIT, only the master process "sees" these arguments, so they need to be
+    ! broadcast to the other processes.
+    
+    IF (master) THEN
+    
+      config_filename       = ''
+      template_filename     = ''
+      variation_filename    = ''
+      config_mode           = ''
+      
+      IF     (iargc() == 0) THEN
+      
+        WRITE(0,*) ' ERROR: IMAU-ICE v', TRIM(version_number), ' needs at least one config file to run!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        
+      ELSEIF (iargc() == 1) THEN
+      
+        ! Run the model with a single config file
+        CALL getarg( 1, config_filename)
+        config_mode = 'single_config'
+        
+      ELSEIF (iargc() == 2) THEN
+      
+        ! Run the model with two config files (template+variation)
+        CALL getarg( 1, template_filename )
+        CALL getarg( 2, variation_filename)
+        config_mode = 'template+variation'
+        
+      ELSE
+      
+        WRITE(0,*) ' ERROR: IMAU-ICE v', TRIM(version_number), ' can take either one or two config files to run!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        
+      END IF
+      
+    END IF ! IF (master) THEN
+    
+    CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( template_filename,  256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( variation_filename, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( config_mode,        256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Let each of the processors read the config file in turns so there's no access conflicts
+    IF (config_mode == 'single_config') THEN
+      ! Read only a single config file
+      
+      DO p = 0, number_of_processes-1
+        IF (p == process_rank) THEN
+        
+          ! Read the external file, use a Fortran NAMELIST to overwrite the default
+          ! values of the XXX_config variables
+          CALL read_config_file( config_filename)
+          
+          ! Copy values from the XXX_config variables to the C structure
+          CALL copy_variables_to_struct
+          
+        END IF
+        CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
+      END DO
+      
+    ELSEIF (config_mode == 'template+variation') THEN
+      ! Read two config file consecutively: one "template" and one "variation"
+      
+      DO p = 0, number_of_processes-1
+        IF (p == process_rank) THEN
+        
+          ! Read the external file, use a Fortran NAMELIST to overwrite the default
+          ! values of the XXX_config variables
+          
+          ! First the template, then the variation
+          CALL read_config_file( template_filename)
+          CALL read_config_file( variation_filename)
+          
+          ! Copy values from the XXX_config variables to the C structure
+          CALL copy_variables_to_struct
+          
+        END IF
+        CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
+      END DO
+      
+    ELSE ! IF (config_mode == 'single_config') THEN
+      
+      WRITE(0,*) ' initialise_model_configuration - ERROR: unknown config_mode "', TRIM(config_mode), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        
+    END IF ! IF (config_mode == 'single_config') THEN
+    
+  ! ===== Set up the output directory =====
+  ! =======================================
+    
+    ! First get the name of the output directory (either procedural, or provided in the config file)
+    
+    DO n = 1, 256
+      C%output_dir(n:n) = ' '
+    END DO
+    
+    IF (C%create_procedural_output_dir) THEN
+      ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+      
+      IF (master) THEN  
+        CALL get_procedural_output_dir_name( output_dir_procedural)
+        C%output_dir(1:21) = TRIM(output_dir_procedural) // '/'
+      END IF
+      CALL MPI_BCAST( C%output_dir, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+      
+    ELSE
+      ! Use the provided name (return an error if this directory already exists)
+
+      C%output_dir = TRIM(C%fixed_output_dir) // '/'
+      
+      INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
+      IF (ex) THEN
+        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(fixed_output_dir_config), ' already exists!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END IF
+    
+    ! Create the directory
+    IF (master) THEN
+      CALL system('mkdir ' // TRIM(C%output_dir))
+      WRITE(0,*) ''
+      WRITE(0,*) ' Output directory: ', TRIM(C%output_dir)
+      WRITE(0,*) ''
+    END IF
+    CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
+    
+    ! Copy the config file to the output directory
+    IF (master) THEN
+      IF     (config_mode == 'single_config') THEN
+        CALL system('cp ' // config_filename    // ' ' // TRIM(C%output_dir))
+      ELSEIF (config_mode == 'template+variation') THEN
+        CALL system('cp ' // template_filename  // ' ' // TRIM(C%output_dir))
+        CALL system('cp ' // variation_filename // ' ' // TRIM(C%output_dir))
+      ELSE
+        WRITE(0,*) ' initialise_model_configuration - ERROR: unknown config_mode "', TRIM(config_mode), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF ! IF (config_mode == 'single_config') THEN
+    END IF ! IF (master) THEN
+    CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
+    
+  END SUBROUTINE initialise_model_configuration
 
   SUBROUTINE read_config_file( config_filename)
     ! Use a NAMELIST containing all the "_config" variables to read
@@ -893,8 +1058,8 @@ CONTAINS
                      SSA_icestream_m_config,                     &
                      ISMIP_HOM_L_config,                         &
                      ISMIP_HOM_E_Arolla_filename_config,         &
-                     create_new_output_dir_config,               &
-                     output_dir_config,                          &
+                     create_procedural_output_dir_config,        &
+                     fixed_output_dir_config,                    &
                      do_write_debug_data_config,                 &
                      is_restart_config,                          &
                      time_to_restart_from_config,                &
@@ -920,21 +1085,18 @@ CONTAINS
                      filename_ICE5G_PD_config,                   &
                      filename_ICE5G_LGM_config,                  &
                      choice_ice_dynamics_config,                 &
+                     choice_ice_margin_config,                   &
+                     use_analytical_GL_flux_config,              &
                      n_flow_config,                              &
                      m_enh_sheet_config,                         &
                      m_enh_shelf_config,                         &
-                     use_analytical_GL_flux_config,              &
-                     DIVA_choice_ice_margin_config,              &
-                     DIVA_norm_dUV_tol_config,                   &
-                     DIVA_max_outer_loops_config,                &
-                     DIVA_max_residual_UV_config,                &
-                     DIVA_SOR_omega_config,                      &
-                     DIVA_max_inner_loops_config,                &
+                     DIVA_visc_it_norm_dUV_tol_config,           &
+                     DIVA_visc_it_nit_config,                    &
+                     DIVA_visc_it_relax_config,                  &
                      DIVA_beta_max_config,                       &
                      DIVA_err_lim_config,                        &
                      DIVA_vel_max_config,                        &
                      DIVA_vel_min_config,                        &
-                     DIVA_visc_iter_relax_config,                &
                      DIVA_boundary_BC_u_west_config,             &
                      DIVA_boundary_BC_u_east_config,             &
                      DIVA_boundary_BC_u_south_config,            &
@@ -943,11 +1105,20 @@ CONTAINS
                      DIVA_boundary_BC_v_east_config,             &
                      DIVA_boundary_BC_v_south_config,            &
                      DIVA_boundary_BC_v_north_config,            &
+                     DIVA_choice_matrix_solver_config,           &
+                     DIVA_SOR_nit_config,                        &
+                     DIVA_SOR_tol_config,                        &
+                     DIVA_SOR_omega_config,                      &
+                     DIVA_PETSc_rtol_config,                     &
+                     DIVA_PETSc_abstol_config,                   &
                      choice_timestepping_config,                 &
                      choice_ice_integration_method_config,       &
+                     dHi_choice_matrix_solver_config,            &
+                     dHi_SOR_nit_config,                         &
+                     dHi_SOR_tol_config,                         &
                      dHi_SOR_omega_config,                       &
-                     dHi_SOR_max_res_config,                     &
-                     dHi_SOR_max_loops_config,                   &
+                     dHi_PETSc_rtol_config,                      &
+                     dHi_PETSc_abstol_config,                    &
                      pc_epsilon_config,                          &
                      pc_k_I_config,                              &
                      pc_k_p_config,                              &
@@ -1141,7 +1312,7 @@ CONTAINS
 
   END SUBROUTINE read_config_file
 
-  SUBROUTINE initialise_config
+  SUBROUTINE copy_variables_to_struct
     ! Overwrite the values in the fields of the "C" type with the values
     ! of the "_config" variables, some which by now have had their default
     ! values overwritten by the values specified in the external config file.
@@ -1183,10 +1354,10 @@ CONTAINS
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
    ! =======================================================================
    
-    C%create_new_output_dir               = create_new_output_dir_config
-    C%output_dir                          = output_dir_config
+    C%create_procedural_output_dir        = create_procedural_output_dir_config
+    C%fixed_output_dir                    = fixed_output_dir_config
     C%do_write_debug_data                 = do_write_debug_data_config
-  
+    
     ! Whether or not the simulation is a restart of a previous simulation
     ! ===================================================================
     
@@ -1235,23 +1406,20 @@ CONTAINS
     ! =======================
     
     C%choice_ice_dynamics                 = choice_ice_dynamics_config
+    C%choice_ice_margin                   = choice_ice_margin_config
+    C%use_analytical_GL_flux              = use_analytical_GL_flux_config
     C%n_flow                              = n_flow_config
     C%m_enh_sheet                         = m_enh_sheet_config
     C%m_enh_shelf                         = m_enh_shelf_config
-    C%use_analytical_GL_flux              = use_analytical_GL_flux_config
     
     ! Some parameters for numerically solving the SSA/DIVA
-    C%DIVA_choice_ice_margin              = DIVA_choice_ice_margin_config
-    C%DIVA_norm_dUV_tol                   = DIVA_norm_dUV_tol_config
-    C%DIVA_max_outer_loops                = DIVA_max_outer_loops_config
-    C%DIVA_max_residual_UV                = DIVA_max_residual_UV_config
-    C%DIVA_SOR_omega                      = DIVA_SOR_omega_config
-    C%DIVA_max_inner_loops                = DIVA_max_inner_loops_config
+    C%DIVA_visc_it_norm_dUV_tol           = DIVA_visc_it_norm_dUV_tol_config
+    C%DIVA_visc_it_nit                    = DIVA_visc_it_nit_config
+    C%DIVA_visc_it_relax                  = DIVA_visc_it_relax_config
     C%DIVA_beta_max                       = DIVA_beta_max_config
     C%DIVA_err_lim                        = DIVA_err_lim_config
     C%DIVA_vel_max                        = DIVA_vel_max_config
     C%DIVA_vel_min                        = DIVA_vel_min_config
-    C%DIVA_visc_iter_relax                = DIVA_visc_iter_relax_config
     C%DIVA_boundary_BC_u_west             = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east             = DIVA_boundary_BC_u_east_config
     C%DIVA_boundary_BC_u_south            = DIVA_boundary_BC_u_south_config
@@ -1260,15 +1428,24 @@ CONTAINS
     C%DIVA_boundary_BC_v_east             = DIVA_boundary_BC_v_east_config
     C%DIVA_boundary_BC_v_south            = DIVA_boundary_BC_v_south_config
     C%DIVA_boundary_BC_v_north            = DIVA_boundary_BC_v_north_config
+    C%DIVA_choice_matrix_solver           = DIVA_choice_matrix_solver_config
+    C%DIVA_SOR_nit                        = DIVA_SOR_nit_config
+    C%DIVA_SOR_tol                        = DIVA_SOR_tol_config
+    C%DIVA_SOR_omega                      = DIVA_SOR_omega_config
+    C%DIVA_PETSc_rtol                     = DIVA_PETSc_rtol_config
+    C%DIVA_PETSc_abstol                   = DIVA_PETSc_abstol_config
   
     ! Ice dynamics - time integration
     ! ===============================
     
     C%choice_timestepping                 = choice_timestepping_config
     C%choice_ice_integration_method       = choice_ice_integration_method_config
+    C%dHi_choice_matrix_solver            = dHi_choice_matrix_solver_config
+    C%dHi_SOR_nit                         = dHi_SOR_nit_config
+    C%dHi_SOR_tol                         = dHi_SOR_tol_config
     C%dHi_SOR_omega                       = dHi_SOR_omega_config
-    C%dHi_SOR_max_res                     = dHi_SOR_max_res_config
-    C%dHi_SOR_max_loops                   = dHi_SOR_max_loops_config
+    C%dHi_PETSc_rtol                      = dHi_PETSc_rtol_config
+    C%dHi_PETSc_abstol                    = dHi_PETSc_abstol_config
     
     ! Predictor-corrector ice-thickness update
     C%pc_epsilon                          = pc_epsilon_config
@@ -1536,7 +1713,7 @@ CONTAINS
     C%alpha_stereo_GRL                    = 164.85_dp
     C%alpha_stereo_ANT                    = 165.0263_dp
 
-  END SUBROUTINE initialise_config
+  END SUBROUTINE copy_variables_to_struct
   
   SUBROUTINE initialize_TABOO_config
 
@@ -1553,284 +1730,219 @@ CONTAINS
     
   END SUBROUTINE initialize_TABOO_config
 
-  SUBROUTINE create_output_dir
+  SUBROUTINE get_procedural_output_dir_name( output_dir)
+    ! Generate a procedural output directory for the current date (e.g. results_20210721_001)
+    ! Keep increasing the counter at the end until a directory is available.
 
     IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(20)                                      :: output_dir
 
-    CHARACTER(20)              :: output_folder_name
-
-    INTEGER,    DIMENSION(8)   :: values
-    LOGICAL                    :: ex
+    ! Local variables:
+    INTEGER,  DIMENSION(8)                             :: values
+    LOGICAL                                            :: ex
 
     CALL date_and_time(VALUES=values)
 
     ! Get proper year (assume we're still in the 21st century...)
-    output_folder_name(1:10) = 'results_20'
+    output_dir(1:10) = 'results_20'
     SELECT CASE( FLOOR(REAL(values(1))/10._dp)-200)
-     CASE(0)
-     output_folder_name(11:11) = '0'
-     CASE(1)
-     output_folder_name(11:11) = '1'
-     CASE(2)
-     output_folder_name(11:11) = '2'
-     CASE(3)
-     output_folder_name(11:11) = '3'
-     CASE(4)
-     output_folder_name(11:11) = '4'
-     CASE(5)
-     output_folder_name(11:11) = '5'
-     CASE(6)
-     output_folder_name(11:11) = '6'
-     CASE(7)
-     output_folder_name(11:11) = '7'
-     CASE(8)
-     output_folder_name(11:11) = '8'
-     CASE(9)
-     output_folder_name(11:11) = '9'
-     CASE DEFAULT
-     WRITE(0,*) 'make_output_folder: ERROR retrieving date and time!'
+    CASE(0)
+      output_dir(11:11) = '0'
+    CASE(1)
+      output_dir(11:11) = '1'
+    CASE(2)
+      output_dir(11:11) = '2'
+    CASE(3)
+      output_dir(11:11) = '3'
+    CASE(4)
+      output_dir(11:11) = '4'
+    CASE(5)
+      output_dir(11:11) = '5'
+    CASE(6)
+      output_dir(11:11) = '6'
+    CASE(7)
+      output_dir(11:11) = '7'
+    CASE(8)
+      output_dir(11:11) = '8'
+    CASE(9)
+      output_dir(11:11) = '9'
+    CASE DEFAULT
+      WRITE(0,*) 'get_procedural_output_dir: ERROR retrieving date and time!'
     END SELECT
 
     SELECT CASE( MOD(values(1),10))
-     CASE(0)
-     output_folder_name(12:12) = '0'
-     CASE(1)
-     output_folder_name(12:12) = '1'
-     CASE(2)
-     output_folder_name(12:12) = '2'
-     CASE(3)
-     output_folder_name(12:12) = '3'
-     CASE(4)
-     output_folder_name(12:12) = '4'
-     CASE(5)
-     output_folder_name(12:12) = '5'
-     CASE(6)
-     output_folder_name(12:12) = '6'
-     CASE(7)
-     output_folder_name(12:12) = '7'
-     CASE(8)
-     output_folder_name(12:12) = '8'
-     CASE(9)
-     output_folder_name(12:12) = '9'
-     CASE DEFAULT
-     WRITE(0,*) 'make_output_folder: ERROR retrieving date and time!'
+    CASE(0)
+      output_dir(12:12) = '0'
+    CASE(1)
+      output_dir(12:12) = '1'
+    CASE(2)
+      output_dir(12:12) = '2'
+    CASE(3)
+      output_dir(12:12) = '3'
+    CASE(4)
+      output_dir(12:12) = '4'
+    CASE(5)
+      output_dir(12:12) = '5'
+    CASE(6)
+      output_dir(12:12) = '6'
+    CASE(7)
+      output_dir(12:12) = '7'
+    CASE(8)
+      output_dir(12:12) = '8'
+    CASE(9)
+      output_dir(12:12) = '9'
+    CASE DEFAULT
+      WRITE(0,*) 'get_procedural_output_dir: ERROR retrieving date and time!'
     END SELECT
 
     SELECT CASE( values(2))
-     CASE(1)
-     output_folder_name(13:14) = '01'
-     CASE(2)
-     output_folder_name(13:14) = '02'
-     CASE(3)
-     output_folder_name(13:14) = '03'
-     CASE(4)
-     output_folder_name(13:14) = '04'
-     CASE(5)
-     output_folder_name(13:14) = '05'
-     CASE(6)
-     output_folder_name(13:14) = '06'
-     CASE(7)
-     output_folder_name(13:14) = '07'
-     CASE(8)
-     output_folder_name(13:14) = '08'
-     CASE(9)
-     output_folder_name(13:14) = '09'
-     CASE(10)
-     output_folder_name(13:14) = '10'
-     CASE(11)
-     output_folder_name(13:14) = '11'
-     CASE(12)
-     output_folder_name(13:14) = '12'
-     CASE DEFAULT
-     WRITE(0,*) 'make_output_folder: ERROR retrieving date and time!'
+    CASE(1)
+      output_dir(13:14) = '01'
+    CASE(2)
+      output_dir(13:14) = '02'
+    CASE(3)
+      output_dir(13:14) = '03'
+    CASE(4)
+      output_dir(13:14) = '04'
+    CASE(5)
+      output_dir(13:14) = '05'
+    CASE(6)
+      output_dir(13:14) = '06'
+    CASE(7)
+      output_dir(13:14) = '07'
+    CASE(8)
+      output_dir(13:14) = '08'
+    CASE(9)
+      output_dir(13:14) = '09'
+    CASE(10)
+      output_dir(13:14) = '10'
+    CASE(11)
+      output_dir(13:14) = '11'
+    CASE(12)
+      output_dir(13:14) = '12'
+    CASE DEFAULT
+      WRITE(0,*) 'get_procedural_output_dir: ERROR retrieving date and time!'
     END SELECT
 
     SELECT CASE( FLOOR(REAL(values(3))/10._dp))
-     CASE(0)
-     output_folder_name(15:15) = '0'
-     CASE(1)
-     output_folder_name(15:15) = '1'
-     CASE(2)
-     output_folder_name(15:15) = '2'
-     CASE(3)
-     output_folder_name(15:15) = '3'
-     CASE DEFAULT
-     WRITE(0,*) 'make_output_folder: ERROR retrieving date and time!'
+    CASE(0)
+      output_dir(15:15) = '0'
+    CASE(1)
+      output_dir(15:15) = '1'
+    CASE(2)
+      output_dir(15:15) = '2'
+    CASE(3)
+      output_dir(15:15) = '3'
+    CASE DEFAULT
+      WRITE(0,*) 'get_procedural_output_dir: ERROR retrieving date and time!'
     END SELECT
 
     SELECT CASE( MOD(values(3),10))
-     CASE(0)
-     output_folder_name(16:16) = '0'
-     CASE(1)
-     output_folder_name(16:16) = '1'
-     CASE(2)
-     output_folder_name(16:16) = '2'
-     CASE(3)
-     output_folder_name(16:16) = '3'
-     CASE(4)
-     output_folder_name(16:16) = '4'
-     CASE(5)
-     output_folder_name(16:16) = '5'
-     CASE(6)
-     output_folder_name(16:16) = '6'
-     CASE(7)
-     output_folder_name(16:16) = '7'
-     CASE(8)
-     output_folder_name(16:16) = '8'
-     CASE(9)
-     output_folder_name(16:16) = '9'
-     CASE DEFAULT
-     WRITE(0,*) 'make_output_folder: ERROR retrieving date and time!'
+    CASE(0)
+      output_dir(16:16) = '0'
+    CASE(1)
+      output_dir(16:16) = '1'
+    CASE(2)
+      output_dir(16:16) = '2'
+    CASE(3)
+      output_dir(16:16) = '3'
+    CASE(4)
+      output_dir(16:16) = '4'
+    CASE(5)
+      output_dir(16:16) = '5'
+    CASE(6)
+      output_dir(16:16) = '6'
+    CASE(7)
+      output_dir(16:16) = '7'
+    CASE(8)
+      output_dir(16:16) = '8'
+    CASE(9)
+      output_dir(16:16) = '9'
+    CASE DEFAULT
+      WRITE(0,*) 'get_procedural_output_dir: ERROR retrieving date and time!'
     END SELECT
 
-    output_folder_name(17:20) = '_001'
+    output_dir(17:20) = '_001'
 
-    INQUIRE( FILE=TRIM(output_folder_name)//'/.', EXIST=ex )
+    INQUIRE( FILE = TRIM(output_dir)//'/.', EXIST=ex )
 
     DO WHILE (ex)
 
-     IF      (output_folder_name(20:20) == '0') THEN
-      output_folder_name(20:20) = '1'
-     ELSE IF (output_folder_name(20:20) == '1') THEN
-      output_folder_name(20:20) = '2'
-     ELSE IF (output_folder_name(20:20) == '2') THEN
-      output_folder_name(20:20) = '3'
-     ELSE IF (output_folder_name(20:20) == '3') THEN
-      output_folder_name(20:20) = '4'
-     ELSE IF (output_folder_name(20:20) == '4') THEN
-      output_folder_name(20:20) = '5'
-     ELSE IF (output_folder_name(20:20) == '5') THEN
-      output_folder_name(20:20) = '6'
-     ELSE IF (output_folder_name(20:20) == '6') THEN
-      output_folder_name(20:20) = '7'
-     ELSE IF (output_folder_name(20:20) == '7') THEN
-      output_folder_name(20:20) = '8'
-     ELSE IF (output_folder_name(20:20) == '8') THEN
-      output_folder_name(20:20) = '9'
-     ELSE IF (output_folder_name(20:20) == '9') THEN
-      output_folder_name(20:20) = '0'
+     IF      (output_dir(20:20) == '0') THEN
+       output_dir(20:20) = '1'
+     ELSE IF (output_dir(20:20) == '1') THEN
+       output_dir(20:20) = '2'
+     ELSE IF (output_dir(20:20) == '2') THEN
+       output_dir(20:20) = '3'
+     ELSE IF (output_dir(20:20) == '3') THEN
+       output_dir(20:20) = '4'
+     ELSE IF (output_dir(20:20) == '4') THEN
+       output_dir(20:20) = '5'
+     ELSE IF (output_dir(20:20) == '5') THEN
+       output_dir(20:20) = '6'
+     ELSE IF (output_dir(20:20) == '6') THEN
+       output_dir(20:20) = '7'
+     ELSE IF (output_dir(20:20) == '7') THEN
+       output_dir(20:20) = '8'
+     ELSE IF (output_dir(20:20) == '8') THEN
+       output_dir(20:20) = '9'
+     ELSE IF (output_dir(20:20) == '9') THEN
+       output_dir(20:20) = '0'
 
-      IF      (output_folder_name(19:19) == '0') THEN
-       output_folder_name(19:19) = '1'
-      ELSE IF (output_folder_name(19:19) == '1') THEN
-       output_folder_name(19:19) = '2'
-      ELSE IF (output_folder_name(19:19) == '2') THEN
-       output_folder_name(19:19) = '3'
-      ELSE IF (output_folder_name(19:19) == '3') THEN
-       output_folder_name(19:19) = '4'
-      ELSE IF (output_folder_name(19:19) == '4') THEN
-       output_folder_name(19:19) = '5'
-      ELSE IF (output_folder_name(19:19) == '5') THEN
-       output_folder_name(19:19) = '6'
-      ELSE IF (output_folder_name(19:19) == '6') THEN
-       output_folder_name(19:19) = '7'
-      ELSE IF (output_folder_name(19:19) == '7') THEN
-       output_folder_name(19:19) = '8'
-      ELSE IF (output_folder_name(19:19) == '8') THEN
-       output_folder_name(19:19) = '9'
-      ELSE IF (output_folder_name(19:19) == '9') THEN
-       output_folder_name(19:19) = '0'
-
-       IF      (output_folder_name(18:18) == '0') THEN
-        output_folder_name(18:18) = '1'
-       ELSE IF (output_folder_name(18:18) == '1') THEN
-        output_folder_name(18:18) = '2'
-       ELSE IF (output_folder_name(18:18) == '2') THEN
-        output_folder_name(18:18) = '3'
-       ELSE IF (output_folder_name(18:18) == '3') THEN
-        output_folder_name(18:18) = '4'
-       ELSE IF (output_folder_name(18:18) == '4') THEN
-        output_folder_name(18:18) = '5'
-       ELSE IF (output_folder_name(18:18) == '5') THEN
-        output_folder_name(18:18) = '6'
-       ELSE IF (output_folder_name(18:18) == '6') THEN
-        output_folder_name(18:18) = '7'
-       ELSE IF (output_folder_name(18:18) == '7') THEN
-        output_folder_name(18:18) = '8'
-       ELSE IF (output_folder_name(18:18) == '8') THEN
-        output_folder_name(18:18) = '9'
-       ELSE IF (output_folder_name(18:18) == '9') THEN
-        output_folder_name(18:18) = '0'
+       IF      (output_dir(19:19) == '0') THEN
+         output_dir(19:19) = '1'
+       ELSE IF (output_dir(19:19) == '1') THEN
+         output_dir(19:19) = '2'
+       ELSE IF (output_dir(19:19) == '2') THEN
+         output_dir(19:19) = '3'
+       ELSE IF (output_dir(19:19) == '3') THEN
+         output_dir(19:19) = '4'
+       ELSE IF (output_dir(19:19) == '4') THEN
+         output_dir(19:19) = '5'
+       ELSE IF (output_dir(19:19) == '5') THEN
+         output_dir(19:19) = '6'
+       ELSE IF (output_dir(19:19) == '6') THEN
+         output_dir(19:19) = '7'
+       ELSE IF (output_dir(19:19) == '7') THEN
+         output_dir(19:19) = '8'
+       ELSE IF (output_dir(19:19) == '8') THEN
+         output_dir(19:19) = '9'
+       ELSE IF (output_dir(19:19) == '9') THEN
+         output_dir(19:19) = '0'
+ 
+         IF      (output_dir(18:18) == '0') THEN
+           output_dir(18:18) = '1'
+         ELSE IF (output_dir(18:18) == '1') THEN
+           output_dir(18:18) = '2'
+         ELSE IF (output_dir(18:18) == '2') THEN
+           output_dir(18:18) = '3'
+         ELSE IF (output_dir(18:18) == '3') THEN
+           output_dir(18:18) = '4'
+         ELSE IF (output_dir(18:18) == '4') THEN
+           output_dir(18:18) = '5'
+         ELSE IF (output_dir(18:18) == '5') THEN
+           output_dir(18:18) = '6'
+         ELSE IF (output_dir(18:18) == '6') THEN
+           output_dir(18:18) = '7'
+         ELSE IF (output_dir(18:18) == '7') THEN
+           output_dir(18:18) = '8'
+         ELSE IF (output_dir(18:18) == '8') THEN
+           output_dir(18:18) = '9'
+         ELSE IF (output_dir(18:18) == '9') THEN
+           output_dir(18:18) = '0'
+         END IF
+ 
        END IF
-
-      END IF
 
      END IF
 
-     INQUIRE( FILE=TRIM(output_folder_name)//'/.', EXIST=ex )
+     INQUIRE( FILE=TRIM(output_dir)//'/.', EXIST=ex )
 
     END DO
 
-    IF (C%create_new_output_dir) THEN
-      C%output_dir = TRIM(output_folder_name)
-    END IF
-    
-    C%output_dir = TRIM(C%output_dir(1:255)) // '/'
-    CALL system('mkdir ' // TRIM(C%output_dir))
-
-  END SUBROUTINE create_output_dir
+  END SUBROUTINE get_procedural_output_dir_name
   
-  SUBROUTINE initialise_zeta_discretisation
-  
-    IMPLICIT NONE
-
-    ! Local variables:
-    INTEGER :: k
-
-    ALLOCATE(C%a_k(2:C%NZ  ))
-    ALLOCATE(C%b_k(1:C%NZ-1))
-    ALLOCATE(C%c_k(3:C%NZ  ))
-    ALLOCATE(C%d_k(1:C%NZ-2))
-    ALLOCATE(C%a_zeta(2:C%NZ-1))
-    ALLOCATE(C%b_zeta(2:C%NZ-1))
-    ALLOCATE(C%c_zeta(2:C%NZ-1))
-    ALLOCATE(C%a_zetazeta(2:C%NZ-1))
-    ALLOCATE(C%b_zetazeta(2:C%NZ-1))
-    ALLOCATE(C%c_zetazeta(2:C%NZ-1))
-
-    ALLOCATE(C%z_zeta_minus(3:C%NZ))
-    ALLOCATE(C%a_zeta_minus(3:C%NZ))
-    ALLOCATE(C%b_zeta_minus(3:C%NZ))
-    ALLOCATE(C%b_zeta_plus(1:C%NZ-2))
-    ALLOCATE(C%c_zeta_plus(1:C%NZ-2))
-    ALLOCATE(C%d_zeta_plus(1:C%NZ-2))
-
-    DO k = 2, C%NZ
-     C%a_k(k) = C%zeta(k)   - C%zeta(k-1)
-    END DO
-    DO k = 1, C%NZ-1
-     C%b_k(k) = C%zeta(k+1) - C%zeta(k)
-    END DO
-    DO k = 3, C%NZ
-     C%c_k(k) = C%zeta(k)   - C%zeta(k-2)
-    END DO
-    DO k = 1, C%NZ-2
-     C%d_k(k) = C%zeta(k+2) - C%zeta(k)
-    END DO
-
-    DO k = 2, C%NZ-1
-     C%a_zeta(k)     =           - C%b_k(k)  / (C%a_k(k) * (C%a_k(k) + C%b_k(k)))
-     C%b_zeta(k)     = (C%b_k(k) - C%a_k(k)) / (C%a_k(k) *  C%b_k(k)            )
-     C%c_zeta(k)     =             C%a_k(k)  / (C%b_k(k) * (C%a_k(k) + C%b_k(k)))
-     C%a_zetazeta(k) =             2.0_dp    / (C%a_k(k) * (C%a_k(k) + C%b_k(k)))
-     C%b_zetazeta(k) =           - 2.0_dp    / (C%a_k(k) *  C%b_k(k)            )
-     C%c_zetazeta(k) =             2.0_dp    / (C%b_k(k) * (C%a_k(k) + C%b_k(k)))
-    END DO
-
-    ! Not all of these are in use:
-    DO k = 1, C%NZ-2
-      C%b_zeta_plus(k) = -(C%b_k(k) + C%d_k(k)) / (C%b_k(k) *  C%d_k(k)            )
-      C%c_zeta_plus(k) =              C%d_k(k)  / (C%b_k(k) * (C%d_k(k) - C%b_k(k)))
-      C%d_zeta_plus(k) =              C%b_k(k)  / (C%d_k(k) * (C%b_k(k) - C%d_k(k)))
-    END DO
-
-    ! Not all of these are in use:
-    DO k = 3, C%NZ
-      C%z_zeta_minus(k) =             C%a_k(k)  / (C%c_k(k) * (C%c_k(k) - C%a_k(k)))
-      C%a_zeta_minus(k) =             C%c_k(k)  / (C%a_k(k) * (C%a_k(k) - C%c_k(k)))
-      C%b_zeta_minus(k) = (C%a_k(k) + C%c_k(k)) / (C%a_k(k) *  C%c_k(k)            )
-    END DO
-    
-  END SUBROUTINE initialise_zeta_discretisation
 
 END MODULE configuration_module

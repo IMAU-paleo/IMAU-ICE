@@ -223,48 +223,49 @@ CONTAINS
     ! Timers and time steps
     ! =====================
     
-    CALL allocate_shared_dp_0D(   region%time,           region%wtime          )
-    CALL allocate_shared_dp_0D(   region%dt,             region%wdt            )
-    CALL allocate_shared_dp_0D(   region%dt_prev,        region%wdt_prev       )
-    CALL allocate_shared_dp_0D(   region%dt_crit_SIA,    region%wdt_crit_SIA   )
-    CALL allocate_shared_dp_0D(   region%dt_crit_SSA,    region%wdt_crit_SSA   )
-    CALL allocate_shared_dp_0D(   region%dt_crit_DIVA,   region%wdt_crit_DIVA  )
+    CALL allocate_shared_dp_0D(   region%time,             region%wtime            )
+    CALL allocate_shared_dp_0D(   region%dt,               region%wdt              )
+    CALL allocate_shared_dp_0D(   region%dt_prev,          region%wdt_prev         )
+    CALL allocate_shared_dp_0D(   region%dt_crit_SIA,      region%wdt_crit_SIA     )
+    CALL allocate_shared_dp_0D(   region%dt_crit_SSA,      region%wdt_crit_SSA     )
+    CALL allocate_shared_dp_0D(   region%dt_crit_ice,      region%wdt_crit_ice     )
+    CALL allocate_shared_dp_0D(   region%dt_crit_ice_prev, region%wdt_crit_ice_prev)
     
-    CALL allocate_shared_dp_0D(   region%t_last_SIA,     region%wt_last_SIA    )
-    CALL allocate_shared_dp_0D(   region%t_next_SIA,     region%wt_next_SIA    )
-    CALL allocate_shared_bool_0D( region%do_SIA,         region%wdo_SIA        )
+    CALL allocate_shared_dp_0D(   region%t_last_SIA,       region%wt_last_SIA      )
+    CALL allocate_shared_dp_0D(   region%t_next_SIA,       region%wt_next_SIA      )
+    CALL allocate_shared_bool_0D( region%do_SIA,           region%wdo_SIA          )
     
-    CALL allocate_shared_dp_0D(   region%t_last_SSA,     region%wt_last_SSA    )
-    CALL allocate_shared_dp_0D(   region%t_next_SSA,     region%wt_next_SSA    )
-    CALL allocate_shared_bool_0D( region%do_SSA,         region%wdo_SSA        )
+    CALL allocate_shared_dp_0D(   region%t_last_SSA,       region%wt_last_SSA      )
+    CALL allocate_shared_dp_0D(   region%t_next_SSA,       region%wt_next_SSA      )
+    CALL allocate_shared_bool_0D( region%do_SSA,           region%wdo_SSA          )
     
-    CALL allocate_shared_dp_0D(   region%t_last_DIVA,    region%wt_last_DIVA   )
-    CALL allocate_shared_dp_0D(   region%t_next_DIVA,    region%wt_next_DIVA   )
-    CALL allocate_shared_bool_0D( region%do_DIVA,        region%wdo_DIVA       )
+    CALL allocate_shared_dp_0D(   region%t_last_DIVA,      region%wt_last_DIVA     )
+    CALL allocate_shared_dp_0D(   region%t_next_DIVA,      region%wt_next_DIVA     )
+    CALL allocate_shared_bool_0D( region%do_DIVA,          region%wdo_DIVA         )
     
-    CALL allocate_shared_dp_0D(   region%t_last_thermo,  region%wt_last_thermo )
-    CALL allocate_shared_dp_0D(   region%t_next_thermo,  region%wt_next_thermo )
-    CALL allocate_shared_bool_0D( region%do_thermo,      region%wdo_thermo     )
+    CALL allocate_shared_dp_0D(   region%t_last_thermo,    region%wt_last_thermo   )
+    CALL allocate_shared_dp_0D(   region%t_next_thermo,    region%wt_next_thermo   )
+    CALL allocate_shared_bool_0D( region%do_thermo,        region%wdo_thermo       )
     
-    CALL allocate_shared_dp_0D(   region%t_last_output,  region%wt_last_output )
-    CALL allocate_shared_dp_0D(   region%t_next_output,  region%wt_next_output )
-    CALL allocate_shared_bool_0D( region%do_output,      region%wdo_output     )
+    CALL allocate_shared_dp_0D(   region%t_last_output,    region%wt_last_output   )
+    CALL allocate_shared_dp_0D(   region%t_next_output,    region%wt_next_output   )
+    CALL allocate_shared_bool_0D( region%do_output,        region%wdo_output       )
     
-    CALL allocate_shared_dp_0D(   region%t_last_climate, region%wt_last_climate)
-    CALL allocate_shared_dp_0D(   region%t_next_climate, region%wt_next_climate)
-    CALL allocate_shared_bool_0D( region%do_climate,     region%wdo_climate    )
+    CALL allocate_shared_dp_0D(   region%t_last_climate,   region%wt_last_climate  )
+    CALL allocate_shared_dp_0D(   region%t_next_climate,   region%wt_next_climate  )
+    CALL allocate_shared_bool_0D( region%do_climate,       region%wdo_climate      )
     
-    CALL allocate_shared_dp_0D(   region%t_last_SMB,     region%wt_last_SMB    )
-    CALL allocate_shared_dp_0D(   region%t_next_SMB,     region%wt_next_SMB    )
-    CALL allocate_shared_bool_0D( region%do_SMB,         region%wdo_SMB        )
+    CALL allocate_shared_dp_0D(   region%t_last_SMB,       region%wt_last_SMB      )
+    CALL allocate_shared_dp_0D(   region%t_next_SMB,       region%wt_next_SMB      )
+    CALL allocate_shared_bool_0D( region%do_SMB,           region%wdo_SMB          )
     
-    CALL allocate_shared_dp_0D(   region%t_last_BMB,     region%wt_last_BMB    )
-    CALL allocate_shared_dp_0D(   region%t_next_BMB,     region%wt_next_BMB    )
-    CALL allocate_shared_bool_0D( region%do_BMB,         region%wdo_BMB        )
+    CALL allocate_shared_dp_0D(   region%t_last_BMB,       region%wt_last_BMB      )
+    CALL allocate_shared_dp_0D(   region%t_next_BMB,       region%wt_next_BMB      )
+    CALL allocate_shared_bool_0D( region%do_BMB,           region%wdo_BMB          )
     
-    CALL allocate_shared_dp_0D(   region%t_last_ELRA,    region%wt_last_ELRA   )
-    CALL allocate_shared_dp_0D(   region%t_next_ELRA,    region%wt_next_ELRA   )
-    CALL allocate_shared_bool_0D( region%do_ELRA,        region%wdo_ELRA       ) 
+    CALL allocate_shared_dp_0D(   region%t_last_ELRA,      region%wt_last_ELRA     )
+    CALL allocate_shared_dp_0D(   region%t_next_ELRA,      region%wt_next_ELRA     )
+    CALL allocate_shared_bool_0D( region%do_ELRA,          region%wdo_ELRA         ) 
     
     IF (par%master) THEN
       region%time           = C%start_time_of_run
@@ -278,6 +279,10 @@ CONTAINS
       region%t_last_SSA     = C%start_time_of_run
       region%t_next_SSA     = C%start_time_of_run
       region%do_SSA         = .TRUE.
+      
+      region%t_last_DIVA    = C%start_time_of_run
+      region%t_next_DIVA    = C%start_time_of_run
+      region%do_DIVA        = .TRUE.
       
       region%t_last_thermo  = C%start_time_of_run
       region%t_next_thermo  = C%start_time_of_run + C%dt_thermo

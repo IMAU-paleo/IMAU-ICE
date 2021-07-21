@@ -12,7 +12,7 @@ MODULE thermodynamics_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE parameters_module,               ONLY: ice_density, grav, L_fusion, T0, CC, pi, sec_per_year
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_subclimate_region, type_SMB_model, type_init_data_fields, type_debug_fields
-  USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_3D_upwind, ddy_a_to_a_3D_upwind, calculate_zeta_derivatives, &
+  USE derivatives_and_grids_module,    ONLY: zeta, ddx_a_to_a_3D_upwind, ddy_a_to_a_3D_upwind, calculate_zeta_derivatives, &
                                              ddx_a_to_a_2D, ddy_a_to_a_2D, Neumann_BC_a_3D
   USE general_ice_model_data_module,   ONLY: ice_physical_properties 
   
@@ -37,10 +37,10 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER                :: Ti_new
     INTEGER                                            :: wTi_new
     REAL(dp)                                           :: internal_heating, u_times_dT_dx_upwind, v_times_dT_dy_upwind, f1, f2, f3
-    REAL(dp), DIMENSION(2:C%nZ)                        :: alpha
-    REAL(dp), DIMENSION(C%nZ)                          :: beta
-    REAL(dp), DIMENSION(C%nZ-1)                        :: gamma
-    REAL(dp), DIMENSION(C%nZ)                          :: delta
+    REAL(dp), DIMENSION(2:C%nz)                        :: alpha
+    REAL(dp), DIMENSION(C%nz)                          :: beta
+    REAL(dp), DIMENSION(C%nz-1)                        :: gamma
+    REAL(dp), DIMENSION(C%nz)                          :: delta
     LOGICAL                                            :: is_unstable, hasnan
     INTEGER                                            :: n_unstable
     
@@ -72,7 +72,7 @@ CONTAINS
     END IF ! IF (C%do_benchmark_experiment) THEN
     
     ! Initialise the new temperature field
-    CALL allocate_shared_dp_3D( C%nZ, grid%ny, grid%nx, Ti_new, wTi_new)
+    CALL allocate_shared_dp_3D( C%nz, grid%ny, grid%nx, Ti_new, wTi_new)
 
     ! Calculate the required derivatives of Hi and Hs   
     CALL ddx_a_to_a_2D( grid, ice%Hi_a, ice%dHi_dx_a)
@@ -123,12 +123,12 @@ CONTAINS
       delta(1) = ice%Ti_a( 1,j,i)
   
       ! Loop over the whole vertical domain but not the surface (k=1) and the bottom (k=nZ):
-      DO k = 2, C%nZ-1
+      DO k = 2, C%nz-1
         
         IF (ice%mask_sheet_a( j,i) == 1) THEN
           internal_heating = ((- grav * C%zeta(k)) / ice%Cpi_a( k,j,i)) * ( &
-               (C%a_zeta(k) * ice%U_3D_a( k-1,j,i) + C%b_zeta(k) * ice%U_3D_a( k,j,i) + C%c_zeta(k) * ice%U_3D_a( k+1,j,i)) * ice%dHs_dx_a( j,i) + &
-               (C%a_zeta(k) * ice%V_3D_a( k-1,j,i) + C%b_zeta(k) * ice%V_3D_a( k,j,i) + C%c_zeta(k) * ice%V_3D_a( k+1,j,i)) * ice%dHs_dy_a( j,i) )
+               (zeta%a_zeta(k) * ice%U_3D_a( k-1,j,i) + zeta%b_zeta(k) * ice%U_3D_a( k,j,i) + zeta%c_zeta(k) * ice%U_3D_a( k+1,j,i)) * ice%dHs_dx_a( j,i) + &
+               (zeta%a_zeta(k) * ice%V_3D_a( k-1,j,i) + zeta%b_zeta(k) * ice%V_3D_a( k,j,i) + zeta%c_zeta(k) * ice%V_3D_a( k+1,j,i)) * ice%dHs_dy_a( j,i) )
         ELSE
           internal_heating = 0._dp
         END IF
@@ -150,54 +150,54 @@ CONTAINS
 
         f3 = internal_heating + (u_times_dT_dx_upwind + v_times_dT_dy_upwind) - ice%Ti_a( k,j,i) / C%dt_thermo
 
-        alpha(k) = f1 * C%a_zetazeta(k) - f2 * C%a_zeta(k)
-        beta (k) = f1 * C%b_zetazeta(k) - f2 * C%b_zeta(k) - 1._dp / C%dt_thermo
-        gamma(k) = f1 * C%c_zetazeta(k) - f2 * C%c_zeta(k)
+        alpha(k) = f1 * zeta%a_zetazeta(k) - f2 * zeta%a_zeta(k)
+        beta (k) = f1 * zeta%b_zetazeta(k) - f2 * zeta%b_zeta(k) - 1._dp / C%dt_thermo
+        gamma(k) = f1 * zeta%c_zetazeta(k) - f2 * zeta%c_zeta(k)
         delta(k) = f3
         
 !        ! DENK DROM - only vertical diffusion
-!        alpha(k) = (C%a_zeta(k) * ice%dzeta_dt(vi,k)) - ((C%a_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
-!        beta( k) = (C%b_zeta(k) * ice%dzeta_dt(vi,k)) - ((C%b_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2)) + (1._dp / C%dt_thermo)
-!        gamma(k) = (C%c_zeta(k) * ice%dzeta_dt(vi,k)) - ((C%c_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
+!        alpha(k) = (zeta%a_zeta(k) * ice%dzeta_dt(vi,k)) - ((zeta%a_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
+!        beta( k) = (zeta%b_zeta(k) * ice%dzeta_dt(vi,k)) - ((zeta%b_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2)) + (1._dp / C%dt_thermo)
+!        gamma(k) = (zeta%c_zeta(k) * ice%dzeta_dt(vi,k)) - ((zeta%c_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
 !        delta(k) = ice%Ti(vi,k) / C%dt_thermo
         
 !        ! DENK DROM - only vertical diffusion + vertical advection
-!        alpha(k) = (C%a_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((C%a_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
-!        beta( k) = (C%b_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((C%b_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2)) + (1._dp / C%dt_thermo)
-!        gamma(k) = (C%c_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((C%c_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
+!        alpha(k) = (zeta%a_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((zeta%a_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
+!        beta( k) = (zeta%b_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((zeta%b_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2)) + (1._dp / C%dt_thermo)
+!        gamma(k) = (zeta%c_zeta(k) * (ice%dzeta_dt(vi,k) - ice%W_3D(vi,k) / ice%Hi(vi))) - ((zeta%c_zetazeta(k) * ice%Ki(vi,k)) / (ice_density * ice%Cpi(vi,k) * ice%Hi(vi)**2))
 !        delta(k) = ice%Ti(vi,k) / C%dt_thermo
 
-      END DO ! DO k = 2, C%nZ-1
+      END DO ! DO k = 2, C%nz-1
  
       IF (ice%mask_shelf_a( j,i) == 1 .OR. ice%mask_gl_a( j,i) == 1) THEN
         ! Set ice bottom temperature to seawater temperature
-        alpha( C%nZ) = 0._dp
-        beta ( C%nZ) = 1._dp
-        delta( C%nZ) = T0 + climate%T_ocean_mean
+        alpha( C%nz) = 0._dp
+        beta ( C%nz) = 1._dp
+        delta( C%nz) = T0 + climate%T_ocean_mean
       ELSE
         ! Neumann accoring to GHF
-        alpha( C%nZ) = 1._dp
-        beta ( C%nZ) = -1._dp
-        delta( C%nZ) = (C%zeta(C%nZ) - C%zeta(C%nZ-1)) * (ice%GHF_a( j,i) + ice%frictional_heating_a( j,i)) / (ice%dzeta_dz_a( j,i) * ice%Ki_a( C%nZ,j,i)) 
+        alpha( C%nz) = 1._dp
+        beta ( C%nz) = -1._dp
+        delta( C%nz) = (C%zeta(C%nz) - C%zeta(C%nz-1)) * (ice%GHF_a( j,i) + ice%frictional_heating_a( j,i)) / (ice%dzeta_dz_a( j,i) * ice%Ki_a( C%nz,j,i)) 
         ! Mixed boundary condition depending on PMP limit
-        IF (ice%Ti_a( C%nZ,j,i) >= ice%Ti_pmp_a( C%nZ,j,i)) THEN
+        IF (ice%Ti_a( C%nz,j,i) >= ice%Ti_pmp_a( C%nz,j,i)) THEN
           ! Dirichlet at PMP
-          alpha( C%nZ) = 0._dp
-          beta ( C%nZ) = 1._dp
-          delta( C%nZ) = ice%Ti_pmp_a( C%nZ,j,i)
+          alpha( C%nz) = 0._dp
+          beta ( C%nz) = 1._dp
+          delta( C%nz) = ice%Ti_pmp_a( C%nz,j,i)
         END IF
       END IF ! IF (ice%mask_shelf(vi) == 1 .OR. ice%mask_groundingline(vi) == 1) THEN
 
       Ti_new( :,j,i) = tridiagonal_solve( alpha, beta, gamma, delta, 'thermodynamics_module [temperature]')
       
       ! Make sure ice temperature doesn't exceed pressure melting point
-      DO k = 1, C%nZ-1
+      DO k = 1, C%nz-1
         Ti_new( k,j,i) = MIN( Ti_new( k,j,i), ice%Ti_pmp_a( k,j,i))
       END DO
       
-      IF (Ti_new( C%nZ,j,i) >= ice%Ti_pmp_a( C%nZ,j,i)) THEN
-        Ti_new( C%nZ,j,i) = MIN( ice%Ti_pmp_a( C%nZ,j,i), ice%Ti_a( C%nZ-1,j,i) - (C%zeta(C%nZ) - C%zeta(C%nZ-1)) * &
-          (ice%GHF_a( j,i) + ice%frictional_heating_a( j,i)) / (ice%dzeta_dz_a( j,i) * ice%Ki_a( C%nZ,j,i)))
+      IF (Ti_new( C%nz,j,i) >= ice%Ti_pmp_a( C%nz,j,i)) THEN
+        Ti_new( C%nz,j,i) = MIN( ice%Ti_pmp_a( C%nz,j,i), ice%Ti_a( C%nz-1,j,i) - (C%zeta(C%nz) - C%zeta(C%nz-1)) * &
+          (ice%GHF_a( j,i) + ice%frictional_heating_a( j,i)) / (ice%dzeta_dz_a( j,i) * ice%Ki_a( C%nz,j,i)))
       END IF
     
       ! Safety - to prevent the rare instabilities in the heat equation solver from stopping the entire simulation,
@@ -206,7 +206,7 @@ CONTAINS
       
       is_unstable = .FALSE.
       hasnan      = .FALSE.
-      DO k = 1, C%nZ
+      DO k = 1, C%nz
         IF (Ti_new( k,j,i) /= Ti_new( k,j,i)) THEN
           hasnan = .TRUE.
         END IF
@@ -219,7 +219,7 @@ CONTAINS
       IF (is_unstable) CALL replace_Ti_with_robin_solution( ice, climate, SMB, Ti_new, i,j)
       
       ! CHECK
-      DO k = 1, C%nZ
+      DO k = 1, C%nz
         IF (Ti_new( k,j,i) /= Ti_new( k,j,i) .OR. Ti_new( k,j,i) < 150._dp) THEN
           WRITE(0,*) ' NaN or <150K values in Ti_new (update_ice_temperature)!'
           WRITE(0,*) '   Ti_new = ', Ti_new( k,j,i), ', Ti = ', ice%Ti_a( k,j,i), ', SMB_year = ', SMB%SMB_year( j,i), &
@@ -330,8 +330,8 @@ CONTAINS
     DO j = 1, grid%ny
       T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
       IF (ice%Hi_a( j,i) > 0._dp) THEN
-        DO k = 1, C%nZ
-          ice%Ti_a( k,j,i) = T_surf_annual + C%zeta(k) * (ice%Ti_pmp_a( C%nZ,j,i) - T_surf_annual)
+        DO k = 1, C%nz
+          ice%Ti_a( k,j,i) = T_surf_annual + C%zeta(k) * (ice%Ti_pmp_a( C%nz,j,i) - T_surf_annual)
         END DO
       ELSE
         ice%Ti_a( :,j,i) = T_surf_annual
@@ -384,7 +384,7 @@ CONTAINS
         ! The Robin solution can be used to estimate the subsurface temperature profile in an accumulation area
         
         thermal_length_scale = SQRT(2._dp * thermal_diffusivity_robin * ice%Hi_a( j,i) / SMB%SMB_year( j,i))
-        DO k = 1, C%nZ
+        DO k = 1, C%nz
           distance_above_bed = (1._dp - C%zeta(k)) * ice%Hi_a( j,i)
           erf1 = erf( distance_above_bed / thermal_length_scale)
           erf2 = erf( ice%Hi_a( j,i) / thermal_length_scale)
@@ -411,7 +411,7 @@ CONTAINS
     END IF
 
     ! Correct all temperatures above T_pmp:
-    DO k = 1, C%nZ
+    DO k = 1, C%nz
       Ti( k,j,i) = MIN( Ti( k,j,i), T0 - CC * ice%Hi_a( j,i) * C%zeta(k))
     END DO
 

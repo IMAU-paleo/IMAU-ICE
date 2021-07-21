@@ -5,7 +5,11 @@ MODULE derivatives_and_grids_module
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, partition_list
   USE configuration_module,            ONLY: dp, C
-  USE data_types_module,               ONLY: type_grid, type_ice_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_zeta_coefficients
+  USE netcdf_module,                   ONLY: debug
+  
+  ! The vertical scaled coordinate zeta transformation coefficients
+  TYPE(type_zeta_coefficients) :: zeta
 
 CONTAINS
 
@@ -1522,6 +1526,70 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE calculate_zeta_derivatives
+  SUBROUTINE initialise_zeta_discretisation
+    ! Initialise the coefficients for calculating df/dzeta
+    ! (used in thermodynamics)
+  
+    IMPLICIT NONE
+
+    ! Local variables:
+    INTEGER :: k
+
+    ALLOCATE( zeta%a_k(          2:C%nz  ))
+    ALLOCATE( zeta%b_k(          1:C%nz-1))
+    ALLOCATE( zeta%c_k(          3:C%nz  ))
+    ALLOCATE( zeta%d_k(          1:C%nz-2))
+    ALLOCATE( zeta%a_zeta(       2:C%nz-1))
+    ALLOCATE( zeta%b_zeta(       2:C%nz-1))
+    ALLOCATE( zeta%c_zeta(       2:C%nz-1))
+    ALLOCATE( zeta%a_zetazeta(   2:C%nz-1))
+    ALLOCATE( zeta%b_zetazeta(   2:C%nz-1))
+    ALLOCATE( zeta%c_zetazeta(   2:C%nz-1))
+
+    ALLOCATE( zeta%z_zeta_minus( 3:C%nz  ))
+    ALLOCATE( zeta%a_zeta_minus( 3:C%nz  ))
+    ALLOCATE( zeta%b_zeta_minus( 3:C%nz  ))
+    ALLOCATE( zeta%b_zeta_plus(  1:C%nz-2))
+    ALLOCATE( zeta%c_zeta_plus(  1:C%nz-2))
+    ALLOCATE( zeta%d_zeta_plus(  1:C%nz-2))
+
+    DO k = 2, C%nz
+      zeta%a_k( k) = C%zeta( k  ) - C%zeta( k-1)
+    END DO
+    DO k = 1, C%nz-1
+      zeta%b_k( k) = C%zeta( k+1) - C%zeta( k  )
+    END DO
+    DO k = 3, C%nz
+      zeta%c_k( k) = C%zeta( k  ) - C%zeta( k-2)
+    END DO
+    DO k = 1, C%nz-2
+      zeta%d_k( k) = C%zeta( k+2) - C%zeta( k  )
+    END DO
+
+    DO k = 2, C%nz-1
+      zeta%a_zeta( k)     =                - zeta%b_k( k)  / ( zeta%a_k( k) * ( zeta%a_k( k) + zeta%b_k( k)))
+      zeta%b_zeta( k)     = ( zeta%b_k( k) - zeta%a_k( k)) / ( zeta%a_k( k) *                  zeta%b_k( k) )
+      zeta%c_zeta( k)     =   zeta%a_k( k)                 / ( zeta%b_k( k) * ( zeta%a_k( k) + zeta%b_k( k)))
+      zeta%a_zetazeta( k) =                      2.0_dp    / ( zeta%a_k( k) * ( zeta%a_k( k) + zeta%b_k( k)))
+      zeta%b_zetazeta( k) =                     -2.0_dp    / ( zeta%a_k( k) *                  zeta%b_k( k) )
+      zeta%c_zetazeta( k) =                      2.0_dp    / ( zeta%b_k( k) * ( zeta%a_k( k) + zeta%b_k( k)))
+    END DO
+
+    ! Not all of these are in use:
+    DO k = 1, C%nz-2
+      zeta%b_zeta_plus( k) = -( zeta%b_k( k) + zeta%d_k( k)) / ( zeta%b_k( k) *   zeta%d_k( k)                )
+      zeta%c_zeta_plus( k) =                   zeta%d_k( k)  / ( zeta%b_k( k) * ( zeta%d_k( k) - zeta%b_k( k)))
+      zeta%d_zeta_plus( k) =                   zeta%b_k( k)  / ( zeta%d_k( k) * ( zeta%b_k( k) - zeta%d_k( k)))
+    END DO
+
+    ! Not all of these are in use:
+    DO k = 3, C%nz
+      zeta%z_zeta_minus( k) =                  zeta%a_k( k)  / ( zeta%c_k( k) * ( zeta%c_k( k) - zeta%a_k( k)))
+      zeta%a_zeta_minus( k) =                  zeta%c_k( k)  / ( zeta%a_k( k) * ( zeta%a_k( k) - zeta%c_k( k)))
+      zeta%b_zeta_minus( k) = ( zeta%a_k( k) + zeta%c_k( k)) / ( zeta%a_k( k) *   zeta%c_k( k)                )
+    END DO
+    
+  END SUBROUTINE initialise_zeta_discretisation
   
 ! ======================================
 ! ===== Neumann boundary condition =====

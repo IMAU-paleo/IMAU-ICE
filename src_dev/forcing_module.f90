@@ -605,7 +605,6 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
     
     ! Allocate shared memory to take the data
@@ -764,7 +763,6 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Reading d18O record from ', TRIM(C%filename_d18O_record), '...'
     
     ! Allocate shared memory to take the data
@@ -837,14 +835,12 @@ CONTAINS
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
     
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) ' Updating insolation data...'
-    
     ! Initialise at zero
     IF (par%master) THEN
       forcing%ins_Q_TOA0 = 0._dp
       forcing%ins_Q_TOA1 = 0._dp
     END IF
+    CALL sync
     
     ! Check if data for model time is available
     IF (t_coupling < forcing%ins_time(1)) THEN
@@ -940,7 +936,6 @@ CONTAINS
     
     IMPLICIT NONE
     
-    IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
         
     ! The times at which we have insolation fields from Laskar, between which we'll interpolate

@@ -4,11 +4,7 @@ IMAU-ICE v2.0 changelog
 
 Tijn Berends, July 2021
 
-BIG CHANGES: version 2.0 added DIVA ice dynamics, and the GIA+sea-level equation solver SELEN.
-
-NOTE: relative to v1.1.1, there are some minor changes to config variable names and help_fields
-      output field names, so config files and plot scripts from earlier model versions might
-      need to be updated.
+BIG CHANGES: added DIVA, SELEN, and PETSc.
 
                              -----  Introduction: DIVA  -----
                                     
@@ -27,6 +23,9 @@ changes to the way the effective viscosity is staggered, which allows the model 
 Schoof 2006 analytical SSA solution, but makes it more difficult to maintain numerical stability.
 Other than that, the solver is identical to the one in Yelmo, only the code has been restructured
 to match the rest of IMAU-ICE.
+  To benchmark the new DIVA solver, all of the ISMIP-HOM experiments (Pattyn et al., 2008) are
+hard-coded into IMAU-ICE (config files are included). Results agree with those of Goldberg (2011)
+and Lipscomb et al. (2019).
 
                              -----  Introduction: SELEN  -----
 
@@ -45,8 +44,42 @@ past 80,000 years (configurable). Every 1,000 years (conf.), it solves the SLE f
 history. The results for the last two SELEN time-steps are then used to extrapolate 1,000 years
 into the future; the bedrock and geoid deformation rates in IMAU-ICE are then set such that, at
 the end of this next 1,000-year interval, the bedrock and geoid match the SELEN prediction.
+  I also parallelised all the big loops in the "solve_SLE" routine. It scales beautifully, so
+that a single call to run_SELEN (with harmonic degree 64) now takes about 30 seconds on a 24-core
+Cartesius node (350 seconds on a 2-core iMac). For a full glacial cycle (120 kyr) this adds about
+1 hour to the total computation time. Increasing the harmonic degree to 128 increases the computation
+by time about a factor 5, to 150 seconds per call, or about 5 hours for a full glacial cycle on Cartesius.
+
+                             -----  Introduction: PETSc  -----
+
+  The Portable, Extensible Toolkit for Scientific Computation (PETSc) is a library containing
+loads of routines for solving matrix equations and non-linear equations. IMAU-ICE now uses PETSc
+to solve the ice-dynamical equations, using a parallelised iterative matrix solver. This is about
+twice as fast as the old SOR solver, and also much more stable. It does however make compiling the
+model a bit more cumbersome, as you first need to install PETSc.
+  Note that this just scratches the surface of what PETSc can theoretically do. The matrix and
+vector types are fully parallelised with MPI, including multi-node. Several different non-linear
+solvers are included, which could be used for the viscosity iteration of the SSA/DIVA. It even
+includes a number of time-stepping methods, which could replace the whole predictor/corrector
+business. All of this would require substantial rewriting of the model code; whether or not this
+is desirable is of course open for discussion.
+
+
+
+
 
                              -----  Actual code changes  -----
+                             
+General:
+- Added the option of using a "template+variation" config style. The IMAU_ICE_program
+  executable can now be provided either one or two config file names. If only one is provided,
+  it works the same as before. When two are provided, both are read, with the values from the second
+  overwriting those from the first . This makes it really easy to set up ensemble experiments;
+  create a "template" config that describes your default simulation, and then create a set of
+  "variation" configs that alter only the variable(s) you're interested in.
+- Cleaned up the configuration_module routines.
+- Moved initialise_zeta_discretisation to the derivatives_and_grids_module, created a separate
+  "zeta" structure in that module to store the coefficients (and removed them from the C structure).
 
 Ice dynamics:
 - Created two separate modules: "ice_velocity_module" for calculating instantaneous
@@ -55,20 +88,21 @@ Ice dynamics:
 - Upgraded the SSA/DIVA solver from the regular (A) grid to the staggered (Cx/Cy) grid,
   based on the solver from SICOPOLIS (as included in Yelmo). This also includes the
   "cross-terms" which were previously neglected, as well as boundary conditions for
-  the ice margin.
+  the ice margin (although these are turned off by default as they don't seem to work very well,
+  can be chosen with the config option "choice_ice_margin").
 - Changed the SSA/DIVA solver from the "grid-based" SOR to matrix-based SOR. Stability is
   improved, and it opens up the possibility to use a (fast, parallel) external solver in the future.
 - Added the predictor/corrector method of time integration (with the option of going back
-  to the old "direct" method when using SIA/SSA ice dynamics).
+  to the old "direct" method when using SIA/SSA ice dynamics, chosen with the config
+  option "choice_timestepping").
 - Added the semi-analytical grounding-line flux solution from Tsai et al. (2012) as a
-  boundary condition to the SSA/DIVA solver.
+  boundary condition to the SSA/DIVA solver (optionally, chosen with config option
+  "use_analytical_GL_flux").
 - Added the option to use an implicit method for integration ice thickness through time.
   However, this currently seems to encounter instability very often in realistic experiments,
-  so it is turned off by default for now, until an external direct matrix solver can be used.
-- Added a threshold thickness calving law, combined with a "floating margin fraction" mask to
-  determine ice thickness at the margin more accurately. This mask is also used to determine
-  marginal ice fluxes (i.e. ice is only allowed to flow from a floating margin pixel to an
-  ocean pixel once the margin is completely filled), which greatly reduces "margin flickering".
+  so it is turned off by default for now, until an external direct matrix solver can be used
+  (chosen with config option "choice_ice_integration_method").
+  
 
 Benchmark experiments:
 - Added the Schoof (2006) SSA ice stream experiment. Results match the analytical solution
@@ -107,7 +141,20 @@ Calving:
   floating ice margin pixels to make sure it is applied correctly. Also included a condition to
   the flux calculation so that ice flow from floating pixels to ice-free ocean pixels is only
   allowed once the floating pixel is completely filled; this significantly reduces the margin
-  "flickering" problem.
+  "flickering" problem. Additionally, the mass balance (surface + basal) is also scaled with
+  the floating fraction for calving front pixels.
+
+PETSc:
+- Currently, only two parts of the model use a sparse matrix solver: "solve_DIVA_stag_linearised"
+  in the ice_velocity_module, and "calculate_dHi_dt_implicit" in the ice_dynamics_module. Both
+  call the "solve_matrix_equation_CSR" routine in the utilities_module, which uses either the
+  old SOR solver or the PETSc solver based on the provided char string "choice_matrix_solver".
+  This means it is relatively simple to remove PETSc from the model entirely if the user desires this;
+  simply remove the call to "solve_matrix_equation_CSR_PETSc" in the utilities_module, and remove
+  the petsc_module from the Makefile.
+  
+  
+  
 
 =================================
 IMAU-ICE v1.1.1 changelog

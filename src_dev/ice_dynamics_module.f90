@@ -15,7 +15,7 @@ MODULE ice_dynamics_module
   USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_init_data_fields, type_SMB_model, type_BMB_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: SSA_Schoof2006_analytical_solution, vertical_average,  initialise_matrix_equation_CSR, &
-                                             solve_matrix_equation_CSR_SOR, check_CSR_for_double_entries
+                                             solve_matrix_equation_CSR, check_CSR_for_double_entries
   USE ice_velocity_module,             ONLY: initialise_DIVA_matrix_tables, solve_SIA, solve_SSA, solve_DIVA
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
   USE calving_module,                  ONLY: calculate_calving_flux
@@ -35,15 +35,11 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     IF (C%choice_timestepping == 'direct') THEN
-    
       CALL run_ice_dynamics_direct( region, t_end)
-      
     ELSEIF (C%choice_timestepping == 'pc') THEN
-    
       CALL run_ice_dynamics_pc( region, t_end)
-      
     ELSE
-      IF (par%master) WRITE(0,*) 'run_ice_model - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"!'
+      IF (par%master) WRITE(0,*) 'run_ice_model - ERROR: unknown choice_timestepping "', C%choice_timestepping, '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -143,7 +139,9 @@ CONTAINS
     END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
     
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    CALL determine_timesteps_and_actions_direct( region, t_end)
+    CALL determine_timesteps_and_actions( region, t_end)
+      
+    IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_SIA = ', dt_crit_SIA, ', dt_crit_SSA = ', dt_crit_SSA, ', dt = ', region%dt
     
     ! Calculate new ice geometry
     CALL calculate_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
@@ -152,8 +150,8 @@ CONTAINS
     
   END SUBROUTINE run_ice_dynamics_direct
   SUBROUTINE run_ice_dynamics_pc( region, t_end)
-    ! Ice dynamics and time-stepping with the "direct" method (as was the default up to IMAU-ICE v1.1.1)
-    ! NOTE: this does not work for DIVA ice dynamics!
+    ! Ice dynamics and time-stepping with the predictor/correct method (adopted from Yelmo,
+    ! originally based on Cheng et al., 2017)
     
     IMPLICIT NONE
 
@@ -163,78 +161,135 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i1,i2
+    LOGICAL                                            :: do_update_ice_velocity
     REAL(dp)                                           :: dt_from_pc, dt_crit_adv
     
+    ! Abbreviations for cleaner code
     i1 = region%grid%i1
     i2 = region%grid%i2
     
-    ! Calculate time step based on the truncation error in ice thickness (Robinson et al., 2020, Eq. 33)
-    CALL calculate_critical_timestep_adv( region%grid, region%ice, dt_crit_adv)
-    IF (par%master) THEN
-      region%dt_prev         = region%dt
-      region%ice%pc_eta_prev = region%ice%pc_eta
-      dt_from_pc             = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
-      region%dt              = MAX(C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_prev, dt_crit_adv, dt_from_pc]))
-      region%ice%pc_zeta     = region%dt / region%dt_prev
-      region%ice%pc_beta1    = 1._dp + region%ice%pc_zeta / 2._dp
-      region%ice%pc_beta2    =       - region%ice%pc_zeta / 2._dp
-    END IF
-    CALL sync
-    
-    !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc
-    
-    ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    CALL determine_timesteps_and_actions_pc( region, t_end)
-    
-    ! Predictor step
-    ! ==============
-    
-    ! Calculate new ice geometry
-    region%ice%pc_f2( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-    CALL calculate_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
-    region%ice%pc_f1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-    region%ice%Hi_pred( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
-    CALL sync
-    
-    ! Update step
-    ! ===========
-
-    ! Calculate velocities for predicted geometry
-    region%ice%Hi_old( :,i1:i2) = region%ice%Hi_a(    :,i1:i2)
-    region%ice%Hi_a(   :,i1:i2) = region%ice%Hi_pred( :,i1:i2)
-    CALL update_general_ice_model_data( region%grid, region%ice, region%time)
-    
+    ! Determine whether or not we need to update ice velocities
+    do_update_ice_velocity = .FALSE.
     IF     (C%choice_ice_dynamics == 'SIA') THEN
-      CALL solve_SIA(  region%grid, region%ice)
+      IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
-      CALL solve_SSA(  region%grid, region%ice)
+      IF (region%time == region%t_next_SSA ) do_update_ice_velocity = .TRUE.
     ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
-      CALL solve_SIA(  region%grid, region%ice)
-      CALL solve_SSA(  region%grid, region%ice)
+      IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
-      CALL solve_DIVA( region%grid, region%ice)
+      IF (region%time == region%t_next_DIVA) do_update_ice_velocity = .TRUE.
     ELSE
       IF (par%master) WRITE(0,*) 'run_ice_dynamics_pc - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-  
-    ! Corrector step
-    ! ==============
     
-    ! Calculate "corrected" ice thickness based on new velocities
-    CALL calculate_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
-    region%ice%pc_f3( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-    region%ice%pc_f4( :,i1:i2) = region%ice%pc_f1( :,i1:i2)
-    region%ice%Hi_corr( :,i1:i2) = region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2))
-
-    ! Determine truncation error
-    CALL calculate_pc_truncation_error( region%grid, region%ice, region%dt, region%dt_prev)
+    IF (do_update_ice_velocity) THEN
+    
+      ! Calculate time step based on the truncation error in ice thickness (Robinson et al., 2020, Eq. 33)
+      CALL calculate_critical_timestep_adv( region%grid, region%ice, dt_crit_adv)
+      IF (par%master) THEN
+        region%dt_crit_ice_prev = region%dt_crit_ice
+        region%ice%pc_eta_prev  = region%ice%pc_eta
+        dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
+        region%dt_crit_ice      = MAX(C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc]))
+        region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
+        region%ice%pc_beta1     = 1._dp + region%ice%pc_zeta / 2._dp
+        region%ice%pc_beta2     =       - region%ice%pc_zeta / 2._dp
+      END IF
+      CALL sync
+      
+      ! Predictor step
+      ! ==============
+      
+      ! Calculate new ice geometry
+      region%ice%pc_f2(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      CALL calculate_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
+      region%ice%pc_f1(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      region%ice%Hi_pred( :,i1:i2) = region%ice%Hi_a(     :,i1:i2) + region%dt_crit_ice * region%ice%dHi_dt_a( :,i1:i2)
+      CALL sync
+      
+      ! Update step
+      ! ===========
   
-    ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
-    ! and only go to new (corrected) ice thickness at the end of this time loop.
-    region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(  :,i1:i2)
-    region%ice%Hi_a_new( :,i1:i2) = region%ice%Hi_pred( :,i1:i2)
-    CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      ! Calculate velocities for predicted geometry
+      region%ice%Hi_old( :,i1:i2) = region%ice%Hi_a(    :,i1:i2)
+      region%ice%Hi_a(   :,i1:i2) = region%ice%Hi_pred( :,i1:i2)
+      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      
+      IF     (C%choice_ice_dynamics == 'SIA') THEN
+      
+        ! Calculate velocities
+        CALL solve_SIA(  region%grid, region%ice)
+        
+        ! Update timer
+        IF (par%master) region%t_last_SIA = region%time
+        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        CALL sync
+        
+      ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      
+        ! Calculate velocities
+        CALL solve_SSA(  region%grid, region%ice)
+        
+        ! Update timer
+        IF (par%master) region%t_last_SSA = region%time
+        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        CALL sync
+        
+      ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      
+        ! Calculate velocities
+        CALL solve_SIA(  region%grid, region%ice)
+        CALL solve_SSA(  region%grid, region%ice)
+        
+        ! Update timer
+        IF (par%master) region%t_last_SIA = region%time
+        IF (par%master) region%t_last_SSA = region%time
+        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        CALL sync
+        
+      ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      
+        ! Calculate velocities
+        CALL solve_DIVA( region%grid, region%ice)
+        
+        ! Update timer
+        IF (par%master) region%t_last_DIVA = region%time
+        IF (par%master) region%t_next_DIVA = region%time + region%dt_crit_ice
+        CALL sync
+        
+      ELSE
+        IF (par%master) WRITE(0,*) 'run_ice_dynamics_pc - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    
+      ! Corrector step
+      ! ==============
+      
+      ! Calculate "corrected" ice thickness based on new velocities
+      CALL calculate_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
+      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
+      region%ice%Hi_corr( :,i1:i2) = region%ice%Hi_old(   :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2))
+  
+      ! Determine truncation error
+      CALL calculate_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
+    
+      ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
+      ! and only go to new (corrected) ice thickness at the end of this time loop.
+      region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(  :,i1:i2)
+      region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_pred( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
+    
+    END IF ! IF (do_update_ice_velocity) THEN
+      
+    ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
+    CALL determine_timesteps_and_actions( region, t_end)
+    
+    ! Calculate ice thickness at the end of this model loop
+    region%ice%Hi_a_new( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
+    
+    !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
   END SUBROUTINE run_ice_dynamics_pc
   
@@ -372,7 +427,7 @@ CONTAINS
     CALL MPI_REDUCE( eta_proc, ice%pc_eta, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
         
   END SUBROUTINE calculate_pc_truncation_error
-  SUBROUTINE determine_timesteps_and_actions_direct( region, t_end)
+  SUBROUTINE determine_timesteps_and_actions( region, t_end)
     ! Determine how long we can run just ice dynamics before another "action" (thermodynamics,
     ! GIA, output writing, inverse routine, etc.) has to be performed, and adjust the time step accordingly.
     
@@ -401,8 +456,10 @@ CONTAINS
       ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
         t_next = MIN( t_next, region%t_next_SIA)
         t_next = MIN( t_next, region%t_next_SSA)
+      ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+        t_next = MIN( t_next, region%t_next_DIVA)
       ELSE
-        WRITE(0,*) 'determine_timesteps_and_actions_direct - ERROR: "direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!'
+        WRITE(0,*) 'determine_timesteps_and_actions_direct - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF ! IF (C%choice_ice_dynamics == 'SIA') THEN
       
@@ -463,81 +520,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-  END SUBROUTINE determine_timesteps_and_actions_direct
-  SUBROUTINE determine_timesteps_and_actions_pc( region, t_end)
-    ! Determine how long we can run just ice dynamics before another "action" (thermodynamics,
-    ! GIA, output writing, inverse routine, etc.) has to be performed, and adjust the time step accordingly.
-    
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_model_region),             INTENT(INOUT) :: region
-    REAL(dp),                            INTENT(IN)    :: t_end
-    
-    ! Local variables:
-    REAL(dp)                                           :: t_next
-    
-    IF (par%master) THEN
-      
-      ! Determine when each model components should be updated
-      
-      t_next = MIN(t_end, region%time + region%dt)
-      
-      region%do_thermo  = .FALSE.
-      IF (region%time == region%t_next_thermo) THEN
-        region%do_thermo      = .TRUE.
-        region%t_last_thermo  = region%time
-        region%t_next_thermo  = region%t_last_thermo + C%dt_thermo
-      END IF
-      t_next = MIN( t_next, region%t_next_thermo)
-      
-      region%do_climate = .FALSE.
-      IF (region%time == region%t_next_climate) THEN
-        region%do_climate     = .TRUE.
-        region%t_last_climate = region%time
-        region%t_next_climate = region%t_last_climate + C%dt_climate
-      END IF
-      t_next = MIN( t_next, region%t_next_climate)
-      
-      region%do_SMB     = .FALSE.
-      IF (region%time == region%t_next_SMB) THEN
-        region%do_SMB         = .TRUE.
-        region%t_last_SMB     = region%time
-        region%t_next_SMB     = region%t_last_SMB + C%dt_SMB
-      END IF
-      t_next = MIN( t_next, region%t_next_SMB)
-      
-      region%do_BMB     = .FALSE.
-      IF (region%time == region%t_next_BMB) THEN
-        region%do_BMB         = .TRUE.
-        region%t_last_BMB     = region%time
-        region%t_next_BMB     = region%t_last_BMB + C%dt_BMB
-      END IF
-      t_next = MIN( t_next, region%t_next_BMB)
-      
-      region%do_ELRA    = .FALSE.
-      IF (region%time == region%t_next_ELRA) THEN
-        region%do_ELRA        = .TRUE.
-        region%t_last_ELRA    = region%time
-        region%t_next_ELRA    = region%t_last_ELRA + C%dt_bedrock_ELRA
-      END IF
-      t_next = MIN( t_next, region%t_next_ELRA)
-      
-      region%do_output  = .FALSE.
-      IF (region%time == region%t_next_output) THEN
-        region%do_output      = .TRUE.
-        region%t_last_output  = region%time
-        region%t_next_output  = region%t_last_output + C%dt_output
-      END IF
-      t_next = MIN( t_next, region%t_next_output)
-      
-      ! Set time step so that we move forward to the next action
-      region%dt = t_next - region%time
-    
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-  END SUBROUTINE determine_timesteps_and_actions_pc
+  END SUBROUTINE determine_timesteps_and_actions
   SUBROUTINE calc_checkerboard_factor( grid, ice)
     ! Calculate the local "checkerboard factor" of a data field
     
@@ -734,7 +717,13 @@ CONTAINS
     DO j = 1, grid%ny
     
       ! Ice volume added to each grid cell through the (surface + basal) mass balance
-      dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt
+      ! => With an exception for the calving front, where we only apply
+      !    the mass balance to the floating fraction
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt * ice%float_margin_frac_a( j,i)
+      ELSE
+        dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt
+      END IF
     
       ! Check how much ice is available for melting or removing (in m^3)
       Vi_available = ice%Hi_a( j,i) * grid%dx * grid%dx
@@ -1040,7 +1029,9 @@ CONTAINS
     ! Solve the matrix equation
     ! =========================
     
-    CALL solve_matrix_equation_CSR_SOR( ice%dHi_m, C%dHi_SOR_omega, C%dHi_SOR_max_res, C%dHi_SOR_max_loops)
+    CALL solve_matrix_equation_CSR( ice%dHi_m, C%dHi_choice_matrix_solver, &
+      SOR_nit = C%dHi_SOR_nit, SOR_tol = C%dHi_SOR_tol, SOR_omega = C%dHi_SOR_omega, &
+      PETSc_rtol = C%dHi_PETSc_rtol, PETSc_abstol = C%dHi_PETSc_abstol)
     
     ! Map the results back to the model grid
     DO i = grid%i1, grid%i2
@@ -1064,12 +1055,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
-    INTEGER                                            :: i,j,n, neq, nnz_max
+    INTEGER                                            :: i,j,n,neq,nnz_per_row_max
     
     ! Initialise the sparse matrix
-    neq     = grid%nx * grid%ny
-    nnz_max = 5 * neq
-    CALL initialise_matrix_equation_CSR( ice%dHi_m, neq, nnz_max)
+    neq             = grid%nx * grid%ny
+    nnz_per_row_max = 5
+    
+    CALL initialise_matrix_equation_CSR( ice%dHi_m, neq, neq, nnz_per_row_max)
     
     ! Initialise and fill the matrix-vector table
     CALL allocate_shared_int_2D( grid%ny, grid%nx, ice%dHi_ij2n, ice%wdHi_ij2n)

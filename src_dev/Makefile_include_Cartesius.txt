@@ -1,0 +1,12 @@
+# Configuration for the fortran :
+
+# Compiler names:
+  F90 = mpiifort 
+
+# Compiler flags:
+  F90FLAGS = -pg -O3 -module ${MOD_PATH} -lnetcdff -lnetcdf -lmkl -no-prec-div
+
+# Linking flags of libaries:
+  LDFLAGS  = -L${SARA_NETCDF_LIB} -lnetcdf -lnetcdff
+  
+  

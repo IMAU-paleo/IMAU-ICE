@@ -33,14 +33,15 @@ MODULE data_types_module
   TYPE type_sparse_matrix_CSR
     ! A matrix equation Ax=b, represented in the Compressed Sparse Row (CSR) format
     
-    INTEGER,                    POINTER     :: neq
-    INTEGER,                    POINTER     :: nnz_max
+    INTEGER,                    POINTER     :: m,n             ! A = [m-by-n]
+    INTEGER,                    POINTER     :: nnz_per_row_max ! Maximum number of non-zero entries per row in A (determines how much memory is allocated)
+    INTEGER,                    POINTER     :: nnz_max         ! Maximum number of non-zero entries         in A (determines how much memory is allocated)
     INTEGER,  DIMENSION(:    ), POINTER     :: A_ptr
     INTEGER,  DIMENSION(:    ), POINTER     :: A_index
     REAL(dp), DIMENSION(:    ), POINTER     :: A_val
     REAL(dp), DIMENSION(:    ), POINTER     :: x
     REAL(dp), DIMENSION(:    ), POINTER     :: b
-    INTEGER :: wneq, wnnz_max, wA_ptr, wA_index, wA_val, wx, wb
+    INTEGER :: wm, wn, wnnz_per_row_max, wnnz_max, wA_ptr, wA_index, wA_val, wx, wb
     
   END TYPE type_sparse_matrix_CSR
   
@@ -297,6 +298,32 @@ MODULE data_types_module
     INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_PD, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
     
   END TYPE type_ice_model
+  
+  TYPE type_zeta_coefficients
+    ! Coefficients used in the scaled vertical coordinate transformation
+    ! NOTE: local instead of shared memory, since these are not indexed from 1
+    !       and that's not possible (or at least not convenient) with shared memory.
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: a_k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: b_k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: c_k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: d_k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: a_zeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: b_zeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: c_zeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: a_zetazeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: b_zetazeta
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: c_zetazeta
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: z_zeta_minus
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: a_zeta_minus
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: b_zeta_minus
+
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: b_zeta_plus
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: c_zeta_plus
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE :: d_zeta_plus
+    
+  END TYPE type_zeta_coefficients
   
   TYPE type_debug_fields
     ! Dummy variables for debugging
@@ -890,7 +917,7 @@ MODULE data_types_module
     ! Timers and switches for determining which modules need to be called at what points in time during the simulation
     REAL(dp), POINTER                       :: dt_crit_SIA
     REAL(dp), POINTER                       :: dt_crit_SSA
-    REAL(dp), POINTER                       :: dt_crit_DIVA
+    REAL(dp), POINTER                       :: dt_crit_ice, dt_crit_ice_prev
     REAL(dp), POINTER                       :: t_last_SIA,     t_next_SIA
     REAL(dp), POINTER                       :: t_last_SSA,     t_next_SSA
     REAL(dp), POINTER                       :: t_last_DIVA,    t_next_DIVA
@@ -909,10 +936,10 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_BMB
     LOGICAL,  POINTER                       :: do_output
     LOGICAL,  POINTER                       :: do_ELRA
-    INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_DIVA
-    INTEGER :: wt_last_SIA, wt_next_SIA, wt_last_SSA, wt_next_SSA, wt_last_DIVA, wt_next_DIVA, wt_last_thermo, wt_next_thermo, wt_last_output, wt_next_output
-    INTEGER :: wt_last_climate, wt_next_climate, wt_last_SMB, wt_next_SMB, wt_last_BMB, wt_next_BMB, wt_last_ELRA, wt_next_ELRA
-    INTEGER :: wdo_SIA, wdo_SSA, wdo_DIVA, wdo_thermo, wdo_climate, wdo_SMB, wdo_BMB, wdo_output, wdo_ELRA
+    INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_SMB, wt_last_BMB, wt_last_ELRA
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_SMB, wt_next_BMB, wt_next_ELRA
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_SMB,     wdo_BMB,     wdo_ELRA
     
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area

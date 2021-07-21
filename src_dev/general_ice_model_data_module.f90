@@ -359,14 +359,14 @@ CONTAINS
             ice%A_flow_3D_a( k,j,i) = A_high_temp * EXP(-Q_high_temp / (R_gas * ice%Ti_a( k,j,i)))  
           END IF
         ELSE
-          IF (C%DIVA_choice_ice_margin == 'BC') THEN
+          IF (C%choice_ice_margin == 'BC') THEN
             ice%A_flow_3D_a( k,j,i) = 0._dp
-          ELSEIF (C%DIVA_choice_ice_margin == 'infinite_slab') THEN
+          ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
             ! In the "infinite slab" case, calculate effective viscosity everywhere
             ! (even when there's technically no ice present)
             ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * 263.15_dp))  
           ELSE
-            IF (par%master) WRITE(0,*) '  ERROR: DIVA_choice_ice_margin "', TRIM(C%DIVA_choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+            IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
             CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
           END IF
         END IF

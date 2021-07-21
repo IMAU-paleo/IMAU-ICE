@@ -39,7 +39,7 @@ CONTAINS
   ! All processes then associate their own pointers with the master's memory space,
   ! so that all processes can access the same physical memory and work in parallel.
   ! All processes must save the "window" to their own memory space, so that it can be deallocated if needed.
-  SUBROUTINE allocate_shared_int_0D(              p, win)
+  SUBROUTINE allocate_shared_int_0D(                 p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -83,7 +83,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_int_0D  
-  SUBROUTINE allocate_shared_int_1D(  n1,         p, win)
+  SUBROUTINE allocate_shared_int_1D(     n1,         p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -128,7 +128,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_int_1D  
-  SUBROUTINE allocate_shared_int_2D(  n1, n2,     p, win)
+  SUBROUTINE allocate_shared_int_2D(     n1, n2,     p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -173,7 +173,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_int_2D  
-  SUBROUTINE allocate_shared_int_3D(  n1, n2, n3, p, win)
+  SUBROUTINE allocate_shared_int_3D(     n1, n2, n3, p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -218,7 +218,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_int_3D  
-  SUBROUTINE allocate_shared_dp_0D(               p, win)
+  SUBROUTINE allocate_shared_dp_0D(                  p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -262,7 +262,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_dp_0D  
-  SUBROUTINE allocate_shared_dp_1D(   n1,         p, win)
+  SUBROUTINE allocate_shared_dp_1D(      n1,         p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -308,7 +308,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_dp_1D  
-  SUBROUTINE allocate_shared_dp_2D(   n1, n2,     p, win)
+  SUBROUTINE allocate_shared_dp_2D(      n1, n2,     p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -354,7 +354,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_dp_2D  
-  SUBROUTINE allocate_shared_dp_3D(   n1, n2, n3, p, win)
+  SUBROUTINE allocate_shared_dp_3D(      n1, n2, n3, p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      
@@ -400,7 +400,7 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE allocate_shared_dp_3D  
-  SUBROUTINE allocate_shared_bool_0D(             p, win)
+  SUBROUTINE allocate_shared_bool_0D(                p, win)
     ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
     ! Return a pointer associated with that memory space. Makes it so that all processes
     ! can access the same memory directly.      

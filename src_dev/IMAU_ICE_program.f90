@@ -19,14 +19,16 @@ PROGRAM IMAU_ICE_program
 
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
-  USE configuration_module,            ONLY: dp, C, create_output_dir, read_config_file, initialise_config, initialise_zeta_discretisation
+  USE configuration_module,            ONLY: dp, C, initialise_model_configuration
   USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global
+  USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
   USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
                                              initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
                                              calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
                                              initialise_geothermal_heat_flux
   USE climate_module,                  ONLY: initialise_climate_matrix
   USE global_text_output_module,       ONLY: create_text_output_file, write_text_output
+  USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
 
@@ -34,9 +36,7 @@ PROGRAM IMAU_ICE_program
   
   CHARACTER(LEN=256), PARAMETER          :: version_number = '2.0_dev'
   
-  INTEGER                                :: iargc
-  INTEGER                                :: process_rank, number_of_processes, p
-  CHARACTER(LEN=256)                     :: config_filename
+  INTEGER                                :: process_rank, number_of_processes
   
   ! The four model regions
   TYPE(type_model_region)                :: NAM, EAS, GRL, ANT
@@ -79,51 +79,17 @@ PROGRAM IMAU_ICE_program
   IF (par%master) WRITE(0,*) '===================================================='
   
   tstart = MPI_WTIME()
+  
+  ! PETSc Initialisation
+  ! ====================
+  
+  ! Basically just a call to PetscInitialize
+  CALL initialise_petsc
     
-  ! Initial administration - output directory, config file
-  ! ======================================================
+  ! Set up the model configuration from the provided config file(s) and create an output directory
+  ! ==============================================================================================
   
-  ! Read the config file, collect all information into the "C" structure
-  ! Since the name of the config file is provided as an argument, which is only seen by
-  ! the Master process, it must be shared with the other processes using MPI_SEND
-  
-  IF (par%master) THEN
-    IF (iargc()==1) THEN
-      ! Get the name of the configuration file, open this file and read it:
-      CALL getarg(1, config_filename)
-    ELSEIF (iargc()==0) THEN
-      WRITE(UNIT=*, FMT='(/2A/)') ' ERROR: IMAU-ICE needs a config file to run!'
-      STOP
-    ELSE
-      WRITE(UNIT=*, FMT='(/2A/)') ' ERROR: IMAU-ICE only takes one argument to run: the name of the config file!'
-      STOP
-    END IF
-  END IF
-  CALL MPI_BCAST( config_filename, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
-  
-  ! Let each of the processors read the config file in turns so there's no access conflicts
-  DO p = 0, par%n-1
-    IF (p == par%i) THEN  
-      CALL read_config_file( config_filename)
-      CALL initialise_config
-    END IF
-    CALL sync
-  END DO
-  
-  IF (C%do_benchmark_experiment) THEN
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) ' Running benchmark experiment "', TRIM(C%choice_benchmark_experiment), '"'
-  END IF
-    
-  ! Create a new output directory (can only be done by the master process)
-  IF (par%master) THEN
-    CALL create_output_dir
-    WRITE(0,*) ''
-    WRITE(0,*) ' Output directory: ', TRIM(C%output_dir)
-    ! Copy the config file to the output directory
-    CALL system('cp ' // config_filename // ' ' // TRIM(C%output_dir))
-  END IF
-  CALL MPI_BCAST( C%output_dir, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
+  CALL initialise_model_configuration( version_number)
     
   ! ===== Initialise parameters for the vertical scaled coordinate transformation =====
   ! (the same for all model regions, so stored in the "C" structure)
@@ -316,6 +282,8 @@ PROGRAM IMAU_ICE_program
 ! ====================================
   
   ! Write total elapsed time to screen
+  ! ==================================
+  
   tstop = MPI_WTIME()
   
   dt = tstop - tstart
@@ -338,8 +306,10 @@ PROGRAM IMAU_ICE_program
   IF (par%master) WRITE(0,'(A)') ' ================================================================================'
   IF (par%master) WRITE(0,'(A,I2,A,I2,A,I2,A,I2,A)') ' ===== Simulation finished in ', nd, ' days, ', nh, ' hours, ', nm, ' minutes and ', ns, ' seconds! ====='
   IF (par%master) WRITE(0,'(A)') ' ================================================================================'
-  IF (par%master) WRITE(0,'(A)') '' 
+  IF (par%master) WRITE(0,'(A)') ''
   
+  ! Finalise MPI and PETSc
+  CALL finalise_petsc
   CALL MPI_FINALIZE( ierr) 
     
 END PROGRAM IMAU_ICE_program

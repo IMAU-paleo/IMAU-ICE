@@ -188,7 +188,8 @@ CONTAINS
         
   END SUBROUTINE write_to_help_fields_file
   SUBROUTINE write_help_field( region, id_var, field_name)
-    ! Write the current model state to the existing output file
+    ! Write a single data field to the help_fields file
+    ! (NOTE: if you want to add an extra option, be sure to also add it to create_help_field!)
    
     IMPLICIT NONE
     
@@ -570,8 +571,8 @@ CONTAINS
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(region%restart%filename))
-    IF(file_exists) THEN
-      WRITE(0,*) 'ERROR: ', TRIM(region%restart%filename), ' already exists!'
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM(region%restart%filename), ' already exists!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -658,7 +659,7 @@ CONTAINS
         CALL create_double_var( region%restart%ncid, region%restart%name_var_CO2_inverse_history,     [region%restart%id_dim_nCO2_inverse_history,     t], region%restart%id_var_CO2_inverse_history, long_name='CO2_inverse history')
         
       ELSE
-        WRITE(0,*) '  ERROR - choice_forcing_method "', C%choice_forcing_method, '" not implemented in create_restart_file!'
+        WRITE(0,*) '  create_restart_file - ERROR - choice_forcing_method "', C%choice_forcing_method, '" not implemented in create_restart_file!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     
@@ -700,8 +701,8 @@ CONTAINS
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(region%help_fields%filename))
-    IF(file_exists) THEN
-      WRITE(0,*) ' ERROR: ', TRIM(region%help_fields%filename), ' already exists!'
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_help_fields_file - ERROR: ', TRIM(region%help_fields%filename), ' already exists!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -800,6 +801,7 @@ CONTAINS
   END SUBROUTINE create_help_fields_file
   SUBROUTINE create_help_field( region, id_var, field_name)
     ! Add a data field to the help_fields file
+    ! (NOTE: if you want to add an extra option, be sure to also add it to write_help_field!)
    
     IMPLICIT NONE
     
@@ -1031,8 +1033,8 @@ CONTAINS
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(debug_temp%filename))
-    IF(file_exists) THEN
-      WRITE(0,*) 'ERROR: ', TRIM(debug_temp%filename), ' already exists!'
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_debug_file - ERROR: ', TRIM(debug_temp%filename), ' already exists!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
