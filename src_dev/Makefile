@@ -3,14 +3,9 @@
 #    For "make" syntax search on "make tutorial", or see:
 #     http://www.gnu.org/software/make/manual/make.html
 
-include Makefile_include_local.txt
+#include Makefile_include_local.txt
 #include Makefile_include_Gemini.txt
-#include Makefile_include_Cartesius.txt
-
-PETSC_DIR = /usr/local/Cellar/petsc/3.15.1/
-include ${PETSC_DIR}/lib/petsc/conf/variables
-#include ${PETSC_DIR}/lib/petsc/conf/rules
-include ${PETSC_DIR}/lib/petsc/conf/test
+include Makefile_include_Cartesius.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
