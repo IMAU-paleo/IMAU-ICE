@@ -1,12 +1,10 @@
-# Configuration for the fortran :
-
 # Compiler names:
   F90 = mpifort 
 
 # Setting the path for the netcdf libraries:  
   MYLIB     = /usr/local/lib
   MYINC     = /usr/local/include
-  PETSC_DIR = /usr/local/Cellar/petsc/3.15.1     ! PETSC install directory
+  PETSC_DIR = /usr/local/Cellar/petsc/3.15.1/
 
 # Compiler flags:
   COMPILER_FLAGS_BASIC    = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none
