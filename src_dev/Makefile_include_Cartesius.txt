@@ -7,6 +7,4 @@
   F90FLAGS = -pg -O3 -module ${MOD_PATH} -lnetcdff -lnetcdf -lmkl -no-prec-div
 
 # Linking flags of libaries:
-  LDFLAGS  = -L${SARA_NETCDF_LIB} -lnetcdf -lnetcdff
-  
-  
+  LDFLAGS  = -L${SARA_NETCDF_LIB} -lnetcdf -lnetcdff -L${SARA_PETSC_DIR}/lib -lpetsc
