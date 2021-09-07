@@ -539,6 +539,8 @@ MODULE data_types_netcdf_module
     ! ===================
 
     ! Dimensions
+    INTEGER :: id_dim_time
+    INTEGER :: id_dim_month
     INTEGER :: id_dim_lon
     INTEGER :: id_dim_lat
 
@@ -555,6 +557,48 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_ghf                   = 'hflux                '
 
   END TYPE type_netcdf_geothermal_heat_flux
+
+  TYPE type_netcdf_climate_forcing
+    ! For reading an input file containing climate data,
+    ! describing 2-m air temperature and precipitation, or SMB at a lon-lat grid.
+
+    CHARACTER(LEN=256) :: filename
+
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+
+    ! ID's for variables:
+    ! ===================
+
+    ! Dimensions
+    INTEGER :: id_dim_time
+    INTEGER :: id_dim_month
+    INTEGER :: id_dim_lon
+    INTEGER :: id_dim_lat
+
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+    CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
+    CHARACTER(LEN=256) :: name_dim_lon                   = 'lon                  '
+    CHARACTER(LEN=256) :: name_dim_lat                   = 'lat                  '
+
+    ! Variables
+    INTEGER :: id_var_time
+    INTEGER :: id_var_month
+    INTEGER :: id_var_lon
+    INTEGER :: id_var_lat
+    INTEGER :: id_var_T2m
+    INTEGER :: id_var_Precip
+    INTEGER :: id_var_SMB
+
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    CHARACTER(LEN=256) :: name_var_month                 = 'month                '
+    CHARACTER(LEN=256) :: name_var_lon                   = 'lon                  '
+    CHARACTER(LEN=256) :: name_var_lat                   = 'lat                  '
+    CHARACTER(LEN=256) :: name_var_T2m                   = 'T2m                  '
+    CHARACTER(LEN=256) :: name_var_Precip                = 'Precip               '
+    CHARACTER(LEN=256) :: name_var_SMB                   = 'SMB                  '
+
+  END TYPE type_netcdf_climate_forcing
   
   TYPE type_netcdf_SELEN_global_topo
     ! A NETCDF file containing global topography data for SELEN on an irregular global mesh

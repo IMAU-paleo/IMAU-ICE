@@ -13,7 +13,7 @@ MODULE climate_module
                                              type_climate_matrix, type_subclimate_global, type_subclimate_region, type_ICE5G_timeframe
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_PD_obs_data_file, read_PD_obs_data_file, inquire_GCM_snapshot, read_GCM_snapshot,&
                                              read_insolation_data_file, inquire_ICE5G_data, read_ICE5G_data
-  USE forcing_module,                  ONLY: forcing, map_insolation_to_grid
+  USE forcing_module,                  ONLY: forcing, map_insolation_to_grid, map_climate_forcing_data_to_grid_SMB, map_climate_forcing_data_to_grid_climate
   USE utilities_module,                ONLY: error_function, smooth_Gaussian_2D, smooth_Shepard_2D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model, run_SMB_model_refr_fixed
@@ -69,7 +69,17 @@ CONTAINS
     CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA, climate%applied%Q_TOA_jun_65N, climate%applied%Q_TOA_jan_80S)
     
     ! Different kinds of climate forcing for realistic experiments
-    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    IF (C%choice_forcing_method == 'SMB_direct') THEN
+
+      CALL map_climate_forcing_data_to_grid_SMB     (grid, forcing%clim_nlon, forcing%clim_nlat, forcing%clim_lon, forcing%clim_lat, &
+                                                     forcing%clim_t0, forcing%clim_t1, forcing%clim_SMB0, forcing%clim_SMB1, time, SMB%SMB_year, forcing%clim_T2my0, forcing%clim_T2my1,climate%applied%T2m)
+
+    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+
+      CALL map_climate_forcing_data_to_grid_climate (grid, forcing%clim_nlon, forcing%clim_nlat, forcing%clim_lon, forcing%clim_lat, &
+                                                     forcing%clim_t0, forcing%clim_t1, forcing%clim_T2m0, forcing%clim_T2m1, time, climate%applied%T2m, forcing%clim_Precip0, forcing%clim_Precip1, climate%applied%Precip)
+
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! Use the global temperature offset as calculated by the inverse routine
       
       CALL run_climate_model_dT_glob( grid, ice, climate, region_name)
@@ -797,8 +807,8 @@ CONTAINS
     CALL initialise_PD_obs_data_fields( matrix%PD_obs, 'ERA40')
     
     ! The differenct GCM snapshots 
-    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
-      ! This choice of forcing doesn't use any GCM data
+    IF ((C%choice_forcing_method == 'd18O_inverse_dT_glob') .OR. (C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
+      ! These choices of forcing don't use any GCM (snapshot) data
       RETURN
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! These two choices use the climate matrix
@@ -1051,9 +1061,9 @@ CONTAINS
     ! Map these subclimates from global grid to model grid
     CALL map_subclimate_to_grid( grid,  matrix%PD_obs,  climate%PD_obs)
     
-    ! The differenct GCM snapshots 
-    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
-      ! This choice of forcing doesn't use any GCM data
+    ! The differenct GCM snapshots
+    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. C%choice_forcing_method == 'SMB_direct' .OR. C%choice_forcing_method == 'climate_direct') THEN
+      ! These choices of forcing don't use any GCM (snapshot) data
       RETURN
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! These two choices use the climate matrix
