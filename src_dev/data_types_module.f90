@@ -713,9 +713,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), POINTER     :: clim_lat
     REAL(dp), DIMENSION(:    ), POINTER     :: clim_time
     REAL(dp),                   POINTER     :: clim_t0, clim_t1
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_Precip0, clim_Precip1  ! Monthly
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_T2my0, clim_T2my1, clim_SMB0, clim_SMB1      ! Yearly
-    INTEGER :: wclim_nyears, wclim_nlat, wclim_nlon, wclim_time, wclim_lat, wclim_lon, wclim_t0, wclim_t1, wclim_T2m0, wclim_T2m1, wclim_Precip0, wclim_Precip1, wclim_SMB0, wclim_SMB1, wclim_T2my0, wclim_T2my1
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_T2m2, clim_Precip0, clim_Precip1, clim_Precip2  ! Monthly
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_SMB0, clim_SMB1, clim_SMB2                                            ! Yearly
+    INTEGER :: wclim_nyears, wclim_nlat, wclim_nlon, wclim_time, wclim_lat, wclim_lon, wclim_t0, wclim_t1, wclim_T2m0, wclim_T2m1, wclim_T2m2
+    INTEGER :: wclim_Precip0, wclim_Precip1, wclim_Precip2, wclim_SMB0, wclim_SMB1, wclim_SMB2
     
   END TYPE type_forcing_data
   

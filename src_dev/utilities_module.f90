@@ -923,6 +923,122 @@ CONTAINS
     CALL deallocate_shared( wd_dst_2D)
   
   END SUBROUTINE map_square_to_square_cons_2nd_order_3D
+
+  SUBROUTINE map_glob_to_grid_2D( nlat, nlon, lat, lon, grid, d_glob, d_grid)
+    ! Map a data field from a global lat-lon grid to the regional square grid
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,                         INTENT(IN)  :: nlat
+    INTEGER,                         INTENT(IN)  :: nlon
+    REAL(dp), DIMENSION(nlat),       INTENT(IN)  :: lat
+    REAL(dp), DIMENSION(nlon),       INTENT(IN)  :: lon
+    TYPE(type_grid),                 INTENT(IN)  :: grid
+    REAL(dp), DIMENSION(:,:  ),      INTENT(IN)  :: d_glob
+    REAL(dp), DIMENSION(:,:  ),      INTENT(OUT) :: d_grid
+    
+    ! Local variables:
+    INTEGER                                                :: i, j, il, iu, jl, ju
+    REAL(dp)                                               :: wil, wiu, wjl, wju
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Find enveloping lat-lon indices
+      il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
+      iu  = il+1        
+      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
+      wiu = 1-wil
+      
+      ! Exception for pixels near the zero meridian
+      IF (grid%lon(j,i) < MINVAL(lon)) THEN
+        il = nlon
+        iu = 1      
+        wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
+        wiu = 1-wil
+      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
+        il = nlon
+        iu = 1
+        wiu = (grid%lon(j,i) - lon(il))/(lon(2)-lon(1))
+        wil = 1-wiu
+      END IF
+          
+      jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
+      ju  = jl+1        
+      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
+      wju = 1-wjl
+      
+      ! Interpolate data
+      d_grid( j,i) = (d_glob( il,jl) * wil * wjl) + &
+                     (d_glob( il,ju) * wil * wju) + &
+                     (d_glob( iu,jl) * wiu * wjl) + &
+                     (d_glob( iu,ju) * wiu * wju)
+    
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE map_glob_to_grid_2D
+  SUBROUTINE map_glob_to_grid_3D( nlat, nlon, lat, lon, grid, d_glob, d_grid, nz)
+    ! Map a data field from a global lat-lon grid to the regional square grid
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,                         INTENT(IN)  :: nlat
+    INTEGER,                         INTENT(IN)  :: nlon
+    REAL(dp), DIMENSION(nlat),       INTENT(IN)  :: lat
+    REAL(dp), DIMENSION(nlon),       INTENT(IN)  :: lon
+    TYPE(type_grid),                 INTENT(IN)  :: grid
+    REAL(dp), DIMENSION(:,:,:),      INTENT(IN)  :: d_glob
+    REAL(dp), DIMENSION(:,:,:),      INTENT(OUT) :: d_grid
+    INTEGER,                         INTENT(IN)  :: nz
+    
+    ! Local variables:
+    INTEGER                                                :: i, j, il, iu, jl, ju, k
+    REAL(dp)                                               :: wil, wiu, wjl, wju
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Find enveloping lat-lon indices
+      il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
+      iu  = il+1        
+      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
+      wiu = 1-wil
+      
+      ! Exception for pixels near the zero meridian
+      IF (grid%lon(j,i) < MINVAL(lon)) THEN
+        il = nlon
+        iu = 1      
+        wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
+        wiu = 1-wil
+      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
+        il = nlon
+        iu = 1
+        wiu = (grid%lon(j,i) - lon(il))/(lon(2)-lon(1))
+        wil = 1-wiu
+      END IF
+          
+      jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
+      ju  = jl+1        
+      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
+      wju = 1-wjl
+      
+      ! Interpolate data
+      DO k = 1, nz
+        d_grid( k,j,i) = (d_glob( il,jl,k) * wil * wjl) + &
+                         (d_glob( il,ju,k) * wil * wju) + &
+                         (d_glob( iu,jl,k) * wiu * wjl) + &
+                         (d_glob( iu,ju,k) * wiu * wju)
+      END DO
+    
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE map_glob_to_grid_3D
   
   FUNCTION line_integral_xdy(   p, q, tol_dist) RESULT( I_pq)
     ! Calculate the line integral x dy from p to q    

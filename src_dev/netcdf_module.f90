@@ -2479,16 +2479,17 @@ CONTAINS
     
   END SUBROUTINE inquire_climate_forcing_data_file
 
-  SUBROUTINE read_climate_forcing_data_file_SMB( forcing, ti0, ti1, clim_SMB0, clim_SMB1, clim_T2my0, clim_T2my1) 
+  SUBROUTINE read_climate_forcing_data_file_SMB( forcing, ti0, ti1, clim_SMB0, clim_SMB1, clim_T2m0, clim_T2m1) 
     IMPLICIT NONE
     
     ! In/output variables:
     TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
     INTEGER,                        INTENT(IN)    :: ti0, ti1
-    REAL(dp), DIMENSION(:,:),       INTENT(OUT)   :: clim_SMB0, clim_SMB1, clim_T2my0, clim_T2my1
+    REAL(dp), DIMENSION(:,:),       INTENT(OUT)   :: clim_SMB0, clim_SMB1
+    REAL(dp), DIMENSION(:,:,:),     INTENT(OUT)   :: clim_T2m0, clim_T2m1
 
     ! Local variables:
-    INTEGER                                       :: li, ki
+    INTEGER                                       :: li, ki, mi
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE       :: SMB_temp0, SMB_temp1, T2my_temp0, T2my_temp1
     
     IF (.NOT. par%master) RETURN
@@ -2510,10 +2511,12 @@ CONTAINS
     ! Store the data in the shared memory structure
     DO li = 1, forcing%clim_nlon
     DO ki = 1, forcing%clim_nlat   
-      clim_SMB0 ( li,ki)    =     SMB_temp0( li,ki,1)
-      clim_SMB1 ( li,ki)    =     SMB_temp1( li,ki,1)
-      clim_T2my0( li,ki)    =    T2my_temp0( li,ki,1)
-      clim_T2my1( li,ki)    =    T2my_temp1( li,ki,1)
+      clim_SMB0 ( li,ki)      =     SMB_temp0( li,ki,1)
+      clim_SMB1 ( li,ki)      =     SMB_temp1( li,ki,1)
+      DO mi = 1, 12
+        clim_T2m0 ( li,ki,mi) =    T2my_temp0( li,ki,1)
+        clim_T2m1 ( li,ki,mi) =    T2my_temp1( li,ki,1)
+      END DO
     END DO
     END DO
 

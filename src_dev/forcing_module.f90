@@ -928,8 +928,6 @@ CONTAINS
       forcing%clim_Precip1 = 0._dp
       forcing%clim_SMB0    = 0._dp
       forcing%clim_SMB1    = 0._dp
-      forcing%clim_T2my0   = 0._dp
-      forcing%clim_T2my1   = 0._dp
     END IF
     CALL sync
  
@@ -967,7 +965,7 @@ CONTAINS
     ! Read new climate forcing fields from the NetCDF file
     IF (par%master) THEN
        IF (C%choice_forcing_method == 'SMB_direct') THEN
-         CALL read_climate_forcing_data_file_SMB( forcing, ti0, ti1, forcing%clim_SMB0, forcing%clim_SMB1, forcing%clim_T2my0, forcing%clim_T2my1)
+         CALL read_climate_forcing_data_file_SMB( forcing, ti0, ti1, forcing%clim_SMB0, forcing%clim_SMB1, forcing%clim_T2m0, forcing%clim_T2m1)
        ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
          CALL read_climate_forcing_data_file_climate( forcing, ti0, ti1, forcing%clim_T2m0, forcing%clim_T2m1, forcing%clim_Precip0, forcing%clim_Precip1)
        ELSE
@@ -1036,161 +1034,6 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE map_insolation_to_grid
-
-  SUBROUTINE map_climate_forcing_data_to_grid_SMB( grid, nlon, nlat, lon, lat, clim_t0, clim_t1, SMB0, SMB1, time, SMB, T2my0, T2my1, T2m)
-    ! Interpolate two climate forcing timeframes to the desired time, and then map it to the model grid.
-      
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    INTEGER,                             INTENT(IN)    :: nlon, nlat
-    REAL(dp), DIMENSION(nlon),           INTENT(IN)    :: lon
-    REAL(dp), DIMENSION(nlat),           INTENT(IN)    :: lat
-    REAL(dp),                            INTENT(IN)    :: clim_t0, clim_t1
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: SMB0, SMB1, T2my0, T2my1
-    REAL(dp),                            INTENT(IN)    :: time
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: SMB
-    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: T2m
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,m,jlat_l,jlat_u,ilon_l,ilon_u
-    REAL(dp)                                           :: wt0, wt1, wlat_l, wlat_u, wlon_l, wlon_u
-    
-    ! Calculate time interpolation weights
-    wt0 = (clim_t1 - time) / (clim_t1 - clim_t0)
-    wt1 = 1._dp - wt0
-   
-    ! Interpolate on the grid
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      
-      ! Find enveloping lat-lon indices
-      ilon_l  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
-      ilon_u  = ilon_l+1        
-      wlon_l  = (lon(ilon_u) - grid%lon(j,i))/(lon(2)-lon(1))
-      wlon_u  = 1-wlon_l
-
-      ! Exception for pixels near the zero meridian
-      IF (grid%lon(j,i) < MINVAL(lon)) THEN
-        ilon_l = nlon
-        ilon_u = 1      
-        wlon_l = (lon(ilon_u) - grid%lon(j,i))/(lon(2)-lon(1))
-        wlon_u = 1-wlon_l
-      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
-        ilon_l = nlon
-        ilon_u = 1
-        wlon_u = (grid%lon(j,i) - lon(ilon_l))/(lon(2)-lon(1))
-        wlon_l = 1-wlon_u
-      END IF
-
-      jlat_l  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
-      jlat_u  = jlat_l+1        
-      wlat_l = (lat(jlat_u) - grid%lat(j,i))/(lat(2)-lat(1))
-      wlat_u = 1-wlat_l
-      
-      SMB( j,i) =     (wt0 * wlon_l * wlat_l * SMB0( ilon_l,jlat_l)) + &
-                      (wt0 * wlon_u * wlat_l * SMB0( ilon_u,jlat_l)) + &
-                      (wt0 * wlon_l * wlat_u * SMB0( ilon_l,jlat_u)) + &
-                      (wt0 * wlon_u * wlat_u * SMB0( ilon_u,jlat_u)) + &
-                      (wt1 * wlon_l * wlat_l * SMB1( ilon_l,jlat_l)) + &
-                      (wt1 * wlon_u * wlat_l * SMB1( ilon_u,jlat_l)) + &
-                      (wt1 * wlon_l * wlat_u * SMB1( ilon_l,jlat_u)) + &
-                      (wt1 * wlon_u * wlat_u * SMB1( ilon_u,jlat_u))
- 
-      DO m=1, 12 ! Each month is assigned the yearly averaged, no problem because only yearly averaged is used for thermodynamics
-        T2m( m,j,i)=  (wt0 * wlon_l * wlat_l * T2my0( ilon_l,jlat_l)) + &
-                      (wt0 * wlon_u * wlat_l * T2my0( ilon_u,jlat_l)) + &
-                      (wt0 * wlon_l * wlat_u * T2my0( ilon_l,jlat_u)) + &
-                      (wt0 * wlon_u * wlat_u * T2my0( ilon_u,jlat_u)) + &
-                      (wt1 * wlon_l * wlat_l * T2my1( ilon_l,jlat_l)) + &
-                      (wt1 * wlon_u * wlat_l * T2my1( ilon_u,jlat_l)) + &
-                      (wt1 * wlon_l * wlat_u * T2my1( ilon_l,jlat_u)) + &
-                      (wt1 * wlon_u * wlat_u * T2my1( ilon_u,jlat_u)) 
-      END DO
- 
-    END DO
-    END DO
-    CALL sync
-   
-  END SUBROUTINE map_climate_forcing_data_to_grid_SMB
-
-  SUBROUTINE map_climate_forcing_data_to_grid_climate( grid, nlon, nlat, lon, lat, clim_t0, clim_t1, T2m0, T2m1, time, T2m, Precip0, Precip1, Precip)
-    ! Interpolate two climate forcing timeframes to the desired time, and then map it to the model grid.
-      
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    INTEGER,                             INTENT(IN)    :: nlon, nlat
-    REAL(dp), DIMENSION(nlon),           INTENT(IN)    :: lon
-    REAL(dp), DIMENSION(nlat),           INTENT(IN)    :: lat
-    REAL(dp),                            INTENT(IN)    :: clim_t0, clim_t1
-    REAL(dp), DIMENSION(:,:,:  ),        INTENT(IN)    :: T2m0, T2m1,Precip0,Precip1
-    REAL(dp),                            INTENT(IN)    :: time
-    REAL(dp), DIMENSION(:,:,:  ),        INTENT(INOUT) :: T2m, Precip
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,m,jlat_l,jlat_u,ilon_l,ilon_u
-    REAL(dp)                                           :: wt0, wt1, wlat_l, wlat_u, wlon_l, wlon_u
-    
-    ! Calculate time interpolation weights
-    wt0 = (clim_t1 - time) / (clim_t1 - clim_t0)
-    wt1 = 1._dp - wt0
-        
-    ! Interpolate on the grid
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
- 
-      ! Find enveloping lat-lon indices
-      ilon_l  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
-      ilon_u  = ilon_l+1        
-      wlon_l  = (lon(ilon_u) - grid%lon(j,i))/(lon(2)-lon(1))
-      wlon_u  = 1-wlon_l
-
-      ! Exception for pixels near the zero meridian
-      IF (grid%lon(j,i) < MINVAL(lon)) THEN
-        ilon_l = nlon
-        ilon_u = 1      
-        wlon_l = (lon(ilon_u) - grid%lon(j,i))/(lon(2)-lon(1))
-        wlon_u = 1-wlon_l
-      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
-        ilon_l = nlon
-        ilon_u = 1
-        wlon_u = (grid%lon(j,i) - lon(ilon_l))/(lon(2)-lon(1))
-        wlon_l = 1-wlon_u
-      END IF
-
-      jlat_l  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
-      jlat_u  = jlat_l+1        
-      wlat_l = (lat(jlat_u) - grid%lat(j,i))/(lat(2)-lat(1))
-      wlat_u = 1-wlat_l
-      
-      DO m=1,12
-        T2m( m,j,i) =   (wt0 * wlon_l * wlat_l * T2m0( ilon_l,jlat_l, m)) + &
-                        (wt0 * wlon_u * wlat_l * T2m0( ilon_u,jlat_l, m)) + &
-                        (wt0 * wlon_l * wlat_u * T2m0( ilon_l,jlat_u, m)) + &
-                        (wt0 * wlon_u * wlat_u * T2m0( ilon_u,jlat_u, m)) + &
-                        (wt1 * wlon_l * wlat_l * T2m1( ilon_l,jlat_l, m)) + &
-                        (wt1 * wlon_u * wlat_l * T2m1( ilon_u,jlat_l, m)) + &
-                        (wt1 * wlon_l * wlat_u * T2m1( ilon_l,jlat_u, m)) + &
-                        (wt1 * wlon_u * wlat_u * T2m1( ilon_u,jlat_u, m)) 
-
-        Precip( m,j,i)= (wt0 * wlon_l * wlat_l * Precip0( ilon_l,jlat_l, m)) + &
-                        (wt0 * wlon_u * wlat_l * Precip0( ilon_u,jlat_l, m)) + &
-                        (wt0 * wlon_l * wlat_u * Precip0( ilon_l,jlat_u, m)) + &
-                        (wt0 * wlon_u * wlat_u * Precip0( ilon_u,jlat_u, m)) + &
-                        (wt1 * wlon_l * wlat_l * Precip1( ilon_l,jlat_l, m)) + &
-                        (wt1 * wlon_u * wlat_l * Precip1( ilon_u,jlat_l, m)) + &
-                        (wt1 * wlon_l * wlat_u * Precip1( ilon_l,jlat_u, m)) + &
-                        (wt1 * wlon_u * wlat_u * Precip1( ilon_u,jlat_u, m)) 
-      END DO  
-    END DO
-    END DO
-    CALL sync
-
-    
-  END SUBROUTINE map_climate_forcing_data_to_grid_climate
 
   SUBROUTINE initialise_insolation_data
     ! Allocate shared memory for the forcing data fields
@@ -1382,20 +1225,22 @@ CONTAINS
     CALL sync
   
     ! Allocate shared memory
-    CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                      forcing%wclim_time   )
-    CALL allocate_shared_dp_1D( forcing%clim_nlon,                           forcing%clim_lon,     forcing%wclim_lon)
-    CALL allocate_shared_dp_1D(                        forcing%clim_nlat,    forcing%clim_lat,     forcing%wclim_lat)
+    CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                          forcing%wclim_time )
+    CALL allocate_shared_dp_1D( forcing%clim_nlon,                           forcing%clim_lon,     forcing%wclim_lon  )
+    CALL allocate_shared_dp_1D(                        forcing%clim_nlat,    forcing%clim_lat,     forcing%wclim_lat  )
+
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m0,    forcing%wclim_T2m0   )
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m1,    forcing%wclim_T2m1   )
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m2,    forcing%wclim_T2m2   )
 
     IF (C%choice_forcing_method == 'SMB_direct') THEN
       CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB0,    forcing%wclim_SMB0   )
       CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB1,    forcing%wclim_SMB1   )
-      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_T2my0,   forcing%wclim_T2my0  )
-      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_T2my1,   forcing%wclim_T2my1  )
+      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB2,    forcing%wclim_SMB2   )
     ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
-      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_T2m0,    forcing%wclim_T2m0    )
-      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_T2m1,    forcing%wclim_T2m1    )
       CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip0, forcing%wclim_Precip0 )
       CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip1, forcing%wclim_Precip1 )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip2, forcing%wclim_Precip2 )
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

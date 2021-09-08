@@ -13,8 +13,8 @@ MODULE climate_module
                                              type_climate_matrix, type_subclimate_global, type_subclimate_region, type_ICE5G_timeframe
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_PD_obs_data_file, read_PD_obs_data_file, inquire_GCM_snapshot, read_GCM_snapshot,&
                                              read_insolation_data_file, inquire_ICE5G_data, read_ICE5G_data
-  USE forcing_module,                  ONLY: forcing, map_insolation_to_grid, map_climate_forcing_data_to_grid_SMB, map_climate_forcing_data_to_grid_climate
-  USE utilities_module,                ONLY: error_function, smooth_Gaussian_2D, smooth_Shepard_2D
+  USE forcing_module,                  ONLY: forcing, map_insolation_to_grid
+  USE utilities_module,                ONLY: error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model, run_SMB_model_refr_fixed
 
@@ -35,6 +35,10 @@ CONTAINS
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
+
+    ! Local variables
+    REAL(dp)                                           :: wt0, wt1 
+    INTEGER                                            :: i,j,m
     
     ! Check if we need to apply any special benchmark experiment climate
     IF (C%do_benchmark_experiment) THEN
@@ -71,13 +75,26 @@ CONTAINS
     ! Different kinds of climate forcing for realistic experiments
     IF (C%choice_forcing_method == 'SMB_direct') THEN
 
-      CALL map_climate_forcing_data_to_grid_SMB     (grid, forcing%clim_nlon, forcing%clim_nlat, forcing%clim_lon, forcing%clim_lat, &
-                                                     forcing%clim_t0, forcing%clim_t1, forcing%clim_SMB0, forcing%clim_SMB1, time, SMB%SMB_year, forcing%clim_T2my0, forcing%clim_T2my1,climate%applied%T2m)
+      wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
+      wt1 = 1._dp - wt0
+
+      forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )
+      forcing%clim_SMB2    = (wt0 * forcing%clim_SMB0)    + (wt1 * forcing%clim_SMB1   )
+
+      CALL map_glob_to_grid_2D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_SMB2,  SMB%SMB_year              )
+      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,  climate%applied%T2m,    12)
+
 
     ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
 
-      CALL map_climate_forcing_data_to_grid_climate (grid, forcing%clim_nlon, forcing%clim_nlat, forcing%clim_lon, forcing%clim_lat, &
-                                                     forcing%clim_t0, forcing%clim_t1, forcing%clim_T2m0, forcing%clim_T2m1, time, climate%applied%T2m, forcing%clim_Precip0, forcing%clim_Precip1, climate%applied%Precip)
+      wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
+      wt1 = 1._dp - wt0  
+
+      forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )   
+      forcing%clim_Precip2 = (wt0 * forcing%clim_Precip0) + (wt1 * forcing%clim_Precip1)
+
+      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,    climate%applied%T2m,    12)
+      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_Precip2, climate%applied%Precip, 12)       
 
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! Use the global temperature offset as calculated by the inverse routine
@@ -1734,121 +1751,6 @@ CONTAINS
     creg%orbit_pre  = cglob%orbit_pre
   
   END SUBROUTINE map_subclimate_to_grid
-  SUBROUTINE map_glob_to_grid_2D( nlat, nlon, lat, lon, grid, d_glob, d_grid)
-    ! Map a data field from a global lat-lon grid to the regional square grid
-    
-    IMPLICIT NONE
-    
-    ! In/output variables:
-    INTEGER,                         INTENT(IN)  :: nlat
-    INTEGER,                         INTENT(IN)  :: nlon
-    REAL(dp), DIMENSION(nlat),       INTENT(IN)  :: lat
-    REAL(dp), DIMENSION(nlon),       INTENT(IN)  :: lon
-    TYPE(type_grid),                 INTENT(IN)  :: grid
-    REAL(dp), DIMENSION(:,:  ),      INTENT(IN)  :: d_glob
-    REAL(dp), DIMENSION(:,:  ),      INTENT(OUT) :: d_grid
-    
-    ! Local variables:
-    INTEGER                                                :: i, j, il, iu, jl, ju
-    REAL(dp)                                               :: wil, wiu, wjl, wju
-    
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    
-      ! Find enveloping lat-lon indices
-      il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
-      iu  = il+1        
-      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-      wiu = 1-wil
-      
-      ! Exception for pixels near the zero meridian
-      IF (grid%lon(j,i) < MINVAL(lon)) THEN
-        il = nlon
-        iu = 1      
-        wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-        wiu = 1-wil
-      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
-        il = nlon
-        iu = 1
-        wiu = (grid%lon(j,i) - lon(il))/(lon(2)-lon(1))
-        wil = 1-wiu
-      END IF
-          
-      jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
-      ju  = jl+1        
-      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
-      wju = 1-wjl
-      
-      ! Interpolate data
-      d_grid( j,i) = (d_glob( il,jl) * wil * wjl) + &
-                     (d_glob( il,ju) * wil * wju) + &
-                     (d_glob( iu,jl) * wiu * wjl) + &
-                     (d_glob( iu,ju) * wiu * wju)
-    
-    END DO
-    END DO
-    CALL sync
-    
-  END SUBROUTINE map_glob_to_grid_2D
-  SUBROUTINE map_glob_to_grid_3D( nlat, nlon, lat, lon, grid, d_glob, d_grid, nz)
-    ! Map a data field from a global lat-lon grid to the regional square grid
-    
-    IMPLICIT NONE
-    
-    ! In/output variables:
-    INTEGER,                         INTENT(IN)  :: nlat
-    INTEGER,                         INTENT(IN)  :: nlon
-    REAL(dp), DIMENSION(nlat),       INTENT(IN)  :: lat
-    REAL(dp), DIMENSION(nlon),       INTENT(IN)  :: lon
-    TYPE(type_grid),                 INTENT(IN)  :: grid
-    REAL(dp), DIMENSION(:,:,:),      INTENT(IN)  :: d_glob
-    REAL(dp), DIMENSION(:,:,:),      INTENT(OUT) :: d_grid
-    INTEGER,                         INTENT(IN)  :: nz
-    
-    ! Local variables:
-    INTEGER                                                :: i, j, il, iu, jl, ju, k
-    REAL(dp)                                               :: wil, wiu, wjl, wju
-    
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    
-      ! Find enveloping lat-lon indices
-      il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
-      iu  = il+1        
-      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-      wiu = 1-wil
-      
-      ! Exception for pixels near the zero meridian
-      IF (grid%lon(j,i) < MINVAL(lon)) THEN
-        il = nlon
-        iu = 1      
-        wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-        wiu = 1-wil
-      ELSEIF (grid%lon(j,i) > MAXVAL(lon)) THEN
-        il = nlon
-        iu = 1
-        wiu = (grid%lon(j,i) - lon(il))/(lon(2)-lon(1))
-        wil = 1-wiu
-      END IF
-          
-      jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
-      ju  = jl+1        
-      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
-      wju = 1-wjl
-      
-      ! Interpolate data
-      DO k = 1, nz
-        d_grid( k,j,i) = (d_glob( il,jl,k) * wil * wjl) + &
-                         (d_glob( il,ju,k) * wil * wju) + &
-                         (d_glob( iu,jl,k) * wiu * wjl) + &
-                         (d_glob( iu,ju,k) * wiu * wju)
-      END DO
-    
-    END DO
-    END DO
-    CALL sync
-    
-  END SUBROUTINE map_glob_to_grid_3D
   
   ! Rotate wind_WE, wind_SN to wind_LR, wind_DU
   SUBROUTINE rotate_wind_to_model_grid( grid, wind_WE, wind_SN, wind_LR, wind_DU)
@@ -1894,5 +1796,6 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE rotate_wind_to_model_grid
+
 
 END MODULE climate_module
