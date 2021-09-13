@@ -1,4 +1,5 @@
 PROGRAM IMAU_ICE_program
+
   ! IMAU-ICE: the ice model developed by the Institute for Marine and Atmospheric research Utrecht (IMAU)
   !
   ! e-mail: c.j.berends@uu.nl
@@ -279,7 +280,7 @@ PROGRAM IMAU_ICE_program
   
 ! ====================================
 ! ===== End of the big time loop =====
-! ====================================
+! ==================================== 
   
   ! Write total elapsed time to screen
   ! ==================================
@@ -310,6 +311,6 @@ PROGRAM IMAU_ICE_program
   
   ! Finalise MPI and PETSc
   CALL finalise_petsc
-  CALL MPI_FINALIZE( ierr) 
+  CALL MPI_FINALIZE( ierr)
     
 END PROGRAM IMAU_ICE_program

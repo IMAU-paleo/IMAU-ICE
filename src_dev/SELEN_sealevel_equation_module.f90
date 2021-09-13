@@ -1,4 +1,5 @@
 MODULE SELEN_sealevel_equation_module
+
   ! Contains the main routine that solves the sea-level equation (with some small help routines).
   ! This is called from "run_SELEN" in the SELEN_main_module.
 
@@ -13,6 +14,8 @@ MODULE SELEN_sealevel_equation_module
                                                allocate_shared_complex_1D, allocate_shared_complex_2D, allocate_shared_complex_3D, &
                                                deallocate_shared, partition_list
   USE data_types_module,                 ONLY: type_model_region, type_SELEN_global
+  USE utilities_module,                  ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                               check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
   USE SELEN_spline_interpolation_module, ONLY: spline, splint
   USE SELEN_taboo_hp_module,             ONLY: BETAS, BETAU, ES, EU
   

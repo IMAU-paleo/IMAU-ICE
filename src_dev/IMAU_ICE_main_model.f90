@@ -1,4 +1,5 @@
 MODULE IMAU_ICE_main_model
+
   ! Contains all the routines for initialising and running the IMAU-ICE regional ice-sheet model.
 
   USE mpi
@@ -12,7 +13,9 @@ MODULE IMAU_ICE_main_model
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_model_region, type_ice_model, type_PD_data_fields, type_init_data_fields, &
                                              type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
-  USE utilities_module,                ONLY: inverse_oblique_sg_projection
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             inverse_oblique_sg_projection
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
   USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
@@ -132,12 +135,10 @@ CONTAINS
     ! Thermodynamics
     ! ==============
     
-      IF (region%do_thermo) THEN
-        t1 = MPI_WTIME()
-        CALL run_thermo_model( region%grid, region%ice, region%climate%applied, region%SMB)
-        t2 = MPI_WTIME()
-        region%tcomp_thermo = region%tcomp_thermo + t2 - t1
-      END IF
+      t1 = MPI_WTIME()
+      CALL run_thermo_model( region%grid, region%ice, region%climate%applied, region%SMB, do_solve_heat_equation = region%do_thermo)
+      t2 = MPI_WTIME()
+      region%tcomp_thermo = region%tcomp_thermo + t2 - t1
       
     ! Isotopes
     ! ========
@@ -155,7 +156,7 @@ CONTAINS
       END IF
       
       ! Update ice geometry and advance region time
-      region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_a_new( :,region%grid%i1:region%grid%i2)
+      region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
@@ -343,6 +344,10 @@ CONTAINS
     CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
     CALL map_init_data_to_model_grid( region%grid, region%init)
     
+    ! Smooth input geometry (bed and ice)
+    CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb,   region%PD%Hs)
+    CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb, region%init%Hs)
+    
     CALL calculate_PD_sealevel_contribution(region)
     
     ! ===== Define mask where no ice is allowed to form (i.e. Greenland in NAM and EAS, Ellesmere Island in GRL)
@@ -375,7 +380,7 @@ CONTAINS
     CALL associate_debug_fields(  region)
         
     ! ===== The climate model =====
-    ! =============================    
+    ! =============================
     
     CALL initialise_climate_model( region%grid, region%climate, matrix, region%PD, region%name, region%mask_noice)    
     
@@ -622,20 +627,6 @@ CONTAINS
       
       region%grid_GIA%nx = 1 + 2*nsx
       region%grid_GIA%ny = 1 + 2*nsy
-    
-      ! If doing a restart from a previous run with the same resolution, just take that grid
-      ! (due to rounding, off-by-one errors are nasty here)
-      IF (C%is_restart) THEN
-        IF (ABS( 1._dp - region%grid_GIA%dx / ABS(region%init%x(2) - region%init%x(1))) < 1E-4_dp) THEN
-          region%grid_GIA%nx = region%init%nx
-          region%grid_GIA%ny = region%init%ny
-          nsx = INT((REAL(region%grid_GIA%nx,dp) - 1._dp) / 2._dp)
-          nsy = INT((REAL(region%grid_GIA%ny,dp) - 1._dp) / 2._dp)
-        ELSE
-          WRITE(0,*) '  ERROR - config resolution of ', region%grid_GIA%dx, ' is different from restart file resolution of ', ABS(region%init%x(2) - region%init%x(1))
-          CALl MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-      END IF
       
       ! If prescribed model resolution is the same as the initial file resolution, just use the initial file frid
       IF (ABS(1._dp - (region%grid_GIA%dx / (region%init%x(2) - region%init%x(1)))) < 1E-4_dp) THEN
@@ -787,6 +778,65 @@ CONTAINS
     END IF ! IF (region%name == 'NAM') THEN
     
   END SUBROUTINE initialise_mask_noice
+  SUBROUTINE smooth_model_geometry( grid, Hi, Hb, Hs)
+    ! Apply some light smoothing to the initial geometry to improve numerical stability
+    
+    USE utilities_module, ONLY: smooth_Gaussian_2D, is_floating
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi, Hb, Hs
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hb_old,  dHb
+    INTEGER                                            :: wHb_old, wdHb
+    REAL(dp)                                           :: r_smooth
+    
+    ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
+    r_smooth = grid%dx * 0.5_dp
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hb_old, wHb_old)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb,    wdHb   )
+    
+    ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
+    Hb_old( :,grid%i1:grid%i2) = Hb( :,grid%i1:grid%i2)
+    CALL sync
+    
+    ! Apply smoothing to the bed topography
+    CALL smooth_Gaussian_2D( grid, Hb, r_smooth)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ! Calculate the smoothing anomaly
+      dHb( j,i) = Hb( j,i) - Hb_old( j,i)
+      
+      IF (.NOT. is_floating( Hi( j,i), Hb( j,i), 0._dp) .AND. Hi( j,i) > 0._dp) THEN
+      
+        ! Correct the ice thickness so the ice surface remains unchanged (only relevant for floating ice)
+        Hi( j,i) = Hi( j,i) - dHb( j,i)
+      
+        ! Don't allow negative ice thickness
+        Hi( j,i) = MAX(0._dp, Hi( j,i))
+      
+        ! Correct the surface elevation for this if necessary
+        Hs( j,i) = Hi( j,i) + MAX( 0._dp - ice_density / seawater_density * Hi( j,i), Hb( j,i))
+        
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wHb_old)
+    CALL deallocate_shared( wdHb   )
+    
+  END SUBROUTINE smooth_model_geometry
   
   ! Calculate this region's ice sheet's volume and area
   SUBROUTINE calculate_icesheet_volume_and_area( region)

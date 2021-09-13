@@ -1,4 +1,5 @@
 MODULE calving_module
+
   ! Contains all the routines for calving.
 
   USE mpi
@@ -12,12 +13,15 @@ MODULE calving_module
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
 
   IMPLICIT NONE
   
 CONTAINS
 
-  SUBROUTINE calculate_calving_flux( grid, ice, dt)
+  ! The main routine that's called from "calc_dHi_dt" in the ice_thickness_module
+  SUBROUTINE calc_calving_flux( grid, ice, dt)
     ! Calculate the calving flux
 
     IMPLICIT NONE
@@ -63,8 +67,9 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-  END SUBROUTINE calculate_calving_flux
+  END SUBROUTINE calc_calving_flux
   
+  ! Routines for different calving laws
   SUBROUTINE threshold_thickness_calving( grid, ice, dt)
     ! Calculate the calving flux for a simple threshold thickness calving law
 
@@ -90,6 +95,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_calving_a, 'ice%dHi_dt_calving_a', 'threshold_thickness_calving')
     
   END SUBROUTINE threshold_thickness_calving
   

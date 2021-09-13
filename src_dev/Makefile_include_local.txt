@@ -15,3 +15,5 @@
 
 # Linking flags of libaries:
   LDFLAGS                 = -L/usr/local/lib -lnetcdf -lnetcdff -framework Accelerate -L${PETSC_DIR}/lib -lpetsc
+  
+  

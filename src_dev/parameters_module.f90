@@ -1,4 +1,5 @@
 MODULE parameters_module
+
   ! Contains some physical parameters that should never be changed.
 
   USE configuration_module, ONLY : dp
@@ -19,6 +20,7 @@ MODULE parameters_module
   REAL(dp), PARAMETER :: ice_density                      =  910.0_dp                 ! Ice density [kg m^-3]
   REAL(dp), PARAMETER :: seawater_density                 = 1028.0_dp                 ! Seawater density [kg m^-3]
   REAL(dp), PARAMETER :: earth_density                    = 5511.57_dp                ! Total mean Earth density (kg m^-3)
+  REAL(dp), PARAMETER :: R_gas                            = 8.314_dp                  ! Gas constant [J mol^-1 K^-1]
   
 CONTAINS
 
