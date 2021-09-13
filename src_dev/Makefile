@@ -67,8 +67,8 @@ IMAU_ICE_program_objects = \
         SELEN_spline_interpolation_module.o \
         SELEN_sealevel_equation_module.o \
         SELEN_main_module.o \
+        scalar_data_output_module.o \
         IMAU_ICE_main_model.o \
-        global_text_output_module.o \
         IMAU_ICE_program.o
         
 

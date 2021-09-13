@@ -40,8 +40,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables
-    REAL(dp)                                           :: wt0, wt1 
-    INTEGER                                            :: i,j,m
+    REAL(dp)                                           :: wt0, wt1
     
     ! Check if we need to apply any special benchmark experiment climate
     IF (C%do_benchmark_experiment) THEN

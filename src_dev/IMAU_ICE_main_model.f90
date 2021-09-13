@@ -19,7 +19,8 @@ MODULE IMAU_ICE_main_model
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
   USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
-                                             create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file
+                                             create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
+                                             create_regional_scalar_output_file
   USE forcing_module,                  ONLY: forcing
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
@@ -30,6 +31,7 @@ MODULE IMAU_ICE_main_model
   USE isotopes_module,                 ONLY: initialise_isotopes_model,  run_isotopes_model
   USE bedrock_ELRA_module,             ONLY: initialise_ELRA_model,      run_ELRA_model
   USE SELEN_main_module,               ONLY: apply_SELEN_bed_geoid_deformation_rates
+  USE scalar_data_output_module,       ONLY: write_regional_scalar_data
 
   IMPLICIT NONE
 
@@ -63,11 +65,6 @@ CONTAINS
     region%tcomp_GIA            = 0._dp
     
     tstart = MPI_WTIME()
-
-    ! Write to text output at t=0
-    IF (region%time == C%start_time_of_run) THEN
-      CALL write_text_output(region)
-    END IF
                             
   ! ====================================
   ! ===== The main model time loop =====
@@ -183,7 +180,7 @@ CONTAINS
     region%tcomp_total = tstop - tstart
     
     ! Write to text output
-    CALL write_text_output(region)
+    CALL write_regional_scalar_data( region, region%time)
     
   END SUBROUTINE run_model
   
@@ -310,11 +307,31 @@ CONTAINS
       region%do_output      = .TRUE.
     END IF
     
+    ! ===== Ice-sheet volume and area =====
+    ! =====================================
+    
     CALL allocate_shared_dp_0D( region%ice_area                     , region%wice_area                     )
     CALL allocate_shared_dp_0D( region%ice_volume                   , region%wice_volume                   )
     CALL allocate_shared_dp_0D( region%ice_volume_PD                , region%wice_volume_PD                )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation   , region%wice_volume_above_flotation   )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation_PD, region%wice_volume_above_flotation_PD)
+    
+    ! ===== Regionally integrated SMB components =====
+    ! ================================================
+    
+    CALL allocate_shared_dp_0D( region%int_T2m                      , region%wint_T2m                      )
+    CALL allocate_shared_dp_0D( region%int_snowfall                 , region%wint_snowfall                 )
+    CALL allocate_shared_dp_0D( region%int_rainfall                 , region%wint_rainfall                 )
+    CALL allocate_shared_dp_0D( region%int_melt                     , region%wint_melt                     )
+    CALL allocate_shared_dp_0D( region%int_refreezing               , region%wint_refreezing               )
+    CALL allocate_shared_dp_0D( region%int_runoff                   , region%wint_runoff                   )
+    CALL allocate_shared_dp_0D( region%int_SMB                      , region%wint_SMB                      )
+    CALL allocate_shared_dp_0D( region%int_BMB                      , region%wint_BMB                      )
+    CALL allocate_shared_dp_0D( region%int_MB                       , region%wint_MB                       )
+    
+    ! ===== Englacial isotope content =====
+    ! =====================================
+    
     CALL allocate_shared_dp_0D( region%GMSL_contribution            , region%wGMSL_contribution            )
     CALL allocate_shared_dp_0D( region%mean_isotope_content         , region%wmean_isotope_content         )
     CALL allocate_shared_dp_0D( region%mean_isotope_content_PD      , region%wmean_isotope_content_PD      )
@@ -445,8 +462,20 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! ===== ASCII output (computation time tracking, general output)
-    IF (par%master) CALL create_text_output_files(region)
+    ! ===== Computation times =====
+    ! =============================
+    
+    CALL allocate_shared_dp_0D( region%tcomp_total   , region%wtcomp_total   )
+    CALL allocate_shared_dp_0D( region%tcomp_ice     , region%wtcomp_ice     )
+    CALL allocate_shared_dp_0D( region%tcomp_thermo  , region%wtcomp_thermo  )
+    CALL allocate_shared_dp_0D( region%tcomp_climate , region%wtcomp_climate )
+    CALL allocate_shared_dp_0D( region%tcomp_GIA     , region%wtcomp_GIA     )
+    
+    ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
+    ! ============================================================================
+    
+    CALL create_regional_scalar_output_file( region)
+    CALL write_regional_scalar_data(         region, C%start_time_of_run)
     CALL sync
     
     IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
@@ -916,192 +945,5 @@ CONTAINS
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation_PD, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     
   END SUBROUTINE calculate_PD_sealevel_contribution
-  
-  ! Create and write to this region's text output files
-  SUBROUTINE create_text_output_files( region)
-    ! Creates the following text output files:
-    !   time_log_REG.txt             - a log of how much computation time the different model parts take
-    !   general_output_REG.txt       - some general info - ice sheet volume, average surface temperature, total mass balance, etc.
-  
-    IMPLICIT NONE  
-    
-    TYPE(type_model_region),    INTENT(IN)        :: region
-    
-    CHARACTER(LEN=256)                            :: filename
-        
-  ! Time log
-  ! ========
-    
-    filename = TRIM(C%output_dir) // 'aa_time_log_' // region%name // '.txt'
-    OPEN(UNIT  = 1337, FILE = filename, STATUS = 'NEW')
-    
-    WRITE(UNIT = 1337, FMT = '(A)') 'Time log for region ' // TRIM(region%long_name)
-    WRITE(UNIT = 1337, FMT = '(A)') 'Computation time (in seconds) required by each model component'
-    WRITE(UNIT = 1337, FMT = '(A)') ''
-    WRITE(UNIT = 1337, FMT = '(A)') '     Time       total       ice        thermo     climate   GIA'
-    
-    CLOSE(UNIT = 1337)
-        
-  ! General output
-  ! ==============
-    
-    filename = TRIM(C%output_dir) // 'aa_general_output_' // region%name // '.txt'
-    OPEN(UNIT  = 1337, FILE = filename, STATUS = 'NEW')
-    
-    WRITE(UNIT = 1337, FMT = '(A)') 'General output for region ' // TRIM(region%long_name)
-    WRITE(UNIT = 1337, FMT = '(A)') ''
-    WRITE(UNIT = 1337, FMT = '(A)') ' Columns in order:'
-    WRITE(UNIT = 1337, FMT = '(A)') '   1)  Model time                  (years) '
-    WRITE(UNIT = 1337, FMT = '(A)') '   2)  Ice volume                  (meter sea level equivalent)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   3)  Ice volume above flotation  (meter sea level equivalent)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   4)  Ice area                    (km^2)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   5)  Mean surface temperature    (Kelvin)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   6)  Total snowfall     over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   7)  Total rainfall     over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   8)  Total melt         over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '   9)  Total refreezing   over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '  10)  Total runoff       over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '  11)  Total SMB          over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '  12)  Total BMB          over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') '  13)  Total mass balance over ice (Gton/y)'
-    WRITE(UNIT = 1337, FMT = '(A)') ''
-    WRITE(UNIT = 1337, FMT = '(A)') '     Time     Ice  Ice-af     Ice-area     T2m       Snow       Rain       Melt   Refreeze     Runoff        SMB        BMB         MB'
-    
-    CLOSE(UNIT = 1337)
-    
-  ! Benchmark experiment output
-  ! ===========================
-    
-    ! For many benchmark experiments, we're only interested in what happens at the ice divide (i.e. the central pixel),
-    ! so instead of writing the entire NetCDF output every 100 years, write only some text for that pixel.
-    
-    IF (C%do_benchmark_experiment) THEN
-    
-      filename = TRIM(C%output_dir) // 'aa_benchmark_output.txt'
-      OPEN(UNIT  = 1337, FILE = filename, STATUS = 'NEW')
-      
-      WRITE(UNIT = 1337, FMT = '(A)') 'Central pixel data, useful for the EISMINT (and other) benchmark experiments'
-      WRITE(UNIT = 1337, FMT = '(A)') ''
-      WRITE(UNIT = 1337, FMT = '(A)') ' Columns in order:'
-      WRITE(UNIT = 1337, FMT = '(A)') '   1)  Model time                  (years) '
-      WRITE(UNIT = 1337, FMT = '(A)') '   2)  Ice thickness               (meter)'
-      WRITE(UNIT = 1337, FMT = '(A)') '   3)  Basal temperature           (Kelvin)'
-      WRITE(UNIT = 1337, FMT = '(A)') ''
-      WRITE(UNIT = 1337, FMT = '(A)') '     Time     Hi       Ti_basal'
-      
-      CLOSE(UNIT = 1337)
-    
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  END SUBROUTINE create_text_output_files
-  SUBROUTINE write_text_output( region)
-    ! Write data to the following text output files:
-    !   time_log_REG.txt             - a log of how much computation time the different model parts take
-    !   general_output_REG.txt       - some general info - ice sheet volume, average surface temperature, total mass balance, etc.
-    
-    USE parameters_module,           ONLY: ocean_area, seawater_density, ice_density
-  
-    IMPLICIT NONE  
-    
-    TYPE(type_model_region),    INTENT(IN)        :: region
-    
-    CHARACTER(LEN=256)                            :: filename
-    INTEGER                                       :: i,j,m
-    REAL(dp)                                      :: T2m_mean
-    REAL(dp)                                      :: total_snowfall
-    REAL(dp)                                      :: total_rainfall
-    REAL(dp)                                      :: total_melt
-    REAL(dp)                                      :: total_refreezing
-    REAL(dp)                                      :: total_runoff
-    REAL(dp)                                      :: total_SMB
-    REAL(dp)                                      :: total_BMB
-    REAL(dp)                                      :: total_MB
-        
-  ! Time log
-  ! ========
-    
-    IF (par%master) THEN
-      filename = TRIM(C%output_dir) // 'aa_time_log_' // region%name // '.txt'
-      OPEN(UNIT  = 1337, FILE = filename, ACCESS = 'APPEND')
-      WRITE(UNIT = 1337, FMT = '(F10.1,F11.3,F11.3,F11.3,F11.3,F11.3,F11.3,F11.3)') region%time, &
-        region%tcomp_total, region%tcomp_ice, region%tcomp_thermo, region%tcomp_climate, region%tcomp_GIA
-      CLOSE(UNIT = 1337)
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-  ! General output
-  ! ==============
-    
-    T2m_mean                   = 0._dp
-    total_snowfall             = 0._dp
-    total_rainfall             = 0._dp
-    total_melt                 = 0._dp
-    total_refreezing           = 0._dp
-    total_runoff               = 0._dp
-    total_SMB                  = 0._dp
-    total_BMB                  = 0._dp
-    total_MB                   = 0._dp
-    
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
-    
-      IF (region%ice%Hi_a( j,i) > 0._dp) THEN
-        
-        total_BMB = total_BMB + (region%BMB%BMB( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          
-        DO m = 1, 12
-          total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_SMB        = total_SMB        + (region%SMB%SMB(        m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-        END DO
-        
-      END IF
-
-      T2m_mean = T2m_mean + SUM(region%climate%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
-      
-    END DO
-    END DO
-    CALL sync
-    
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean        , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_snowfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_rainfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_melt      , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_MB        , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    
-    total_MB = total_SMB + total_BMB
-    
-    IF (par%master) THEN
-      filename = TRIM(C%output_dir) // 'aa_general_output_' // region%name // '.txt'
-      OPEN(UNIT  = 1337, FILE = filename, ACCESS = 'APPEND')
-      WRITE(UNIT = 1337, FMT = '(F10.1,2F8.2,F13.2,F8.2,8F11.2)') region%time, &
-        region%ice_volume, region%ice_volume_above_flotation, region%ice_area, T2m_mean, &
-        total_snowfall, total_rainfall, total_melt, total_refreezing, total_runoff, total_SMB, total_BMB, total_MB
-      CLOSE(UNIT = 1337)
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-  ! Benchmark experiment output (ice thickness and temperature at the ice divide)
-  ! ===========================
-    
-    i = CEILING(REAL(region%grid%nx,dp)/2._dp)
-    j = CEILING(REAL(region%grid%ny,dp)/2._dp)
-    
-    IF (par%master .AND. C%do_benchmark_experiment) THEN
-      filename = TRIM(C%output_dir) // 'aa_benchmark_output.txt'
-      OPEN(UNIT  = 1337, FILE = filename, ACCESS = 'APPEND')
-      WRITE(UNIT = 1337, FMT = '(F10.1,F12.3,F12.3)') region%time, region%ice%Hi_a( j,i), region%ice%Ti_a( C%nZ,j,i)
-      CLOSE(UNIT = 1337)
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-  END SUBROUTINE write_text_output
 
 END MODULE IMAU_ICE_main_model

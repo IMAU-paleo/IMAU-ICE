@@ -1798,7 +1798,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! In/output variables:
-    CHARACTER(20)                                      :: output_dir
+    CHARACTER(20),                       INTENT(INOUT) :: output_dir
 
     ! Local variables:
     INTEGER,  DIMENSION(8)                             :: values
@@ -2004,6 +2004,41 @@ CONTAINS
     END DO
 
   END SUBROUTINE get_procedural_output_dir_name
+  
+  SUBROUTINE write_total_model_time_to_screen( tstart, tstop)
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: tstart, tstop
+    
+    ! Local variables
+    REAL(dp)                                           :: dt
+    INTEGER                                            :: nr, ns, nm, nh, nd
+      
+    dt = tstop - tstart
+    
+    ns = CEILING(dt)
+    
+    nr = MOD(ns, 60*60*24)
+    nd = (ns - nr) / (60*60*24)
+    ns = ns - (nd*60*60*24)
+    
+    nr = MOD(ns, 60*60)
+    nh = (ns - nr) / (60*60)
+    ns = ns - (nh*60*60)
+    
+    nr = MOD(ns, 60)
+    nm = (ns - nr) / (60)
+    ns = ns - (nm*60) 
+    
+    WRITE(0,'(A)') ''
+    WRITE(0,'(A)') ' ================================================================================'
+    WRITE(0,'(A,I2,A,I2,A,I2,A,I2,A)') ' ===== Simulation finished in ', nd, ' days, ', nh, ' hours, ', nm, ' minutes and ', ns, ' seconds! ====='
+    WRITE(0,'(A)') ' ================================================================================'
+    WRITE(0,'(A)') ''
+    
+  END SUBROUTINE write_total_model_time_to_screen
   
 
 END MODULE configuration_module

@@ -178,6 +178,139 @@ MODULE data_types_netcdf_module
     INTEGER :: id_help_field_50
         
   END TYPE type_netcdf_help_fields
+  
+  TYPE type_netcdf_scalars_global
+    ! Integers describing open ports to different variables in an opened NetCDF file,
+    ! plus character strings describing the names of those variables.
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+    ! Index of time frame to be written to
+    INTEGER :: ti
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_time
+  
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+  
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    ! Global model stuff: sealevel, CO2, d18O components, etc.
+    INTEGER :: id_var_GMSL
+    INTEGER :: id_var_GMSL_NAM
+    INTEGER :: id_var_GMSL_EAS
+    INTEGER :: id_var_GMSL_GRL
+    INTEGER :: id_var_GMSL_ANT
+    INTEGER :: id_var_CO2_obs
+    INTEGER :: id_var_CO2_mod
+    INTEGER :: id_var_d18O_obs
+    INTEGER :: id_var_d18O_mod
+    INTEGER :: id_var_d18O_ice
+    INTEGER :: id_var_d18O_Tdw
+    INTEGER :: id_var_d18O_NAM
+    INTEGER :: id_var_d18O_EAS
+    INTEGER :: id_var_d18O_GRL
+    INTEGER :: id_var_d18O_ANT
+    INTEGER :: id_var_dT_glob
+    INTEGER :: id_var_dT_dw
+    
+    CHARACTER(LEN=256) :: name_var_GMSL                  = 'GMSL                 '
+    CHARACTER(LEN=256) :: name_var_GMSL_NAM              = 'GMSL_NAM             '
+    CHARACTER(LEN=256) :: name_var_GMSL_EAS              = 'GMSL_EAS             '
+    CHARACTER(LEN=256) :: name_var_GMSL_GRL              = 'GMSL_GRL             '
+    CHARACTER(LEN=256) :: name_var_GMSL_ANT              = 'GMSL_ANT             '
+    CHARACTER(LEN=256) :: name_var_CO2_obs               = 'CO2_obs              '
+    CHARACTER(LEN=256) :: name_var_CO2_mod               = 'CO2_mod              '
+    CHARACTER(LEN=256) :: name_var_d18O_obs              = 'd18O_obs             '
+    CHARACTER(LEN=256) :: name_var_d18O_mod              = 'd18O_mod             '
+    CHARACTER(LEN=256) :: name_var_d18O_ice              = 'd18O_ice             '
+    CHARACTER(LEN=256) :: name_var_d18O_Tdw              = 'd18O_Tdw             '
+    CHARACTER(LEN=256) :: name_var_d18O_NAM              = 'd18O_NAM             '
+    CHARACTER(LEN=256) :: name_var_d18O_EAS              = 'd18O_EAS             '
+    CHARACTER(LEN=256) :: name_var_d18O_GRL              = 'd18O_GRL             '
+    CHARACTER(LEN=256) :: name_var_d18O_ANT              = 'd18O_ANT             '
+    CHARACTER(LEN=256) :: name_var_dT_glob               = 'dT_glob              '
+    CHARACTER(LEN=256) :: name_var_dT_dw                 = 'dT_dw                '
+    
+    ! Computation time for different model components
+    INTEGER :: id_var_tcomp_total
+    INTEGER :: id_var_tcomp_ice
+    INTEGER :: id_var_tcomp_thermo
+    INTEGER :: id_var_tcomp_climate
+    INTEGER :: id_var_tcomp_GIA
+    
+    CHARACTER(LEN=256) :: name_var_tcomp_total           = 'tcomp_total          '
+    CHARACTER(LEN=256) :: name_var_tcomp_ice             = 'tcomp_ice            '
+    CHARACTER(LEN=256) :: name_var_tcomp_thermo          = 'tcomp_thermo         '
+    CHARACTER(LEN=256) :: name_var_tcomp_climate         = 'tcomp_climate        '
+    CHARACTER(LEN=256) :: name_var_tcomp_GIA             = 'tcomp_GIA            '
+  
+  END TYPE type_netcdf_scalars_global
+  
+  TYPE type_netcdf_scalars_regional
+    ! Integers describing open ports to different variables in an opened NetCDF file,
+    ! plus character strings describing the names of those variables.
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+    ! Index of time frame to be written to
+    INTEGER :: ti
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_time
+  
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+  
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    ! Regionally integrated stuff: ice volume, SMB components, etc.
+    INTEGER :: id_var_ice_volume
+    INTEGER :: id_var_ice_volume_af
+    INTEGER :: id_var_ice_area
+    INTEGER :: id_var_T2m
+    INTEGER :: id_var_snowfall
+    INTEGER :: id_var_rainfall
+    INTEGER :: id_var_melt
+    INTEGER :: id_var_refreezing
+    INTEGER :: id_var_runoff
+    INTEGER :: id_var_SMB
+    INTEGER :: id_var_BMB
+    INTEGER :: id_var_MB
+    
+    CHARACTER(LEN=256) :: name_var_ice_volume        = 'ice_volume           '
+    CHARACTER(LEN=256) :: name_var_ice_volume_af     = 'ice_volume_af        '
+    CHARACTER(LEN=256) :: name_var_ice_area          = 'ice_area             '
+    CHARACTER(LEN=256) :: name_var_T2m               = 'T2m                  '
+    CHARACTER(LEN=256) :: name_var_snowfall          = 'snowfall             '
+    CHARACTER(LEN=256) :: name_var_rainfall          = 'rainfall             '
+    CHARACTER(LEN=256) :: name_var_melt              = 'melt                 '
+    CHARACTER(LEN=256) :: name_var_refreezing        = 'refreezing           '
+    CHARACTER(LEN=256) :: name_var_runoff            = 'runoff               '
+    CHARACTER(LEN=256) :: name_var_SMB               = 'SMB                  '
+    CHARACTER(LEN=256) :: name_var_BMB               = 'BMB                  '
+    CHARACTER(LEN=256) :: name_var_MB                = 'MB                   '
+  
+  END TYPE type_netcdf_scalars_regional
     
   TYPE type_netcdf_debug
     ! Integers describing open ports to different variables in an opened NetCDF file,

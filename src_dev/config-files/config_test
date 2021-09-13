@@ -2,8 +2,8 @@
 
 ! Start and end time
 start_time_of_run_config                = -120000  ! Start time (in years) of the simulations
-end_time_of_run_config                  = -118000  ! End   time (in years) of the simulations
-dt_coupling_config                      = 100
+end_time_of_run_config                  = -119800  ! End   time (in years) of the simulations
+dt_coupling_config                      = 10
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
 create_procedural_output_dir_config     = .TRUE.
@@ -14,9 +14,9 @@ do_write_debug_data_config              = .TRUE.
 do_benchmark_experiment_config          = .FALSE.
 
 ! Which ice-sheets we want to simulate
-do_NAM_config                           = .FALSE.
-do_EAS_config                           = .FALSE.
-do_GRL_config                           = .FALSE.
+do_NAM_config                           = .TRUE.
+do_EAS_config                           = .TRUE.
+do_GRL_config                           = .TRUE.
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
@@ -40,18 +40,18 @@ m_enh_sheet_config                      = 5.0
 m_enh_shelf_config                      = 0.7
 choice_calving_law_config               = 'none'
 
-!! Sea level and GIA
-!choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
-!choice_GIA_model_config                 = 'ELRA'             ! Can be "none", "ELRA", or "SELEN"
-!dx_GIA_config                           = 100000.0
-
 ! Sea level and GIA
-choice_sealevel_model_config            = 'SELEN'            ! Can be "fixed", "eustatic", or "SELEN"
-choice_GIA_model_config                 = 'SELEN'            ! Can be "none", "ELRA", or "SELEN"
+choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
+choice_GIA_model_config                 = 'ELRA'             ! Can be "none", "ELRA", or "SELEN"
 dx_GIA_config                           = 100000.0
-SELEN_dir_config                        = 'SELEN_files'
-SELEN_n_harmonics_config                = 64
-SELEN_run_at_t_start_config             = .TRUE.
+
+!! Sea level and GIA
+!choice_sealevel_model_config            = 'SELEN'            ! Can be "fixed", "eustatic", or "SELEN"
+!choice_GIA_model_config                 = 'SELEN'            ! Can be "none", "ELRA", or "SELEN"
+!dx_GIA_config                           = 100000.0
+!SELEN_dir_config                        = 'SELEN_files'
+!SELEN_n_harmonics_config                = 64
+!SELEN_run_at_t_start_config             = .TRUE.
 
 ! Geothermal heat flux
 choice_geothermal_heat_flux_config      = 'spatial'

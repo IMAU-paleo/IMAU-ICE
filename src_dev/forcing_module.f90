@@ -9,7 +9,7 @@ MODULE forcing_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D, allocate_shared_dp_2D, &f
+                                             allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid
@@ -863,7 +863,132 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE update_insolation_data
-
+  SUBROUTINE map_insolation_to_grid( grid, ins_t0, ins_t1, Q_TOA0, Q_TOA1, time, Q_TOA, Q_TOA_jun_65N, Q_TOA_jan_80S)
+    ! Interpolate two insolation timeframes to the desired time, and then map it to the model grid.
+      
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp),                            INTENT(IN)    :: ins_t0, ins_t1
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Q_TOA0, Q_TOA1
+    REAL(dp),                            INTENT(IN)    :: time
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: Q_TOA
+    REAL(dp),                            INTENT(OUT)   :: Q_TOA_jun_65N, Q_TOA_jan_80S
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,m,ilat_l,ilat_u
+    REAL(dp)                                           :: wt0, wt1, wlat_l, wlat_u
+    
+    ! Calculate time interpolation weights
+    wt0 = (ins_t1 - time) / (ins_t1 - ins_t0)
+    wt1 = 1._dp - wt0
+        
+    ! Interpolate on the grid
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+     
+      ilat_l = FLOOR(grid%lat(j,i) + 91)
+      ilat_u = ilat_l + 1
+      
+      wlat_l = forcing%ins_lat(ilat_u) - grid%lat(j,i)
+      wlat_u = 1._dp - wlat_l
+      
+      DO m = 1, 12
+        Q_TOA( m,j,i) = (wt0 * wlat_l * Q_TOA0( ilat_l,m)) + &
+                        (wt0 * wlat_u * Q_TOA0( ilat_u,m)) + &
+                        (wt1 * wlat_l * Q_TOA1( ilat_l,m)) + &
+                        (wt1 * wlat_u * Q_TOA1( ilat_u,m))
+      END DO    
+    END DO
+    END DO
+    CALL sync
+    
+    ! Find summer values at 65 N and 80 S
+    IF (par%master) THEN
+      ilat_l = 1
+      DO WHILE (forcing%ins_lat( ilat_l) < 65._dp)
+        ilat_l = ilat_l + 1
+      END DO
+      ilat_u = 1
+      DO WHILE (forcing%ins_lat( ilat_u) < -80._dp)
+        ilat_u = ilat_u + 1
+      END DO
+      Q_TOA_jun_65N = wt0 * Q_TOA0( ilat_l,6) + wt1 * Q_TOA1( ilat_l,6)
+      Q_TOA_jan_80S = wt0 * Q_TOA0( ilat_u,1) + wt1 * Q_TOA1( ilat_u,1)
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+  END SUBROUTINE map_insolation_to_grid
+  SUBROUTINE initialise_insolation_data
+    ! Allocate shared memory for the forcing data fields
+    
+    IMPLICIT NONE
+    
+    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
+        
+    ! The times at which we have insolation fields from Laskar, between which we'll interpolate
+    ! to find the insolation at model time (ins_t0 < model_time < ins_t1)
+    
+    CALL allocate_shared_dp_0D( forcing%ins_t0, forcing%wins_t0)
+    CALL allocate_shared_dp_0D( forcing%ins_t1, forcing%wins_t1)
+    
+    IF (par%master) THEN
+      forcing%ins_t0 = C%start_time_of_run
+      forcing%ins_t1 = C%end_time_of_run
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Not needed for benchmark experiments
+    IF (C%do_benchmark_experiment) THEN
+      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+        RETURN
+      ELSE 
+        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_insolation_data!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END IF ! IF (C%do_benchmark_experiment) THEN
+    
+    ! Inquire into the insolation forcing netcdf file    
+    CALL allocate_shared_int_0D( forcing%ins_nyears, forcing%wins_nyears)
+    CALL allocate_shared_int_0D( forcing%ins_nlat,   forcing%wins_nlat  )
+    
+    forcing%netcdf_ins%filename = C%filename_insolation
+    
+    IF (par%master) CALL inquire_insolation_data_file( forcing)
+    CALL sync
+    
+    ! Insolation    
+    CALL allocate_shared_dp_1D( forcing%ins_nyears,   forcing%ins_time,    forcing%wins_time   )
+    CALL allocate_shared_dp_1D( forcing%ins_nlat,     forcing%ins_lat,     forcing%wins_lat    )
+    CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA0,  forcing%wins_Q_TOA0 )
+    CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1,  forcing%wins_Q_TOA1 )
+    
+    ! Read time and latitude data
+    IF (par%master) CALL read_insolation_data_file_time_lat( forcing)
+    CALL sync
+    
+    ! Read insolation data
+    CALL update_insolation_data( C%start_time_of_run)
+    
+  END SUBROUTINE initialise_insolation_data
+  
+  ! Prescribed climate/SMB
   SUBROUTINE update_climate_forcing_data( t_coupling)
     ! Read the NetCDF file containing the climate forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
@@ -956,132 +1081,6 @@ CONTAINS
     CALL sync
 
   END SUBROUTINE update_climate_forcing_data
-
-  SUBROUTINE map_insolation_to_grid( grid, ins_t0, ins_t1, Q_TOA0, Q_TOA1, time, Q_TOA, Q_TOA_jun_65N, Q_TOA_jan_80S)
-    ! Interpolate two insolation timeframes to the desired time, and then map it to the model grid.
-      
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp),                            INTENT(IN)    :: ins_t0, ins_t1
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Q_TOA0, Q_TOA1
-    REAL(dp),                            INTENT(IN)    :: time
-    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: Q_TOA
-    REAL(dp),                            INTENT(OUT)   :: Q_TOA_jun_65N, Q_TOA_jan_80S
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,m,ilat_l,ilat_u
-    REAL(dp)                                           :: wt0, wt1, wlat_l, wlat_u
-    
-    ! Calculate time interpolation weights
-    wt0 = (ins_t1 - time) / (ins_t1 - ins_t0)
-    wt1 = 1._dp - wt0
-        
-    ! Interpolate on the grid
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-     
-      ilat_l = FLOOR(grid%lat(j,i) + 91)
-      ilat_u = ilat_l + 1
-      
-      wlat_l = forcing%ins_lat(ilat_u) - grid%lat(j,i)
-      wlat_u = 1._dp - wlat_l
-      
-      DO m = 1, 12
-        Q_TOA( m,j,i) = (wt0 * wlat_l * Q_TOA0( ilat_l,m)) + &
-                        (wt0 * wlat_u * Q_TOA0( ilat_u,m)) + &
-                        (wt1 * wlat_l * Q_TOA1( ilat_l,m)) + &
-                        (wt1 * wlat_u * Q_TOA1( ilat_u,m))
-      END DO    
-    END DO
-    END DO
-    CALL sync
-    
-    ! Find summer values at 65 N and 80 S
-    IF (par%master) THEN
-      ilat_l = 1
-      DO WHILE (forcing%ins_lat( ilat_l) < 65._dp)
-        ilat_l = ilat_l + 1
-      END DO
-      ilat_u = 1
-      DO WHILE (forcing%ins_lat( ilat_u) < -80._dp)
-        ilat_u = ilat_u + 1
-      END DO
-      Q_TOA_jun_65N = wt0 * Q_TOA0( ilat_l,6) + wt1 * Q_TOA1( ilat_l,6)
-      Q_TOA_jan_80S = wt0 * Q_TOA0( ilat_u,1) + wt1 * Q_TOA1( ilat_u,1)
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-  END SUBROUTINE map_insolation_to_grid
-
-  SUBROUTINE initialise_insolation_data
-    ! Allocate shared memory for the forcing data fields
-    
-    IMPLICIT NONE
-    
-    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
-        
-    ! The times at which we have insolation fields from Laskar, between which we'll interpolate
-    ! to find the insolation at model time (ins_t0 < model_time < ins_t1)
-    
-    CALL allocate_shared_dp_0D( forcing%ins_t0, forcing%wins_t0)
-    CALL allocate_shared_dp_0D( forcing%ins_t1, forcing%wins_t1)
-    
-    IF (par%master) THEN
-      forcing%ins_t0 = C%start_time_of_run
-      forcing%ins_t1 = C%end_time_of_run
-    END IF ! IF (par%master) THEN
-    CALL sync
-    
-    ! Not needed for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-        RETURN
-      ELSE 
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_insolation_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    ! Inquire into the insolation forcing netcdf file    
-    CALL allocate_shared_int_0D( forcing%ins_nyears, forcing%wins_nyears)
-    CALL allocate_shared_int_0D( forcing%ins_nlat,   forcing%wins_nlat  )
-    
-    forcing%netcdf_ins%filename = C%filename_insolation
-    
-    IF (par%master) CALL inquire_insolation_data_file( forcing)
-    CALL sync
-    
-    ! Insolation    
-    CALL allocate_shared_dp_1D( forcing%ins_nyears,   forcing%ins_time,    forcing%wins_time   )
-    CALL allocate_shared_dp_1D( forcing%ins_nlat,     forcing%ins_lat,     forcing%wins_lat    )
-    CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA0,  forcing%wins_Q_TOA0 )
-    CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1,  forcing%wins_Q_TOA1 )
-    
-    ! Read time and latitude data
-    IF (par%master) CALL read_insolation_data_file_time_lat( forcing)
-    CALL sync
-    
-    ! Read insolation data
-    CALL update_insolation_data( C%start_time_of_run)
-    
-  END SUBROUTINE initialise_insolation_data
 
   ! Geothermal heat flux
   SUBROUTINE initialise_geothermal_heat_flux

@@ -20,22 +20,22 @@ PROGRAM IMAU_ICE_program
 
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
-  USE configuration_module,            ONLY: dp, C, initialise_model_configuration
-  USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global
+  USE configuration_module,            ONLY: dp, C, initialise_model_configuration, write_total_model_time_to_screen
+  USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global, type_global_scalar_data
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
   USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
                                              initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
                                              calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
                                              initialise_geothermal_heat_flux, initialise_climate_forcing_data, update_climate_forcing_data
   USE climate_module,                  ONLY: initialise_climate_matrix
-  USE global_text_output_module,       ONLY: create_text_output_file, write_text_output
   USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
+  USE scalar_data_output_module,       ONLY: initialise_global_scalar_data, write_global_scalar_data
 
   IMPLICIT NONE
   
-  CHARACTER(LEN=256), PARAMETER          :: version_number = '2.0_dev'
+  CHARACTER(LEN=256), PARAMETER          :: version_number = '2.0'
   
   INTEGER                                :: process_rank, number_of_processes
   
@@ -50,13 +50,14 @@ PROGRAM IMAU_ICE_program
   REAL(dp)                               :: ocean_area
   REAL(dp)                               :: ocean_depth
   
-  ! Coupling timer and global mean sea level calculation
+  ! Global scalar data (sea level, CO2, d18O, etc.)
+  TYPE(type_global_scalar_data)          :: global_data
+  
+  ! Coupling timer
   REAL(dp)                               :: t_coupling, t_end_models
-  REAL(dp)                               :: GMSL_NAM, GMSL_EAS, GMSL_GRL, GMSL_ANT, GMSL_glob
   
   ! Computation time tracking
-  REAL(dp)                               :: tstart, tstop, dt
-  INTEGER                                :: nr, ns, nm, nh, nd
+  REAL(dp)                               :: tstart, tstop
   
   ! ======================================================================================
   
@@ -107,6 +108,11 @@ PROGRAM IMAU_ICE_program
   CALL initialise_d18O_record
   CALL initialise_inverse_routine_data
   CALL initialise_geothermal_heat_flux
+    
+  ! ===== Create the global scalar output file =====
+  ! ================================================
+  
+  CALL initialise_global_scalar_data( global_data)
   
   ! ===== Initialise the climate matrix =====
   ! =========================================
@@ -122,16 +128,29 @@ PROGRAM IMAU_ICE_program
   IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', matrix)
   IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', matrix)
     
-  ! Determine GMSL contributions of all simulated ice sheets
-  GMSL_NAM = 0._dp
-  GMSL_EAS = 0._dp
-  GMSL_GRL = 0._dp
-  GMSL_ANT = 0._dp
-  IF (C%do_NAM) GMSL_NAM = NAM%GMSL_contribution
-  IF (C%do_EAS) GMSL_EAS = EAS%GMSL_contribution
-  IF (C%do_GRL) GMSL_GRL = GRL%GMSL_contribution
-  IF (C%do_ANT) GMSL_ANT = ANT%GMSL_contribution
-  GMSL_glob = GMSL_NAM + GMSL_EAS + GMSL_GRL + GMSL_ANT 
+  ! Set GMSL contributions of all simulated ice sheets
+  IF (par%master) THEN
+    global_data%GMSL_NAM = 0._dp
+    global_data%GMSL_EAS = 0._dp
+    global_data%GMSL_GRL = 0._dp
+    global_data%GMSL_ANT = 0._dp
+    IF (C%do_NAM) global_data%GMSL_NAM = NAM%GMSL_contribution
+    IF (C%do_EAS) global_data%GMSL_EAS = EAS%GMSL_contribution
+    IF (C%do_GRL) global_data%GMSL_GRL = GRL%GMSL_contribution
+    IF (C%do_ANT) global_data%GMSL_ANT = ANT%GMSL_contribution
+  END IF ! IF (par%master) THEN
+  CALL sync
+  
+  ! Determine global mean sea level
+  IF     (C%choice_sealevel_model == 'fixed') THEN
+    IF (par%master) global_data%GMSL = C%fixed_sealevel
+  ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+    IF (par%master) global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
+  ELSE
+    IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
+    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+  END IF
+  CALL sync
   
   ! Determine d18O contributions of all simulated ice sheets
   CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
@@ -153,29 +172,8 @@ PROGRAM IMAU_ICE_program
     SELEN%t1_SLE = C%start_time_of_run + C%dt_SELEN
   END IF
     
-  ! Create the global text output file
-  IF (par%master) CALL create_text_output_file
-  
-  ! Write global data at t=0 to output file
-  IF (par%master) CALL write_text_output( &
-                          C%start_time_of_run,               &  ! time
-                          GMSL_glob,                         &  ! global mean sea level
-                          forcing%CO2_obs,                   &  ! observed CO2  from prescribed record (if any)
-                          forcing%CO2_mod,                   &  ! modelled CO2                         (if any)
-                          forcing%d18O_obs,                  &  ! observed d18O from prescribed record (if any)
-                          forcing%d18O_mod,                  &  ! modelled d18O                        (always)
-                          forcing%d18O_from_ice_volume_mod,  &  ! contribution to modelled d18O from ice volume
-                          forcing%d18O_from_temperature_mod, &  !     ""            ""          ""   deep-sea temperature change
-                          GMSL_NAM,                          &  ! contribution to GMSL from North America
-                          GMSL_EAS,                          &  ! contribution to GMSL from Eurasia
-                          GMSL_GRL,                          &  ! contribution to GMSL from Greenland
-                          GMSL_ANT,                          &  ! contribution to GMSL from Antarctica
-                          forcing%d18O_NAM,                  &  ! mean isotope content of North America
-                          forcing%d18O_EAS,                  &  ! mean isotope content of Eurasia
-                          forcing%d18O_GRL,                  &  ! mean isotope content of Greenland
-                          forcing%d18O_ANT,                  &  ! mean isotope content of Antarctica
-                          forcing%dT_glob,                   &  ! global mean surface temperature anomaly
-                          forcing%dT_deepwater               )  ! deep-water temperature anomaly
+  ! Write global scalar data at the start of the simulation to output file
+  CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, C%start_time_of_run)
   
 ! =============================
 ! ===== The big time loop =====
@@ -201,17 +199,14 @@ PROGRAM IMAU_ICE_program
     CALL update_d18O_at_model_time( t_coupling)
     IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) CALL update_climate_forcing_data (t_coupling)
     
-    ! Update regional sea level (needs to be moved to separate subroutine at some point!)
-    IF (C%choice_sealevel_model == 'fixed') THEN
-      IF (C%do_NAM) NAM%ice%SL_a( :,NAM%grid%i1:NAM%grid%i2) = C%fixed_sealevel
-      IF (C%do_EAS) EAS%ice%SL_a( :,EAS%grid%i1:EAS%grid%i2) = C%fixed_sealevel
-      IF (C%do_GRL) GRL%ice%SL_a( :,GRL%grid%i1:GRL%grid%i2) = C%fixed_sealevel
-      IF (C%do_ANT) ANT%ice%SL_a( :,ANT%grid%i1:ANT%grid%i2) = C%fixed_sealevel
-    ELSEIF (C%choice_sealevel_model == 'eustatic') THEN
-      IF (C%do_NAM) NAM%ice%SL_a( :,NAM%grid%i1:NAM%grid%i2) = GMSL_glob
-      IF (C%do_EAS) EAS%ice%SL_a( :,EAS%grid%i1:EAS%grid%i2) = GMSL_glob
-      IF (C%do_GRL) GRL%ice%SL_a( :,GRL%grid%i1:GRL%grid%i2) = GMSL_glob
-      IF (C%do_ANT) ANT%ice%SL_a( :,ANT%grid%i1:ANT%grid%i2) = GMSL_glob
+    ! Update regional sea level
+    IF (C%choice_sealevel_model == 'fixed' .OR. C%choice_sealevel_model == 'eustatic') THEN
+      ! Local sea level is equal to the eustatic signal
+      IF (C%do_NAM) NAM%ice%SL_a( :,NAM%grid%i1:NAM%grid%i2) = global_data%GMSL
+      IF (C%do_EAS) EAS%ice%SL_a( :,EAS%grid%i1:EAS%grid%i2) = global_data%GMSL
+      IF (C%do_GRL) GRL%ice%SL_a( :,GRL%grid%i1:GRL%grid%i2) = global_data%GMSL
+      IF (C%do_ANT) ANT%ice%SL_a( :,ANT%grid%i1:ANT%grid%i2) = global_data%GMSL
+      CALL sync
     ELSEIF (C%choice_sealevel_model == 'SELEN') THEN
       ! Sea level fields are filled in the SELEN routines
     ELSE
@@ -230,16 +225,25 @@ PROGRAM IMAU_ICE_program
     ! Advance coupling time
     t_coupling = t_end_models
     
-    ! Determine GMSL contributions of all simulated ice sheets
-    GMSL_NAM = 0._dp
-    GMSL_EAS = 0._dp
-    GMSL_GRL = 0._dp
-    GMSL_ANT = 0._dp
-    IF (C%do_NAM) GMSL_NAM = NAM%GMSL_contribution
-    IF (C%do_EAS) GMSL_EAS = EAS%GMSL_contribution
-    IF (C%do_GRL) GMSL_GRL = GRL%GMSL_contribution
-    IF (C%do_ANT) GMSL_ANT = ANT%GMSL_contribution
-    GMSL_glob = GMSL_NAM + GMSL_EAS + GMSL_GRL + GMSL_ANT
+    ! Set GMSL contributions of all simulated ice sheets
+    global_data%GMSL_NAM = 0._dp
+    global_data%GMSL_EAS = 0._dp
+    global_data%GMSL_GRL = 0._dp
+    global_data%GMSL_ANT = 0._dp
+    IF (C%do_NAM) global_data%GMSL_NAM = NAM%GMSL_contribution
+    IF (C%do_EAS) global_data%GMSL_EAS = EAS%GMSL_contribution
+    IF (C%do_GRL) global_data%GMSL_GRL = GRL%GMSL_contribution
+    IF (C%do_ANT) global_data%GMSL_ANT = ANT%GMSL_contribution
+    
+    ! Determine global mean sea level
+    IF     (C%choice_sealevel_model == 'fixed') THEN
+      global_data%GMSL = C%fixed_sealevel
+    ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+      global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
   
     ! Calculate contributions to global mean sea level and benthic d18O from the different ice sheets
     CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
@@ -257,26 +261,8 @@ PROGRAM IMAU_ICE_program
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! Write global data to output file
-    IF (par%master) CALL write_text_output( &
-                            t_coupling,                        &  ! time
-                            GMSL_glob,                         &  ! global mean sea level
-                            forcing%CO2_obs,                   &  ! observed CO2  from prescribed record (if any)
-                            forcing%CO2_mod,                   &  ! modelled CO2                         (if any)
-                            forcing%d18O_obs,                  &  ! observed d18O from prescribed record (if any)
-                            forcing%d18O_mod,                  &  ! modelled d18O                        (always)
-                            forcing%d18O_from_ice_volume_mod,  &  ! contribution to modelled d18O from ice volume
-                            forcing%d18O_from_temperature_mod, &  !     ""            ""          ""   deep-sea temperature change
-                            GMSL_NAM,                          &  ! contribution to GMSL from North America
-                            GMSL_EAS,                          &  ! contribution to GMSL from Eurasia
-                            GMSL_GRL,                          &  ! contribution to GMSL from Greenland
-                            GMSL_ANT,                          &  ! contribution to GMSL from Antarctica
-                            forcing%d18O_NAM,                  &  ! mean isotope content of North America
-                            forcing%d18O_EAS,                  &  ! mean isotope content of Eurasia
-                            forcing%d18O_GRL,                  &  ! mean isotope content of Greenland
-                            forcing%d18O_ANT,                  &  ! mean isotope content of Antarctica
-                            forcing%dT_glob,                   &  ! global mean surface temperature anomaly
-                            forcing%dT_deepwater               )  ! deep-water temperature anomaly
+    ! Write global scalar data to output file
+    CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, t_coupling)
       
   END DO ! DO WHILE (t_coupling < C%end_time_of_run)
   
@@ -285,31 +271,9 @@ PROGRAM IMAU_ICE_program
 ! ==================================== 
   
   ! Write total elapsed time to screen
-  ! ==================================
-  
   tstop = MPI_WTIME()
-  
-  dt = tstop - tstart
-  
-  ns = CEILING(dt)
-  
-  nr = MOD(ns, 60*60*24)
-  nd = (ns - nr) / (60*60*24)
-  ns = ns - (nd*60*60*24)
-  
-  nr = MOD(ns, 60*60)
-  nh = (ns - nr) / (60*60)
-  ns = ns - (nh*60*60)
-  
-  nr = MOD(ns, 60)
-  nm = (ns - nr) / (60)
-  ns = ns - (nm*60) 
-  
-  IF (par%master) WRITE(0,'(A)') ''
-  IF (par%master) WRITE(0,'(A)') ' ================================================================================'
-  IF (par%master) WRITE(0,'(A,I2,A,I2,A,I2,A,I2,A)') ' ===== Simulation finished in ', nd, ' days, ', nh, ' hours, ', nm, ' minutes and ', ns, ' seconds! ====='
-  IF (par%master) WRITE(0,'(A)') ' ================================================================================'
-  IF (par%master) WRITE(0,'(A)') ''
+  IF (par%master) CALL write_total_model_time_to_screen( tstart, tstop)
+  CALL sync
   
   ! Finalise MPI and PETSc
   CALL finalise_petsc

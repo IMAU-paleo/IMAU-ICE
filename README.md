@@ -1,6 +1,6 @@
 # IMAU-ICE
 
-Last updated: 2021-02-16 by Tijn Berends (c.j.berends@uu.nl)
+Last updated: 2021-09-13 by Tijn Berends (c.j.berends@uu.nl)
 
 This repository contains the source code of IMAU-ICE, as well as a few scripts for compiling and running the code locally and on the UU Gemini system.
 
@@ -12,21 +12,21 @@ This repository contains the source code of IMAU-ICE, as well as a few scripts f
 2.  Decompress the file IMAU-ICE-main.zip wherever you want the main model folder to be.
 3.  Run "compile_clean.csh" in the IMAU-ICE folder by typing "./compile_clean.csh" in the terminal.
 4a. If it works: congratulations, you've succesfully compiled the model.
-4b. If it doesn't: this most likely is because the external packages needed by the compiler (Lapack, NetCDF, and MPI) are located somewhere else in your system than they are in mine. In that case, ask your local tech-savvy IT person to fix this.
+4b. If it doesn't: this most likely is because the external packages needed by the compiler (Lapack, NetCDF, MPI, and PETSc) are located somewhere else in your system than they are in mine. In that case, ask your local tech-savvy IT person to fix this.
 5.  Once the model has succesfully compiled, run it by typing "./run_IMAU_ICE_local.csh". If succesfull, you should see the following output: (see below).
 6. An output folder should now have appeared in your IMAU-ICE folder (IMAU-ICE/results_YYYYMMDD_001) containing several ASCII text files and two NetCDF files.
 
 This runs a short 1000-year schematic experiment. If all of this works, you can move on to realistic simulations. For this, you need appropriate input files describing present-day topography/mathymetry, ice geometry, and climate, as well as some sort of forcing record. Contact me if you need these.
 
 NOTE FOR GEMINI: if you want to run IMAU-ICE on Gemini, you need to make two small manual changes:
-- src_v1.1.1/Makefile.include-gemini: the path to MYLIB2 (line 4) needs to be changed from my username (beren017) to you own.
-- src_v1.1.1/Makefile: change the include statement (lines 6-7) from "include Makefile.include-local" to "include Makefile.include-gemini"
+- src_vXXX/Makefile_include_Gemini.txt: the path to MYLIB2 (line 4) needs to be changed from my username (beren017) to you own.
+- src_vXXX/Makefile	                  : change the include statement (lines 6-7) from "include Makefile_include_local.txt" to "Makefile_include_Gemini.txt"
 
 
 Screen output for the test run in step 5:
  
  ====================================================
- ===== Running IMAU-ICE v1.1.0_dev on   1 cores =====
+ ===== Running IMAU-ICE v2.0 on   1 cores =====
  ====================================================
  
   Running benchmark experiment "EISMINT_1"

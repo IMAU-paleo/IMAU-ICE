@@ -9,7 +9,8 @@ MODULE data_types_module
   USE data_types_netcdf_module,    ONLY: type_netcdf_climate_data, type_netcdf_PD_data, type_netcdf_init_data, &
                                          type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
                                          type_netcdf_ICE5G_data, type_netcdf_debug, type_netcdf_geothermal_heat_flux, &
-                                         type_netcdf_SELEN_output, type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing
+                                         type_netcdf_SELEN_output, type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing, &
+                                         type_netcdf_scalars_global, type_netcdf_scalars_regional
 
   IMPLICIT NONE
   
@@ -960,42 +961,103 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: ice_volume_above_flotation
     REAL(dp), POINTER                       :: ice_volume_above_flotation_PD
     REAL(dp), POINTER                       :: GMSL_contribution
+    INTEGER :: wice_area, wice_volume, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
+    
+    ! Regionally integrated mass balance components
+    REAL(dp), POINTER                       :: int_T2m
+    REAL(dp), POINTER                       :: int_snowfall
+    REAL(dp), POINTER                       :: int_rainfall
+    REAL(dp), POINTER                       :: int_melt
+    REAL(dp), POINTER                       :: int_refreezing
+    REAL(dp), POINTER                       :: int_runoff
+    REAL(dp), POINTER                       :: int_SMB
+    REAL(dp), POINTER                       :: int_BMB
+    REAL(dp), POINTER                       :: int_MB
+    INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB
+    
+    ! Variables related to the englacial isotope content
     REAL(dp), POINTER                       :: mean_isotope_content
     REAL(dp), POINTER                       :: mean_isotope_content_PD
     REAL(dp), POINTER                       :: d18O_contribution
     REAL(dp), POINTER                       :: d18O_contribution_PD
-    INTEGER :: wice_area, wice_volume, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
     INTEGER :: wmean_isotope_content, wmean_isotope_content_PD, wd18O_contribution, wd18O_contribution_PD
         
     ! Reference data fields
-    TYPE(type_PD_data_fields)               :: PD               ! The present-day data fields for this model region, on a high-res Cartesian grid
-    TYPE(type_init_data_fields)             :: init             ! The initial     data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_PD_data_fields)               :: PD                                        ! The present-day data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_init_data_fields)             :: init                                      ! The initial     data fields for this model region, on a high-res Cartesian grid
     
     ! Mask where ice is not allowed to form (so Greenland is not included in NAM and EAS, and Ellesmere is not included in GRL)
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_noice
     INTEGER                                 :: wmask_noice
         
     ! Sub-models
-    TYPE(type_grid)                         :: grid             ! This region's x,y grid
-    TYPE(type_grid)                         :: grid_GIA         ! Square grid used for GIA (ELRA or SELEN) so that it can use a different resolution from the ice model one
-    TYPE(type_ice_model)                    :: ice              ! All the ice model data for this model region
-    TYPE(type_climate_model)                :: climate          ! All the climate data for this model region
-    TYPE(type_SMB_model)                    :: SMB              ! The different SMB components for this model region
-    TYPE(type_BMB_model)                    :: BMB              ! The different BMB components for this model region
-    TYPE(type_SELEN_regional)               :: SELEN            ! SELEN input and output data for this model region
+    TYPE(type_grid)                         :: grid                                      ! This region's x,y grid
+    TYPE(type_grid)                         :: grid_GIA                                  ! Square grid used for GIA (ELRA or SELEN) so that it can use a different resolution from the ice model one
+    TYPE(type_ice_model)                    :: ice                                       ! All the ice model data for this model region
+    TYPE(type_climate_model)                :: climate                                   ! All the climate data for this model region
+    TYPE(type_SMB_model)                    :: SMB                                       ! The different SMB components for this model region
+    TYPE(type_BMB_model)                    :: BMB                                       ! The different BMB components for this model region
+    TYPE(type_SELEN_regional)               :: SELEN                                     ! SELEN input and output data for this model region
     
     ! Output netcdf files
     TYPE(type_netcdf_restart)               :: restart
     TYPE(type_netcdf_help_fields)           :: help_fields
+    TyPE(type_netcdf_scalars_regional)      :: scalars
     
-    ! Computation times
-    REAL(dp)                                :: tcomp_total
-    REAL(dp)                                :: tcomp_ice
-    REAL(dp)                                :: tcomp_thermo
-    REAL(dp)                                :: tcomp_climate
-    REAL(dp)                                :: tcomp_GIA
+    ! Computation times for this region
+    REAL(dp), POINTER                       :: tcomp_total
+    REAL(dp), POINTER                       :: tcomp_ice
+    REAL(dp), POINTER                       :: tcomp_thermo
+    REAL(dp), POINTER                       :: tcomp_climate
+    REAL(dp), POINTER                       :: tcomp_GIA
+    INTEGER :: wtcomp_total, wtcomp_ice, wtcomp_thermo, wtcomp_climate, wtcomp_GIA
     
   END TYPE type_model_region
+  
+  TYPE type_global_scalar_data
+    ! Structure containing some global scalar values: sea level, CO2, d18O components, computation times, etc.
+    
+    ! Netcdf file
+    TYPE(type_netcdf_scalars_global)        :: netcdf
+    
+    ! Sea level
+    REAL(dp), POINTER                       :: GMSL                                      ! Global mean sea level change
+    REAL(dp), POINTER                       :: GMSL_NAM                                  ! Global mean sea level change (contribution from ice in North America)
+    REAL(dp), POINTER                       :: GMSL_EAS                                  ! Global mean sea level change (contribution from ice in Eurasia)
+    REAL(dp), POINTER                       :: GMSL_GRL                                  ! Global mean sea level change (contribution from ice in Greenland)
+    REAL(dp), POINTER                       :: GMSL_ANT                                  ! Global mean sea level change (contribution from ice in Antarctica)
+    INTEGER :: wGMSL, wGMSL_NAM, wGMSL_EAS, wGMSL_GRL, wGMSL_ANT
+    
+    ! CO2
+    REAL(dp), POINTER                       :: CO2_obs                                   ! Observed atmospheric CO2
+    REAL(dp), POINTER                       :: CO2_mod                                   ! Modelled atmospheric CO2
+    INTEGER :: wCO2_obs, wCO2_mod
+    
+    ! d18O
+    REAL(dp), POINTER                       :: d18O_obs                                  ! Observed benthic d18O
+    REAL(dp), POINTER                       :: d18O_mod                                  ! Modelled benthic d18O
+    REAL(dp), POINTER                       :: d18O_ice                                  ! Contribution to benthic d18O from global ice volume
+    REAL(dp), POINTER                       :: d18O_Tdw                                  ! Contribution to benthic d18O from deep-water temperature
+    REAL(dp), POINTER                       :: d18O_NAM                                  ! Contribution to benthic d18O from ice in North America
+    REAL(dp), POINTER                       :: d18O_EAS                                  ! Contribution to benthic d18O from ice in Eurasia
+    REAL(dp), POINTER                       :: d18O_GRL                                  ! Contribution to benthic d18O from ice in Greenland
+    REAL(dp), POINTER                       :: d18O_ANT                                  ! Contribution to benthic d18O from ice in Antarctica
+    INTEGER :: wd18O_obs, wd18O_mod, wd18O_ice, wd18O_Tdw, wd18O_NAM, wd18O_EAS, wd18O_GRL, wd18O_ANT
+    
+    ! Temperature
+    REAL(dp), POINTER                       :: dT_glob                                   ! Global mean annual surface temperature change
+    REAL(dp), POINTER                       :: dT_dw                                     ! Deep-water temperature change
+    INTEGER :: wdT_glob, wdT_dw
+    
+    ! Computation times for all regions combined
+    REAL(dp), POINTER                       :: tcomp_total
+    REAL(dp), POINTER                       :: tcomp_ice
+    REAL(dp), POINTER                       :: tcomp_thermo
+    REAL(dp), POINTER                       :: tcomp_climate
+    REAL(dp), POINTER                       :: tcomp_GIA
+    INTEGER :: wtcomp_total, wtcomp_ice, wtcomp_thermo, wtcomp_climate, wtcomp_GIA
+  
+  END TYPE type_global_scalar_data
   
 CONTAINS
 

@@ -15,7 +15,8 @@ MODULE netcdf_module
                                              nf90_open, nf90_write, nf90_inq_dimid, nf90_inquire_dimension, nf90_inquire, nf90_double, &
                                              nf90_inq_varid, nf90_inquire_variable, nf90_get_var, nf90_noerr, nf90_strerror, nf90_float
   USE data_types_module,               ONLY: type_model_region, type_PD_data_fields, type_forcing_data, type_ICE5G_timeframe, &
-                                             type_init_data_fields, type_subclimate_global, type_debug_fields, type_SELEN_global
+                                             type_init_data_fields, type_subclimate_global, type_debug_fields, type_SELEN_global, &
+                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data
   IMPLICIT NONE
   
   TYPE(type_debug_fields) :: debug_NAM, debug_EAS, debug_GRL, debug_ANT, debug
@@ -551,6 +552,148 @@ CONTAINS
     SELEN%output%ti = SELEN%output%ti + 1
         
   END SUBROUTINE write_to_SELEN_output_file
+  SUBROUTINE write_to_global_scalar_output_file( global_data, time)
+    ! Write data to the global scalar output file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_global_scalar_data),   INTENT(INOUT) :: global_data
+    REAL(dp),                        INTENT(IN)    :: time
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the file for writing
+    CALL open_netcdf_file( global_data%netcdf%filename, global_data%netcdf%ncid)
+        
+    ! Time
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_time,             time,                       start = (/global_data%netcdf%ti/)))
+    
+    ! Sea level
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_GMSL,             global_data%GMSL,           start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_GMSL_NAM,         global_data%GMSL_NAM,       start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_GMSL_EAS,         global_data%GMSL_EAS,       start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_GMSL_GRL,         global_data%GMSL_GRL,       start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_GMSL_ANT,         global_data%GMSL_ANT,       start = (/global_data%netcdf%ti/)))
+    
+    ! CO2
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_CO2_obs,          global_data%CO2_obs,        start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_CO2_obs,          global_data%CO2_obs,        start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_CO2_mod,          global_data%CO2_mod,        start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_to_global_scalar_output_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! d18O
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_mod,         global_data%d18O_mod,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ice,         global_data%d18O_ice,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_Tdw,         global_data%d18O_Tdw,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_NAM,         global_data%d18O_NAM,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_EAS,         global_data%d18O_EAS,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_GRL,         global_data%d18O_GRL,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ANT,         global_data%d18O_ANT,       start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_obs,         global_data%d18O_obs,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_mod,         global_data%d18O_mod,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ice,         global_data%d18O_ice,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_Tdw,         global_data%d18O_Tdw,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_NAM,         global_data%d18O_NAM,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_EAS,         global_data%d18O_EAS,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_GRL,         global_data%d18O_GRL,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ANT,         global_data%d18O_ANT,       start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_obs,         global_data%d18O_obs,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_mod,         global_data%d18O_mod,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ice,         global_data%d18O_ice,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_Tdw,         global_data%d18O_Tdw,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_NAM,         global_data%d18O_NAM,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_EAS,         global_data%d18O_EAS,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_GRL,         global_data%d18O_GRL,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ANT,         global_data%d18O_ANT,       start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_mod,         global_data%d18O_mod,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ice,         global_data%d18O_ice,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_Tdw,         global_data%d18O_Tdw,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_NAM,         global_data%d18O_NAM,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_EAS,         global_data%d18O_EAS,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_GRL,         global_data%d18O_GRL,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ANT,         global_data%d18O_ANT,       start = (/global_data%netcdf%ti/)))
+    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_mod,         global_data%d18O_mod,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ice,         global_data%d18O_ice,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_Tdw,         global_data%d18O_Tdw,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_NAM,         global_data%d18O_NAM,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_EAS,         global_data%d18O_EAS,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_GRL,         global_data%d18O_GRL,       start = (/global_data%netcdf%ti/)))
+      CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_d18O_ANT,         global_data%d18O_ANT,       start = (/global_data%netcdf%ti/)))
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_to_global_scalar_output_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Temperature (surface and deep-water)
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_dT_glob,          global_data%dT_glob,        start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_dT_dw,            global_data%dT_dw,          start = (/global_data%netcdf%ti/)))
+    
+    ! Computation time for different model components
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_tcomp_total,      global_data%tcomp_total,    start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_tcomp_ice,        global_data%tcomp_ice,      start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_tcomp_thermo,     global_data%tcomp_thermo,   start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_tcomp_climate,    global_data%tcomp_climate,  start = (/global_data%netcdf%ti/)))
+    CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_tcomp_GIA  ,      global_data%tcomp_GIA,      start = (/global_data%netcdf%ti/)))
+    
+    ! Close the file
+    CALL close_netcdf_file(global_data%netcdf%ncid)
+    
+    ! Increase time frame counter
+    global_data%netcdf%ti = global_data%netcdf%ti + 1
+        
+  END SUBROUTINE write_to_global_scalar_output_file
+  SUBROUTINE write_to_regional_scalar_output_file( region, time)
+    ! Write data to the regional scalar output file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_model_region),         INTENT(INOUT) :: region
+    REAL(dp),                        INTENT(IN)    :: time
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the file for writing
+    CALL open_netcdf_file( region%scalars%filename, region%scalars%ncid)
+        
+    ! Time
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_time,             time,                       start = (/region%scalars%ti/)))
+    
+    ! Variables
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_ice_volume,    region%ice_volume,                 start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_ice_volume_af, region%ice_volume_above_flotation, start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_ice_area,      region%ice_area,                   start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_T2m,           region%int_T2m,                    start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_snowfall,      region%int_snowfall,               start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_rainfall,      region%int_rainfall,               start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_melt,          region%int_melt,                   start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_refreezing,    region%int_refreezing,             start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_runoff,        region%int_runoff,                 start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_SMB,           region%int_SMB,                    start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_BMB,           region%int_BMB,                    start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_MB,            region%int_MB,                     start = (/region%scalars%ti/)))
+    
+    ! Close the file
+    CALL close_netcdf_file(region%scalars%ncid)
+    
+    ! Increase time frame counter
+    region%scalars%ti = region%scalars%ti + 1
+        
+  END SUBROUTINE write_to_regional_scalar_output_file
   
   ! Create output netcdf files
   SUBROUTINE create_restart_file( region, forcing)
@@ -1248,6 +1391,207 @@ CONTAINS
     CALL close_netcdf_file(SELEN%output%ncid)
     
   END SUBROUTINE create_SELEN_output_file
+  SUBROUTINE create_global_scalar_output_file( netcdf)
+    ! Create a new global scalar output file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_netcdf_scalars_global), INTENT(INOUT) :: netcdf
+
+    ! Local variables:
+    LOGICAL                                         :: file_exists
+    INTEGER                                         :: t
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Set time frame index to 1
+    netcdf%ti = 1
+
+    ! Create a new restart file if none exists and, to prevent loss of data, 
+    ! stop with an error message if one already exists (not when differences are considered):
+    netcdf%filename = TRIM(C%output_dir)//'/global_scalar_output.nc'
+    INQUIRE(EXIST=file_exists, FILE = TRIM(netcdf%filename))
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(netcdf%filename), ' already exists!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Create netCDF file
+    !WRITE(0,*) ' Creating new NetCDF output file at ', TRIM( netcdf%filename)
+    CALL handle_error(nf90_create(netcdf%filename,IOR(nf90_clobber,nf90_share),netcdf%ncid))
+        
+    ! Define dimensions:
+    CALL create_dim( netcdf%ncid, netcdf%name_dim_time,      nf90_unlimited,     netcdf%id_dim_time      ) ! Time frames
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    t = netcdf%id_dim_time
+    
+    ! Define variables:
+    ! The order of the CALL statements for the different variables determines their
+    ! order of appearence in the netcdf file.
+    
+    ! Dimension variables: zeta, month, time
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_time,          [t], netcdf%id_var_time,          long_name='Time', units='years'   )
+    
+    ! Sea level
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_GMSL,          [t], netcdf%id_var_GMSL,          long_name='Global mean sea level change', units='m')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_GMSL_NAM,      [t], netcdf%id_var_GMSL_NAM,      long_name='Global mean sea level change from ice in North America', units='m')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_GMSL_EAS,      [t], netcdf%id_var_GMSL_EAS,      long_name='Global mean sea level change from ice in Eurasia',       units='m')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_GMSL_GRL,      [t], netcdf%id_var_GMSL_GRL,      long_name='Global mean sea level change from ice in Greenland',       units='m')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_GMSL_ANT,      [t], netcdf%id_var_GMSL_ANT,      long_name='Global mean sea level change from ice in Antarctica',       units='m')
+    
+    ! CO2
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_CO2_obs,       [t], netcdf%id_var_CO2_obs,       long_name='Observed atmospheric CO2 concentration', units='ppm')
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_CO2_obs,       [t], netcdf%id_var_CO2_obs,       long_name='Observed atmospheric CO2 concentration', units='ppm')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_CO2_mod,       [t], netcdf%id_var_CO2_mod,       long_name='Modelled atmospheric CO2 concentration', units='ppm')
+    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in create_global_scalar_output_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! d18O
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_mod,      [t], netcdf%id_var_d18O_mod,      long_name='Modelled benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ice,      [t], netcdf%id_var_d18O_ice,      long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_Tdw,      [t], netcdf%id_var_d18O_Tdw,      long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_NAM,      [t], netcdf%id_var_d18O_NAM,      long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_EAS,      [t], netcdf%id_var_d18O_EAS,      long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_GRL,      [t], netcdf%id_var_d18O_GRL,      long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ANT,      [t], netcdf%id_var_d18O_ANT,      long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_obs,      [t], netcdf%id_var_d18O_obs,      long_name='Observed benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_mod,      [t], netcdf%id_var_d18O_mod,      long_name='Modelled benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ice,      [t], netcdf%id_var_d18O_ice,      long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_Tdw,      [t], netcdf%id_var_d18O_Tdw,      long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_NAM,      [t], netcdf%id_var_d18O_NAM,      long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_EAS,      [t], netcdf%id_var_d18O_EAS,      long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_GRL,      [t], netcdf%id_var_d18O_GRL,      long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ANT,      [t], netcdf%id_var_d18O_ANT,      long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_obs,      [t], netcdf%id_var_d18O_obs,      long_name='Observed benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_mod,      [t], netcdf%id_var_d18O_mod,      long_name='Modelled benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ice,      [t], netcdf%id_var_d18O_ice,      long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_Tdw,      [t], netcdf%id_var_d18O_Tdw,      long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_NAM,      [t], netcdf%id_var_d18O_NAM,      long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_EAS,      [t], netcdf%id_var_d18O_EAS,      long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_GRL,      [t], netcdf%id_var_d18O_GRL,      long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ANT,      [t], netcdf%id_var_d18O_ANT,      long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_mod,      [t], netcdf%id_var_d18O_mod,      long_name='Modelled benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ice,      [t], netcdf%id_var_d18O_ice,      long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_Tdw,      [t], netcdf%id_var_d18O_Tdw,      long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_NAM,      [t], netcdf%id_var_d18O_NAM,      long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_EAS,      [t], netcdf%id_var_d18O_EAS,      long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_GRL,      [t], netcdf%id_var_d18O_GRL,      long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ANT,      [t], netcdf%id_var_d18O_ANT,      long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_mod,      [t], netcdf%id_var_d18O_mod,      long_name='Modelled benthic d18O', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ice,      [t], netcdf%id_var_d18O_ice,      long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_Tdw,      [t], netcdf%id_var_d18O_Tdw,      long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_NAM,      [t], netcdf%id_var_d18O_NAM,      long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_EAS,      [t], netcdf%id_var_d18O_EAS,      long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_GRL,      [t], netcdf%id_var_d18O_GRL,      long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_d18O_ANT,      [t], netcdf%id_var_d18O_ANT,      long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in create_global_scalar_output_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Temperature (surface and deep-water)
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_dT_glob,       [t], netcdf%id_var_dT_glob,       long_name='Global annual mean surface temperature change', units='K')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_dT_dw,         [t], netcdf%id_var_dT_dw,         long_name='Deep-water temperature change', units='K')
+    
+    ! Computation time for different model components
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_tcomp_total,   [t], netcdf%id_var_tcomp_total,   long_name='Total computation time', units='s')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_tcomp_ice,     [t], netcdf%id_var_tcomp_ice,     long_name='Total computation time for ice dynamics', units='s')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_tcomp_thermo,  [t], netcdf%id_var_tcomp_thermo,  long_name='Total computation time for thermodynamics', units='s')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_tcomp_climate, [t], netcdf%id_var_tcomp_climate, long_name='Total computation time for climate+SMB+BMB', units='s')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_tcomp_GIA,     [t], netcdf%id_var_tcomp_GIA,     long_name='Total computation time for GIA', units='s')
+    
+    ! Leave definition mode:
+    CALL handle_error(nf90_enddef( netcdf%ncid))
+        
+    ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+    CALL handle_error(nf90_sync( netcdf%ncid))
+    
+    ! Close the file
+    CALL close_netcdf_file(netcdf%ncid)
+    
+  END SUBROUTINE create_global_scalar_output_file
+  SUBROUTINE create_regional_scalar_output_file( region)
+    ! Create a new regional scalar output file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_model_region),          INTENT(INOUT) :: region
+
+    ! Local variables:
+    LOGICAL                                         :: file_exists
+    INTEGER                                         :: t
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Set time frame index to 1
+    region%scalars%ti = 1
+    
+    ! Generate filename
+    region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
+
+    ! Create a new restart file if none exists and, to prevent loss of data, 
+    ! stop with an error message if one already exists (not when differences are considered):
+    INQUIRE(EXIST=file_exists, FILE = TRIM(region%scalars%filename))
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(region%scalars%filename), ' already exists!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Create netCDF file
+    CALL handle_error(nf90_create(region%scalars%filename,IOR(nf90_clobber,nf90_share),region%scalars%ncid))
+        
+    ! Define dimensions:
+    CALL create_dim( region%scalars%ncid, region%scalars%name_dim_time,      nf90_unlimited,     region%scalars%id_dim_time      ) ! Time frames
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    t = region%scalars%id_dim_time
+    
+    ! Define variables:
+    ! The order of the CALL statements for the different variables determines their
+    ! order of appearence in the netcdf file.
+    
+    ! Dimension variables: zeta, month, time
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_time,          [t], region%scalars%id_var_time,          long_name='Time', units='years'   )
+    
+    ! Variables
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_ice_volume,    [t], region%scalars%id_var_ice_volume,    long_name='Ice volume', units='m.s.l.e')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_ice_volume_af, [t], region%scalars%id_var_ice_volume_af, long_name='Ice volume above flotation', units='m.s.l.e')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_ice_area,      [t], region%scalars%id_var_ice_area,      long_name='Ice volume', units='km^2')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_T2m,           [t], region%scalars%id_var_T2m,           long_name='Regionally averaged annual mean surface temperature', units='K')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_snowfall,      [t], region%scalars%id_var_snowfall,      long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_rainfall,      [t], region%scalars%id_var_rainfall,      long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_melt,          [t], region%scalars%id_var_melt,          long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_refreezing,    [t], region%scalars%id_var_refreezing,    long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_runoff,        [t], region%scalars%id_var_runoff,        long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_SMB,           [t], region%scalars%id_var_SMB,           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_BMB,           [t], region%scalars%id_var_BMB,           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_MB,            [t], region%scalars%id_var_MB,            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
+    
+    ! Leave definition mode:
+    CALL handle_error(nf90_enddef( region%scalars%ncid))
+        
+    ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+    CALL handle_error(nf90_sync( region%scalars%ncid))
+    
+    ! Close the file
+    CALL close_netcdf_file( region%scalars%ncid)
+    
+  END SUBROUTINE create_regional_scalar_output_file
   
   ! Manage memory for the debug data fields
   SUBROUTINE associate_debug_fields( region)

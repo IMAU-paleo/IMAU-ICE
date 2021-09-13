@@ -2,7 +2,7 @@
 IMAU-ICE v2.0 changelog
 =================================
 
-Tijn Berends, July 2021
+Tijn Berends, September 2021
 
 BIG CHANGES: added DIVA, SELEN, and PETSc.
 
@@ -19,9 +19,10 @@ the higher-order / full-Stokes solutions very well up to feature scales of about
 which in turn uses the staggered SSA solver from SICOPOLIS (Greve, 1997?). Relative to Yelmo, I
 made some minor changes to the way the effective viscosity is staggered, which allows the model
 to reproduce the Schoof 2006 analytical SSA solution (something which the original Yelmo code fails
-to do), but makes it slightly more difficult to maintain numerical stability. Other than that, the
-solver is essentially identical to the one in Yelmo, with the code having been restructured to
-match the rest of IMAU-ICE.
+to do), but makes it slightly more difficult to maintain numerical stability. Also, the way grounded
+fractions affect the basal friction has been changed, significantly improving ground-ling migration.
+Other than that, the solver is functionally identical to the one in Yelmo, although the code has been
+heavily restructured to match the rest of IMAU-ICE.
 
                              -----  Introduction: SELEN  -----
 
@@ -62,13 +63,16 @@ General:
   overwriting those from the first . This makes it really easy to set up ensemble experiments;
   create a "template" config that describes your default simulation, and then create a set of
   "variation" configs that alter only the variable(s) you're interested in.
-- Cleaned up the configuration_module routines.
-- Moved initialise_zeta_discretisation to the derivatives_and_grids_module, created a separate
-  "zeta" structure in that module to store the coefficients (and removed them from the C structure).
 - Added the debugging option to check data fields for NaN values (and if found, to report the grid
   cell indices, name of the variable, and name of the subroutine where it was found). Added calls to
   these routine to most ice/thermodynamics/climate/SMB/BMB routines; whether or not a check is
   actually performed is indicated by the config flag "do_check_for_NaN".
+- Cleaned up the configuration_module routines.
+- Moved initialise_zeta_discretisation to the derivatives_and_grids_module, created a separate
+  "zeta" structure in that module to store the coefficients (and removed them from the C structure).
+
+Output:
+- Replaced the ASCII text output files with NetCDF files.
 
 Ice dynamics:
 - Split the "ice_dynamics_module" into three separate modules: "ice_velocity_module" for
@@ -79,9 +83,10 @@ Ice dynamics:
   conditions, etc.).
 - Upgraded the SSA/DIVA solver from the regular (A) grid to the staggered (Cx/Cy) grid,
   based on the solver from SICOPOLIS (as included in Yelmo). This also includes the
-  "cross-terms" which were previously neglected, as well as boundary conditions for
-  the ice margin (although these are turned off by default as they don't seem to work very well,
-  can be chosen with the config option "choice_ice_margin").
+  "cross-terms" which were previously neglected (can be turned on/off with the config option
+  "include_SSADIVA_crossterms_config"), as well as stres boundary conditions for the ice margin
+  (although these are turned off by default as they don't seem to work very well; can be chosen
+  with the config option "choice_ice_margin_config").
 - Added the predictor/corrector method of time integration (with the option of going back
   to the old "direct" method when using SIA/SSA ice dynamics, chosen with the config
   option "choice_timestepping"). Note that for DIVA ice dynamics, this is the only option, since
@@ -107,7 +112,7 @@ Benchmark experiments:
   for much smaller topographical features than the hybrid SIA/SSA.
 - Added the MISMIP_mod experiment. Config files to run this with both SIA/SSA and DIVA ice
   dynamics at different resolutions are included. Results agree reasonably well with those from
-  Feldmann et al. (2014)
+  Feldmann et al. (2014) (as in, GL hysteresis is smaller than the grid resolution).
 
 SELEN:
 - SELEN is initialised by calling "initialise_SELEN" from IMAU_ICE_program. This subroutine
@@ -155,8 +160,6 @@ PETSc:
   This means it is relatively simple to remove PETSc from the model entirely if the user desires this;
   simply remove the call to "solve_matrix_equation_CSR_PETSc" in the utilities_module, and remove
   the petsc_module from the Makefile.
-  
-  
   
 
 =================================
