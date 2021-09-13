@@ -1,6 +1,6 @@
 MODULE forcing_module
 
-  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level),
+  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level, climate),
   ! as well as the "forcing" structure which stores all the results from these routines (so that they
   ! can be accessed from all four ice-sheet models and the coupling routine).
  
@@ -9,13 +9,14 @@ MODULE forcing_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D, allocate_shared_dp_2D, &
+                                             allocate_shared_int_2D, allocate_shared_dp_2D, &f
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_insolation_data_file, read_insolation_data_file_time_lat, read_insolation_data_file, &
                                              read_inverse_routine_history_dT_glob, read_inverse_routine_history_dT_glob_inverse, read_inverse_routine_history_CO2_inverse, &
-                                             inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file
+                                             inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file, inquire_climate_forcing_data_file, &
+                                             read_climate_forcing_data_file_time_latlon, read_climate_forcing_data_file_SMB, read_climate_forcing_data_file_climate
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
 
@@ -397,7 +398,7 @@ CONTAINS
     END IF ! IF (C%do_benchmark_experiment) THEN
     
     ! Not everything is needed for all forcing methods
-    IF (C%choice_forcing_method == 'CO2_direct') THEN
+    IF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'SMB_direct' .OR. C%choice_forcing_method == 'climate_direct') THEN
     
       IF (par%master) forcing%CO2_mod = forcing%CO2_obs
       
@@ -517,7 +518,9 @@ CONTAINS
     IF (C%choice_forcing_method == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+            C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
+            C%choice_forcing_method == 'SMB_direct' .OR. &
+            C%choice_forcing_method == 'climate_direct' ) THEN
       ! Observed CO2 is not needed for these forcing methods
       RETURN
     ELSE
@@ -588,7 +591,9 @@ CONTAINS
     IF (C%choice_forcing_method == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+            C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
+            C%choice_forcing_method == 'SMB_direct' .OR. &
+            C%choice_forcing_method == 'climate_direct') THEN
       ! Observed CO2 is not needed for these forcing methods
       RETURN
     ELSE
@@ -662,7 +667,9 @@ CONTAINS
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
         C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! Observed d18O is needed for these forcing methods.
-    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. &
+            C%choice_forcing_method == 'SMB_direct' .OR. &
+            C%choice_forcing_method == 'climate_direct') THEN
       ! Observed d18O is not needed for these forcing methods
       !RETURN
     ELSE
@@ -735,7 +742,9 @@ CONTAINS
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
         C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! Observed d18O is needed for these forcing methods.
-    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. &
+            C%choice_forcing_method == 'SMB_direct' .OR. &
+            C%choice_forcing_method == 'climate_direct') THEN
       ! Observed d18O is not needed for these forcing methods
       !RETURN
     ELSE
@@ -854,6 +863,100 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE update_insolation_data
+
+  SUBROUTINE update_climate_forcing_data( t_coupling)
+    ! Read the NetCDF file containing the climate forcing data. Only read the time frames enveloping the current
+    ! coupling timestep to save on memory usage. Only done by master.
+    
+    IMPLICIT NONE
+
+    REAL(dp),                            INTENT(IN)    :: t_coupling
+    
+    ! Local variables
+    INTEGER                                            :: ti0, ti1
+    
+    ! Not needed for benchmark experiments
+    IF (C%do_benchmark_experiment) THEN
+      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+        RETURN
+      ELSE 
+        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_climate_forcing_data!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END IF ! IF (C%do_benchmark_experiment) THEN
+    
+    ! Initialise at zero
+    IF (par%master) THEN
+      forcing%clim_T2m0    = 0._dp
+      forcing%clim_T2m1    = 0._dp
+      forcing%clim_Precip0 = 0._dp
+      forcing%clim_Precip1 = 0._dp
+      forcing%clim_SMB0    = 0._dp
+      forcing%clim_SMB1    = 0._dp
+    END IF
+    CALL sync
+ 
+    ! Check if data for model time is available
+    IF (t_coupling <= forcing%clim_time(1)) THEN
+      IF (par%master) WRITE(0,*) '  WARNING: using constant (oldest available) climate before the start of the record!'
+      ti0=1
+      ti1=1
+      forcing%clim_t0 = forcing%clim_time(ti0)
+      forcing%clim_t1 = forcing%clim_time(ti1) + 1._dp
+    ELSE 
+      ! Find time indices to be read
+      IF (par%master) THEN
+        IF (t_coupling <= forcing%clim_time( forcing%clim_nyears)) THEN
+          ti1 = 1
+          DO WHILE (forcing%clim_time(ti1) < t_coupling)
+            ti1 = ti1 + 1
+          END DO
+          ti0 = ti1 - 1
+   
+          forcing%clim_t0 = forcing%clim_time(ti0)
+          forcing%clim_t1 = forcing%clim_time(ti1)
+        ELSE
+          IF (par%master) WRITE(0,*) '  WARNING: using constant (newest available) climate beyond end of the record!'
+          ti0 = forcing%clim_nyears
+          ti1 = forcing%clim_nyears
+        
+          forcing%clim_t0 = forcing%clim_time(ti0) - 1._dp
+          forcing%clim_t1 = forcing%clim_time(ti1)
+        END IF
+      END IF ! IF (par%master) THEN
+    END IF !(t_coupling < forcing%ins_time(1))
+
+ 
+    ! Read new climate forcing fields from the NetCDF file
+    IF (par%master) THEN
+       IF (C%choice_forcing_method == 'SMB_direct') THEN
+         CALL read_climate_forcing_data_file_SMB( forcing, ti0, ti1, forcing%clim_SMB0, forcing%clim_SMB1, forcing%clim_T2m0, forcing%clim_T2m1)
+       ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
+         CALL read_climate_forcing_data_file_climate( forcing, ti0, ti1, forcing%clim_T2m0, forcing%clim_T2m1, forcing%clim_Precip0, forcing%clim_Precip1)
+       ELSE
+         IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in update_climate_forcing_data!'
+         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+       END IF
+    END IF ! par%master
+    CALL sync
+
+  END SUBROUTINE update_climate_forcing_data
+
   SUBROUTINE map_insolation_to_grid( grid, ins_t0, ins_t1, Q_TOA0, Q_TOA1, time, Q_TOA, Q_TOA_jun_65N, Q_TOA_jan_80S)
     ! Interpolate two insolation timeframes to the desired time, and then map it to the model grid.
       
@@ -911,6 +1014,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE map_insolation_to_grid
+
   SUBROUTINE initialise_insolation_data
     ! Allocate shared memory for the forcing data fields
     
@@ -978,7 +1082,7 @@ CONTAINS
     CALL update_insolation_data( C%start_time_of_run)
     
   END SUBROUTINE initialise_insolation_data
-  
+
   ! Geothermal heat flux
   SUBROUTINE initialise_geothermal_heat_flux
 
@@ -1044,5 +1148,90 @@ CONTAINS
     END IF ! IF (C%choice_geothermal_heat_flux == 'constant') THEN
 
   END SUBROUTINE initialise_geothermal_heat_flux
+
+  ! Climate data from a GCM forcing file
+  SUBROUTINE initialise_climate_forcing_data
+    ! Allocate shared memory for the forcing data fields
+    
+    IMPLICIT NONE
+
+    ! Not needed for benchmark experiments
+    IF (C%do_benchmark_experiment) THEN
+      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+        RETURN
+      ELSE 
+        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_forcing_data!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END IF ! IF (C%do_benchmark_experiment) THEN
+    
+    CALL allocate_shared_dp_0D( forcing%clim_t0, forcing%wclim_t0)
+    CALL allocate_shared_dp_0D( forcing%clim_t1, forcing%wclim_t1)
+    
+    IF (par%master) THEN
+      forcing%clim_t0 = C%start_time_of_run
+      forcing%clim_t1 = C%end_time_of_run
+    END IF ! IF (par%master) THEN
+    CALL sync
+      
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE(0,*) ' Initialising climate data from ', TRIM(C%filename_GCM_climate), '...'
+  
+    ! Inquire into the climate forcing netcdf file
+    CALL allocate_shared_int_0D( forcing%clim_nlat,   forcing%wclim_nlat  )
+    CALL allocate_shared_int_0D( forcing%clim_nlon,   forcing%wclim_nlon  )
+    CALL allocate_shared_int_0D( forcing%clim_nyears, forcing%wclim_nyears)
+  
+    forcing%netcdf_clim%filename = C%filename_GCM_climate
+  
+    ! Read size of data fields from NetCDF file
+    IF (par%master) CALL inquire_climate_forcing_data_file( forcing)
+    CALL sync
+  
+    ! Allocate shared memory
+    CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                          forcing%wclim_time )
+    CALL allocate_shared_dp_1D( forcing%clim_nlon,                           forcing%clim_lon,     forcing%wclim_lon  )
+    CALL allocate_shared_dp_1D(                        forcing%clim_nlat,    forcing%clim_lat,     forcing%wclim_lat  )
+
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m0,    forcing%wclim_T2m0   )
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m1,    forcing%wclim_T2m1   )
+    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m2,    forcing%wclim_T2m2   )
+
+    IF (C%choice_forcing_method == 'SMB_direct') THEN
+      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB0,    forcing%wclim_SMB0   )
+      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB1,    forcing%wclim_SMB1   )
+      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB2,    forcing%wclim_SMB2   )
+    ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip0, forcing%wclim_Precip0 )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip1, forcing%wclim_Precip1 )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip2, forcing%wclim_Precip2 )
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+   
+    ! Read time and lat-lon data
+    IF (par%master) CALL read_climate_forcing_data_file_time_latlon( forcing)
+    CALL sync
+    
+    ! Read climate forcing data
+    CALL update_climate_forcing_data( C%start_time_of_run)
+
+  END SUBROUTINE initialise_climate_forcing_data
 
 END MODULE forcing_module

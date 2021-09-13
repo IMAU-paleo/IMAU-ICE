@@ -26,7 +26,7 @@ PROGRAM IMAU_ICE_program
   USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
                                              initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
                                              calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
-                                             initialise_geothermal_heat_flux
+                                             initialise_geothermal_heat_flux, initialise_climate_forcing_data, update_climate_forcing_data
   USE climate_module,                  ONLY: initialise_climate_matrix
   USE global_text_output_module,       ONLY: create_text_output_file, write_text_output
   USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
@@ -112,7 +112,8 @@ PROGRAM IMAU_ICE_program
   ! =========================================
   
   CALL initialise_climate_matrix( matrix)
-
+  IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) CALL initialise_climate_forcing_data
+    
   ! ===== Initialise the model regions ======
   ! =========================================
   
@@ -198,6 +199,7 @@ PROGRAM IMAU_ICE_program
     CALL update_insolation_data(    t_coupling)
     CALL update_CO2_at_model_time(  t_coupling)
     CALL update_d18O_at_model_time( t_coupling)
+    IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) CALL update_climate_forcing_data (t_coupling)
     
     ! Update regional sea level (needs to be moved to separate subroutine at some point!)
     IF (C%choice_sealevel_model == 'fixed') THEN
@@ -248,7 +250,7 @@ PROGRAM IMAU_ICE_program
       CALL inverse_routine_global_temperature_offset
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL inverse_routine_CO2
-    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
+    ELSEIF ((C%choice_forcing_method == 'CO2_direct') .OR. (C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
       ! No inverse routine is used in these forcing methods
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in IMAU_ICE_program!'

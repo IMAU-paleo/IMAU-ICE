@@ -91,6 +91,12 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
+
+    ! If C%choice_forcing_method == 'SMB_direct', SMB is directly given, no need for a calculation
+    IF (C%choice_forcing_method == 'SMB_direct' ) THEN 
+      CALL sync
+      RETURN
+    END IF
         
     ! Calculate SMB components with IMAU_ITM
     ! ======================================
