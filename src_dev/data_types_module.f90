@@ -8,7 +8,7 @@ MODULE data_types_module
   USE data_types_netcdf_module,    ONLY: type_netcdf_climate_data, type_netcdf_PD_data, type_netcdf_init_data, &
                                          type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
                                          type_netcdf_ICE5G_data, type_netcdf_debug, type_netcdf_geothermal_heat_flux, &
-                                         type_netcdf_SELEN_output, type_netcdf_SELEN_global_topo
+                                         type_netcdf_SELEN_output, type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing
 
   IMPLICIT NONE
   
@@ -703,6 +703,20 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lat
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ghf_ghf
     INTEGER :: wghf_nlon, wghf_nlat, wghf_lon, wghf_lat, wghf_ghf
+
+    ! External forcing: climate forcing data
+    TYPE(type_netcdf_climate_forcing)       :: netcdf_clim
+    INTEGER,                    POINTER     :: clim_nlon
+    INTEGER,                    POINTER     :: clim_nlat
+    INTEGER,                    POINTER     :: clim_nyears
+    REAL(dp), DIMENSION(:    ), POINTER     :: clim_lon
+    REAL(dp), DIMENSION(:    ), POINTER     :: clim_lat
+    REAL(dp), DIMENSION(:    ), POINTER     :: clim_time
+    REAL(dp),                   POINTER     :: clim_t0, clim_t1
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_T2m2, clim_Precip0, clim_Precip1, clim_Precip2  ! Monthly
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_SMB0, clim_SMB1, clim_SMB2                                            ! Yearly
+    INTEGER :: wclim_nyears, wclim_nlat, wclim_nlon, wclim_time, wclim_lat, wclim_lon, wclim_t0, wclim_t1, wclim_T2m0, wclim_T2m1, wclim_T2m2
+    INTEGER :: wclim_Precip0, wclim_Precip1, wclim_Precip2, wclim_SMB0, wclim_SMB1, wclim_SMB2
     
   END TYPE type_forcing_data
   

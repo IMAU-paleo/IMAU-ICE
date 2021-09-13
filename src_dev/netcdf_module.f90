@@ -84,7 +84,7 @@ CONTAINS
       END IF
     ELSE
     
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      IF     (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'SMB_direct' .OR. C%choice_forcing_method == 'climate_direct') THEN
         ! No inverse routine used in these forcing methods
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
         ! Need to write dT_glob_history and dT_glob_inverse_history
@@ -638,7 +638,7 @@ CONTAINS
       END IF
     ELSE
     
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      IF     (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'SMB_direct' .OR. C%choice_forcing_method == 'climate_direct') THEN
         ! No inverse routine used in these forcing methods
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
         ! Need to write dT_glob_history and dT_glob_inverse_history
@@ -2431,6 +2431,169 @@ CONTAINS
     forcing%ghf_ghf = forcing%ghf_ghf * sec_per_year
 
   END SUBROUTINE read_geothermal_heat_flux_file
+
+  ! Climate forcing
+  SUBROUTINE inquire_climate_forcing_data_file( forcing)
+    IMPLICIT NONE
+    
+    ! Output variable
+    TYPE(type_forcing_data), INTENT(INOUT) :: forcing
+ 
+    ! Local variables:  
+    INTEGER                                :: int_dummy
+    
+    IF (.NOT. par%master) RETURN
+            
+    ! Open the netcdf file
+    CALL open_netcdf_file(forcing%netcdf_clim%filename, forcing%netcdf_clim%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_dim_time,     forcing%clim_nyears,        forcing%netcdf_clim%id_dim_time)
+    CALL inquire_dim( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_dim_lat,      forcing%clim_nlat,          forcing%netcdf_clim%id_dim_lat)
+    CALL inquire_dim( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_dim_lon,      forcing%clim_nlon,          forcing%netcdf_clim%id_dim_lon)
+    IF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL inquire_dim( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_dim_month,    int_dummy,                  forcing%netcdf_clim%id_dim_month)  
+    END IF
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_time,  (/ forcing%netcdf_clim%id_dim_time                                                                 /), forcing%netcdf_clim%id_var_time)
+    CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_lat,   (/ forcing%netcdf_clim%id_dim_lat                                                                  /), forcing%netcdf_clim%id_var_lat)
+    CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_lon,   (/ forcing%netcdf_clim%id_dim_lon                                                                  /), forcing%netcdf_clim%id_var_lon)
+    IF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_month, (/ forcing%netcdf_clim%id_dim_month                                                                /), forcing%netcdf_clim%id_var_month)
+    END IF
+
+    IF (C%choice_forcing_method == 'SMB_direct') THEN
+      CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_SMB,    (/ forcing%netcdf_clim%id_dim_lon, forcing%netcdf_clim%id_dim_lat, forcing%netcdf_clim%id_dim_time /), forcing%netcdf_clim%id_var_SMB   )
+      CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_T2m,    (/ forcing%netcdf_clim%id_dim_lon, forcing%netcdf_clim%id_dim_lat, forcing%netcdf_clim%id_dim_time /), forcing%netcdf_clim%id_var_T2m   )
+    ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
+      CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_T2m,    (/ forcing%netcdf_clim%id_dim_lon, forcing%netcdf_clim%id_dim_lat, forcing%netcdf_clim%id_dim_month,  forcing%netcdf_clim%id_dim_time /), forcing%netcdf_clim%id_var_T2m   )
+      CALL inquire_double_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%name_var_Precip, (/ forcing%netcdf_clim%id_dim_lon, forcing%netcdf_clim%id_dim_lat, forcing%netcdf_clim%id_dim_month,  forcing%netcdf_clim%id_dim_time /), forcing%netcdf_clim%id_var_Precip)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(forcing%netcdf_clim%ncid)
+    
+  END SUBROUTINE inquire_climate_forcing_data_file
+
+  SUBROUTINE read_climate_forcing_data_file_SMB( forcing, ti0, ti1, clim_SMB0, clim_SMB1, clim_T2m0, clim_T2m1) 
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
+    INTEGER,                        INTENT(IN)    :: ti0, ti1
+    REAL(dp), DIMENSION(:,:),       INTENT(OUT)   :: clim_SMB0, clim_SMB1
+    REAL(dp), DIMENSION(:,:,:),     INTENT(OUT)   :: clim_T2m0, clim_T2m1
+
+    ! Local variables:
+    INTEGER                                       :: li, ki, mi
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE       :: SMB_temp0, SMB_temp1, T2my_temp0, T2my_temp1
+    
+    IF (.NOT. par%master) RETURN
+
+    ! Temporary memory to store the data read from the netCDF file
+    ALLOCATE(  SMB_temp0(forcing%clim_nlon,forcing%clim_nlat, 1))
+    ALLOCATE(  SMB_temp1(forcing%clim_nlon,forcing%clim_nlat, 1))
+    ALLOCATE( T2my_temp0(forcing%clim_nlon,forcing%clim_nlat, 1))
+    ALLOCATE( T2my_temp1(forcing%clim_nlon,forcing%clim_nlat, 1))
+        
+    ! Read data
+    CALL open_netcdf_file(forcing%netcdf_clim%filename, forcing%netcdf_clim%ncid)
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_SMB,  SMB_temp0, start = (/ 1, 1, ti0 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 1 /), stride = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_SMB,  SMB_temp1, start = (/ 1, 1, ti1 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 1 /), stride = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_T2m, T2my_temp0, start = (/ 1, 1, ti0 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 1 /), stride = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_T2m, T2my_temp1, start = (/ 1, 1, ti1 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 1 /), stride = (/ 1, 1, 1 /) ))
+    CALL close_netcdf_file(forcing%netcdf_clim%ncid)
+
+    ! Store the data in the shared memory structure
+    DO li = 1, forcing%clim_nlon
+    DO ki = 1, forcing%clim_nlat   
+      clim_SMB0 ( li,ki)      =     SMB_temp0( li,ki,1)
+      clim_SMB1 ( li,ki)      =     SMB_temp1( li,ki,1)
+      DO mi = 1, 12
+        clim_T2m0 ( li,ki,mi) =    T2my_temp0( li,ki,1)
+        clim_T2m1 ( li,ki,mi) =    T2my_temp1( li,ki,1)
+      END DO
+    END DO
+    END DO
+
+    DEALLOCATE( SMB_temp0)
+    DEALLOCATE( SMB_temp1)
+    DEALLOCATE(T2my_temp0)
+    DEALLOCATE(T2my_temp1)
+      
+  END SUBROUTINE read_climate_forcing_data_file_SMB
+
+  SUBROUTINE read_climate_forcing_data_file_climate( forcing, ti0, ti1, clim_T2m0, clim_T2m1, clim_Precip0, clim_Precip1) 
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
+    INTEGER,                        INTENT(IN)    :: ti0, ti1
+    REAL(dp), DIMENSION(:,:,:),     INTENT(OUT)   :: clim_T2m0, clim_T2m1, clim_Precip0, clim_Precip1
+
+    ! Local variables:
+    INTEGER                                       :: mi, li, ki
+    REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: T2m_temp0, T2m_temp1, Precip_temp0, Precip_temp1
+    
+    IF (.NOT. par%master) RETURN
+
+    ! Temporary memory to store the data read from the netCDF file
+    ALLOCATE(    T2m_temp0(forcing%clim_nlon,forcing%clim_nlat, 12, 1))
+    ALLOCATE(    T2m_temp1(forcing%clim_nlon,forcing%clim_nlat, 12, 1))
+    ALLOCATE( Precip_temp0(forcing%clim_nlon,forcing%clim_nlat, 12, 1))
+    ALLOCATE( Precip_temp1(forcing%clim_nlon,forcing%clim_nlat, 12, 1))
+        
+    ! Read data
+    CALL open_netcdf_file(forcing%netcdf_clim%filename, forcing%netcdf_clim%ncid)
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_T2m,    T2m_temp0,    start = (/ 1, 1, 1, ti0 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 12, 1 /), stride = (/ 1, 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_T2m,    T2m_temp1,    start = (/ 1, 1, 1, ti1 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 12, 1 /), stride = (/ 1, 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_Precip, Precip_temp0, start = (/ 1, 1, 1, ti0 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 12, 1 /), stride = (/ 1, 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_Precip, Precip_temp1, start = (/ 1, 1, 1, ti1 /), count = (/ forcing%clim_nlon, forcing%clim_nlat, 12, 1 /), stride = (/ 1, 1, 1, 1 /) ))
+    CALL close_netcdf_file(forcing%netcdf_clim%ncid)
+
+    ! Store the data in the shared memory structure
+    DO mi = 1, 12
+    DO li = 1, forcing%clim_nlon
+    DO ki = 1, forcing%clim_nlat 
+      clim_T2m0(    li,ki,mi) =    T2m_temp0( li,ki,mi,1)
+      clim_T2m1(    li,ki,mi) =    T2m_temp1( li,ki,mi,1)
+      clim_Precip0( li,ki,mi) = Precip_temp0( li,ki,mi,1)
+      clim_Precip1( li,ki,mi) = Precip_temp1( li,ki,mi,1)
+    END DO
+    END DO
+    END DO
+
+    DEALLOCATE(    T2m_temp0)
+    DEALLOCATE(    T2m_temp1)
+    DEALLOCATE( Precip_temp0)
+    DEALLOCATE( Precip_temp1)
+      
+  END SUBROUTINE read_climate_forcing_data_file_climate
+
+  SUBROUTINE read_climate_forcing_data_file_time_latlon( forcing) 
+    IMPLICIT NONE
+    
+    ! Output variable
+    TYPE(type_forcing_data), INTENT(INOUT) :: forcing
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file(forcing%netcdf_clim%filename, forcing%netcdf_clim%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_time,    forcing%clim_time,    start = (/ 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_lat,     forcing%clim_lat,     start = (/ 1 /) ))
+    CALL handle_error(nf90_get_var( forcing%netcdf_clim%ncid, forcing%netcdf_clim%id_var_lon,     forcing%clim_lon,     start = (/ 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(forcing%netcdf_ins%ncid)
+    
+  END SUBROUTINE read_climate_forcing_data_file_time_latlon
   
   ! Global topography for SELEN
   SUBROUTINE inquire_SELEN_global_topo_file( SELEN)

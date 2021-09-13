@@ -217,6 +217,8 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'PI_LGM'                         ! 'PI_LGM' uses 2 snapshots
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_LGM_config        = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  ! GCM forcing file
+  CHARACTER(LEN=256)  :: filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   
   ! Ocean temperature (used for both thermodynamics and basal melt)
   CHARACTER(LEN=256)  :: choice_ocean_temperature_model_config   = 'scaled'                         ! Can be "fixed" (use PD value) or "scaled" (scale between "PD", "warm", and "cold" values based on forcing (prescribed or inverse-modelled))
@@ -233,6 +235,8 @@ MODULE configuration_module
   ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
   ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
   ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
+  ! 'SMB_direct'           : Obtain SMB directly from a forcing file
+  ! 'climate direct'       : Obtain temperature and precipitation (to be used in the ITM SMB model) directly from a forcing file
   CHARACTER(LEN=256)  :: choice_forcing_method_config            = 'd18O_inverse_dT_glob'
   
   REAL(dp)            :: dT_deepwater_averaging_window_config    = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
@@ -592,6 +596,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_climate_matrix
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_LGM
+    CHARACTER(LEN=256)                  :: filename_GCM_climate
     
     CHARACTER(LEN=256)                  :: choice_ocean_temperature_model
     REAL(dp)                            :: ocean_temperature_PD
@@ -1139,6 +1144,7 @@ CONTAINS
                      choice_climate_matrix_config,               &
                      filename_GCM_snapshot_PI_config,            &
                      filename_GCM_snapshot_LGM_config,           &
+                     filename_GCM_climate_config,                &
                      choice_ocean_temperature_model_config,      &
                      ocean_temperature_PD_config,                &
                      ocean_temperature_cold_config,              &
@@ -1484,6 +1490,7 @@ CONTAINS
     C%choice_climate_matrix               = choice_climate_matrix_config
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
     C%filename_GCM_snapshot_LGM           = filename_GCM_snapshot_LGM_config
+    C%filename_GCM_climate                = filename_GCM_climate_config
     
     C%choice_ocean_temperature_model      = choice_ocean_temperature_model_config
     C%ocean_temperature_PD                = ocean_temperature_PD_config
