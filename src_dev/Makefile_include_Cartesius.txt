@@ -8,3 +8,5 @@
 
 # Linking flags of libaries:
   LDFLAGS  = -L${SARA_NETCDF_LIB} -lnetcdf -lnetcdff -L${SARA_PETSC_DIR}/lib -lpetsc
+  
+  

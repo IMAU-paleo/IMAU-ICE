@@ -1,4 +1,5 @@
 MODULE isotopes_module
+
   ! Contains all the routines for calculating the isotope content of the ice sheet.
 
   USE mpi
@@ -10,6 +11,8 @@ MODULE isotopes_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, type_BMB_model, type_model_region
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
   USE forcing_module,                  ONLY: forcing
 
   IMPLICIT NONE
@@ -185,6 +188,11 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wdIso_dt   )
     CALL deallocate_shared( wIsoIce_new)
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( region%ice%IsoSurf, 'region%ice%IsoSurf', 'run_isotopes_model')
+    CALL check_for_NaN_dp_2D( region%ice%MB_iso , 'region%ice%MB_iso' , 'run_isotopes_model')
+    CALL check_for_NaN_dp_2D( region%ice%IsoIce , 'region%ice%IsoIce' , 'run_isotopes_model')
     
   END SUBROUTINE run_isotopes_model
   SUBROUTINE calculate_isotope_content( grid, Hi, IsoIce, mean_isotope_content, d18O_contribution)

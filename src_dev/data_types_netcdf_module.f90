@@ -1,5 +1,6 @@
 MODULE data_types_netcdf_module
-  ! Contains the TYPES for different NetCDf files read and written by IMAU-ICE.
+
+  ! Contains the TYPEs for different NetCDf files read and written by IMAU-ICE.
 
   USE configuration_module,        ONLY: dp, C
 

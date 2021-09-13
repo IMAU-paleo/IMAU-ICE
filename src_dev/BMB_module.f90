@@ -1,4 +1,5 @@
 MODULE BMB_module
+
   ! Contains all the routines for calculating the basal mass balance.
 
   USE mpi
@@ -12,6 +13,8 @@ MODULE BMB_module
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_subclimate_region, type_BMB_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE parameters_module,               ONLY: T0, L_fusion, seawater_density, ice_density, sec_per_year
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
   USE forcing_module,                  ONLY: forcing
 
   IMPLICIT NONE
@@ -84,16 +87,18 @@ CONTAINS
     BMB_shelf                         = 0._dp
     BMB_shelf_exposed                 = 0._dp
     BMB_deepocean                     = 0._dp
+    CALL sync
     
     ! Find the "subtended angle" and distance-to-open-ocean of all shelf pixels
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       IF (ice%mask_shelf_a( j,i) == 1) THEN
         BMB%sub_angle( j,i) = subtended_angle(     grid, i, j, ice%mask_land_a, ice%mask_ocean_a, ice%mask_ice_a, ice%mask_sheet_a, ice%mask_shelf_a)
-        BMB%dist_open( j,i) = distance_open_ocean( grid, i, j, ice%mask_land_a, ice%mask_ocean_a, ice%mask_ice_a,                    ice%mask_shelf_a)
+        BMB%dist_open( j,i) = distance_open_ocean( grid, i, j, ice%mask_land_a, ice%mask_ocean_a, ice%mask_ice_a,                   ice%mask_shelf_a)
       END IF
     END DO
     END DO
+    CALL sync
     
     ! Find the weight from insolation
     IF (region_name == 'NAM' .OR. region_name == 'EAS' .OR. region_name == 'GRL') THEN
@@ -167,6 +172,7 @@ CONTAINS
       climate%T_ocean_mean = w_PD * BMB%T_ocean_mean_PD      + w_warm * BMB%T_ocean_mean_warm      + w_cold * BMB%T_ocean_mean_cold
       BMB_deepocean        = w_PD * BMB%BMB_deepocean_PD     + w_warm * BMB%BMB_deepocean_warm     + w_cold * BMB%BMB_deepocean_cold
       BMB_shelf_exposed    = w_PD * BMB%BMB_shelf_exposed_PD + w_warm * BMB%BMB_shelf_exposed_warm + w_cold * BMB%BMB_shelf_exposed_cold
+      CALL sync
     
     
     
@@ -237,6 +243,12 @@ CONTAINS
     ! Add sheet and shelf melt together
     BMB%BMB( :,grid%i1:grid%i2) = BMB%BMB_sheet( :,grid%i1:grid%i2) + BMB%BMB_shelf( :,grid%i1:grid%i2)
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%sub_angle, 'BMB%sub_angle', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%dist_open, 'BMB%dist_open', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet', 'run_BMB_model')
           
   END SUBROUTINE run_BMB_model
   

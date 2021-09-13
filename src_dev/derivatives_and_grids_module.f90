@@ -1,4 +1,5 @@
 MODULE derivatives_and_grids_module
+
   ! Contains all the routines involved in the Arakawa grids, for mapping and
   ! calculating derivatives between all the different grids.
 
@@ -40,6 +41,7 @@ CONTAINS
       dx_a( j,i) = (d_a( j,i+1) - d_a( j,i-1)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dx_a( grid%j1:grid%j2,1      ) = (d_a( grid%j1:grid%j2,2      ) - d_a( grid%j1:grid%j2,1        )) / grid%dx
@@ -67,6 +69,7 @@ CONTAINS
       dy_a( j,i) = (d_a( j+1,i) - d_a( j-1,i)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dy_a( 1      ,grid%i1:grid%i2) = (d_a( 2      ,grid%i1:grid%i2) - d_a( 1        ,grid%i1:grid%i2)) / grid%dx
@@ -94,6 +97,7 @@ CONTAINS
       dxx_a( j,i) = (d_a( j,i+1) + d_a( j,i-1) - 2._dp * d_a( j,i)) / grid%dx**2
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dxx_a( grid%j1:grid%j2,1      ) = (d_a( grid%j1:grid%j2,3      ) + d_a( grid%j1:grid%j2,1        ) - 2._dp * d_a( grid%j1:grid%j2,2        )) / grid%dx**2
@@ -121,6 +125,7 @@ CONTAINS
       dyy_a( j,i) = (d_a( j+1,i) + d_a( j-1,i) - 2._dp * d_a( j,i)) / grid%dx**2
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dyy_a( 1      ,grid%i1:grid%i2) = (d_a( 3      ,grid%i1:grid%i2) + d_a( 1        ,grid%i1:grid%i2) - 2._dp * d_a( 2        ,grid%i1:grid%i2)) / grid%dx**2
@@ -148,6 +153,7 @@ CONTAINS
       dxy_a( j,i) = (d_a( j+1,i+1) + d_a( j-1,i-1) - d_a( j+1,i-1) - d_a( j-1,i+1)) / (4._dp * grid%dx * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     ! NO IDEA HOW TO DO THIS...
@@ -181,6 +187,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dx_a( :,grid%j1:grid%j2,1      ) = (d_a( :,grid%j1:grid%j2,2      ) - d_a( :,grid%j1:grid%j2,1        )) / grid%dx
@@ -210,6 +217,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dy_a( :,1      ,grid%i1:grid%i2) = (d_a( :,2      ,grid%i1:grid%i2) - d_a( :,1        ,grid%i1:grid%i2)) / grid%dx
@@ -239,6 +247,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dxx_a( :,grid%j1:grid%j2,1      ) = (d_a( :,grid%j1:grid%j2,3      ) + d_a( :,grid%j1:grid%j2,1        ) - 2._dp * d_a( :,grid%j1:grid%j2,2        )) / grid%dx**2
@@ -268,6 +277,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dyy_a( :,1      ,grid%i1:grid%i2) = (d_a( :,3      ,grid%i1:grid%i2) + d_a( :,1        ,grid%i1:grid%i2) - 2._dp * d_a( :,2        ,grid%i1:grid%i2)) / grid%dx**2
@@ -297,6 +307,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     ! NO IDEA HOW TO DO THIS...
@@ -335,6 +346,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     dx_a( :,grid%j1:grid%j2,1      ) = 0._dp
     dx_a( :,grid%j1:grid%j2,grid%nx) = 0._dp
@@ -368,6 +380,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     dy_a( :,1      ,grid%i1:grid%i2) = 0._dp
     dy_a( :,grid%ny,grid%i1:grid%i2) = 0._dp
@@ -442,6 +455,7 @@ CONTAINS
       dx_cy( j,i) = (d_a( j,i+1) + d_a( j+1,i+1) - d_a( j,i-1) - d_a( j+1,i-1)) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundary
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
@@ -471,6 +485,7 @@ CONTAINS
       dy_cx( j,i) = (d_a( j+1,i) + d_a( j+1,i+1) - d_a( j-1,i) - d_a( j-1,i+1)) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundary
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -551,6 +566,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundary
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
@@ -582,6 +598,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundary
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -614,6 +631,7 @@ CONTAINS
       dx_a( j,i) = (d_cx( j,i) - d_cx( j,i-1)) / grid%dx
     END DO
     END DO
+    CALL sync
     
     dx_a( grid%j1:grid%j2,1      ) = dx_a( grid%j1:grid%j2,2        )
     dx_a( grid%j1:grid%j2,grid%nx) = dx_a( grid%j1:grid%j2,grid%nx-1)
@@ -639,6 +657,7 @@ CONTAINS
       dy_a( j,i) = (d_cy( j,i) - d_cy( j-1,i)) / grid%dx
     END DO
     END DO
+    CALL sync
     
     dy_a( 1      ,grid%i1:grid%i2) = dy_a( 2        ,grid%i1:grid%i2)
     dy_a( grid%ny,grid%i1:grid%i2) = dy_a( grid%ny-1,grid%i1:grid%i2)
@@ -665,6 +684,7 @@ CONTAINS
       dy_a( j,i) = (d_cx( j+1,i-1) + d_cx( j+1,i) - d_cx( j-1,i-1) - d_cx( j-1,i)) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
       ! South ex. corners
@@ -674,6 +694,7 @@ CONTAINS
       j = grid%ny
       dy_a( j,i) = (d_cx( j  ,i-1) + d_cx( j  ,i) - d_cx( j-1,i-1) - d_cx( j-1,i)) / (4._dp * grid%dx)
     END DO
+    CALL sync
     
     DO j = MAX(2,grid%j1), MIN(grid%ny-1,grid%j2)
       ! West ex. corners
@@ -715,6 +736,7 @@ CONTAINS
       dx_a( j,i) = (d_cy( j-1,i+1) + d_cy( j,i+1) - d_cy( j-1,i-1) - d_cy( j,i-1)) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     DO j = MAX(2,grid%j1), MIN(grid%ny-1,grid%j2)
       ! West ex. corners
@@ -724,6 +746,7 @@ CONTAINS
       i = grid%nx
       dx_a( j,i) = (d_cy( j-1,i  ) + d_cy( j  ,i  ) - d_cy( j-1,i-1) - d_cy( j  ,i-1)) / (4._dp * grid%dx)
     END DO
+    CALL sync
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
       ! South ex. corners
@@ -816,6 +839,7 @@ CONTAINS
       dx_cx( j,i) = (d_cx( j,i+1) - d_cx( j,i-1)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dx_cx( grid%j1:grid%j2,1        ) = (d_cx( grid%j1:grid%j2,2        ) - d_cx( grid%j1:grid%j2,1        )) / grid%dx
@@ -843,6 +867,7 @@ CONTAINS
       dy_cx( j,i) = (d_cx( j+1,i) - d_cx( j-1,i)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dy_cx( 1      ,grid%i1:grid%i2) = (d_cx( 2      ,grid%i1:grid%i2) - d_cx( 1        ,grid%i1:grid%i2)) / grid%dx
@@ -870,10 +895,11 @@ CONTAINS
       dx_cy( j,i) = (d_cy( j,i+1) - d_cy( j,i-1)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
-    dx_cy( grid%j1:grid%j2,1      ) = (d_cy( grid%j1:grid%j2,2      ) - d_cy( grid%j1:grid%j2,1        )) / grid%dx
-    dx_cy( grid%j1:grid%j2,grid%nx) = (d_cy( grid%j1:grid%j2,grid%nx) - d_cy( grid%j1:grid%j2,grid%nx-1)) / grid%dx
+    dx_cy( grid%j1:MIN(grid%j2,grid%ny-1),1      ) = (d_cy( grid%j1:MIN(grid%j2,grid%ny-1),2      ) - d_cy( grid%j1:MIN(grid%j2,grid%ny-1),1        )) / grid%dx
+    dx_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx) = (d_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx) - d_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx-1)) / grid%dx
     CALL sync
     
   END SUBROUTINE ddx_cy_to_cy_2D
@@ -897,6 +923,7 @@ CONTAINS
       dy_cy( j,i) = (d_cy( j+1,i) - d_cy( j-1,i)) / (2 * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! One-sided differencing on the boundaries
     dy_cy( 1        ,grid%i1:grid%i2) = (d_cy( 2        ,grid%i1:grid%i2) - d_cy( 1        ,grid%i1:grid%i2)) / grid%dx
@@ -924,15 +951,14 @@ CONTAINS
       dx_cy( j,i) = (d_cx( j,i  ) + d_cx( j+1,i  ) - d_cx( j,i-1) - d_cx( j+1,i-1)) / (2._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
       ! West
-      i = 1
-      dx_cy( j,i) = (d_cx( j,i+1) + d_cx( j+1,i+1) - d_cx( j,i  ) - d_cx( j+1,i  )) / (2._dp * grid%dx)
+      dx_cy( j,1      ) = dx_cy( j,2        )
       ! East
-      i = grid%nx
-      dx_cy( j,i) = (d_cx( j,i-1) + d_cx( j+1,i-1) - d_cx( j,i-2) - d_cx( j+1,i-2)) / (2._dp * grid%dx)
+      dx_cy( j,grid%nx) = dx_cy( j,grid%nx-1)
     END DO
     CALL sync
     
@@ -957,6 +983,7 @@ CONTAINS
       dy_cy( j,i) = (d_cx( j+1,i-1) + d_cx( j+1,i  ) - d_cx( j  ,i-1) - d_cx( j  ,i  )) / (2._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
@@ -990,6 +1017,7 @@ CONTAINS
       dx_cx( j,i) = (d_cy( j-1,i+1) + d_cy( j  ,i+1) - d_cy( j-1,i  ) - d_cy( j  ,i  )) / (2._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1023,6 +1051,7 @@ CONTAINS
       dy_cx( j,i) = (d_cy( j  ,i  ) + d_cy( j  ,i+1) - d_cy( j-1,i  ) - d_cy( j-1,i+1)) / (2._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1058,6 +1087,7 @@ CONTAINS
       dx_b( j,i) = (d_cx( j+1,i+1) + d_cx( j  ,i+1) - d_cx( j+1,i-1) - d_cx( j  ,i-1)) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
@@ -1089,6 +1119,7 @@ CONTAINS
       dy_b( j,i) = (d_cy( j+1,i+1) + d_cy( j+1,i  ) - d_cy( j-1,i+1) - d_cy( j-1,i  )) / (4._dp * grid%dx)
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1270,6 +1301,7 @@ CONTAINS
       d_a( j,i) = (d_cx( j,i-1) + d_cx( j,i)) / 2._dp
     END DO
     END DO
+    CALL sync
     
     d_a( grid%j1:grid%j2,1      ) = d_cx( grid%j1:grid%j2,1        )
     d_a( grid%j1:grid%j2,grid%nx) = d_cx( grid%j1:grid%j2,grid%nx-1)
@@ -1295,6 +1327,7 @@ CONTAINS
       d_a( j,i) = (d_cy( j-1,i) + d_cy( j,i)) / 2._dp
     END DO
     END DO
+    CALL sync
     
     d_a( 1      ,grid%i1:grid%i2) = d_cy( 1        ,grid%i1:grid%i2)
     d_a( grid%ny,grid%i1:grid%i2) = d_cy( grid%ny-1,grid%i1:grid%i2)
@@ -1323,6 +1356,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     d_a( :,grid%j1:grid%j2,1      ) = d_cx( :,grid%j1:grid%j2,1        )
     d_a( :,grid%j1:grid%j2,grid%nx) = d_cx( :,grid%j1:grid%j2,grid%nx-1)
@@ -1350,6 +1384,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     d_a( :,1      ,grid%i1:grid%i2) = d_cy( :,1        ,grid%i1:grid%i2)
     d_a( :,grid%ny,grid%i1:grid%i2) = d_cy( :,grid%ny-1,grid%i1:grid%i2)
@@ -1378,6 +1413,7 @@ CONTAINS
       d_cy( j,i) = (d_cx( j  ,i-1) + d_cx( j  ,i  ) + d_cx( j+1,i-1) + d_cx( j+1,i  )) / 4._dp
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO j = grid%j1, MIN(grid%ny-1,grid%j2)
@@ -1409,6 +1445,7 @@ CONTAINS
       d_cx( j,i) = (d_cy( j-1,i  ) + d_cy( j-1,i+1) + d_cy( j  ,i  ) + d_cy( j  ,i+1)) / 4._dp
     END DO
     END DO
+    CALL sync
     
     ! Boundaries
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)

@@ -1,4 +1,5 @@
 MODULE climate_module
+
   ! Contains all the routines for calculating the climate forcing.
 
   USE mpi
@@ -14,7 +15,9 @@ MODULE climate_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_PD_obs_data_file, read_PD_obs_data_file, inquire_GCM_snapshot, read_GCM_snapshot,&
                                              read_insolation_data_file, inquire_ICE5G_data, read_ICE5G_data
   USE forcing_module,                  ONLY: forcing, map_insolation_to_grid
-  USE utilities_module,                ONLY: error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model, run_SMB_model_refr_fixed
 
@@ -202,6 +205,10 @@ CONTAINS
     CALL deallocate_shared( wPrecip_RL_mod)
     CALL deallocate_shared( wdPrecip_RL)
     
+    ! Safety
+    CALL check_for_NaN_dp_3D( climate%applied%T2m   , 'climate%applied%T2m'   , 'run_climate_model_dT_glob')
+    CALL check_for_NaN_dp_3D( climate%applied%Precip, 'climate%applied%Precip', 'run_climate_model_dT_glob')
+    
   END SUBROUTINE run_climate_model_dT_glob
   
   ! Climate matrix with PI + LGM snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
@@ -384,6 +391,9 @@ CONTAINS
     CALL deallocate_shared( wHs_ref_GCM)
     CALL deallocate_shared( wlambda_ref_GCM)
     
+    ! Safety
+    CALL check_for_NaN_dp_3D( climate%applied%T2m   , 'climate%applied%T2m'   , 'run_climate_model_matrix_PI_LGM_temperature')
+    
   END SUBROUTINE run_climate_model_matrix_PI_LGM_temperature
   SUBROUTINE run_climate_model_matrix_PI_LGM_precipitation( grid, ice, climate, region_name)
     ! The (CO2 + ice geometry)-based matrix interpolation for precipitation, from Berends et al. (2018)
@@ -484,7 +494,7 @@ CONTAINS
       P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
       P_ref_GCM(  :,j,i) = P_ref_GCM( :,j,i) / (1._dp + (w_PD( j,i) * (climate%GCM_bias_Precip( :,j,i) - 1._dp)))
       
-      P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
+!      P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
       
 !      ! Correct for GCM bias
 !      P_ref_GCM( :,j,i) = P_ref_GCM( :,j,i) / climate%GCM_bias_Precip( :,j,i)
@@ -513,6 +523,9 @@ CONTAINS
     CALL deallocate_shared( wlambda_GCM)
     CALL deallocate_shared( wHs_GCM)
     CALL deallocate_shared( wHs_ref_GCM)
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( climate%applied%Precip, 'climate%applied%Precip', 'run_climate_model_matrix_PI_LGM_precipitation')
     
   END SUBROUTINE run_climate_model_matrix_PI_LGM_precipitation
   
@@ -1281,6 +1294,7 @@ CONTAINS
       
     END DO
     END DO
+    CALL sync
     
     ! Exception: remove unallowed ice
     DO i = grid%i1, grid%i2
@@ -1291,6 +1305,7 @@ CONTAINS
       END IF
     END DO
     END DO
+    CALL sync
     
     ! Clean up after yourself
     CALL deallocate_shared( wHi_ICE5G)
@@ -1458,6 +1473,7 @@ CONTAINS
       WRITE(0,*) '  ERROR - orbit_time ', snapshot%orbit_time, ' for snapshot ', TRIM(snapshot%name), ' outside of range of insolation solution file "', TRIM(forcing%netcdf_ins%filename), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
+    CALL sync
     
     ! Read insolation time frames enveloping desired time from netcdf file
     IF (par%master) CALL read_insolation_data_file( forcing, ti0, ti1, Q_TOA0, Q_TOA1)
@@ -1549,6 +1565,7 @@ CONTAINS
       climate_dummy%T2m( :,j,i) = snapshot%T2m( :,j,i) + dT_lapse
     END DO
     END DO
+    CALL sync
       
     ! Precipication is downscaled with either the Roe&Lindzen model (for North America and Eurasia),
     ! or with the simpler inversion-layer-temperature-based correction (for Greenland and Antarctica).
@@ -1573,10 +1590,12 @@ CONTAINS
       END DO
       END DO
       END DO
+      CALL sync
     
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
     
       CALL adapt_precip_CC(  grid, snapshot%Hs, snapshot%Hs_ref, snapshot%T2m, snapshot%Precip, climate_dummy%Precip, region_name)
+      CALL sync
     
     END IF
         
@@ -1585,9 +1604,11 @@ CONTAINS
       climate_dummy%T2m(    :,:,grid%i1:grid%i2) = climate_dummy%T2m(    :,:,grid%i1:grid%i2) - GCM_bias_T2m(    :,:,grid%i1:grid%i2)
       climate_dummy%Precip( :,:,grid%i1:grid%i2) = climate_dummy%Precip( :,:,grid%i1:grid%i2) / GCM_bias_Precip( :,:,grid%i1:grid%i2)
     END IF
+    CALL sync
     
     ! Copy Q_TOA to the dummy climate
     climate_dummy%Q_TOA( :,:,grid%i1:grid%i2) = snapshot%Q_TOA( :,:,grid%i1:grid%i2)
+    CALL sync
     
     ! Create a temporary "dummy" ice & SMB data structure, so we can run the SMB model
     ! and determine the reference albedo field
@@ -1645,9 +1666,11 @@ CONTAINS
       CALL run_SMB_model( grid, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
       !CALL run_SMB_model_refr_fixed( grid, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
     END DO
+    CALL sync
     
     ! Copy the resulting albedo to the snapshot
     snapshot%Albedo( :,:,grid%i1:grid%i2) = SMB_dummy%Albedo( :,:,grid%i1:grid%i2)
+    CALL sync
     
     ! Calculate yearly total absorbed insolation
     snapshot%I_abs( :,grid%i1:grid%i2) = 0._dp
@@ -1722,6 +1745,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
       
     CALL map_glob_to_grid_2D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%Hs_ref,      creg%Hs_ref         )
     CALL map_glob_to_grid_3D( cglob%nlat, cglob%nlon, cglob%lat, cglob%lon, grid, cglob%T2m,         creg%T2m    , 12    )
@@ -1737,6 +1761,7 @@ CONTAINS
     END DO
     END DO
     END DO
+    CALL sync
     
     CALL deallocate_shared( wlogPrecip)
     
@@ -1749,6 +1774,7 @@ CONTAINS
     creg%orbit_ecc  = cglob%orbit_ecc
     creg%orbit_obl  = cglob%orbit_obl
     creg%orbit_pre  = cglob%orbit_pre
+    CALL sync
   
   END SUBROUTINE map_subclimate_to_grid
   

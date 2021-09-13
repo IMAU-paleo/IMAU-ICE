@@ -3,9 +3,9 @@
 #    For "make" syntax search on "make tutorial", or see:
 #     http://www.gnu.org/software/make/manual/make.html
 
-#include Makefile_include_local.txt
+include Makefile_include_local.txt
 #include Makefile_include_Gemini.txt
-include Makefile_include_Cartesius.txt
+#include Makefile_include_Cartesius.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
@@ -39,16 +39,16 @@ IMAU_ICE_program_objects = \
         data_types_netcdf_module.o \
         data_types_module.o \
         netcdf_module.o \
-        forcing_module.o \
-        global_text_output_module.o \
         petsc_module.o \
         utilities_module.o \
         derivatives_and_grids_module.o \
+        forcing_module.o \
         reference_fields_module.o \
         basal_conditions_module.o \
         general_ice_model_data_module.o \
         calving_module.o \
         ice_velocity_module.o \
+        ice_thickness_module.o \
         ice_dynamics_module.o \
         thermodynamics_module.o \
         SMB_module.o \
@@ -68,6 +68,7 @@ IMAU_ICE_program_objects = \
         SELEN_sealevel_equation_module.o \
         SELEN_main_module.o \
         IMAU_ICE_main_model.o \
+        global_text_output_module.o \
         IMAU_ICE_program.o
         
 

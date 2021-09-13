@@ -1,5 +1,6 @@
 MODULE data_types_module
-  ! Contains all the different types for storing data. Put all together in a separate module so that
+
+  ! Contains all the different TYPEs for storing data. Put all together in a separate module so that
   ! all subroutines can use all types without interdependency conflicts, and also to make the 
   ! modules with the actual physics code more readable.
   ! If only Types could be collapsed in BBEdit...
@@ -53,7 +54,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_b
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_a_new
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_tplusdt_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_a                  ! Bedrock elevation [m w.r.t. PD sea level]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_cy
@@ -74,7 +75,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_cx
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_cy
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_b
-    INTEGER :: wHi_a,  wHi_cx,  wHi_cy,  wHi_b, wHi_a_new
+    INTEGER :: wHi_a,  wHi_cx,  wHi_cy,  wHi_b, wHi_tplusdt_a
     INTEGER :: wHb_a,  wHb_cx,  wHb_cy,  wHb_b
     INTEGER :: wHs_a,  wHs_cx,  wHs_cy,  wHs_b
     INTEGER :: wSL_a,  wSL_cx,  wSL_cy,  wSL_b
@@ -135,10 +136,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_a              ! Grounded fraction (used to determine basal friction in DIVA)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cy
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_b
     INTEGER :: wmask_land_a, wmask_ocean_a, wmask_lake_a, wmask_ice_a, wmask_sheet_a, wmask_shelf_a
     INTEGER :: wmask_coast_a, wmask_coast_cx, wmask_coast_cy, wmask_margin_a, wmask_margin_cx, wmask_margin_cy
     INTEGER :: wmask_gl_a, wmask_gl_cx, wmask_gl_cy, wmask_cf_a, wmask_cf_cx, wmask_cf_cy, wmask_a
-    INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy
+    INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy, wf_grnd_b
     
     ! Ice physical properties
     REAL(dp), DIMENSION(:,:,:), POINTER     :: A_flow_3D_a           ! Flow parameter [Pa^-3 y^-1]
@@ -185,11 +187,15 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dzeta_dz_a
     INTEGER :: wdzeta_dt_a, wdzeta_dx_a, wdzeta_dy_a, wdzeta_dz_a
     
-    ! Ice dynamics - DIVA - physical terms
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric_a
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: tauc_a
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: taudx_cx
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: taudy_cy
+    ! Ice dynamics - basal conditions and driving stress
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: taudx_cx              ! Driving stress taud in the x-direction (on the cx-grid)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: taudy_cy              !      "    "      "     "   y-direction ( "  "  cy-grid)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric_a            ! Till friction angle (degrees)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: tauc_a                ! Till yield stress tauc   (used when choice_sliding_law = 'Coloumb' or 'Coulomb_regularised')
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: A_slid_a              ! Sliding factor           (used when choice_sliding_law = 'Weertman')
+    INTEGER :: wtaudx_cx, wtaudy_cy, wphi_fric_a, wtauc_a, wA_slid_a
+    
+    ! Ice dynamics - physical terms in the SSA/DIVA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: du_dx_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: du_dy_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dv_dx_b
@@ -201,26 +207,24 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: visc_eff_int_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: visc_eff_int_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: N_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: N_cx
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: N_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: N_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_a
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_cx
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: F2_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_eff_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_eff_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_eff_cy
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: F1_3D_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cy
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: F1_3D_a
-    INTEGER :: wphi_fric_a, wtauc_a, wtaudx_cx, wtaudy_cy, wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy
-    INTEGER :: wvisc_eff_3D_a, wvisc_eff_3D_b, wvisc_eff_int_a, wvisc_eff_int_b, wN_a, wN_b
-    INTEGER :: wbeta_a, wbeta_cx, wbeta_cy, wF2_a, wbeta_eff_a, wbeta_eff_cx, wbeta_eff_cy, wtaub_cx, wtaub_cy, wF1_3D_a
+    INTEGER :: wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy
+    INTEGER :: wvisc_eff_3D_a, wvisc_eff_3D_b, wvisc_eff_int_a, wvisc_eff_int_b, wN_a, wN_cx, wN_cy, wN_b
+    INTEGER :: wbeta_a, wF2_a, wbeta_eff_a, wbeta_eff_cx, wbeta_eff_cy, wF1_3D_a, wtaub_cx, wtaub_cy
     
-    ! Ice dynamics - DIVA - solver data
+    ! Ice dynamics - additional solver fields for the SSA/DIVA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_cx_prev
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_cy_prev
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_solve_mask_cx
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_solve_mask_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: DIVA_err_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: DIVA_err_cy
     INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_mask_combi
@@ -230,16 +234,9 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_m_ij2n_v
     INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_m_n2ij_uv
     TYPE(type_sparse_matrix_CSR)            :: DIVA_m
-    INTEGER :: wu_cx_prev, wv_cy_prev, wDIVA_solve_mask_cx, wDIVA_solve_mask_cy, wDIVA_err_cx, wDIVA_err_cy
+    INTEGER :: wu_cx_prev, wv_cy_prev, wDIVA_err_cx, wDIVA_err_cy
     INTEGER :: wDIVA_mask_combi, wDIVA_isfront_inner, wDIVA_isfront_outer
     INTEGER :: wDIVA_m_ij2n_u, wDIVA_m_ij2n_v, wDIVA_m_n2ij_uv
-    
-    ! Ice dynamics - GL flux
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Qx_GL_cx
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Qy_GL_cy
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_GL_cx
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_GL_cy
-    INTEGER :: wQx_GL_cx, wQy_GL_cy, wu_GL_cx, wv_GL_cy
     
     ! Ice dynamics - ice fluxes
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Qx_cx         ! Ice flux in the x-direction on the cx-grid, used for explicit ice thickness update
@@ -275,9 +272,10 @@ MODULE data_types_module
     INTEGER :: wpc_f1, wpc_f2, wpc_f3, wpc_f4, wHi_old, wHi_pred, wHi_corr
     
     ! Thermodynamics
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_ice_a_prev        ! Ice mask from previous time step
     REAL(dp), DIMENSION(:,:  ), POINTER     :: frictional_heating_a   ! Friction heating due to basal sliding
     REAL(dp), DIMENSION(:,:  ), POINTER     :: GHF_a                  ! Geothermal heat flux
-    INTEGER :: wfrictional_heating_a, wGHF_a
+    INTEGER :: wmask_ice_a_prev, wfrictional_heating_a, wGHF_a
     
     ! Isotope content
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_a_prev

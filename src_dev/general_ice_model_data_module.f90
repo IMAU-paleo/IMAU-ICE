@@ -1,4 +1,5 @@
 MODULE general_ice_model_data_module
+
   ! Contains routines for calculating "general" ice model data (surface slopes, staggered
   ! data fields, masks, physical properties, etc.)
 
@@ -13,11 +14,13 @@ MODULE general_ice_model_data_module
   USE data_types_module,               ONLY: type_grid, type_ice_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE parameters_module
-  USE utilities_module,                ONLY: vertical_average
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             is_floating, vertical_average, interp_bilin_2D
   USE derivatives_and_grids_module,    ONLY: map_a_to_cx_2D, map_a_to_cy_2D, ddx_a_to_cx_2D, ddy_a_to_cy_2D, &
                                              ddy_a_to_cx_2D, ddx_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D, &
                                              ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D
-  USE basal_conditions_module,         ONLY: calc_basal_yield_stress
+  USE basal_conditions_module,         ONLY: calc_basal_conditions
 
   IMPLICIT NONE
 
@@ -55,7 +58,7 @@ CONTAINS
     
     ! Determine masks
     CALL determine_masks(                    grid, ice)
-    CALL determine_grounded_fraction(        grid, ice)
+    CALL determine_grounded_fractions(       grid, ice)
     CALL determine_floating_margin_fraction( grid, ice)
  
     ! Get ice thickness, flow factor, and surface slopes on the required grids
@@ -81,7 +84,7 @@ CONTAINS
     CALL ice_physical_properties( grid, ice, time)
     
     ! Calculate the basal yield stress tau_c
-    CALL calc_basal_yield_stress( grid, ice)
+    CALL calc_basal_conditions( grid, ice)
     
   END SUBROUTINE update_general_ice_model_data
   SUBROUTINE determine_masks( grid, ice)
@@ -94,6 +97,10 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
     INTEGER                                            :: i,j
+    
+    ! Save the previous ice mask, for use in thermodynamics
+    ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
+    CALL sync
     
     ! Start out with land everywhere, fill in the rest based on input.
     IF (par%master) THEN
@@ -173,8 +180,8 @@ CONTAINS
             ice%mask_ocean_a( j+1,i  ) == 1 .OR. &
             ice%mask_ocean_a( j  ,i-1) == 1 .OR. &
             ice%mask_ocean_a( j  ,i+1) == 1) THEN
-            ice%mask_a(       j,i) = C%type_coast
-            ice%mask_coast_a( j,i) = 1
+          ice%mask_a(       j,i) = C%type_coast
+          ice%mask_coast_a( j,i) = 1
         END IF
       END IF
     
@@ -184,8 +191,8 @@ CONTAINS
             ice%mask_ice_a( j+1,i  ) == 0 .OR. &
             ice%mask_ice_a( j  ,i-1) == 0 .OR. &
             ice%mask_ice_a( j  ,i+1) == 0) THEN
-            ice%mask_a(        j,i) = C%type_margin
-            ice%mask_margin_a( j,i) = 1
+          ice%mask_a(        j,i) = C%type_margin
+          ice%mask_margin_a( j,i) = 1
         END IF
       END IF
     
@@ -195,8 +202,8 @@ CONTAINS
             ice%mask_shelf_a( j+1,i  ) == 1 .OR. &
             ice%mask_shelf_a( j  ,i-1) == 1 .OR. &
             ice%mask_shelf_a( j  ,i+1) == 1) THEN
-            ice%mask_a(    j,i) = C%type_groundingline
-            ice%mask_gl_a( j,i) = 1
+          ice%mask_a(    j,i) = C%type_groundingline
+          ice%mask_gl_a( j,i) = 1
         END IF
       END IF
   
@@ -207,7 +214,7 @@ CONTAINS
             (ice%mask_ocean_a( j  ,i-1) == 1 .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
             (ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
             ice%mask_a(        j,i) = C%type_calvingfront
-            ice%mask_cf_a( j,i) = 1
+          ice%mask_cf_a( j,i) = 1
         END IF
       END IF
       
@@ -225,8 +232,11 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%mask_sheet_a( j,i+1) == 1) ice%mask_gl_cx(     j,i) = 1
       IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ice_a(   j,i+1) == 0) ice%mask_margin_cx( j,i) = 1
       IF (ice%mask_ice_a(   j,i) == 0 .AND. ice%mask_ice_a(   j,i+1) == 1) ice%mask_margin_cx( j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ocean_a( j,i+1) == 1) ice%mask_cf_cx(     j,i) = 1
-      IF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_ice_a(   j,i+1) == 1) ice%mask_cf_cx(     j,i) = 1
+      
+      IF (ice%mask_ice_a(   j,i  ) == 1 .AND. &
+         (ice%mask_ocean_a( j,i+1) == 1 .AND. ice%mask_ice_a( j,i+1) == 0)) ice%mask_cf_cx(     j,i) = 1
+      IF (ice%mask_ice_a(   j,i+1) == 1 .AND. &
+         (ice%mask_ocean_a( j,i  ) == 1 .AND. ice%mask_ice_a( j,i  ) == 0)) ice%mask_cf_cx(     j,i) = 1
       
     END DO
     END DO
@@ -239,8 +249,11 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%mask_sheet_a( j+1,i) == 1) ice%mask_gl_cy(     j,i) = 1
       IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ice_a(   j+1,i) == 0) ice%mask_margin_cy( j,i) = 1
       IF (ice%mask_ice_a(   j,i) == 0 .AND. ice%mask_ice_a(   j+1,i) == 1) ice%mask_margin_cy( j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ocean_a( j+1,i) == 1) ice%mask_cf_cy(     j,i) = 1
-      IF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_ice_a(   j+1,i) == 1) ice%mask_cf_cy(     j,i) = 1
+      
+      IF (ice%mask_ice_a(   j  ,i) == 1 .AND. &
+         (ice%mask_ocean_a( j+1,i) == 1 .AND. ice%mask_ice_a( j+1,i) == 0)) ice%mask_cf_cy(     j,i) = 1
+      IF (ice%mask_ice_a(   j+1,i) == 1 .AND. &
+         (ice%mask_ocean_a( j  ,i) == 1 .AND. ice%mask_ice_a( j  ,i) == 0)) ice%mask_cf_cy(     j,i) = 1
       
     END DO
     END DO
@@ -259,18 +272,18 @@ CONTAINS
   
     ! Local variables:
     INTEGER                                            :: i,j,k
-    REAL(dp)                                           :: Ti_mean     ! Mean ice temperature at the shelf [K]
     REAL(dp), DIMENSION(C%nZ)                          :: prof
-    
     REAL(dp)                                           :: A_flow_MISMIP
     
     REAL(dp), PARAMETER                                :: A_low_temp  = 1.14E-05_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
     REAL(dp), PARAMETER                                :: A_high_temp = 5.47E+10_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
     REAL(dp), PARAMETER                                :: Q_low_temp  = 6.0E+04_dp    ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
     REAL(dp), PARAMETER                                :: Q_high_temp = 13.9E+04_dp   ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
-    REAL(dp), PARAMETER                                :: R_gas       = 8.314_dp      ! Gas constant [J mol^-1 K^-1]
     
-    ! If we're doing one of the EISMINT experiments, use fixed values
+  ! ================================================
+  ! ===== Exceptions for benchmark experiments =====
+  ! ================================================
+  
     IF (C%do_benchmark_experiment) THEN
       IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
           C%choice_benchmark_experiment == 'Bueler' .OR. &
@@ -341,17 +354,15 @@ CONTAINS
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
     
+  ! =======================================================
+  ! ===== End of exceptions for benchmark experiments =====
+  ! =======================================================
     
+    ! Calculate the ice flow factor as a function of the ice temperature according to the Arrhenius relationship  (Huybrechts, 1992)
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
-      ! Calculate the pressure melting point temperature (= the maximum temperature) for each depth (see equation (11.2)):
-      ice%Ti_pmp_a( :,j,i) = T0 - CC * ice%Hi_a( j,i) * C%zeta
-      
-      DO k = 1, C%nZ 
-
-        ! Calculation of the flow parameter at the sheet and groundline as a function of the ice temperature 
-        ! the Arrhenius relationship (see equation (11.10), Huybrechts (4.6)):
+      DO k = 1, C%nz
         IF (ice%mask_ice_a( j,i) == 1) THEN
           IF (ice%Ti_a( k,j,i) < 263.15_dp) THEN
             ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * ice%Ti_a( k,j,i)))  
@@ -370,226 +381,42 @@ CONTAINS
             CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
           END IF
         END IF
-           
-        ! Calculation of the parameterization of the specific heat capacity of ice, based on Pounder (1965):
-        ice%Cpi_a( k,j,i) = 2115.3_dp + 7.79293_dp * (ice%Ti_a( k,j,i) - T0)  ! See equation (11.9)
-           
-        ! Calculation of the parameterization of the thermal conductivity of ice, based on Ritz (1987):
-        ice%Ki_a( k,j,i)  = 3.101E+08_dp * EXP(-0.0057_dp * ice%Ti_a( k,j,i)) ! See equation (11.5), Huybrechts (4.40)
-      END DO 
-
+      END DO ! DO k = 1, C%nz
+        
+      ! Apply the flow enhancement factors
       IF (ice%mask_sheet_a( j,i) == 1) THEN
-        ! Calculation of the vertical average flow parameter at the sheet and groundline
-        prof = ice%A_flow_3D_a( :,j,i)
-        ice%A_flow_vav_a( j,i) = vertical_average( prof)
+        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_sheet
       ELSE
-        ! Calculation of the flow parameter at the shelf as a function of the ice temperature 
-        ! the Arrhenius relationship (see equation (11.10), Huybrechts (4.6)):
-        prof = ice%Ti_a( :,j,i)
-        Ti_mean = vertical_average( prof)
-        IF (Ti_mean < 263.15_dp) THEN
-          ice%A_flow_vav_a( j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * Ti_mean))  
-        ELSE
-          ice%A_flow_vav_a( j,i) = A_high_temp * EXP(-Q_high_temp / (R_gas * Ti_mean))  
-        END IF
+        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_shelf
       END IF
-            
+
+      ! Vertical average
+      prof = ice%A_flow_3D_a( :,j,i)
+      ice%A_flow_vav_a( j,i) = vertical_average( prof)
+       
     END DO
     END DO
     CALL sync
+    
+    ! Calculate the pressure melting point (Huybrechts, 1992), heat capacity (Pounder, 1965), and thermal conductivity (Ritz, 1987) of ice
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%Ti_pmp_a( :,j,i) = T0 - CC * ice%Hi_a( j,i) * C%zeta
+      ice%Cpi_a(    :,j,i) = 2115.3_dp + 7.79293_dp * (ice%Ti_a( :,j,i) - T0)
+      ice%Ki_a(     :,j,i) = 3.101E+08_dp * EXP(-0.0057_dp * ice%Ti_a( :,j,i))
+    END DO
+    END DO
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( ice%A_flow_3D_a , 'ice%A_flow_3D_a' , 'ice_physical_properties')
+    CALL check_for_NaN_dp_2D( ice%A_flow_vav_a, 'ice%A_flow_vav_a', 'ice_physical_properties')
+    CALL check_for_NaN_dp_3D( ice%Ti_pmp_a    , 'ice%Ti_pmp_a'    , 'ice_physical_properties')
+    CALL check_for_NaN_dp_3D( ice%Cpi_a       , 'ice%Cpi_a'       , 'ice_physical_properties')
+    CALL check_for_NaN_dp_3D( ice%Ki_a        , 'ice%Ki_a'        , 'ice_physical_properties')
     
   END SUBROUTINE ice_physical_properties 
   
-  FUNCTION is_floating( Hi, Hb, SL) RESULT( isso)
-    ! The flotation criterion
-      
-    IMPLICIT NONE
-    
-    REAL(dp),                            INTENT(IN)    :: Hi, Hb, SL
-    LOGICAL                                            :: isso
-    
-    isso = .FALSE.
-    IF (Hi < (SL - Hb) * seawater_density/ice_density) isso = .TRUE.
-    
-  END FUNCTION is_floating
-  SUBROUTINE determine_grounded_fraction( grid, ice)
-    ! Determine the grounded fraction of next-to-grounding-line pixels
-    ! (used for determining basal friction in the DIVA)
-    
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    INTEGER                                            :: i,j
-    REAL(dp)                                           :: T_nw, T_ne, T_sw, T_se
-    REAL(dp)                                           :: xr_n, xr_s, yr_w, yr_e
-    REAL(dp)                                           :: A_gr
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      ice%f_grnd_a( j,i) = 0._dp
-      
-      IF (ice%Hi_a( j,i) == 0._dp) CYCLE
-
-      ! Get TAF at surrounding b-grid cells
-      IF (i == 1) THEN
-        IF (j == 1) THEN
-          T_nw = 0.5_dp * (ice%TAF_a( 1,1) + ice%TAF_a( 2,1))
-          T_ne = ice%TAF_b( 1,1)
-          T_sw = ice%TAF_a( 1,1)
-          T_se = 0.5_dp * (ice%TAF_a( 1,1) + ice%TAF_a( 1,2))
-        ELSEIF (j == grid%ny) THEN
-          T_nw = ice%TAF_a( grid%ny,1)
-          T_ne = 0.5_dp * (ice%TAF_a( grid%ny-1,1) + ice%TAF_a( grid%ny-1,2))
-          T_sw = 0.5_dp * (ice%TAF_a( grid%ny-1,1) + ice%TAF_a( grid%ny-2,1))
-          T_se = ice%TAF_b( grid%ny-1,1)
-        ELSE
-          T_nw = 0.5_dp * (ice%TAF_a( j,1) + ice%TAF_a( j+1,1))
-          T_ne = ice%TAF_b( j,1)
-          T_sw = 0.5_dp * (ice%TAF_a( j,1) + ice%TAF_a( j-1,1))
-          T_se = ice%TAF_b( j-1,1)
-        END IF
-      ELSEIF (i == grid%nx) THEN
-        IF (j == 1) THEN
-          T_nw = ice%TAF_b( 1,grid%nx-1)
-          T_ne = 0.5_dp * (ice%TAF_a( 1,grid%nx) + ice%TAF_a( 2,grid%nx))
-          T_sw = 0.5_dp * (ice%TAF_a( 1,grid%nx) + ice%TAF_a( 1,grid%nx-1))
-          T_se = ice%TAF_a( 1,grid%nx)
-        ELSEIF (j == grid%ny) THEN
-          T_nw = 0.5_dp * (ice%TAF_a( grid%ny,grid%nx) + ice%TAF_a( grid%ny,grid%nx-1))
-          T_ne = ice%TAF_a( grid%ny,grid%nx)
-          T_sw = ice%TAF_b( grid%ny-1,grid%nx-1)
-          T_se = 0.5_dp * (ice%TAF_a( grid%ny,grid%nx) + ice%TAF_a( grid%ny-1,grid%nx))
-        ELSE
-          T_nw = 0.5_dp * (ice%TAF_a( j,grid%nx) + ice%TAF_a( j+1,grid%nx))
-          T_ne = ice%TAF_b( j,grid%nx-1)
-          T_sw = 0.5_dp * (ice%TAF_a( j,grid%nx) + ice%TAF_a( j-1,grid%nx))
-          T_se = ice%TAF_b( j-1,grid%nx-1)
-        END IF
-      ELSE
-        IF (j == 1) THEN
-          T_nw = ice%TAF_b( 1,i-1)
-          T_ne = ice%TAF_b( 1,i)
-          T_sw = 0.5_dp * (ice%TAF_a( 1,i) + ice%TAF_a( 1,i-1))
-          T_se = 0.5_dp * (ice%TAF_a( 1,i) + ice%TAF_a( 1,i+1))
-        ELSEIF (j == grid%ny) THEN
-          T_nw = ice%TAF_b( grid%ny-1,i-1)
-          T_ne = ice%TAF_b( grid%ny-1,i)
-          T_sw = 0.5_dp * (ice%TAF_a( grid%ny,i) + ice%TAF_a( grid%ny,i-1))
-          T_se = 0.5_dp * (ice%TAF_a( grid%ny,i) + ice%TAF_a( grid%ny,i+1))
-        ELSE
-          T_nw = ice%TAF_b( j  ,i-1)
-          T_ne = ice%TAF_b( j  ,i  )
-          T_sw = ice%TAF_b( j-1,i-1)
-          T_se = ice%TAF_b( j-1,i  )
-        END IF
-      END IF
- 
-      IF ((T_nw <  0._dp .OR. T_ne <  0._dp .OR. T_sw <  0._dp .OR. T_se <  0._dp) .AND. &
-          (T_nw >= 0._dp .OR. T_ne >= 0._dp .OR. T_sw >= 0._dp .OR. T_se >= 0._dp)) THEN
-        ! At least one of the four corners is floating and at least one is grounded;
-        ! the grounded fraction is between 0 and 1 and should be calculated
-
-        xr_n = 0._dp
-        xr_s = 0._dp
-        yr_w = 0._dp
-        yr_e = 0._dp
-        
-        IF (T_nw * T_ne < 0._dp) THEN
-          xr_n = MAX(0._dp, MIN(1._dp, T_nw / (T_nw - T_ne) ))
-        END IF
-        IF (T_sw * T_se < 0._dp) THEN
-          xr_s = MAX(0._dp, MIN(1._dp, T_sw / (T_sw - T_se) ))
-        END IF
-        IF (T_sw * T_nw < 0._dp) THEN
-          yr_w = MAX(0._dp, MIN(1._dp, T_sw / (T_sw - T_nw) ))
-        END IF
-        IF (T_se * T_ne < 0._dp) THEN
-          yr_e = MAX(0._dp, MIN(1._dp, T_se / (T_se - T_ne) ))
-        END IF
-
-        A_gr = 0._dp
-
-        IF (T_nw >= 0._dp) THEN
-          ! NW is grounded
-
-          IF (T_ne < 0._dp .AND. T_sw < 0._dp .AND. T_se < 0._dp) THEN
-            ! Only NW is grounded
-            A_gr = 0.5_dp * (xr_n * (1._dp - yr_w))
-          ELSEIF (T_ne < 0._dp .AND. T_sw >= 0._dp .AND. T_se < 0._dp) THEN
-            ! Both NW and SW are grounded
-            A_gr = 0.5_dp * (xr_n + xr_s)
-          ELSEIF (T_ne >= 0._dp .AND. T_sw < 0._dp .AND. T_se < 0._dp) THEN
-            ! Both NW and NE are grounded
-            A_gr =  0.5_dp * ((1._dp - yr_w) + (1._dp - yr_e))
-          ELSEIF (T_ne >= 0._dp .AND. T_sw >= 0._dp .AND. T_se < 0._dp) THEN
-            ! Only SE is floating
-            A_gr = 1._dp - 0.5_dp * ((1._dp - xr_s) * yr_e)
-          ELSEIF (T_ne >= 0._dp .AND. T_sw < 0._dp .AND. T_se >= 0._dp) THEN
-            ! Only SW is floating
-            A_gr = 1._dp - 0.5_dp * (xr_s * yr_w)
-          ELSEIF (T_ne < 0._dp .AND. T_sw >= 0._dp .AND. T_se >= 0._dp) THEN
-            ! Only NE is floating
-            A_gr = 1._dp - 0.5_dp * ((1._dp - xr_n) * (1._dp - yr_e))
-          ELSEIF (T_ne < 0._dp .AND. T_sw < 0._dp .AND. T_se >= 0._dp) THEN
-            ! Both NE and SW are floating
-            A_gr = 1._dp - 0.5_dp * (xr_s * yr_w) - 0.5_dp * ((1._dp - xr_n) * (1._dp - yr_e))
-          END IF
-
-        ELSE ! IF (T_nw >= 0._dp)
-          ! NW is floating
-
-          IF (T_ne >= 0._dp .AND. T_sw >= 0._dp .AND. T_se >= 0._dp) THEN
-            ! Only NW is floating
-            A_gr = 1._dp - 0.5_dp * (xr_n * (1._dp - yr_w))
-          ELSEIF (T_ne >= 0._dp .AND. T_sw < 0._dp .AND. T_se >= 0._dp) THEN
-            ! Both NW and SW are floating
-            A_gr = 0.5_dp * ((1._dp - xr_n) + (1._dp - xr_s))
-          ELSEIF (T_ne < 0._dp .AND. T_sw >= 0._dp .AND. T_se >= 0._dp) THEN
-            ! Both NW and NE are floating
-            A_gr = 0.5_dp * (yr_w + yr_e)
-          ELSEIF (T_ne < 0._dp .AND. T_sw < 0._dp .AND. T_se >= 0._dp) THEN
-            ! Only SE is grounded
-            A_gr = 0.5_dp * (1._dp - xr_s) * yr_e
-          ELSEIF (T_ne < 0._dp .AND. T_sw >= 0._dp .AND. T_se < 0._dp) THEN
-            ! Only SW is grounded
-            A_gr = 0.5_dp * (xr_s * yr_w)
-          ELSEIF (T_ne >= 0._dp .AND. T_se < 0._dp .AND. T_se < 0._dp) THEN
-            ! Only NE is grounded
-            A_gr = 0.5_dp * ((1._dp - xr_n) * (1._dp - yr_e))
-          ELSEIF (T_ne >= 0._dp .AND. T_sw >= 0._dp .AND. T_se < 0._dp) THEN
-            ! Both NE and SW are grounded
-            A_gr = 0.5_dp * (xr_s * yr_w) + 0.5_dp * ((1._dp - xr_n) * (1._dp - yr_e))
-          END IF
-
-        END IF
-
-      ELSEIF (ice%TAF_a( j,i) >= 0._dp) THEN
-        ! This entire grid cell is grounded
-        A_gr = 1._dp
-
-      ELSE
-        ! This entire grid cell is floating
-        A_gr = 0._dp
-
-      END IF ! IF ((T_sw <  0._dp .OR. T_se <  0._dp .OR. T_nw <  0._dp .OR. T_ne <  0._dp) .AND. &
-             !     (T_sw >= 0._dp .OR. T_se >= 0._dp .OR. T_nw >= 0._dp .OR. T_ne >= 0._dp)) THEN
-
-      ice%f_grnd_a( j,i) = A_gr
-
-    END DO
-    END DO
-    CALL sync
-    
-    ! Get the grounded fraction on the staggered cx/cy grids
-    CALL map_a_to_cx_2D( grid, ice%f_grnd_a, ice%f_grnd_cx)
-    CALL map_a_to_cy_2D( grid, ice%f_grnd_a, ice%f_grnd_cy)
-    
-  END SUBROUTINE determine_grounded_fraction
   SUBROUTINE determine_floating_margin_fraction( grid, ice)
     ! Determine the ice-filled fraction of floating margin pixels
     
@@ -601,41 +428,62 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j,ii,jj
-    REAL(dp)                                           :: Hi_min
+    LOGICAL                                            :: has_noncf_neighbours
+    REAL(dp)                                           :: Hi_neighbour_max
 
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
 
-      ice%float_margin_frac_a( j,i) = 0._dp
-      ice%Hi_actual_cf_a(      j,i) = 0._dp
+      ice%float_margin_frac_a( j,i) = 1._dp
+      ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
       
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-        ! Actual ice thickness is equal to that of the thinnest neighbouring non-margin grid cell
         
-        Hi_min = 10000._dp
+        ! First check if any non-calving-front neighbours actually exist
+        has_noncf_neighbours = .FALSE.
+        DO ii = i-1,i+1
+        DO jj = j-1,j+1
+          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) has_noncf_neighbours = .TRUE.
+        END DO
+        END DO
         
+        ! If not, then the floating fraction is defined as 1
+        IF (.NOT. has_noncf_neighbours) THEN
+          ice%float_margin_frac_a( j,i) = 1._dp
+          ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
+          CYCLE
+        END IF
+        
+        ! If so, find the ice thickness the thickest non-calving-front neighbour
+        Hi_neighbour_max = 0._dp
         DO ii = i-1,i+1
         DO jj = j-1,j+1
           IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) THEN
-            Hi_min = MIN( Hi_min, ice%Hi_a( jj,ii))
+            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( jj,ii))
           END IF
         END DO
         END DO
         
-        ! Calculate ice-filled fraction
-        IF (Hi_min < 10000._dp) THEN
-          ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_min
-          ice%Hi_actual_cf_a(      j,i) = Hi_min
-        ELSE
+        ! If the thickest non-calving-front neighbour has thinner ice, define the fraction as 1
+        IF (Hi_neighbour_max < ice%Hi_a( j,i)) THEN
           ice%float_margin_frac_a( j,i) = 1._dp
           ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
+          CYCLE
         END IF
+        
+        ! Calculate ice-filled fraction
+        ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_neighbour_max
+        ice%Hi_actual_cf_a(      j,i) = Hi_neighbour_max
         
       END IF
 
     END DO
     END DO
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%float_margin_frac_a, 'ice%float_margin_frac_a', 'determine_floating_margin_fraction')
+    CALL check_for_NaN_dp_2D( ice%Hi_actual_cf_a     , 'ice%Hi_actual_cf_a'     , 'determine_floating_margin_fraction')
     
   END SUBROUTINE determine_floating_margin_fraction
   SUBROUTINE ocean_floodfill( grid, ice)
@@ -717,6 +565,7 @@ CONTAINS
           ! Add its (valid) neighbours to the stack
           DO ii = i-1,i+1
           DO jj = j-1,j+1
+          
             IF (ii>=1 .AND. ii<= grid%nx .AND. jj>=1 .AND. jj<=grid%ny .AND. (.NOT. (ii==i .AND. jj==j))) THEN
               ! This neighbour exists
               
@@ -729,7 +578,8 @@ CONTAINS
                 
               END IF
               
-            END IF
+            END IF ! IF (neighbour exists) THEN
+            
           END DO
           END DO
           
@@ -747,5 +597,361 @@ CONTAINS
     CALL deallocate_shared( wstack)
     
   END SUBROUTINE ocean_floodfill
+  
+! == Routines for determining the grounded fraction on all four grids
+  SUBROUTINE determine_grounded_fractions( grid, ice)
+    ! Determine the grounded fraction of next-to-grounding-line pixels
+    ! (used for determining basal friction in the DIVA)
+    !
+    ! Uses the bilinear interpolation scheme (with analytical solutions) from CISM (Leguy et al., 2021)
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  f_grnd_a_NW,  f_grnd_a_NE,  f_grnd_a_SW,  f_grnd_a_SE
+    INTEGER                                            :: wf_grnd_a_NW, wf_grnd_a_NE, wf_grnd_a_SW, wf_grnd_a_SE
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny  , grid%nx  , f_grnd_a_NW, wf_grnd_a_NW)
+    CALL allocate_shared_dp_2D( grid%ny  , grid%nx  , f_grnd_a_NE, wf_grnd_a_NE)
+    CALL allocate_shared_dp_2D( grid%ny  , grid%nx  , f_grnd_a_SW, wf_grnd_a_SW)
+    CALL allocate_shared_dp_2D( grid%ny  , grid%nx  , f_grnd_a_SE, wf_grnd_a_SE)
+    
+    ! Calculate grounded fractions of all four quadrants of each a-grid cell
+    CALL determine_grounded_fractions_CISM_quads( grid, ice, f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE)
+    
+    ! Get grounded fractions on all four grids by averaging over the quadrants
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+  
+      ! a-grid
+      ice%f_grnd_a( j,i) = 0.25_dp * (f_grnd_a_NW( j,i) + f_grnd_a_NE( j,i) + f_grnd_a_SW( j,i) + f_grnd_a_SE( j,i))
+      
+      ! cx-grid
+      IF (i < grid%nx) THEN
+        ice%f_grnd_cx( j,i) = 0.25_dp * (f_grnd_a_NE( j,i) + f_grnd_a_SE( j,i) + f_grnd_a_NW( j,i+1) + f_grnd_a_SW( j,i+1))
+      END IF
+      
+      ! cy-grid
+      IF (j < grid%ny) THEN
+        ice%f_grnd_cy( j,i) = 0.25_dp * (f_grnd_a_NE( j,i) + f_grnd_a_NW( j,i) + f_grnd_a_SE( j+1,i) + f_grnd_a_SW( j+1,i))
+      END IF
+      
+      ! b-grid
+      IF (i < grid%nx .AND. j < grid%ny) THEN
+        ice%f_grnd_b( j,i) = 0.25_dp * (f_grnd_a_NE( j,i) + f_grnd_a_NW( j,i+1) + f_grnd_a_SE( j+1,i) + f_grnd_a_SW( j+1,i+1))
+      END IF
+  
+    END DO
+    END DO
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wf_grnd_a_NW)
+    CALL deallocate_shared( wf_grnd_a_NE)
+    CALL deallocate_shared( wf_grnd_a_SW)
+    CALL deallocate_shared( wf_grnd_a_SE)
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%f_grnd_a , 'ice%f_grnd_a' , 'determine_grounded_fractions')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_cx, 'ice%f_grnd_cx', 'determine_grounded_fractions')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_cy, 'ice%f_grnd_cy', 'determine_grounded_fractions')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_b , 'ice%f_grnd_b' , 'determine_grounded_fractions')
+    
+  END SUBROUTINE determine_grounded_fractions
+  SUBROUTINE determine_grounded_fractions_CISM_quads( grid, ice, f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE)
+    ! Calculate grounded fractions of all four quadrants of each a-grid cell
+    ! (using the approach from CISM, where grounded fractions are calculated
+    !  based on analytical solutions to the bilinear interpolation)
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,ii,jj
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  TAF_a_ext
+    INTEGER                                            :: wTAF_a_ext
+    REAL(dp)                                           :: f_NW, f_N, f_NE, f_W, f_m, f_E, f_SW, f_S, f_SE
+    REAL(dp)                                           :: fq_NW, fq_NE, fq_SW, fq_SE
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny+2, grid%nx+2, TAF_a_ext, wTAF_a_ext)
+    
+    ! Fill in "extended" thickness above flotation (one extra row of pixels around the domain)
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ii = i+1
+      jj = j+1
+      TAF_a_ext(jj,ii) = ice%TAF_a( j,i)
+    END DO
+    END DO
+    IF (par%master) THEN
+      TAF_a_ext( 2:grid%ny+1,1          ) = ice%TAF_a( :,1)
+      TAF_a_ext( 2:grid%ny+1,  grid%nx+2) = ice%TAF_a( :,grid%nx)
+      TAF_a_ext( 1          ,2:grid%nx+1) = ice%TAF_a( 1,:)
+      TAF_a_ext(   grid%ny+2,2:grid%nx+1) = ice%TAF_a( grid%ny,:)
+      TAF_a_ext( 1          ,1          ) = ice%TAF_a( 1,1)
+      TAF_a_ext( 1          ,  grid%nx+2) = ice%TAF_a( 1,grid%nx)
+      TAF_a_ext(   grid%ny+2,1          ) = ice%TAF_a( grid%ny,1)
+      TAF_a_ext(   grid%ny+2,  grid%nx+2) = ice%TAF_a( grid%ny,grid%nx)
+    END IF
+    CALL sync
+    
+    ! Calculate grounded fractions of all four quadrants of each a-grid cell
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ii = i+1
+      jj = j+1
+      
+      f_NW = 0.25_dp * (TAF_a_ext( jj+1,ii-1) + TAF_a_ext( jj+1,ii  ) + TAF_a_ext( jj  ,ii-1) + TAF_a_ext( jj  ,ii  ))
+      f_N  = 0.5_dp  * (TAF_a_ext( jj+1,ii  ) + TAF_a_ext( jj  ,ii  ))
+      f_NE = 0.25_dp * (TAF_a_ext( jj+1,ii  ) + TAF_a_ext( jj+1,ii+1) + TAF_a_ext( jj  ,ii  ) + TAF_a_ext( jj  ,ii+1))
+      f_W  = 0.5_dp  * (TAF_a_ext( jj  ,ii-1) + TAF_a_ext( jj  ,ii  ))
+      f_m  = TAF_a_ext( jj,ii)
+      f_E  = 0.5_dp  * (TAF_a_ext( jj  ,ii  ) + TAF_a_ext( jj  ,ii+1))
+      f_SW = 0.25_dp * (TAF_a_ext( jj  ,ii-1) + TAF_a_ext( jj  ,ii  ) + TAF_a_ext( jj-1,ii-1) + TAF_a_ext( jj-1,ii  ))
+      f_S  = 0.5_dp  * (TAF_a_ext( jj  ,ii  ) + TAF_a_ext( jj-1,ii  ))
+      f_SE = 0.25_dp * (TAF_a_ext( jj  ,ii  ) + TAF_a_ext( jj  ,ii+1) + TAF_a_ext( jj-1,ii  ) + TAF_a_ext( jj-1,ii+1))
+      
+      ! NW
+      fq_NW = f_NW
+      fq_NE = f_N
+      fq_SW = f_W
+      fq_SE = f_m
+      CALL calc_fraction_above_zero( fq_NW, fq_NE,  fq_SW,  fq_SE,  f_grnd_a_NW( j,i))
+      
+      ! NE
+      fq_NW = f_N
+      fq_NE = f_NE
+      fq_SW = f_m
+      fq_SE = f_E
+      CALL calc_fraction_above_zero( fq_NW, fq_NE,  fq_SW,  fq_SE,  f_grnd_a_NE( j,i))
+      
+      ! SW
+      fq_NW = f_W
+      fq_NE = f_m
+      fq_SW = f_SW
+      fq_SE = f_S
+      CALL calc_fraction_above_zero( fq_NW, fq_NE,  fq_SW,  fq_SE,  f_grnd_a_SW( j,i))
+      
+      ! SE
+      fq_NW = f_m
+      fq_NE = f_E
+      fq_SW = f_S
+      fq_SE = f_SE
+      CALL calc_fraction_above_zero( fq_NW, fq_NE,  fq_SW,  fq_SE,  f_grnd_a_SE( j,i))
+      
+    END DO
+    END DO
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wTAF_a_ext)
+    
+  END SUBROUTINE determine_grounded_fractions_CISM_quads
+  SUBROUTINE calc_fraction_above_zero( f_NW, f_NE, f_SW, f_SE, phi)
+    ! Given a square with function values at the four corners,
+    ! calculate the fraction phi of the square where the function is larger than zero.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(INOUT) :: f_NW, f_NE, f_SW, f_SE
+    REAL(dp),                            INTENT(OUT)   :: phi
+    
+    ! Local variables:
+    REAL(dp)                                           :: f_NWp, f_NEp, f_SWp, f_SEp
+    REAL(dp)                                           :: aa,bb,cc,dd,x,f1,f2
+    INTEGER                                            :: scen
+    
+    ! The analytical solutions sometime give problems when one or more of the corner
+    ! values is VERY close to zero; avoid this.
+    IF (f_NW == 0._dp) THEN
+      f_NWp = 1E-8_dp
+    ELSEIF (f_NW > 0._dp) THEN
+      f_NWp = MAX(  1E-8_dp, f_NW)
+    ELSEIF (f_NW < 0._dp) THEN
+      f_NWp = MIN( -1E-8_dp, f_NW)
+    ELSE
+      f_NWp = f_NW
+    END IF
+    IF (f_NE == 0._dp) THEN
+      f_NEp = 1E-8_dp
+    ELSEIF (f_NE > 0._dp) THEN
+      f_NEp = MAX(  1E-8_dp, f_NE)
+    ELSEIF (f_NE < 0._dp) THEN
+      f_NEp = MIN( -1E-8_dp, f_NE)
+    ELSE
+      f_NEp = f_NE
+    END IF
+    IF (f_SW == 0._dp) THEN
+      f_SWp = 1E-8_dp
+    ELSEIF (f_SW > 0._dp) THEN
+      f_SWp = MAX(  1E-8_dp, f_SW)
+    ELSEIF (f_SW < 0._dp) THEN
+      f_SWp = MIN( -1E-8_dp, f_SW)
+    ELSE
+      f_SWp = f_SW
+    END IF
+    IF (f_SE == 0._dp) THEN
+      f_SEp = 1E-8_dp
+    ELSEIF (f_SE > 0._dp) THEN
+      f_SEp = MAX(  1E-8_dp, f_SE)
+    ELSEIF (f_SE < 0._dp) THEN
+      f_SEp = MIN( -1E-8_dp, f_SE)
+    ELSE
+      f_SEp = f_SE
+    END IF
+    
+    IF     (f_NWp > 0._dp .AND. f_NEp > 0._dp .AND. f_SWp > 0._dp .AND. f_SEp > 0._dp) THEN
+      ! All four corners are grounded.
+      
+      phi = 1._dp
+      
+    ELSEIF (f_NWp < 0._dp .AND. f_NEp < 0._dp .AND. f_SWp < 0._dp .AND. f_SEp < 0._dp) THEN
+      ! All four corners are floating
+      
+      phi = 0._dp
+      
+    ELSE
+      ! At least one corner is grounded and at least one is floating;
+      ! the grounding line must pass through this square!
+      
+      ! Only four "scenarios" exist (with rotational symmetries):
+      ! 1: SW grounded, rest floating
+      ! 2: SW floating, rest grounded
+      ! 3: south grounded, north floating
+      ! 4: SW & NE grounded, SE & NW floating
+      ! Rotate the four-corner world until it matches one of these scenarios.
+      CALL rotate_quad_until_match( f_NWp, f_NEp, f_SWp, f_SEp, scen)
+    
+      IF (scen == 1) THEN
+        ! 1: SW grounded, rest floating
+        aa  = f_SWp
+        bb  = f_SEp - f_SWp
+        cc  = f_NWp - f_SWp
+        dd  = f_NEp + f_SWp - f_NWp - f_SEp
+        phi =         ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+      ELSEIF (scen == 2) THEN
+        ! 2: SW floating, rest grounded
+        aa  = -(f_SWp)
+        bb  = -(f_SEp - f_SWp)
+        cc  = -(f_NWp - f_SWp)
+        dd  = -(f_NEp + f_SWp - f_NWp - f_SEp)
+        phi = 1._dp - ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+      ELSEIF (scen == 3) THEN
+        ! 3: south grounded, north floating
+        aa  = f_SWp
+        bb  = f_SEp - f_SWp
+        cc  = f_NWp - f_SWp
+        dd  = f_NEp + f_SWp - f_NWp - f_SEp
+        x   = 0._dp
+        f1  = ((bb*cc - aa*dd) * LOG(ABS(cc+dd*x)) - bb*dd*x) / (dd**2)
+        x   = 1._dp
+        f2  = ((bb*cc - aa*dd) * LOG(ABS(cc+dd*x)) - bb*dd*x) / (dd**2)
+        phi = f2-f1
+      ELSEIF (scen == 4) THEN
+        ! 4: SW & NE grounded, SE & NW floating
+        ! SW corner
+        aa  = f_SWp
+        bb  = f_SEp - f_SWp
+        cc  = f_NWp - f_SWp
+        dd  = f_NEp + f_SWp - f_NWp - f_SEp
+        phi = ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+        ! NE corner
+        CALL rotate_quad( f_NWp, f_NEp, f_SWp, f_SEp)
+        CALL rotate_quad( f_NWp, f_NEp, f_SWp, f_SEp)
+        aa  = f_SWp
+        bb  = f_SEp - f_SWp
+        cc  = f_NWp - f_SWp
+        dd  = f_NEp + f_SWp - f_NWp - f_SEp
+        phi = phi + ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+      ELSE
+        WRITE(0,*) 'determine_grounded_fractions_CISM_quads - calc_fraction_above_zero - ERROR: unknown scenario [', scen, ']!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END IF
+    
+  END SUBROUTINE calc_fraction_above_zero
+  SUBROUTINE rotate_quad_until_match( f_NW, f_NE, f_SW, f_SE, scen)
+    ! Rotate the four corners until one of the four possible scenarios is found.
+    ! 1: SW grounded, rest floating
+    ! 2: SW floating, rest grounded
+    ! 3: south grounded, north floating
+    ! 4: SW & NE grounded, SE & NW floating
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(INOUT) :: f_NW, f_NE, f_SW, f_SE
+    INTEGER,                             INTENT(OUT)   :: scen
+    
+    ! Local variables:
+    LOGICAL                                            :: found_match
+    INTEGER                                            :: nit
+    
+    found_match = .FALSE.
+    scen        = 0
+    nit         = 0
+    
+    DO WHILE (.NOT. found_match)
+      
+      nit = nit+1
+      
+      CALL rotate_quad( f_NW, f_NE, f_SW, f_SE)
+      
+      IF     (f_SW > 0._dp .AND. f_SE < 0._dp .AND. f_NE < 0._dp .AND. f_NW < 0._dp) THEN
+        ! 1: SW grounded, rest floating
+        scen = 1
+        found_match = .TRUE.
+      ELSEIF (f_SW < 0._dp .AND. f_SE > 0._dp .AND. f_NE > 0._dp .AND. f_NW > 0._dp) THEN
+        ! 2: SW floating, rest grounded
+        scen = 2
+        found_match = .TRUE.
+      ELSEIF (f_SW > 0._dp .AND. f_SE > 0._dp .AND. f_NE < 0._dp .AND. f_NW < 0._dp) THEN
+        ! 3: south grounded, north floating
+        scen = 3
+        found_match = .TRUE.
+      ELSEIF (f_SW > 0._dp .AND. f_SE < 0._dp .AND. f_NE > 0._dp .AND. f_NW < 0._dp) THEN
+        ! 4: SW & NE grounded, SE & NW floating
+        scen = 4
+        found_match = .TRUE.
+      END IF
+      
+      IF (nit > 4) THEN
+        IF (par%master) WRITE(0,*) 'determine_grounded_fractions_CISM_quads - rotate_quad_until_match - ERROR: couldnt find matching scenario!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    
+  END SUBROUTINE rotate_quad_until_match
+  SUBROUTINE rotate_quad( f_NW, f_NE, f_SW, f_SE)
+    ! Rotate the four corners anticlockwise by 90 degrees
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(INOUT) :: f_NW, f_NE, f_SW, f_SE
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(4)                             :: fvals
+    
+    fvals = [f_NW,f_NE,f_SE,f_SW]
+    f_NW = fvals( 2)
+    f_NE = fvals( 3)
+    f_SE = fvals( 4)
+    f_SW = fvals( 1)
+    
+  END SUBROUTINE rotate_quad
 
 END MODULE general_ice_model_data_module

@@ -1,4 +1,5 @@
 MODULE reference_fields_module
+
   ! Contains the routines for setting up the "PD" and "init" reference data fields.
 
   USE mpi
@@ -13,7 +14,9 @@ MODULE reference_fields_module
   USE parameters_module,               ONLY: seawater_density, ice_density, sec_per_year, pi
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_PD_data_file, inquire_init_data_file, &
                                              inquire_restart_file, read_PD_data_file, read_init_data_file, read_restart_file
-  USE utilities_module,                ONLY: map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
 
   IMPLICIT NONE
   
@@ -32,6 +35,11 @@ CONTAINS
     INTEGER                                       :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER           ::  Hi_raw_temp,  Hb_raw_temp,  Hs_raw_temp
     INTEGER                                       :: wHi_raw_temp, wHb_raw_temp, wHs_raw_temp
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymin = -470750.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymax = -220750.0
+    INTEGER                                       :: il,iu,jl,ju
     
     IF (C%do_benchmark_experiment) THEN
       CALL initialise_PD_data_fields_schematic_benchmarks( PD)
@@ -66,6 +74,11 @@ CONTAINS
     IF (par%master) WRITE(0,*) '  Reading PD      data from file ', TRIM(PD%netcdf%filename), '...'
     IF (par%master) CALL read_PD_data_file( PD)
     
+    ! Safety
+    CALL check_for_NaN_dp_2D( PD%Hi_raw, 'PD%Hi_raw', 'initialise_PD_data_fields')
+    CALL check_for_NaN_dp_2D( PD%Hb_raw, 'PD%Hb_raw', 'initialise_PD_data_fields')
+    CALL check_for_NaN_dp_2D( PD%Hs_raw, 'PD%Hs_raw', 'initialise_PD_data_fields')
+    
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
     CALL allocate_shared_dp_2D( PD%nx, PD%ny, Hi_raw_temp, wHi_raw_temp)
     CALL allocate_shared_dp_2D( PD%nx, PD%ny, Hb_raw_temp, wHb_raw_temp)
@@ -96,6 +109,34 @@ CONTAINS
       END DO
     END IF
     CALL sync
+    
+    ! Remove Lake Vostok from Antarctica (because it's annoying)
+    IF (par%master .AND. region_name == 'ANT') THEN
+        
+      il = 1
+      DO WHILE (PD%x( il) < lake_Vostok_xmin)
+        il = il+1
+      END DO
+      iu = PD%nx
+      DO WHILE (PD%x( iu) > lake_Vostok_xmax)
+        iu = iu-1
+      END DO
+      jl = 1
+      DO WHILE (PD%y( jl) < lake_Vostok_ymin)
+        jl = jl+1
+      END DO
+      ju = PD%ny
+      DO WHILE (PD%y( ju) > lake_Vostok_ymax)
+        ju = ju-1
+      END DO
+        
+      DO i = il, iu
+      DO j = jl, ju
+        PD%Hi_raw( j,i) = PD%Hs_raw( j,i) - PD%Hb_raw( j,i)
+      END DO
+      END DO
+      
+    END IF ! IF (par%master .AND. region_name == 'ANT') THEN
     
     CALL deallocate_shared( wHi_raw_temp)
     CALL deallocate_shared( wHb_raw_temp)
@@ -265,6 +306,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), POINTER           :: MeltPreviousYear_raw_temp
     INTEGER                                       :: wHi_raw_temp, wHb_raw_temp, wHs_raw_temp, wTi_raw_temp
     INTEGER                                       :: wFirnDepth_raw_temp, wMeltPreviousYear_raw_temp
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymin = -470750.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymax = -220750.0
+    INTEGER                                       :: il,iu,jl,ju
     
     IF (C%do_benchmark_experiment) THEN
       CALL initialise_init_data_fields_schematic_benchmarks( init)
@@ -312,6 +358,11 @@ CONTAINS
       ! Read data from input file
       IF (par%master) WRITE(0,*) '  Reading init    data from file ', TRIM(init%netcdf%filename), '...'
       IF (par%master) CALL read_init_data_file( init)
+    
+      ! Safety
+      CALL check_for_NaN_dp_2D( init%Hi_raw, 'init%Hi_raw', 'initialise_init_data_fields')
+      CALL check_for_NaN_dp_2D( init%Hb_raw, 'init%Hb_raw', 'initialise_init_data_fields')
+      CALL check_for_NaN_dp_2D( init%Hs_raw, 'init%Hs_raw', 'initialise_init_data_fields')
       
       ! Since we want data represented as [j,i] internally, transpose the data we just read.
       CALL allocate_shared_dp_2D( init%nx, init%ny, Hi_raw_temp, wHi_raw_temp)
@@ -343,6 +394,34 @@ CONTAINS
         END DO
       END IF
       CALL sync
+    
+      ! Remove Lake Vostok from Antarctica (because it's annoying)
+      IF (par%master .AND. region_name == 'ANT') THEN
+          
+        il = 1
+        DO WHILE (init%x( il) < lake_Vostok_xmin)
+          il = il+1
+        END DO
+        iu = init%nx
+        DO WHILE (init%x( iu) > lake_Vostok_xmax)
+          iu = iu-1
+        END DO
+        jl = 1
+        DO WHILE (init%y( jl) < lake_Vostok_ymin)
+          jl = jl+1
+        END DO
+        ju = init%ny
+        DO WHILE (init%y( ju) > lake_Vostok_ymax)
+          ju = ju-1
+        END DO
+          
+        DO i = il, iu
+        DO j = jl, ju
+          init%Hi_raw( j,i) = init%Hs_raw( j,i) - init%Hb_raw( j,i)
+        END DO
+        END DO
+        
+      END IF ! IF (par%master .AND. region_name == 'ANT') THEN
       
       CALL deallocate_shared( wHi_raw_temp)
       CALL deallocate_shared( wHb_raw_temp)

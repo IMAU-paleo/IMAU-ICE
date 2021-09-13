@@ -1,5 +1,6 @@
 MODULE SELEN_mapping_module
-! Routines for mapping data between the UFEMISM square grid and the SELEN grid
+
+  ! Routines for mapping data between the regional ice model square grid and the SELEN global unstructured grid
   
   USE mpi
   USE configuration_module,          ONLY: dp, C

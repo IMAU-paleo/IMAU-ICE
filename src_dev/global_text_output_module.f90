@@ -1,4 +1,5 @@
 MODULE global_text_output_module
+
   ! Contains all the routines for creating and writing to the global text output files.
 
   USE mpi

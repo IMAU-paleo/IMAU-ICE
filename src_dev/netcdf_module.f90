@@ -1,4 +1,5 @@
 MODULE netcdf_module
+
   ! Contains routines for creating, reading, and writing all the NetCDF files
   ! involved in the ice model.
 
@@ -420,6 +421,8 @@ CONTAINS
       CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_cf_a,                  (/1, 1,    ti /))
       
     ! Basal conditions
+    ELSEIF (field_name == 'A_slid') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_slid_a,         (/1, 1,    ti /))
     ELSEIF (field_name == 'phi_fric') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%phi_fric_a,       (/1, 1,    ti /))
     ELSEIF (field_name == 'tau_yield') THEN
@@ -980,6 +983,8 @@ CONTAINS
       CALL create_int_var(    region%help_fields%ncid, 'mask_cf',                  [x, y,    t], id_var, long_name='calving-front mask')
       
     ! Basal conditions
+    ELSEIF (field_name == 'A_slid') THEN
+      CALL create_double_var( region%help_fields%ncid, 'A_slid',                   [x, y,    t], id_var, long_name='Basal sliding coefficient', units='Pa^-m yr^-1')
     ELSEIF (field_name == 'phi_fric') THEN
       CALL create_double_var( region%help_fields%ncid, 'phi_fric',                 [x, y,    t], id_var, long_name='till friction angle', units='degrees')
     ELSEIF (field_name == 'tau_yield') THEN
@@ -994,6 +999,7 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dHb') THEN
       CALL create_double_var( region%help_fields%ncid, 'dHb',                      [x, y,    t], id_var, long_name='Change in bedrock elevation w.r.t. PD', units='m')
+      
       
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
@@ -1728,11 +1734,15 @@ CONTAINS
     ! Read zeta, check if it matches the config zeta
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_zeta, init%zeta, start=(/1/) ))
     IF (init%nz /= C%nz) THEN
+      WRITE(0,*) ' ======== '
       WRITE(0,*) '  WARNING - vertical coordinate zeta in restart file doesnt match zeta in config!'
+      WRITE(0,*) ' ======== '
     ELSE
       DO k = 1, C%nz
         IF (ABS(C%zeta(k) - init%zeta(k)) > 0.0001_dp) THEN
+      WRITE(0,*) ' ======== '
           WRITE(0,*) '  WARNING - vertical coordinate zeta in restart file doesnt match zeta in config!'
+      WRITE(0,*) ' ======== '
         END IF
       END DO
     END IF
@@ -1761,10 +1771,14 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
+      WRITE(0,*) ' ======== '
       WRITE(0,*) '  WARNING - no exact match for time_to_restart_from ', C%time_to_restart_from, ' in restart file! Reading closest match ', init%time( ti), ' instead.'
+      WRITE(0,*) ' ======== '
     END IF
     IF (C%time_to_restart_from /= C%start_time_of_run) THEN
+      WRITE(0,*) ' ======== '
       WRITE(0,*) '  WARNING - starting run at t = ', C%start_time_of_run, ' with restart data at t = ', C%time_to_restart_from
+      WRITE(0,*) ' ======== '
     END IF
     
     ! Read the data

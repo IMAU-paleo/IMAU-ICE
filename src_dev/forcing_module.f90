@@ -1,4 +1,5 @@
 MODULE forcing_module
+
   ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level, climate),
   ! as well as the "forcing" structure which stores all the results from these routines (so that they
   ! can be accessed from all four ice-sheet models and the coupling routine).
@@ -8,7 +9,7 @@ MODULE forcing_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D, allocate_shared_dp_2D, &
+                                             allocate_shared_int_2D, allocate_shared_dp_2D, &f
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid
@@ -16,6 +17,8 @@ MODULE forcing_module
                                              read_inverse_routine_history_dT_glob, read_inverse_routine_history_dT_glob_inverse, read_inverse_routine_history_CO2_inverse, &
                                              inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file, inquire_climate_forcing_data_file, &
                                              read_climate_forcing_data_file_time_latlon, read_climate_forcing_data_file_SMB, read_climate_forcing_data_file_climate
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
 
   IMPLICIT NONE
   
@@ -543,18 +546,6 @@ CONTAINS
         wu = (time - forcing%CO2_time(il)*1000._dp) / ((forcing%CO2_time(iu)-forcing%CO2_time(il))*1000._dp)
         
         forcing%CO2_obs = forcing%CO2_record(il) * wl + forcing%CO2_record(iu) * wu
-        
-        
-        
-        
-   
-!        il = 1
-!        DO WHILE (forcing%CO2_time( il) * 1000._dp < time)
-!          il = il+1
-!        END DO
-!        
-!        forcing%CO2_obs = forcing%CO2_record( il)
-   
    
       END IF
     END IF
@@ -705,17 +696,6 @@ CONTAINS
         wu = (time - forcing%d18O_time(il)) / (forcing%d18O_time(iu)-forcing%d18O_time(il))
         
         forcing%d18O_obs = forcing%d18O_record(il) * wl + forcing%d18O_record(iu) * wu
-        
-        
-        
-        
-   
-!        il = 1
-!        DO WHILE (forcing%d18O_time( il) < time)
-!          il = il+1
-!        END DO
-!        
-!        forcing%d18O_obs = forcing%d18O_record( il)
         
       END IF
     
@@ -1139,7 +1119,6 @@ CONTAINS
     ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
       ! Use a spatially variable geothermal heat fux read from the specified NetCDF file.
       
-      IF (par%master) WRITE(0,*) ''
       IF (par%master) WRITE(0,*) ' Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
   
       ! Inquire into the insolation forcing netcdf file

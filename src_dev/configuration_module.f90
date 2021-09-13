@@ -67,7 +67,12 @@ MODULE configuration_module
   
   LOGICAL             :: create_procedural_output_dir_config     = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
   CHARACTER(LEN=256)  :: fixed_output_dir_config                 = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  
+  ! Debugging
+  ! ======================
+  
   LOGICAL             :: do_write_debug_data_config              = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
+  LOGICAL             :: do_check_for_NaN_config                 = .FALSE.                          ! Whether or not fields should be checked for NaN values
   
   ! Whether or not the simulation is a restart of a previous simulation
   ! ===================================================================
@@ -136,12 +141,13 @@ MODULE configuration_module
   ! Ice dynamics - velocity
   ! =======================
   
-  CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Can be 'SIA', 'SSA', 'SIA/SSA', and 'DIVA'
-  CHARACTER(LEN=256)  :: choice_ice_margin_config                = 'infinite_slab'                  ! Choice of ice margin boundary conditions; can be "BC" or "infinite_slab"
-  LOGICAL             :: use_analytical_GL_flux_config           = .FALSE.                          ! Whether or not the analytical grounding line flux solution is used
+  CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Choice of ice-dynamica approximation: "SIA", "SSA", "SIA/SSA", "DIVA"
   REAL(dp)            :: n_flow_config                           = 3.0_dp                           ! Exponent in Glen's flow law
   REAL(dp)            :: m_enh_sheet_config                      = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
   REAL(dp)            :: m_enh_shelf_config                      = 1.0_dp                           ! Ice flow enhancement factor for floating ice
+  CHARACTER(LEN=256)  :: choice_ice_margin_config                = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
+  LOGICAL             :: include_SSADIVA_crossterms_config       = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
+  LOGICAL             :: do_GL_subgrid_friction_config           = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
   
   ! Some parameters for numerically solving the SSA/DIVA
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config        = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
@@ -152,31 +158,31 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_vel_max_config                     = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
   REAL(dp)            :: DIVA_vel_min_config                     = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config          = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config          = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config          = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config         = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_north_config         = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_west_config          = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_east_config          = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_south_config         = 'infinite'
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_north_config         = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_choice_matrix_solver_config        = 'PETSc'                          ! Choice of matrix solver for the ice velocity equations (can be 'SOR' or 'PETSc')
+  CHARACTER(LEN=256)  :: DIVA_choice_matrix_solver_config        = 'PETSc'                          ! Choice of matrix solver for the ice velocity equations: "SOR", "PETSc"
   INTEGER             :: DIVA_SOR_nit_config                     = 10000                            ! DIVA SOR   solver - maximum number of iterations
   REAL(dp)            :: DIVA_SOR_tol_config                     = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
-  REAL(dp)            :: DIVA_SOR_omega_config                   = 1.0_dp                           ! DIVA SOR   solver - over-relaxation parameter
+  REAL(dp)            :: DIVA_SOR_omega_config                   = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
   REAL(dp)            :: DIVA_PETSc_rtol_config                  = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
   REAL(dp)            :: DIVA_PETSc_abstol_config                = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
   
-  CHARACTER(LEN=256)  :: choice_timestepping_config              = 'pc'                             ! Can be 'direct' or 'pc' (NOTE: 'direct' does not work with DIVA ice dynamcis!)
-  CHARACTER(LEN=256)  :: choice_ice_integration_method_config    = 'explicit'                       ! Can be "explicit" or "implicit"
-  CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config         = 'PETSc'                          ! Choice of matrix solver for the ice thickness equation (can be 'SOR' or 'PETSc')
+  CHARACTER(LEN=256)  :: choice_timestepping_config              = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
+  CHARACTER(LEN=256)  :: choice_ice_integration_method_config    = 'explicit'                       ! Choice of ice thickness integration scheme: "explicit", "semi-implicit"
+  CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config         = 'SOR'                            ! Choice of matrix solver for the semi-implicit ice thickness equation: "SOR", "PETSc"
   INTEGER             :: dHi_SOR_nit_config                      = 3000                             ! dHi SOR   solver - maximum number of iterations
   REAL(dp)            :: dHi_SOR_tol_config                      = 2.5_dp                           ! dHi SOR   solver - stop criterion, absolute difference
-  REAL(dp)            :: dHi_SOR_omega_config                    = 1.0_dp                           ! dHi SOR   solver - over-relaxation parameter
-  REAL(dp)            :: dHi_PETSc_rtol_config                   = 0.01_dp                          ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  REAL(dp)            :: dHi_PETSc_abstol_config                 = 0.01_dp                          ! dHi PETSc solver - stop criterion, absolute difference
+  REAL(dp)            :: dHi_SOR_omega_config                    = 1.3_dp                           ! dHi SOR   solver - over-relaxation parameter
+  REAL(dp)            :: dHi_PETSc_rtol_config                   = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  REAL(dp)            :: dHi_PETSc_abstol_config                 = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
   REAL(dp)            :: pc_epsilon_config                       = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
@@ -189,15 +195,24 @@ MODULE configuration_module
 
   ! Ice dynamics - sliding
   ! ======================
+  
   LOGICAL             :: no_sliding_config                       = .FALSE.                          ! If set to TRUE, no sliding is allowed anywhere (used for some schematic experiments)
-  CHARACTER(LEN=256)  :: choice_sliding_law_config               = 'Coulomb_regularised'            ! Choice of sliding law (currently implemented: "Coulomb", "Coulomb_regularised")
-  REAL(dp)            :: C_sliding_config                        = 1.0E7_dp                         ! Factor   in Weertman sliding law
-  REAL(dp)            :: m_sliding_config                        = 1._dp/3._dp                      ! Exponent in Weertman sliding law
+  CHARACTER(LEN=256)  :: choice_sliding_law_config               = 'Coulomb_regularised'            ! Choice of sliding law: "Coulomb", "Coulomb_regularised", "Weertman"
+  REAL(dp)            :: slid_Weertman_m_config                  = 3._dp                            ! Exponent in Weertman sliding law
+  REAL(dp)            :: slid_Coulomb_delta_v_config             = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
+  REAL(dp)            :: slid_Coulomb_reg_q_plastic_config       = 0.3_dp                           ! Scaling exponent   in regularised Coulomb sliding law
+  REAL(dp)            :: slid_Coulomb_reg_u_threshold_config     = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
+  REAL(dp)            :: Martin2011till_pwp_Hb_min_config        = 0._dp                            ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011till_pwp_Hb_max_config        = 1000._dp                         ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011till_phi_Hb_min_config        = -1000._dp                        ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_Hb_max_config        = 0._dp                            ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_min_config           = 5._dp                            ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_max_config           = 20._dp                           ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
 
   ! Ice dynamics - calving
   ! ======================
   
-  CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law (currently only "threshold_thickness" is implemented)
+  CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
   REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
 
   ! Thermodynamics
@@ -466,11 +481,16 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ISMIP_HOM_E_Arolla_filename
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
-   ! =======================================================================
+    ! =======================================================================
    
     LOGICAL                             :: create_procedural_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir
+    
+    ! Debugging
+    ! =========
+    
     LOGICAL                             :: do_write_debug_data
+    LOGICAL                             :: do_check_for_NaN
   
     ! Whether or not the simulation is a restart of a previous simulation
     ! ===================================================================
@@ -519,11 +539,12 @@ MODULE configuration_module
     ! =======================
     
     CHARACTER(LEN=256)                  :: choice_ice_dynamics
-    CHARACTER(LEN=256)                  :: choice_ice_margin
-    LOGICAL                             :: use_analytical_GL_flux
     REAL(dp)                            :: n_flow
     REAL(dp)                            :: m_enh_sheet
     REAL(dp)                            :: m_enh_shelf
+    CHARACTER(LEN=256)                  :: choice_ice_margin
+    LOGICAL                             :: include_SSADIVA_crossterms
+    LOGICAL                             :: do_GL_subgrid_friction
     
     ! Some parameters for numerically solving the SSA/DIVA
     REAL(dp)                            :: DIVA_visc_it_norm_dUV_tol
@@ -571,10 +592,19 @@ MODULE configuration_module
   
     ! Ice dynamics - sliding
     ! ======================
+    
     LOGICAL                             :: no_sliding
     CHARACTER(LEN=256)                  :: choice_sliding_law
-    REAL(dp)                            :: C_sliding
-    REAL(dp)                            :: m_sliding
+    REAL(dp)                            :: slid_Weertman_m
+    REAL(dp)                            :: slid_Coulomb_delta_v
+    REAL(dp)                            :: slid_Coulomb_reg_q_plastic
+    REAL(dp)                            :: slid_Coulomb_reg_u_threshold
+    REAL(dp)                            :: Martin2011till_pwp_Hb_min
+    REAL(dp)                            :: Martin2011till_pwp_Hb_max
+    REAL(dp)                            :: Martin2011till_phi_Hb_min
+    REAL(dp)                            :: Martin2011till_phi_Hb_max
+    REAL(dp)                            :: Martin2011till_phi_min
+    REAL(dp)                            :: Martin2011till_phi_max
   
     ! Ice dynamics - calving
     ! ======================
@@ -1066,6 +1096,7 @@ CONTAINS
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      do_write_debug_data_config,                 &
+                     do_check_for_NaN_config,                    &
                      is_restart_config,                          &
                      time_to_restart_from_config,                &
                      dx_NAM_config,                              &
@@ -1090,11 +1121,12 @@ CONTAINS
                      filename_ICE5G_PD_config,                   &
                      filename_ICE5G_LGM_config,                  &
                      choice_ice_dynamics_config,                 &
-                     choice_ice_margin_config,                   &
-                     use_analytical_GL_flux_config,              &
                      n_flow_config,                              &
                      m_enh_sheet_config,                         &
                      m_enh_shelf_config,                         &
+                     choice_ice_margin_config,                   &
+                     include_SSADIVA_crossterms_config,          &
+                     do_GL_subgrid_friction_config,              &
                      DIVA_visc_it_norm_dUV_tol_config,           &
                      DIVA_visc_it_nit_config,                    &
                      DIVA_visc_it_relax_config,                  &
@@ -1133,8 +1165,16 @@ CONTAINS
                      dt_min_config,                              &
                      no_sliding_config,                          &
                      choice_sliding_law_config,                  &
-                     C_sliding_config,                           &
-                     m_sliding_config,                           &
+                     slid_Weertman_m_config,                     &
+                     slid_Coulomb_delta_v_config,                &
+                     slid_Coulomb_reg_q_plastic_config,          &
+                     slid_Coulomb_reg_u_threshold_config,        &
+                     Martin2011till_pwp_Hb_min_config,           &
+                     Martin2011till_pwp_Hb_max_config,           &
+                     Martin2011till_phi_Hb_min_config,           &
+                     Martin2011till_phi_Hb_max_config,           &
+                     Martin2011till_phi_min_config,              &
+                     Martin2011till_phi_max_config,              &
                      choice_calving_law_config,                  &
                      calving_threshold_thickness_config,         &
                      choice_geothermal_heat_flux_config,         &
@@ -1358,11 +1398,16 @@ CONTAINS
     C%ISMIP_HOM_E_Arolla_filename         = ISMIP_HOM_E_Arolla_filename_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
-   ! =======================================================================
+    ! =======================================================================
    
     C%create_procedural_output_dir        = create_procedural_output_dir_config
     C%fixed_output_dir                    = fixed_output_dir_config
+    
+    ! Debugging
+    ! =========
+    
     C%do_write_debug_data                 = do_write_debug_data_config
+    C%do_check_for_NaN                    = do_check_for_NaN_config
     
     ! Whether or not the simulation is a restart of a previous simulation
     ! ===================================================================
@@ -1412,11 +1457,12 @@ CONTAINS
     ! =======================
     
     C%choice_ice_dynamics                 = choice_ice_dynamics_config
-    C%choice_ice_margin                   = choice_ice_margin_config
-    C%use_analytical_GL_flux              = use_analytical_GL_flux_config
     C%n_flow                              = n_flow_config
     C%m_enh_sheet                         = m_enh_sheet_config
     C%m_enh_shelf                         = m_enh_shelf_config
+    C%choice_ice_margin                   = choice_ice_margin_config
+    C%include_SSADIVA_crossterms          = include_SSADIVA_crossterms_config
+    C%do_GL_subgrid_friction              = do_GL_subgrid_friction_config
     
     ! Some parameters for numerically solving the SSA/DIVA
     C%DIVA_visc_it_norm_dUV_tol           = DIVA_visc_it_norm_dUV_tol_config
@@ -1467,8 +1513,16 @@ CONTAINS
     
     C%no_sliding                          = no_sliding_config
     C%choice_sliding_law                  = choice_sliding_law_config
-    C%C_sliding                           = C_sliding_config
-    C%m_sliding                           = m_sliding_config
+    C%slid_Weertman_m                     = slid_Weertman_m_config
+    C%slid_Coulomb_delta_v                = slid_Coulomb_delta_v_config
+    C%slid_Coulomb_reg_q_plastic          = slid_Coulomb_reg_q_plastic_config
+    C%slid_Coulomb_reg_u_threshold        = slid_Coulomb_reg_u_threshold_config
+    C%Martin2011till_pwp_Hb_min           = Martin2011till_pwp_Hb_min_config
+    C%Martin2011till_pwp_Hb_max           = Martin2011till_pwp_Hb_max_config
+    C%Martin2011till_phi_Hb_min           = Martin2011till_phi_Hb_min_config
+    C%Martin2011till_phi_Hb_max           = Martin2011till_phi_Hb_max_config
+    C%Martin2011till_phi_min              = Martin2011till_phi_min_config
+    C%Martin2011till_phi_max              = Martin2011till_phi_max_config
   
     ! Ice dynamics - calving
     ! ======================

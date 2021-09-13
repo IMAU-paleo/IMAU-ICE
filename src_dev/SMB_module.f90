@@ -1,4 +1,5 @@
 MODULE SMB_module
+
   ! Contains all the routines for calculating the surface mass balance for the current climate.
 
   USE mpi
@@ -10,7 +11,9 @@ MODULE SMB_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_subclimate_region, type_init_data_fields, type_SMB_model
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file 
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
   USE forcing_module,                  ONLY: forcing
   USE parameters_module,               ONLY: T0, L_fusion, sec_per_year, pi, ice_density
 
@@ -101,7 +104,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      ! Background albedo
+      ! "Background" albedo (= surface without any firn, so either ice, soil, or water)
       SMB%AlbedoSurf( j,i) = albedo_soil
       IF ((ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 0) .OR. mask_noice( j,i) == 1) SMB%AlbedoSurf( j,i) = albedo_water
       IF (ice%mask_ice_a(    j,i) == 1) SMB%AlbedoSurf( j,i) = albedo_ice
@@ -160,6 +163,21 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       , 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_SMB_model')
           
   END SUBROUTINE run_SMB_model
   SUBROUTINE run_SMB_model_refr_fixed( grid, ice, climate, time, SMB, mask_noice)
@@ -294,6 +312,21 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       , 'run_SMB_model')
+    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       , 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        , 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_SMB_model')
+    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_SMB_model')
           
   END SUBROUTINE run_SMB_model_refr_fixed
   
@@ -507,6 +540,7 @@ CONTAINS
     IF (C%is_restart) THEN
       SMB%FirnDepth(        :,:,grid%i1:grid%i2) = init%FirnDepth(        :,:,grid%i1:grid%i2)
       SMB%MeltPreviousYear(   :,grid%i1:grid%i2) = init%MeltPreviousYear(   :,grid%i1:grid%i2)
+      CALL sync
     END IF
   
   END SUBROUTINE initialise_SMB_model

@@ -1,4 +1,5 @@
 MODULE SELEN_main_module
+
   ! The "coupling" module that contains all the stuff for coupling SELEN to IMAU-ICE.
   ! The two main routines that are called from the IMAU-ICE program are "initialise_SELEN"
   ! and "run_SELEN". initialise_SELEN does all the pre-work of allocating memory, reading
@@ -23,8 +24,9 @@ MODULE SELEN_main_module
   USE data_types_module,                 ONLY: type_model_region, type_SELEN_global
   USE netcdf_module,                     ONLY: inquire_SELEN_global_topo_file, read_SELEN_global_topo_file, create_SELEN_output_file, &
                                                write_to_SELEN_output_file
-  USE utilities_module,                  ONLY: map_square_to_square_cons_2nd_order_2D
-  USE general_ice_model_data_module,     ONLY: is_floating
+  USE utilities_module,                  ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                               check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                               is_floating, map_square_to_square_cons_2nd_order_2D
   USE SELEN_mapping_module,              ONLY: create_GIA_grid_to_SELEN_maps, map_GIA_grid_to_SELEN
   USE SELEN_harmonics_module,            ONLY: DOM, PLEG, HARMO, PLMBAR_MOD
   USE SELEN_taboo_hp_module,             ONLY: taboo_hp_model

@@ -1,4 +1,5 @@
 MODULE parallel_module
+
   ! A collection of different routines that make parallel programming a lot easier.
 
   USE mpi

@@ -1,4 +1,5 @@
 MODULE bedrock_ELRA_module
+
   ! Contains all the routines of the ELRA bedrock model.
 
   USE mpi
@@ -12,8 +13,9 @@ MODULE bedrock_ELRA_module
                                              deallocate_shared
   USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_PD_data_fields
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
-  USE utilities_module,                ONLY: map_square_to_square_cons_2nd_order_2D
-  USE general_ice_model_data_module,   ONLY: is_floating
+  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             map_square_to_square_cons_2nd_order_2D, is_floating
 
   IMPLICIT NONE
     
@@ -100,12 +102,10 @@ CONTAINS
     DO j = 1, grid%ny
     
       ! Absolute surface load
-      IF (ice%mask_ocean_a( j,i) == 1 .OR. ice%mask_shelf_a( j,i) == 1) THEN
+      IF (ice%mask_ocean_a( j,i) == 1) THEN
         surface_load_icemodel_grid( j,i) = (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density * grid%dx**2
-      ELSEIF (ice%mask_ice_a( j,i) == 1) THEN
-        surface_load_icemodel_grid( j,i) = ice%Hi_a( j,i) * ice_density * grid%dx**2
       ELSE
-        surface_load_icemodel_grid( j,i) = 0._dp
+        surface_load_icemodel_grid( j,i) = ice%Hi_a( j,i) * ice_density * grid%dx**2
       END IF
       
     END DO
@@ -134,6 +134,7 @@ CONTAINS
       ice%surface_load_rel_ext( j+n,i+n) = ice%surface_load_rel( j,i)
     END DO
     END DO
+    CALL sync
     DO i = grid_GIA%i1, grid_GIA%i2
       ice%surface_load_rel_ext(               1:              n, i) = ice%surface_load_rel( 1          ,i)
       ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n, i) = ice%surface_load_rel( grid_GIA%ny,i)
@@ -142,6 +143,12 @@ CONTAINS
       ice%surface_load_rel_ext( j,               1:              n) = ice%surface_load_rel( j,1          )
       ice%surface_load_rel_ext( j, grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( j,grid_GIA%nx)
     END DO
+    IF (par%master) THEN
+      ice%surface_load_rel_ext(               1:n              ,              1:n              ) = ice%surface_load_rel( 1          ,1          )
+      ice%surface_load_rel_ext(               1:n              ,grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( 1          ,grid_GIA%nx)
+      ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n,              1:n              ) = ice%surface_load_rel( grid_GIA%ny,1          )
+      ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n,grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( grid_GIA%ny,grid_GIA%nx)
+    END IF
     CALL sync
     
     ! Calculate the equilibrium bedrock deformation for this surface load on the GIA grid

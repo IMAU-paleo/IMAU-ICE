@@ -1,4 +1,5 @@
 MODULE utilities_module
+
   ! Contains some general "utilities" that are used at multiple points in the model.
 
   USE mpi
@@ -120,6 +121,20 @@ CONTAINS
 
     RETURN
   END FUNCTION vertical_average
+  
+! == The flotation criterion
+  FUNCTION is_floating( Hi, Hb, SL) RESULT( isso)
+    ! The flotation criterion
+      
+    IMPLICIT NONE
+    
+    REAL(dp),                            INTENT(IN)    :: Hi, Hb, SL
+    LOGICAL                                            :: isso
+    
+    isso = .FALSE.
+    IF (Hi < (SL - Hb) * seawater_density/ice_density) isso = .TRUE.
+    
+  END FUNCTION is_floating
   
 ! == The error function (used in the Roe&Lindzen precipitation model)
   SUBROUTINE error_function(X, ERR)
@@ -342,17 +357,16 @@ CONTAINS
       d_ext( j+n,i+n) = d( j,i)
     END DO
     END DO
-    CALL sync
-    DO i = grid%i1, grid%i2
-      d_ext(           1:          n, i+n) = d( 1      ,i)
-      d_ext( grid%ny+n+1:grid%ny+2*n, i+n) = d( grid%ny,i)
-    END DO
-    CALL sync
-    DO j = grid%j1, grid%j2
-      d_ext( j+n,           1:          n) = d( j,1      )
-      d_ext( j+n, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
-    END DO
     IF (par%master) THEN
+      ! West
+      d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
+      ! East
+      d_ext( n+1:n+grid%ny, grid%nx+2*n  ) = d( :      ,grid%nx)
+      ! South
+      d_ext( 1            , n+1:n+grid%nx) = d( 1      ,:      )
+      ! North
+      d_ext( grid%ny+2*n  , n+1:n+grid%nx) = d( grid%ny,:      )
+      ! Corners
       d_ext( 1:n,                     1:n                    ) = d( 1      ,1      )
       d_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = d( 1      ,grid%nx)
       d_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = d( grid%ny,1      )
@@ -362,6 +376,8 @@ CONTAINS
     
     ! Convolute extended data with the smoothing filter
     d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
+    CALL sync
+    
     DO i = grid%i1, grid%i2
     DO j = 1,       grid%ny
       DO jj = -n, n
@@ -373,6 +389,7 @@ CONTAINS
     
     d_ext( :,grid%i1+n:grid%i2+n) = d_ext_smooth( :,grid%i1+n:grid%i2+n)
     CALL sync
+    
     DO j = grid%j1, grid%j2
       d_ext( j,           1:          n) = d( j,1      )
       d_ext( j, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
@@ -380,6 +397,8 @@ CONTAINS
     CALL sync
     
     d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
+    CALL sync
+    
     DO j = grid%j1, grid%j2
     DO i = 1,       grid%nx
       DO ii = -n, n
@@ -395,6 +414,7 @@ CONTAINS
       d( j,i) = d_ext_smooth( j+n, i+n)
     END DO
     END DO
+    CALL sync
     
     ! Clean up after yourself
     DEALLOCATE( f)
@@ -466,17 +486,16 @@ CONTAINS
       d_ext( j+n,i+n) = d( j,i)
     END DO
     END DO
-    CALL sync
-    DO i = grid%i1, grid%i2
-      d_ext(           1:          n, i+n) = d( 1      ,i)
-      d_ext( grid%ny+n+1:grid%ny+2*n, i+n) = d( grid%ny,i)
-    END DO
-    CALL sync
-    DO j = grid%j1, grid%j2
-      d_ext( j+n,           1:          n) = d( j,1      )
-      d_ext( j+n, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
-    END DO
     IF (par%master) THEN
+      ! West
+      d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
+      ! East
+      d_ext( n+1:n+grid%ny, grid%nx+2*n  ) = d( :      ,grid%nx)
+      ! South
+      d_ext( 1            , n+1:n+grid%nx) = d( 1      ,:      )
+      ! North
+      d_ext( grid%ny+2*n  , n+1:n+grid%nx) = d( grid%ny,:      )
+      ! Corners
       d_ext( 1:n,                     1:n                    ) = d( 1      ,1      )
       d_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = d( 1      ,grid%nx)
       d_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = d( grid%ny,1      )
@@ -486,6 +505,8 @@ CONTAINS
     
     ! Convolute extended data with the smoothing filter
     d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
+    CALL sync
+    
     DO i = grid%i1, grid%i2
     DO j = 1,       grid%ny
       ShepNumSum = 0._dp
@@ -639,7 +660,7 @@ CONTAINS
         CALL sync
         
         IF (omega_dyn <= 0.1_dp) THEN
-          IF (par%master) WRITE(0,*) '  solve_sparse_matrix_with_SOR - ERROR: divergence detected even with extremely low relaxation parameter!'
+          IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - ERROR: divergence detected even with extremely low relaxation parameter!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
       END IF
@@ -709,6 +730,52 @@ CONTAINS
     
   END SUBROUTINE check_CSR_for_double_entries
   
+! == Solve a tridiagonal matrix equation using LAPACK
+  FUNCTION tridiagonal_solve( ldiag, diag, udiag, rhs) RESULT(x)
+    ! Lapack tridiagnal solver (in double precision):
+    ! Matrix system solver for tridiagonal matrices. 
+    ! Used e.g. in solving the ADI scheme. 
+    ! ldiag = lower diagonal elements (j,j-1) of the matrix
+    ! diag  = diagonal elements (j,j) of the matrix
+    ! udiag = upper diagonal elements (j,j+1) of the matrix
+    ! rhs   = right hand side of the matrix equation in the ADI scheme
+    USE configuration_module, ONLY: dp
+    IMPLICIT NONE
+
+    ! Input variables:
+    REAL(dp), DIMENSION(:),            INTENT(IN) :: diag
+    REAL(dp), DIMENSION(SIZE(diag)-1), INTENT(IN) :: udiag, ldiag
+    REAL(dp), DIMENSION(SIZE(diag)),   INTENT(IN) :: rhs
+
+    ! Result variable:
+    REAL(dp), DIMENSION(SIZE(diag))               :: x
+    
+    ! Local variables:     
+    INTEGER                                       :: info
+    REAL(dp), DIMENSION(SIZE(diag))               :: diag_copy
+    REAL(dp), DIMENSION(SIZE(udiag))              :: udiag_copy, ldiag_copy
+
+    ! External subroutines:      
+    EXTERNAL DGTSV ! Lapack routine that solves tridiagonal systems (in double precision).
+
+    ! The LAPACK solver will overwrite the rhs with the solution x. Therefore we 
+    ! first copy the rhs in the solution vector x:
+    x = rhs
+
+    ! The LAPACK solver will change the elements in the matrix, therefore we copy them:
+    diag_copy  =  diag
+    udiag_copy = udiag
+    ldiag_copy = ldiag
+
+    CALL DGTSV(SIZE(diag), 1, ldiag_copy, diag_copy, udiag_copy, x, SIZE(diag), info)
+    
+    IF (info /= 0) THEN
+      WRITE(0,*) '  tridiagonal_solve - ERROR: LAPACK solver DGTSV returned error message info = ', info
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END FUNCTION tridiagonal_solve 
+  
 ! == Analytical solution by Schoof 2006 for the "SSA_icestream" benchmark experiment
   SUBROUTINE SSA_Schoof2006_analytical_solution( tantheta, h0, A_flow, y, U, tauc)
       
@@ -753,7 +820,7 @@ CONTAINS
     
   END SUBROUTINE SSA_Schoof2006_analytical_solution
   
-! == Map data between two square grids =====
+! == Map data between two square grids using 2nd-order conservative remapping
   SUBROUTINE map_square_to_square_cons_2nd_order_2D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst)
     ! Map data from one square grid to another (e.g. PD ice thickness from the square grid in the input file to the model square grid)
     
@@ -1041,7 +1108,7 @@ CONTAINS
   END SUBROUTINE map_glob_to_grid_3D
   
   FUNCTION line_integral_xdy(   p, q, tol_dist) RESULT( I_pq)
-    ! Calculate the line integral x dy from p to q    
+    ! Calculate the line integral x dy from p to q
     
     IMPLICIT NONE
     
@@ -1127,5 +1194,371 @@ CONTAINS
     I_pq = (1._dp/2._dp * (xp - yp*dx/dy) * (yq**2-yp**2)) + (1._dp/3._dp * dx/dy * (yq**3-yp**3))
     
   END FUNCTION line_integral_xydy
+  
+! == Bilinear and bicubic interpolation (used for some sub-grid schemes)
+  FUNCTION interp_bilin_2D( d, x, y, xq, yq) RESULT( dq)
+    ! Simple bilinear interpolation
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: x, y
+    REAL(dp),                            INTENT(IN)    :: xq, yq
+    REAL(dp)                                           :: dq
+    
+    ! Local variables:
+    INTEGER                                            :: nx,ny
+    REAL(dp)                                           :: dx
+    INTEGER                                            :: il,iu,jl,ju
+    REAL(dp)                                           :: wil,wiu,wjl,wju
+    
+    nx = SIZE(x)
+    ny = SIZE(y)
+    dx = x(2)-x(1)
+    
+    il  = MAX( 1, MIN( nx-1, 1 + FLOOR((xq-MINVAL(x)) / dx)))
+    iu  = il + 1
+    wil = (x(iu) - xq) / dx
+    wiu = 1._dp - wil
+    
+    jl  = MAX( 1, MIN( ny-1, 1 + FLOOR((yq-MINVAL(y)) / dx)))
+    ju  = jl + 1
+    wjl = (y(ju) - yq) / dx
+    wju = 1._dp - wjl
+    
+    ! interpolate
+    dq = (wil * wjl * d( jl,il)) + &
+         (wil * wju * d( ju,il)) + &
+         (wiu * wjl * d( jl,iu)) + &
+         (wiu * wju * d( ju,iu))
+        
+  END FUNCTION interp_bilin_2D
+  
+! == Debugging
+  SUBROUTINE check_for_NaN_dp_1D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 1-D dp data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,i,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( i) /= d( i)) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - NaN detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_dp_1D
+  SUBROUTINE check_for_NaN_dp_2D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 2-D dp data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,ny,i,j,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,2)
+    ny = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    DO j = 1, ny
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( j,i) /= d( j,i)) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - NaN detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_dp_2D
+  SUBROUTINE check_for_NaN_dp_3D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 3-D dp data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,ny,nz,i,j,k,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,3)
+    ny = SIZE(d,2)
+    nz = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    DO j = 1, ny
+    DO k = 1, nz
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( k,j,i) /= d( k,j,i)) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - NaN detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_dp_3D
+  SUBROUTINE check_for_NaN_int_1D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 1-D int data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,  DIMENSION(:    ),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,i,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( i) /= d( i)) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - NaN detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_int_1D
+  SUBROUTINE check_for_NaN_int_2D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 2-D int data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,ny,i,j,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,2)
+    ny = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    DO j = 1, ny
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( j,i) /= d( j,i)) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - NaN detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_int_2D
+  SUBROUTINE check_for_NaN_int_3D( d, d_name, routine_name)
+    ! Check if NaN values occur in the 3-D int data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:),              INTENT(IN)    :: d
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    
+    ! Local variables:
+    INTEGER                                                :: nx,ny,nz,i,j,k,i1,i2
+    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    
+    ! Only do this when so specified in the config
+    IF (.NOT. C%do_check_for_NaN) RETURN
+    
+    ! Field size
+    nx = SIZE(d,3)
+    ny = SIZE(d,2)
+    nz = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Variable name and routine name
+    IF (PRESENT( d_name)) THEN
+      d_name_loc = TRIM(d_name)
+    ELSE
+      d_name_loc = '?'
+    END IF
+    IF (PRESENT( routine_name)) THEN
+      routine_name_loc = TRIM(routine_name)
+    ELSE
+      routine_name_loc = '?'
+    END IF
+    
+    ! Inspect data field
+    DO i = i1, i2
+    DO j = 1, ny
+    DO k = 1, nz
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( k,j,i) /= d( k,j,i)) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - NaN detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_int_3D
 
 END MODULE utilities_module
