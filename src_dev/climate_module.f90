@@ -17,7 +17,7 @@ MODULE climate_module
   USE forcing_module,                  ONLY: forcing, map_insolation_to_grid
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D
+                                             error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D, map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
 
@@ -90,9 +90,16 @@ CONTAINS
       forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )
       forcing%clim_SMB2    = (wt0 * forcing%clim_SMB0)    + (wt1 * forcing%clim_SMB1   )
 
-      CALL map_glob_to_grid_2D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_SMB2,  SMB%SMB_year              )
-      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,  climate%applied%T2m,    12)
-
+      IF (C%domain_climate_forcing == 'global') THEN     
+        CALL map_glob_to_grid_2D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_SMB2,  SMB%SMB_year              )
+        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,  climate%applied%T2m,    12)
+      ELSEIF (C%domain_climate_forcing == 'regional') THEN 
+        CALL map_square_to_square_cons_2nd_order_2D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_SMB2, SMB%SMB_year)
+        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12) 
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
 
     ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
 
@@ -102,8 +109,16 @@ CONTAINS
       forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )   
       forcing%clim_Precip2 = (wt0 * forcing%clim_Precip0) + (wt1 * forcing%clim_Precip1)
 
-      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,    climate%applied%T2m,    12)
-      CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_Precip2, climate%applied%Precip, 12)       
+      IF (C%domain_climate_forcing == 'global') THEN
+        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,    climate%applied%T2m,    12)
+        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_Precip2, climate%applied%Precip, 12) 
+      ELSEIF (C%domain_climate_forcing == 'regional') THEN
+        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12)
+        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_Precip2, climate%applied%Precip, 12)      
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
 
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! Use the global temperature offset as calculated by the inverse routine

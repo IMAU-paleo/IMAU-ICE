@@ -253,6 +253,8 @@ MODULE configuration_module
   ! 'SMB_direct'           : Obtain SMB directly from a forcing file
   ! 'climate direct'       : Obtain temperature and precipitation (to be used in the ITM SMB model) directly from a forcing file
   CHARACTER(LEN=256)  :: choice_forcing_method_config            = 'd18O_inverse_dT_glob'
+  CHARACTER(LEN=256)  :: domain_climate_forcing_config           = 'global'                         ! The climate forcing file either covers the entire globe on a regular lon-lat grid, or only a region on an x-y grid.
+                                                                                                    ! Only used if choice_forcing_method_config = 'SMB_direct' or 'climate_direct' 
   
   REAL(dp)            :: dT_deepwater_averaging_window_config    = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
   REAL(dp)            :: dT_deepwater_dT_surf_ratio_config       = 0.25_dp                          ! Ratio between global mean surface temperature change and deep-water temperature change
@@ -646,6 +648,7 @@ MODULE configuration_module
     ! =======
     
     CHARACTER(LEN=256)                  :: choice_forcing_method
+    CHARACTER(LEN=256)                  :: domain_climate_forcing
     
     REAL(dp)                            :: dT_deepwater_averaging_window
     REAL(dp)                            :: dT_deepwater_dT_surf_ratio
@@ -1206,6 +1209,7 @@ CONTAINS
                      ocean_temperature_warm_config,              &
                      constant_lapserate_config,                  &
                      choice_forcing_method_config,               &
+                     domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
                      dT_deepwater_dT_surf_ratio_config,          &
                      d18O_dT_deepwater_ratio_config,             &
@@ -1578,6 +1582,7 @@ CONTAINS
     ! =======
     
     C%choice_forcing_method               = choice_forcing_method_config
+    C%domain_climate_forcing              = domain_climate_forcing_config
     
     C%dT_deepwater_averaging_window       = dT_deepwater_averaging_window_config
     C%dT_deepwater_dT_surf_ratio          = dT_deepwater_dT_surf_ratio_config

@@ -90,6 +90,12 @@ CONTAINS
   ! =======================================================
     
     ! Run the selected SMB model
+    ! If C%choice_forcing_method == 'SMB_direct', SMB is directly given, no need for a calculation
+    IF (C%choice_forcing_method == 'SMB_direct' ) THEN 
+      CALL sync
+      RETURN
+    END IF
+
     IF     (C%choice_SMB_model == 'uniform') THEN
       SMB%SMB_year( :,grid%i1:grid%i2) = C%SMB_uniform
       CALL sync

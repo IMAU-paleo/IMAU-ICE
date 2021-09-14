@@ -709,17 +709,23 @@ MODULE data_types_netcdf_module
     INTEGER :: id_dim_month
     INTEGER :: id_dim_lon
     INTEGER :: id_dim_lat
+    INTEGER :: id_dim_x
+    INTEGER :: id_dim_y
 
     CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
     CHARACTER(LEN=256) :: name_dim_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_dim_lat                   = 'lat                  '
+    CHARACTER(LEN=256) :: name_dim_x                     = 'NX                   '
+    CHARACTER(LEN=256) :: name_dim_y                     = 'NY                   '
 
     ! Variables
     INTEGER :: id_var_time
     INTEGER :: id_var_month
     INTEGER :: id_var_lon
     INTEGER :: id_var_lat
+    INTEGER :: id_var_x
+    INTEGER :: id_var_y
     INTEGER :: id_var_T2m
     INTEGER :: id_var_Precip
     INTEGER :: id_var_SMB
@@ -728,6 +734,8 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_month                 = 'month                '
     CHARACTER(LEN=256) :: name_var_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_var_lat                   = 'lat                  '
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_T2m                   = 'T2m                  '
     CHARACTER(LEN=256) :: name_var_Precip                = 'Precip               '
     CHARACTER(LEN=256) :: name_var_SMB                   = 'SMB                  '

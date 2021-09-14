@@ -16,7 +16,8 @@ MODULE forcing_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_insolation_data_file, read_insolation_data_file_time_lat, read_insolation_data_file, &
                                              read_inverse_routine_history_dT_glob, read_inverse_routine_history_dT_glob_inverse, read_inverse_routine_history_CO2_inverse, &
                                              inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file, inquire_climate_forcing_data_file, &
-                                             read_climate_forcing_data_file_time_latlon, read_climate_forcing_data_file_SMB, read_climate_forcing_data_file_climate
+                                             read_climate_forcing_data_file_time_latlon, read_climate_forcing_data_file_time_xy, read_climate_forcing_data_file_SMB, &
+                                             read_climate_forcing_data_file_climate
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
 
@@ -1192,41 +1193,83 @@ CONTAINS
     IF (par%master) WRITE(0,*) ' Initialising climate data from ', TRIM(C%filename_GCM_climate), '...'
   
     ! Inquire into the climate forcing netcdf file
-    CALL allocate_shared_int_0D( forcing%clim_nlat,   forcing%wclim_nlat  )
-    CALL allocate_shared_int_0D( forcing%clim_nlon,   forcing%wclim_nlon  )
-    CALL allocate_shared_int_0D( forcing%clim_nyears, forcing%wclim_nyears)
+    IF (C%domain_climate_forcing == 'global') THEN
+      CALL allocate_shared_int_0D( forcing%clim_nlat,   forcing%wclim_nlat  )
+      CALL allocate_shared_int_0D( forcing%clim_nlon,   forcing%wclim_nlon  )
+      CALL allocate_shared_int_0D( forcing%clim_nyears, forcing%wclim_nyears)
+    ELSE IF (C%domain_climate_forcing == 'regional') THEN 
+      CALL allocate_shared_int_0D( forcing%clim_nx,     forcing%wclim_nx    )
+      CALL allocate_shared_int_0D( forcing%clim_ny,     forcing%wclim_ny    )
+      CALL allocate_shared_int_0D( forcing%clim_nyears, forcing%wclim_nyears)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_forcing_data!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF          
   
     forcing%netcdf_clim%filename = C%filename_GCM_climate
   
     ! Read size of data fields from NetCDF file
     IF (par%master) CALL inquire_climate_forcing_data_file( forcing)
     CALL sync
-  
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                          forcing%wclim_time )
-    CALL allocate_shared_dp_1D( forcing%clim_nlon,                           forcing%clim_lon,     forcing%wclim_lon  )
-    CALL allocate_shared_dp_1D(                        forcing%clim_nlat,    forcing%clim_lat,     forcing%wclim_lat  )
 
-    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m0,    forcing%wclim_T2m0   )
-    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m1,    forcing%wclim_T2m1   )
-    CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m2,    forcing%wclim_T2m2   )
+    IF (C%domain_climate_forcing == 'global') THEN  
+      ! Allocate shared memory
+      CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                          forcing%wclim_time )
+      CALL allocate_shared_dp_1D( forcing%clim_nlon,                           forcing%clim_lon,     forcing%wclim_lon  )
+      CALL allocate_shared_dp_1D(                        forcing%clim_nlat,    forcing%clim_lat,     forcing%wclim_lat  )
 
-    IF (C%choice_forcing_method == 'SMB_direct') THEN
-      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB0,    forcing%wclim_SMB0   )
-      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB1,    forcing%wclim_SMB1   )
-      CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB2,    forcing%wclim_SMB2   )
-    ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
-      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip0, forcing%wclim_Precip0 )
-      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip1, forcing%wclim_Precip1 )
-      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip2, forcing%wclim_Precip2 )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m0,    forcing%wclim_T2m0   )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m1,    forcing%wclim_T2m1   )
+      CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12,  forcing%clim_T2m2,    forcing%wclim_T2m2   )
+
+      IF (C%choice_forcing_method == 'SMB_direct') THEN
+        CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB0,    forcing%wclim_SMB0   )
+        CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB1,    forcing%wclim_SMB1   )
+        CALL allocate_shared_dp_2D( forcing%clim_nlon, forcing%clim_nlat,     forcing%clim_SMB2,    forcing%wclim_SMB2   )
+      ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
+        CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip0, forcing%wclim_Precip0 )
+        CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip1, forcing%wclim_Precip1 )
+        CALL allocate_shared_dp_3D( forcing%clim_nlon, forcing%clim_nlat, 12, forcing%clim_Precip2, forcing%wclim_Precip2 )
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+   
+      ! Read time and lat-lon data
+      IF (par%master) CALL read_climate_forcing_data_file_time_latlon( forcing)
+      CALL sync
+
+    ELSEIF (C%domain_climate_forcing == 'regional') THEN
+      ! Allocate shared memory
+      CALL allocate_shared_dp_1D( forcing%clim_nyears,   forcing%clim_time,                      forcing%wclim_time )
+      CALL allocate_shared_dp_1D( forcing%clim_nx,                           forcing%clim_x,     forcing%wclim_x    )
+      CALL allocate_shared_dp_1D(                        forcing%clim_ny,    forcing%clim_y,     forcing%wclim_y    )
+
+      CALL allocate_shared_dp_3D(   12, forcing%clim_ny, forcing%clim_nx, forcing%clim_T2m0,    forcing%wclim_T2m0   )
+      CALL allocate_shared_dp_3D(   12, forcing%clim_ny, forcing%clim_nx, forcing%clim_T2m1,    forcing%wclim_T2m1   )
+      CALL allocate_shared_dp_3D(   12, forcing%clim_ny, forcing%clim_nx, forcing%clim_T2m2,    forcing%wclim_T2m2   )
+
+      IF (C%choice_forcing_method == 'SMB_direct') THEN
+        CALL allocate_shared_dp_2D( forcing%clim_ny, forcing%clim_ny,     forcing%clim_SMB0,    forcing%wclim_SMB0   )
+        CALL allocate_shared_dp_2D( forcing%clim_ny, forcing%clim_ny,     forcing%clim_SMB1,    forcing%wclim_SMB1   )
+        CALL allocate_shared_dp_2D( forcing%clim_ny, forcing%clim_ny,     forcing%clim_SMB2,    forcing%wclim_SMB2   )
+      ELSE IF (C%choice_forcing_method == 'climate_direct') THEN
+        CALL allocate_shared_dp_3D( 12, forcing%clim_ny, forcing%clim_nx, forcing%clim_Precip0, forcing%wclim_Precip0 )
+        CALL allocate_shared_dp_3D( 12, forcing%clim_ny, forcing%clim_nx, forcing%clim_Precip1, forcing%wclim_Precip1 )
+        CALL allocate_shared_dp_3D( 12, forcing%clim_ny, forcing%clim_nx, forcing%clim_Precip2, forcing%wclim_Precip2 )
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+   
+      ! Read time and lat-lon data
+      IF (par%master) CALL read_climate_forcing_data_file_time_xy( forcing)
+      CALL sync
+
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in inquire_climate_forcing_data_file!'
+      IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_forcing_data!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-   
-    ! Read time and lat-lon data
-    IF (par%master) CALL read_climate_forcing_data_file_time_latlon( forcing)
-    CALL sync
     
     ! Read climate forcing data
     CALL update_climate_forcing_data( C%start_time_of_run)
