@@ -692,26 +692,24 @@ MODULE data_types_module
     
     ! External forcing: geothermal heat flux
     TYPE(type_netcdf_geothermal_heat_flux)  :: netcdf_ghf
-    INTEGER,                    POINTER     :: ghf_nlon
-    INTEGER,                    POINTER     :: ghf_nlat
-    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lon
-    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lat
+    INTEGER,                    POINTER     :: ghf_nlon, ghf_nlat
+    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lon, ghf_lat
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ghf_ghf
     INTEGER :: wghf_nlon, wghf_nlat, wghf_lon, wghf_lat, wghf_ghf
 
     ! External forcing: climate forcing data
     TYPE(type_netcdf_climate_forcing)       :: netcdf_clim
-    INTEGER,                    POINTER     :: clim_nlon
-    INTEGER,                    POINTER     :: clim_nlat
+    INTEGER,                    POINTER     :: clim_nlon, clim_nlat
+    INTEGER,                    POINTER     :: clim_nx, clim_ny
     INTEGER,                    POINTER     :: clim_nyears
-    REAL(dp), DIMENSION(:    ), POINTER     :: clim_lon
-    REAL(dp), DIMENSION(:    ), POINTER     :: clim_lat
+    REAL(dp), DIMENSION(:    ), POINTER     :: clim_lon, clim_lat
+    REAL(dp), DIMENSION(:    ), POINTER     :: clim_x, clim_y
     REAL(dp), DIMENSION(:    ), POINTER     :: clim_time
     REAL(dp),                   POINTER     :: clim_t0, clim_t1
     REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_T2m2, clim_Precip0, clim_Precip1, clim_Precip2  ! Monthly
     REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_SMB0, clim_SMB1, clim_SMB2                                            ! Yearly
     INTEGER :: wclim_nyears, wclim_nlat, wclim_nlon, wclim_time, wclim_lat, wclim_lon, wclim_t0, wclim_t1, wclim_T2m0, wclim_T2m1, wclim_T2m2
-    INTEGER :: wclim_Precip0, wclim_Precip1, wclim_Precip2, wclim_SMB0, wclim_SMB1, wclim_SMB2
+    INTEGER :: wclim_Precip0, wclim_Precip1, wclim_Precip2, wclim_SMB0, wclim_SMB1, wclim_SMB2, wclim_nx, wclim_ny, wclim_x, wclim_y
     
   END TYPE type_forcing_data
   
