@@ -64,7 +64,14 @@ CONTAINS
     i1 = region%grid%i1
     i2 = region%grid%i2
     
-    IF     (C%choice_ice_dynamics == 'SIA') THEN
+    ! Calculate ice velocities with the selected ice-dynamical approximation
+    ! ======================================================================
+    
+    IF     (C%choice_ice_dynamics == 'none') THEN
+      ! Fixed ice geometry
+    
+    ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
+      ! Shallow ice approximation
     
       IF (region%time == region%t_next_SIA) THEN
     
@@ -83,6 +90,7 @@ CONTAINS
       END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
       
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      ! Shallow shelf approximation
     
       IF (region%time == region%t_next_SSA) THEN
     
@@ -101,6 +109,7 @@ CONTAINS
       END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
       
     ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      ! Hybrid SIA/SSA (Bueler and Brown, 2009)
     
       IF (region%time == region%t_next_SIA) THEN
     
@@ -147,7 +156,16 @@ CONTAINS
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_SIA = ', dt_crit_SIA, ', dt_crit_SSA = ', dt_crit_SSA, ', dt = ', region%dt
     
     ! Calculate new ice geometry
-    CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
+    ! ==========================
+    
+    IF (C%choice_ice_dynamics == 'none') THEN
+      ! Fixed ice geometry
+      region%ice%dHi_dt_a( :,i1:i2) = 0._dp
+      CALL sync
+    ELSE
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
+    END IF
+    
     region%ice%Hi_tplusdt_a( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
     CALL sync
     
@@ -173,7 +191,10 @@ CONTAINS
     
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
-    IF     (C%choice_ice_dynamics == 'SIA') THEN
+    IF     (C%choice_ice_dynamics == 'none') THEN
+      region%ice%dHi_dt_a( :,i1:i2) = 0._dp
+      CALL sync
+    ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
       IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
       IF (region%time == region%t_next_SSA ) do_update_ice_velocity = .TRUE.
@@ -466,7 +487,9 @@ CONTAINS
       ! First the ice dynamics
       ! ======================
       
-      IF     (C%choice_ice_dynamics == 'SIA') THEN
+      IF     (C%choice_ice_dynamics == 'none') THEN
+        ! Just stick to the maximum time step
+      ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
         t_next = MIN( t_next, region%t_next_SIA)
       ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
         t_next = MIN( t_next, region%t_next_SSA)

@@ -19,7 +19,7 @@ MODULE climate_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              error_function, smooth_Gaussian_2D, smooth_Shepard_2D, map_glob_to_grid_2D, map_glob_to_grid_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
-  USE SMB_module,                      ONLY: run_SMB_model, run_SMB_model_refr_fixed
+  USE SMB_module,                      ONLY: run_SMB_model
 
   IMPLICIT NONE
     
@@ -42,14 +42,17 @@ CONTAINS
     ! Local variables
     REAL(dp)                                           :: wt0, wt1
     
-    ! Check if we need to apply any special benchmark experiment climate
+  ! ================================================
+  ! ===== Exceptions for benchmark experiments =====
+  ! ================================================
+  
     IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6') THEN
+      IF     (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_6') THEN
           
         CALL EISMINT_climate( grid, ice, climate, time)
         RETURN
@@ -70,6 +73,10 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
+    
+  ! =======================================================
+  ! ===== End of exceptions for benchmark experiments =====
+  ! =======================================================
     
     ! Update insolation forcing at model time
     CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA, climate%applied%Q_TOA_jun_65N, climate%applied%Q_TOA_jan_80S)
@@ -1636,25 +1643,25 @@ CONTAINS
     
     IF (par%master) THEN
       IF     (region_name == 'NAM') THEN
-        SMB_dummy%C_abl_constant = C%C_abl_constant_NAM
-        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_NAM
-        SMB_dummy%C_abl_Q        = C%C_abl_Q_NAM
-        SMB_dummy%C_refr         = C%C_refr_NAM
+        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
+        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
+        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
+        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_NAM
       ELSEIF (region_name == 'EAS') THEN
-        SMB_dummy%C_abl_constant = C%C_abl_constant_EAS
-        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_EAS
-        SMB_dummy%C_abl_Q        = C%C_abl_Q_EAS
-        SMB_dummy%C_refr         = C%C_refr_EAS
+        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
+        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
+        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
+        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_EAS
       ELSEIF (region_name == 'GRL') THEN
-        SMB_dummy%C_abl_constant = C%C_abl_constant_GRL
-        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_GRL
-        SMB_dummy%C_abl_Q        = C%C_abl_Q_GRL
-        SMB_dummy%C_refr         = C%C_refr_GRL
+        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
+        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
+        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
+        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_GRL
       ELSEIF (region_name == 'ANT') THEN
-        SMB_dummy%C_abl_constant = C%C_abl_constant_ANT
-        SMB_dummy%C_abl_Ts       = C%C_abl_Ts_ANT
-        SMB_dummy%C_abl_Q        = C%C_abl_Q_ANT
-        SMB_dummy%C_refr         = C%C_refr_ANT
+        SMB_dummy%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
+        SMB_dummy%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
+        SMB_dummy%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
+        SMB_dummy%C_refr         = C%SMB_IMAUITM_C_refr_ANT
       END IF
     END IF ! IF (par%master) THEN
     CALL sync
@@ -1663,7 +1670,6 @@ CONTAINS
     ! (experimentally determined to be long enough to converge)
     DO i = 1, 10
       CALL run_SMB_model( grid, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
-      !CALL run_SMB_model_refr_fixed( grid, ice_dummy, climate_dummy, 0._dp, SMB_dummy, mask_noice)
     END DO
     CALL sync
     

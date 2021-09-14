@@ -115,6 +115,8 @@ CONTAINS
   
   SUBROUTINE calc_Weertman_sliding_factor( grid, ice)
     ! Calculate the sliding factor A_slid (used when choice_sliding_law = 'Weertman')
+    
+    ! DENK DROM - no spatial variation included yet!
 
     IMPLICIT NONE
 

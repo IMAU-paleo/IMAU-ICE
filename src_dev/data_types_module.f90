@@ -535,7 +535,7 @@ MODULE data_types_module
   TYPE type_SMB_model
     ! The different SMB components, calculated from the prescribed climate
     
-    ! Tuning parameters (different for each region, set from config)
+    ! Tuning parameters for the IMAU-ITM SMB model (different for each region, set from config)
     REAL(dp),                   POINTER     :: C_abl_constant
     REAL(dp),                   POINTER     :: C_abl_Ts
     REAL(dp),                   POINTER     :: C_abl_Q
@@ -559,10 +559,6 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB_year                      ! Yearly  SMB (m)
     INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wRainfall, wSnowfall, wAddedFirn, wMelt
     INTEGER :: wRefreezing, wRefreezing_year, wRunoff, wAlbedo, wAlbedo_year, wSMB, wSMB_year
-    
-    ! DENK DROM
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Snow_prev, abla_prev
-    INTEGER :: wSnow_prev, wabla_prev
   
   END TYPE type_SMB_model
   

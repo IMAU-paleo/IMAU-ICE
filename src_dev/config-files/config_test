@@ -2,8 +2,8 @@
 
 ! Start and end time
 start_time_of_run_config                = -120000  ! Start time (in years) of the simulations
-end_time_of_run_config                  = -119800  ! End   time (in years) of the simulations
-dt_coupling_config                      = 10
+end_time_of_run_config                  = -119000  ! End   time (in years) of the simulations
+dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
 create_procedural_output_dir_config     = .TRUE.
@@ -14,21 +14,22 @@ do_write_debug_data_config              = .TRUE.
 do_benchmark_experiment_config          = .FALSE.
 
 ! Which ice-sheets we want to simulate
-do_NAM_config                           = .TRUE.
-do_EAS_config                           = .TRUE.
-do_GRL_config                           = .TRUE.
+do_NAM_config                           = .FALSE.
+do_EAS_config                           = .FALSE.
+do_GRL_config                           = .FALSE.
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
 dx_NAM_config                           = 40000
 dx_EAS_config                           = 40000
 dx_GRL_config                           = 20000
-dx_ANT_config                           = 40000
+dx_ANT_config                           = 20000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
-dt_thermo_config                        = 5        ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 100      ! Time step (in years) for writing output
+dt_thermo_config                        = 1        ! Time step (in years) for updating the thermodynamics
+dt_output_config                        = 10       ! Time step (in years) for writing output
+dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
 dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
 
@@ -38,7 +39,7 @@ choice_timestepping_config              = 'pc'
 choice_ice_margin_config                = 'infinite_slab'
 m_enh_sheet_config                      = 5.0
 m_enh_shelf_config                      = 0.7
-choice_calving_law_config               = 'none'
+choice_calving_law_config               = 'threshold_thickness'
 
 ! Sea level and GIA
 choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
@@ -69,38 +70,25 @@ filename_ICE5G_LGM_config               = 'Datasets/ICE5G/ice5g_v1.2_21.0k_1deg.
 
 constant_lapserate_config               = 0.008
 
-! SMB tuning
-C_abl_constant_NAM_config               = 18
-C_abl_constant_EAS_config               = 34.5
-C_abl_constant_GRL_config               = 24
-C_abl_constant_ANT_config               = 18
-C_abl_Ts_NAM_config                     = 10
-C_abl_Ts_EAS_config                     = 10
-C_abl_Ts_GRL_config                     = 10
-C_abl_Ts_ANT_config                     = 10
-C_abl_Q_NAM_config                      = 0.513
-C_abl_Q_EAS_config                      = 0.513
-C_abl_Q_GRL_config                      = 0.513
-C_abl_Q_ANT_config                      = 0.513
+! Tuning parameters for the IMAU-ITM SMB model
+SMB_IMAUITM_C_abl_constant_NAM_config   = 18
+SMB_IMAUITM_C_abl_constant_EAS_config   = 34.5
+SMB_IMAUITM_C_abl_constant_GRL_config   = 24
+SMB_IMAUITM_C_abl_constant_ANT_config   = 18
+SMB_IMAUITM_C_abl_Ts_NAM_config         = 10
+SMB_IMAUITM_C_abl_Ts_EAS_config         = 10
+SMB_IMAUITM_C_abl_Ts_GRL_config         = 10
+SMB_IMAUITM_C_abl_Ts_ANT_config         = 10
+SMB_IMAUITM_C_abl_Q_NAM_config          = 0.513
+SMB_IMAUITM_C_abl_Q_EAS_config          = 0.513
+SMB_IMAUITM_C_abl_Q_GRL_config          = 0.513
+SMB_IMAUITM_C_abl_Q_ANT_config          = 0.513
 
 ! Forcing
-choice_forcing_method_config            = 'CO2_direct'
-  
-dT_deepwater_averaging_window_config    = 3000.0
-dT_deepwater_dT_surf_ratio_config       = 0.25
-d18O_dT_deepwater_ratio_config          = -0.28
-  
-dT_glob_inverse_averaging_window_config = 2000.0
-inverse_d18O_to_dT_glob_scaling_config  = 20.0
-CO2_inverse_averaging_window_config     = 2000.0
-inverse_d18O_to_CO2_scaling_config      = 68.0
-inverse_d18O_to_CO2_initial_CO2_config  = 280.0
-
 filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
+choice_forcing_method_config            = 'CO2_direct'
 filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
 CO2_record_length_config                = 8001
-filename_d18O_record_config             = 'Datasets/d18O/Ahn2017_d18O.dat'
-d18O_record_length_config               = 2051
 
 ! Initial and PD reference data
 filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'

@@ -1410,7 +1410,7 @@ CONTAINS
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
-    netcdf%filename = TRIM(C%output_dir)//'/global_scalar_output.nc'
+    netcdf%filename = TRIM(C%output_dir)//'/scalar_output_global.nc'
     INQUIRE(EXIST=file_exists, FILE = TRIM(netcdf%filename))
     IF (file_exists) THEN
       WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(netcdf%filename), ' already exists!'

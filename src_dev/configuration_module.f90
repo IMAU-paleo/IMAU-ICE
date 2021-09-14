@@ -141,7 +141,7 @@ MODULE configuration_module
   ! Ice dynamics - velocity
   ! =======================
   
-  CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Choice of ice-dynamica approximation: "SIA", "SSA", "SIA/SSA", "DIVA"
+  CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   REAL(dp)            :: n_flow_config                           = 3.0_dp                           ! Exponent in Glen's flow law
   REAL(dp)            :: m_enh_sheet_config                      = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
   REAL(dp)            :: m_enh_shelf_config                      = 1.0_dp                           ! Ice flow enhancement factor for floating ice
@@ -264,30 +264,37 @@ MODULE configuration_module
   REAL(dp)            :: inverse_d18O_to_CO2_scaling_config      = 68._dp                           ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
   REAL(dp)            :: inverse_d18O_to_CO2_initial_CO2_config  = 280._dp                          ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
   
-  ! SMB tuning
-  ! ==========
+  ! Surface mass balance
+  ! ====================
   
-  REAL(dp)            :: C_abl_constant_NAM_config               = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
-  REAL(dp)            :: C_abl_constant_EAS_config               = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
-  REAL(dp)            :: C_abl_constant_GRL_config               = -49._dp                          !            they used to in ANICE.)
-  REAL(dp)            :: C_abl_constant_ANT_config               = -49._dp
-  REAL(dp)            :: C_abl_Ts_NAM_config                     = 10._dp                           ! 10._dp
-  REAL(dp)            :: C_abl_Ts_EAS_config                     = 10._dp
-  REAL(dp)            :: C_abl_Ts_GRL_config                     = 10._dp
-  REAL(dp)            :: C_abl_Ts_ANT_config                     = 10._dp
-  REAL(dp)            :: C_abl_Q_NAM_config                      = 0.0227_dp                        ! 0.513_dp
-  REAL(dp)            :: C_abl_Q_EAS_config                      = 0.0227_dp
-  REAL(dp)            :: C_abl_Q_GRL_config                      = 0.0227_dp
-  REAL(dp)            :: C_abl_Q_ANT_config                      = 0.0227_dp
-  REAL(dp)            :: C_refr_NAM_config                       = 0.051_dp                         ! 0.012_dp
-  REAL(dp)            :: C_refr_EAS_config                       = 0.051_dp 
-  REAL(dp)            :: C_refr_GRL_config                       = 0.051_dp 
-  REAL(dp)            :: C_refr_ANT_config                       = 0.051_dp
+  CHARACTER(LEN=256)  :: choice_SMB_model_config                 = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "IMAU-ITM"
+  REAL(dp)            :: SMB_uniform_config                      = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config   = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config   = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config   = -49._dp                          !            they used to in ANICE.)
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config   = -49._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config         = 10._dp                           ! 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config         = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config         = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config         = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config          = 0.0227_dp                        ! 0.513_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config          = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config          = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config          = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config           = 0.051_dp                         ! 0.012_dp
+  REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config           = 0.051_dp 
+  REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config           = 0.051_dp 
+  REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config           = 0.051_dp
   
-  ! Sub-shelf melt parameterisation
-  ! ===============================
+  ! Basal mass balance
+  ! ==================
   
-  ! Mean ocean temperatures and deep ocean & exposed shelf melt rates were tuned by Bas de Boer in 2011.
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy"
+  CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
+  REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
+  REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
+  
+  ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
   REAL(dp)            :: T_ocean_mean_PD_EAS_config              = -1.7_dp
   REAL(dp)            :: T_ocean_mean_PD_GRL_config              =  2.0_dp
@@ -650,29 +657,37 @@ MODULE configuration_module
     REAL(dp)                            :: inverse_d18O_to_CO2_scaling
     REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
     
-    ! SMB melt tuning
-    ! ===============
+    ! Surface mass balance
+    ! ====================
     
-    REAL(dp)                            :: C_abl_constant_NAM
-    REAL(dp)                            :: C_abl_constant_EAS
-    REAL(dp)                            :: C_abl_constant_GRL
-    REAL(dp)                            :: C_abl_constant_ANT
-    REAL(dp)                            :: C_abl_Ts_NAM
-    REAL(dp)                            :: C_abl_Ts_EAS
-    REAL(dp)                            :: C_abl_Ts_GRL
-    REAL(dp)                            :: C_abl_Ts_ANT
-    REAL(dp)                            :: C_abl_Q_NAM
-    REAL(dp)                            :: C_abl_Q_EAS
-    REAL(dp)                            :: C_abl_Q_GRL
-    REAL(dp)                            :: C_abl_Q_ANT
-    REAL(dp)                            :: C_refr_NAM
-    REAL(dp)                            :: C_refr_EAS
-    REAL(dp)                            :: C_refr_GRL
-    REAL(dp)                            :: C_refr_ANT
-  
-    ! Sub-shelf melt parameterisation
-    ! ===============================
+    CHARACTER(LEN=256)                  :: choice_SMB_model
+    REAL(dp)                            :: SMB_uniform
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_NAM
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_EAS
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_GRL
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_ANT
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_NAM
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_EAS
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_GRL
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_ANT
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_NAM
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_EAS
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_GRL
+    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_ANT
+    REAL(dp)                            :: SMB_IMAUITM_C_refr_NAM
+    REAL(dp)                            :: SMB_IMAUITM_C_refr_EAS
+    REAL(dp)                            :: SMB_IMAUITM_C_refr_GRL
+    REAL(dp)                            :: SMB_IMAUITM_C_refr_ANT
     
+    ! Basal mass balance - sub-shelf melt
+    ! ===================================
+    
+    CHARACTER(LEN=256)                  :: choice_BMB_shelf_model
+    CHARACTER(LEN=256)                  :: choice_BMB_sheet_model
+    REAL(dp)                            :: BMB_shelf_uniform
+    REAL(dp)                            :: BMB_sheet_uniform
+    
+    ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
     REAL(dp)                            :: T_ocean_mean_PD_EAS
     REAL(dp)                            :: T_ocean_mean_PD_GRL
@@ -1199,22 +1214,28 @@ CONTAINS
                      CO2_inverse_averaging_window_config,        &
                      inverse_d18O_to_CO2_scaling_config,         &
                      inverse_d18O_to_CO2_initial_CO2_config,     &
-                     C_abl_constant_NAM_config,                  &
-                     C_abl_constant_EAS_config,                  &
-                     C_abl_constant_GRL_config,                  &
-                     C_abl_constant_ANT_config,                  &
-                     C_abl_Ts_NAM_config,                        &
-                     C_abl_Ts_EAS_config,                        &
-                     C_abl_Ts_GRL_config,                        &
-                     C_abl_Ts_ANT_config,                        &
-                     C_abl_Q_NAM_config,                         &
-                     C_abl_Q_EAS_config,                         &
-                     C_abl_Q_GRL_config,                         &
-                     C_abl_Q_ANT_config,                         &
-                     C_refr_NAM_config,                          &
-                     C_refr_EAS_config,                          &
-                     C_refr_GRL_config,                          &
-                     C_refr_ANT_config,                          &
+                     choice_SMB_model_config,                    &
+                     SMB_uniform_config,                         &
+                     SMB_IMAUITM_C_abl_constant_NAM_config,      &
+                     SMB_IMAUITM_C_abl_constant_EAS_config,      &
+                     SMB_IMAUITM_C_abl_constant_GRL_config,      &
+                     SMB_IMAUITM_C_abl_constant_ANT_config,      &
+                     SMB_IMAUITM_C_abl_Ts_NAM_config,            &
+                     SMB_IMAUITM_C_abl_Ts_EAS_config,            &
+                     SMB_IMAUITM_C_abl_Ts_GRL_config,            &
+                     SMB_IMAUITM_C_abl_Ts_ANT_config,            &
+                     SMB_IMAUITM_C_abl_Q_NAM_config,             &
+                     SMB_IMAUITM_C_abl_Q_EAS_config,             &
+                     SMB_IMAUITM_C_abl_Q_GRL_config,             &
+                     SMB_IMAUITM_C_abl_Q_ANT_config,             &
+                     SMB_IMAUITM_C_refr_NAM_config,              &
+                     SMB_IMAUITM_C_refr_EAS_config,              &
+                     SMB_IMAUITM_C_refr_GRL_config,              &
+                     SMB_IMAUITM_C_refr_ANT_config,              &
+                     choice_BMB_shelf_model_config,              &
+                     choice_BMB_sheet_model_config,              &
+                     BMB_shelf_uniform_config,                   &
+                     BMB_sheet_uniform_config,                   &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1568,29 +1589,37 @@ CONTAINS
     C%inverse_d18O_to_CO2_scaling         = inverse_d18O_to_CO2_scaling_config
     C%inverse_d18O_to_CO2_initial_CO2     = inverse_d18O_to_CO2_initial_CO2_config
     
-    ! SMB melt tuning
-    ! ===============
+    ! Surface mass balance
+    ! ====================
     
-    C%C_abl_constant_NAM                  = C_abl_constant_NAM_config
-    C%C_abl_constant_EAS                  = C_abl_constant_EAS_config
-    C%C_abl_constant_GRL                  = C_abl_constant_GRL_config
-    C%C_abl_constant_ANT                  = C_abl_constant_ANT_config
-    C%C_abl_Ts_NAM                        = C_abl_Ts_NAM_config
-    C%C_abl_Ts_EAS                        = C_abl_Ts_EAS_config
-    C%C_abl_Ts_GRL                        = C_abl_Ts_GRL_config
-    C%C_abl_Ts_ANT                        = C_abl_Ts_ANT_config
-    C%C_abl_Q_NAM                         = C_abl_Q_NAM_config
-    C%C_abl_Q_EAS                         = C_abl_Q_EAS_config
-    C%C_abl_Q_GRL                         = C_abl_Q_GRL_config
-    C%C_abl_Q_ANT                         = C_abl_Q_ANT_config
-    C%C_refr_NAM                          = C_refr_NAM_config
-    C%C_refr_EAS                          = C_refr_EAS_config
-    C%C_refr_GRL                          = C_refr_GRL_config
-    C%C_refr_ANT                          = C_refr_ANT_config
+    C%choice_SMB_model                    = choice_SMB_model_config
+    C%SMB_uniform                         = SMB_uniform_config
+    C%SMB_IMAUITM_C_abl_constant_NAM      = SMB_IMAUITM_C_abl_constant_NAM_config
+    C%SMB_IMAUITM_C_abl_constant_EAS      = SMB_IMAUITM_C_abl_constant_EAS_config
+    C%SMB_IMAUITM_C_abl_constant_GRL      = SMB_IMAUITM_C_abl_constant_GRL_config
+    C%SMB_IMAUITM_C_abl_constant_ANT      = SMB_IMAUITM_C_abl_constant_ANT_config
+    C%SMB_IMAUITM_C_abl_Ts_NAM            = SMB_IMAUITM_C_abl_Ts_NAM_config
+    C%SMB_IMAUITM_C_abl_Ts_EAS            = SMB_IMAUITM_C_abl_Ts_EAS_config
+    C%SMB_IMAUITM_C_abl_Ts_GRL            = SMB_IMAUITM_C_abl_Ts_GRL_config
+    C%SMB_IMAUITM_C_abl_Ts_ANT            = SMB_IMAUITM_C_abl_Ts_ANT_config
+    C%SMB_IMAUITM_C_abl_Q_NAM             = SMB_IMAUITM_C_abl_Q_NAM_config
+    C%SMB_IMAUITM_C_abl_Q_EAS             = SMB_IMAUITM_C_abl_Q_EAS_config
+    C%SMB_IMAUITM_C_abl_Q_GRL             = SMB_IMAUITM_C_abl_Q_GRL_config
+    C%SMB_IMAUITM_C_abl_Q_ANT             = SMB_IMAUITM_C_abl_Q_ANT_config
+    C%SMB_IMAUITM_C_refr_NAM              = SMB_IMAUITM_C_refr_NAM_config
+    C%SMB_IMAUITM_C_refr_EAS              = SMB_IMAUITM_C_refr_EAS_config
+    C%SMB_IMAUITM_C_refr_GRL              = SMB_IMAUITM_C_refr_GRL_config
+    C%SMB_IMAUITM_C_refr_ANT              = SMB_IMAUITM_C_refr_ANT_config
     
-    ! Sub-shelf melt parameterisation
-    ! ===============================
+    ! Basal mass balance - sub-shelf melt
+    ! ===================================
     
+    C%choice_BMB_shelf_model              = choice_BMB_shelf_model_config
+    C%choice_BMB_sheet_model              = choice_BMB_sheet_model_config
+    C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
+    C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
+    
+    ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config
     C%T_ocean_mean_PD_EAS                 = T_ocean_mean_PD_EAS_config
     C%T_ocean_mean_PD_GRL                 = T_ocean_mean_PD_GRL_config

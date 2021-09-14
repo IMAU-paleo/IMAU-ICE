@@ -21,9 +21,9 @@ MODULE BMB_module
     
 CONTAINS
 
-  ! Run the SMB model on the region grid
+  ! The main routine that is called from the IMAU_ICE_main_model
   SUBROUTINE run_BMB_model( grid, ice, climate, BMB, region_name)
-    ! Calculate mean ocean temperature (saved in "climate") and basal mass balance
+    ! Run the selected BMB model
     
     IMPLICIT NONE
     
@@ -34,18 +34,13 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
-    ! Local variables
+    ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: BMB_shelf                             ! Sub-shelf melt rate for non-exposed shelf  [m/year]
-    REAL(dp)                                           :: BMB_shelf_exposed                     ! Sub-shelf melt rate for exposed shelf      [m/year]
-    REAL(dp)                                           :: BMB_deepocean                         ! Sub-shelf melt rate for deep-ocean areas   [m/year]
-    REAL(dp)                                           :: w_ins, w_PD, w_warm, w_cold, w_deep, w_expo, weight
-    REAL(dp)                                           :: T_freeze                              ! Freezing temperature at the base of the shelf (Celcius)
-    REAL(dp)                                           :: water_depth
-    REAL(dp), PARAMETER                                :: cp0        = 3974._dp                 ! specific heat capacity of the ocean mixed layer (J kg-1 K-1) 
-    REAL(dp), PARAMETER                                :: gamma_T    = 1.0E-04_dp               ! Thermal exchange velocity (m s-1)
     
-    ! Exceptions for benchmark experiments
+  ! ================================================
+  ! ===== Exceptions for benchmark experiments =====
+  ! ================================================
+  
     IF (C%do_benchmark_experiment) THEN
       IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
           C%choice_benchmark_experiment == 'Bueler' .OR. &
@@ -71,6 +66,66 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
+    
+  ! =======================================================
+  ! ===== End of exceptions for benchmark experiments =====
+  ! =======================================================
+    
+    ! Run the selected shelf BMB model
+    IF     (C%choice_BMB_shelf_model == 'uniform') THEN
+      BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
+      CALL sync
+    ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
+      CALL run_BMB_model_ANICE_legacy( grid, ice, climate, BMB, region_name)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in run_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Run the selected sheet BMB model
+    IF     (C%choice_BMB_sheet_model == 'uniform') THEN
+      BMB%BMB_sheet( :,grid%i1:grid%i2) = C%BMB_sheet_uniform
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_sheet_model), '" not implemented in run_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Add sheet and shelf melt rates together, accounting for partial flotation/grounding
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      BMB%BMB( j,i) = (         ice%f_grnd_a( j,i)  * BMB%BMB_sheet( j,i)) + &
+                      ((1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i))
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE run_BMB_model
+
+  ! The ANICE_legacy sub-shelf melt model
+  SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, climate, BMB, region_name)
+    ! Calculate sub-shelf melt with the ANICE_legacy model, which is based on the glacial-interglacial
+    ! parameterisation by Pollard & DeConto (2012), the distance-to-open-ocean + subtended-angle parameterisation
+    ! by Pollard & DeConto (2012), and the linear temperature-melt relation by Martin et al. (2011).
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Local variables
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: BMB_shelf                             ! Sub-shelf melt rate for non-exposed shelf  [m/year]
+    REAL(dp)                                           :: BMB_shelf_exposed                     ! Sub-shelf melt rate for exposed shelf      [m/year]
+    REAL(dp)                                           :: BMB_deepocean                         ! Sub-shelf melt rate for deep-ocean areas   [m/year]
+    REAL(dp)                                           :: w_ins, w_PD, w_warm, w_cold, w_deep, w_expo
+    REAL(dp)                                           :: T_freeze                              ! Freezing temperature at the base of the shelf (Celcius)
+    REAL(dp)                                           :: water_depth
+    REAL(dp), PARAMETER                                :: cp0        = 3974._dp                 ! specific heat capacity of the ocean mixed layer (J kg-1 K-1) 
+    REAL(dp), PARAMETER                                :: gamma_T    = 1.0E-04_dp               ! Thermal exchange velocity (m s-1)
       
     ! Initialise everything at zero
     BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
@@ -165,7 +220,7 @@ CONTAINS
         END IF
         
       ELSE ! IF (C%choice_forcing_method == 'CO2_direct') THEN
-        WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model!'
+        WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model_ANICE_legacy!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF ! IF (C%choice_forcing_method == 'CO2_direct') THEN
       
@@ -173,35 +228,9 @@ CONTAINS
       BMB_deepocean        = w_PD * BMB%BMB_deepocean_PD     + w_warm * BMB%BMB_deepocean_warm     + w_cold * BMB%BMB_deepocean_cold
       BMB_shelf_exposed    = w_PD * BMB%BMB_shelf_exposed_PD + w_warm * BMB%BMB_shelf_exposed_warm + w_cold * BMB%BMB_shelf_exposed_cold
       CALL sync
-    
-    
-    
-    
-    
-    ! DENK DROM
-    IF (forcing%CO2_obs <= 280._dp ) THEN
-      weight = 1._dp - MAX(-0.25_dp, MIN(1._dp,   ((280._dp - forcing%CO2_obs) / (280._dp - 190._dp) + (3.23_dp - forcing%d18O_obs) / (3.23_dp - 4.95_dp)) / 2._dp ))
-    ELSE
-      weight = 2._dp - MAX( 0._dp,   MIN(1.25_dp, ((400._dp - forcing%CO2_obs) / (400._dp - 280._dp) + (3.00_dp - forcing%d18O_obs) / (3.00_dp - 3.23_dp)) / 2._dp ))
-    END IF
-    
-    weight = weight + MAX(-0.2_dp, (climate%Q_TOA_jun_65N - 462.29_dp)/40._dp)
-    
-    IF  (weight < 1._dp) THEN
-      climate%T_ocean_mean = weight           * BMB%T_ocean_mean_PD      + (1._dp - weight) * BMB%T_ocean_mean_cold
-      BMB_deepocean        = weight           * BMB%BMB_deepocean_PD     + (1._dp - weight) * BMB%BMB_deepocean_cold
-      BMB_shelf_exposed    = weight           * BMB%BMB_shelf_exposed_PD + (1._dp - weight) * BMB%BMB_shelf_exposed_cold
-    ELSE
-      climate%T_ocean_mean = (2._dp - weight) * BMB%T_ocean_mean_PD      + (weight - 1._dp) * BMB%T_ocean_mean_warm
-      BMB_deepocean        = (2._dp - weight) * BMB%BMB_deepocean_PD     + (weight - 1._dp) * BMB%BMB_deepocean_warm
-      BMB_shelf_exposed    = (2._dp - weight) * BMB%BMB_shelf_exposed_PD + (weight - 1._dp) * BMB%BMB_shelf_exposed_warm
-    END IF
-    
-    
-    
       
     ELSE ! IF (C%choice_ocean_temperature_model == 'fixed') THEN
-      WRITE(0,*) '  ERROR: choice_ocean_temperature_model "', TRIM(C%choice_ocean_temperature_model), '" not implemented in run_BMB_model!'
+      WRITE(0,*) '  ERROR: choice_ocean_temperature_model "', TRIM(C%choice_ocean_temperature_model), '" not implemented in run_BMB_model_ANICE_legacy!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF ! IF (C%choice_ocean_temperature_model == 'fixed') THEN
     
@@ -240,18 +269,14 @@ CONTAINS
     END DO
     CALL sync
     
-    ! Add sheet and shelf melt together
-    BMB%BMB( :,grid%i1:grid%i2) = BMB%BMB_sheet( :,grid%i1:grid%i2) + BMB%BMB_shelf( :,grid%i1:grid%i2)
-    CALL sync
-    
     ! Safety
-    CALL check_for_NaN_dp_2D( BMB%sub_angle, 'BMB%sub_angle', 'run_BMB_model')
-    CALL check_for_NaN_dp_2D( BMB%dist_open, 'BMB%dist_open', 'run_BMB_model')
-    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf', 'run_BMB_model')
-    CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%sub_angle, 'BMB%sub_angle', 'run_BMB_model_ANICE_legacy')
+    CALL check_for_NaN_dp_2D( BMB%dist_open, 'BMB%dist_open', 'run_BMB_model_ANICE_legacy')
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf', 'run_BMB_model_ANICE_legacy')
           
-  END SUBROUTINE run_BMB_model
+  END SUBROUTINE run_BMB_model_ANICE_legacy
   
+  ! The distance-to-open-ocean and subtended-angle functions for the Pollard&DeConto (2012) sub-shelf melt parameterisation
   FUNCTION distance_open_ocean( grid, i_shelf, j_shelf, mask_land, mask_ocean, mask_ice, mask_shelf) RESULT( open_distance)
     ! Determine the distance to the open ocean (expressed in number of grid cells). A  solution is found for all 16 directions
     ! also when encountering land points, keep searching to find a grid point. 
@@ -869,7 +894,7 @@ CONTAINS
 
   END FUNCTION subtended_angle
   
-  ! Administration: allocation, initialisation, and remapping
+  ! Administration: allocation and initialisation
   SUBROUTINE initialise_BMB_model( grid, BMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
     
@@ -882,74 +907,97 @@ CONTAINS
     
     IF (par%master) WRITE (0,*) '  Initialising BMB model...'
     
-    ! Allocate shared memory
+    ! Total
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB      , BMB%wBMB      )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_sheet, BMB%wBMB_sheet)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%sub_angle, BMB%wsub_angle)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%dist_open, BMB%wdist_open)
     
-    ! Tuning parameters
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_PD,            BMB%wT_ocean_mean_PD           )
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_cold,          BMB%wT_ocean_mean_cold         )
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_warm,          BMB%wT_ocean_mean_warm         )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_PD,           BMB%wBMB_deepocean_PD          )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_cold,         BMB%wBMB_deepocean_cold        )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_warm,         BMB%wBMB_deepocean_warm        )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_PD,       BMB%wBMB_shelf_exposed_PD      )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_cold,     BMB%wBMB_shelf_exposed_cold    )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_warm,     BMB%wBMB_shelf_exposed_warm    )
-    CALL allocate_shared_dp_0D( BMB%subshelf_melt_factor,       BMB%wsubshelf_melt_factor      )
-    CALL allocate_shared_dp_0D( BMB%deep_ocean_threshold_depth, BMB%wdeep_ocean_threshold_depth)
+    ! Shelf
+    IF     (C%choice_BMB_shelf_model == 'uniform') THEN
     
-    IF (region_name == 'NAM') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_NAM
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_NAM
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_NAM
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_NAM
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_NAM
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_NAM
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_NAM
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_NAM
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_NAM
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_NAM
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_EAS
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_EAS
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_EAS
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_EAS
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_EAS
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_EAS
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_EAS
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_EAS
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_EAS
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_EAS
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_GRL
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_GRL
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_GRL
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_GRL
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_GRL
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_GRL
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_GRL
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_GRL
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_GRL
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_GRL
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_ANT
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_ANT
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_ANT
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_ANT
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_ANT
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_ANT
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_ANT
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_ANT
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_ANT
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_ANT
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_ANT
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
+      
+    ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
+    
+      ! Variables
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%sub_angle, BMB%wsub_angle)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%dist_open, BMB%wdist_open)
+      
+      ! Tuning parameters
+      CALL allocate_shared_dp_0D( BMB%T_ocean_mean_PD,            BMB%wT_ocean_mean_PD           )
+      CALL allocate_shared_dp_0D( BMB%T_ocean_mean_cold,          BMB%wT_ocean_mean_cold         )
+      CALL allocate_shared_dp_0D( BMB%T_ocean_mean_warm,          BMB%wT_ocean_mean_warm         )
+      CALL allocate_shared_dp_0D( BMB%BMB_deepocean_PD,           BMB%wBMB_deepocean_PD          )
+      CALL allocate_shared_dp_0D( BMB%BMB_deepocean_cold,         BMB%wBMB_deepocean_cold        )
+      CALL allocate_shared_dp_0D( BMB%BMB_deepocean_warm,         BMB%wBMB_deepocean_warm        )
+      CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_PD,       BMB%wBMB_shelf_exposed_PD      )
+      CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_cold,     BMB%wBMB_shelf_exposed_cold    )
+      CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_warm,     BMB%wBMB_shelf_exposed_warm    )
+      CALL allocate_shared_dp_0D( BMB%subshelf_melt_factor,       BMB%wsubshelf_melt_factor      )
+      CALL allocate_shared_dp_0D( BMB%deep_ocean_threshold_depth, BMB%wdeep_ocean_threshold_depth)
+      
+      IF (region_name == 'NAM') THEN
+        BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_NAM
+        BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_NAM
+        BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_NAM
+        BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_NAM
+        BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_NAM
+        BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_NAM
+        BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_NAM
+        BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_NAM
+        BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_NAM
+        BMB%subshelf_melt_factor       = C%subshelf_melt_factor_NAM
+        BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_NAM
+      ELSEIF (region_name == 'EAS') THEN
+        BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_EAS
+        BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_EAS
+        BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_EAS
+        BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_EAS
+        BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_EAS
+        BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_EAS
+        BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_EAS
+        BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_EAS
+        BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_EAS
+        BMB%subshelf_melt_factor       = C%subshelf_melt_factor_EAS
+        BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_EAS
+      ELSEIF (region_name == 'GRL') THEN
+        BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_GRL
+        BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_GRL
+        BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_GRL
+        BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_GRL
+        BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_GRL
+        BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_GRL
+        BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_GRL
+        BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_GRL
+        BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_GRL
+        BMB%subshelf_melt_factor       = C%subshelf_melt_factor_GRL
+        BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_GRL
+      ELSEIF (region_name == 'ANT') THEN
+        BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_ANT
+        BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_ANT
+        BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_ANT
+        BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_ANT
+        BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_ANT
+        BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_ANT
+        BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_ANT
+        BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_ANT
+        BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_ANT
+        BMB%subshelf_melt_factor       = C%subshelf_melt_factor_ANT
+        BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_ANT
+      END IF
+    
+    ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Sheet
+    IF     (C%choice_BMB_sheet_model == 'uniform') THEN
+    
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_sheet, BMB%wBMB_sheet)
+    
+    ELSE ! IF     (C%choice_BMB_sheet_model == 'uniform') THEN
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_sheet_model), '" not implemented in initialise_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
       
   END SUBROUTINE initialise_BMB_model

@@ -20,7 +20,7 @@ which in turn uses the staggered SSA solver from SICOPOLIS (Greve, 1997?). Relat
 made some minor changes to the way the effective viscosity is staggered, which allows the model
 to reproduce the Schoof 2006 analytical SSA solution (something which the original Yelmo code fails
 to do), but makes it slightly more difficult to maintain numerical stability. Also, the way grounded
-fractions affect the basal friction has been changed, significantly improving ground-ling migration.
+fractions affect the basal friction has been changed, significantly improving grounding-line migration.
 Other than that, the solver is functionally identical to the one in Yelmo, although the code has been
 heavily restructured to match the rest of IMAU-ICE.
 
@@ -97,10 +97,12 @@ Ice dynamics:
 - Moved the calculation of "basal conditions" (till friction angle and yield stress in case of
   the (regularised) Coulomb sliding laws, basal slipperiness in case of the Weertman sliding law)
   to the new "basal_conditions_module".
-- Added the CISM method of determining sub-grid grounded fractions on all grids (a,b,cx/cy). These
-  are used to scale beta_eff _AFTER_ staggering it to the cx/cy-grid. This results in much better
-  GL migration, without having to use a flux condition (something which I spent months trying to
-  implement, but ultimately discarded).
+- Added the CISM method of determining sub-grid grounded fractions on all grids (a,b,cx/cy; Leguy
+  et al., 2021). These are used to scale beta_eff _AFTER_ staggering it to the cx/cy-grid. This
+  results in much better GL migration, without having to use a flux condition (something which I
+  spent months trying to implement, but ultimately discarded...).
+- Included the "partial-melt parameterisation" from CISM (Leguy et al., 2021), where the sub-shelf
+  melt is scaled with the sub-grid floating fraction ( = 1 - grounded_fraction).
 
 Benchmark experiments:
 - Added the Schoof (2006) SSA ice stream experiment. Results match the analytical solution
