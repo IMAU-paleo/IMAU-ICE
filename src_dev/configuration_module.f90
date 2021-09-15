@@ -148,6 +148,8 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ice_margin_config                = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
   LOGICAL             :: include_SSADIVA_crossterms_config       = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
   LOGICAL             :: do_GL_subgrid_friction_config           = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
+  LOGICAL             :: do_smooth_geometry_config               = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
+  REAL(dp)            :: r_smooth_geometry_config                = 0.5_dp                           ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config        = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
@@ -295,6 +297,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
+  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'PMP'                            ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -554,6 +557,8 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ice_margin
     LOGICAL                             :: include_SSADIVA_crossterms
     LOGICAL                             :: do_GL_subgrid_friction
+    LOGICAL                             :: do_smooth_geometry
+    REAL(dp)                            :: r_smooth_geometry
     
     ! Some parameters for numerically solving the SSA/DIVA
     REAL(dp)                            :: DIVA_visc_it_norm_dUV_tol
@@ -689,6 +694,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_BMB_sheet_model
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
+    CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1145,6 +1151,8 @@ CONTAINS
                      choice_ice_margin_config,                   &
                      include_SSADIVA_crossterms_config,          &
                      do_GL_subgrid_friction_config,              &
+                     do_smooth_geometry_config,                  &
+                     r_smooth_geometry_config,                   &
                      DIVA_visc_it_norm_dUV_tol_config,           &
                      DIVA_visc_it_nit_config,                    &
                      DIVA_visc_it_relax_config,                  &
@@ -1240,6 +1248,7 @@ CONTAINS
                      choice_BMB_sheet_model_config,              &
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
+                     choice_BMB_subgrid_config,                  &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1488,6 +1497,8 @@ CONTAINS
     C%choice_ice_margin                   = choice_ice_margin_config
     C%include_SSADIVA_crossterms          = include_SSADIVA_crossterms_config
     C%do_GL_subgrid_friction              = do_GL_subgrid_friction_config
+    C%do_smooth_geometry                  = do_smooth_geometry_config
+    C%r_smooth_geometry                   = r_smooth_geometry_config
     
     ! Some parameters for numerically solving the SSA/DIVA
     C%DIVA_visc_it_norm_dUV_tol           = DIVA_visc_it_norm_dUV_tol_config
@@ -1623,6 +1634,7 @@ CONTAINS
     C%choice_BMB_sheet_model              = choice_BMB_sheet_model_config
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
+    C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config

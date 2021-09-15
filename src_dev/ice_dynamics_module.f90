@@ -166,9 +166,6 @@ CONTAINS
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
     END IF
     
-    region%ice%Hi_tplusdt_a( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
-    CALL sync
-    
   END SUBROUTINE run_ice_dynamics_direct
   SUBROUTINE run_ice_dynamics_pc( region, t_end)
     ! Ice dynamics and time-stepping with the predictor/correct method
@@ -609,7 +606,7 @@ CONTAINS
     END IF ! IF (.NOT. C%is_restart) THEN
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice)
+    CALL apply_ice_thickness_BC( grid, ice, C%dt_min)
     
     ! Initialise some numbers for the predictor/corrector ice thickness update method
     IF (par%master) THEN
@@ -818,7 +815,6 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_actual_cf_a       , ice%wHi_actual_cf_a       )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_dt_calving_a     , ice%wdHi_dt_calving_a     )
     
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )

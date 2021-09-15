@@ -24,6 +24,7 @@ MODULE IMAU_ICE_main_model
   USE forcing_module,                  ONLY: forcing
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
+  USE calving_module,                  ONLY: apply_calving_law
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
   USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model
   USE SMB_module,                      ONLY: initialise_SMB_model,       run_SMB_model
@@ -73,11 +74,6 @@ CONTAINS
     it = 0
     DO WHILE (region%time < t_end)
       it = it + 1
-      
-    ! Update "secondary" geometry (masks, slopes, physical properties, etc.)
-    ! ======================================================================
-    
-      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       
     ! GIA
     ! ===
@@ -154,6 +150,9 @@ CONTAINS
       
       ! Update ice geometry and advance region time
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
+      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      CALL apply_calving_law( region%grid, region%ice)
+      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
@@ -362,8 +361,10 @@ CONTAINS
     CALL map_init_data_to_model_grid( region%grid, region%init)
     
     ! Smooth input geometry (bed and ice)
-    CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb,   region%PD%Hs)
-    CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb, region%init%Hs)
+    IF (C%do_smooth_geometry) THEN
+      CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb,   region%PD%Hs)
+      CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb, region%init%Hs)
+    END IF
     
     CALL calculate_PD_sealevel_contribution(region)
     
@@ -825,7 +826,7 @@ CONTAINS
     REAL(dp)                                           :: r_smooth
     
     ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
-    r_smooth = grid%dx * 0.5_dp
+    r_smooth = grid%dx * C%r_smooth_geometry
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hb_old, wHb_old)

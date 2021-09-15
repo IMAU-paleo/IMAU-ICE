@@ -249,8 +249,7 @@ MODULE data_types_module
     ! Ice dynamics - calving
     REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_actual_cf_a        ! "actual" ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_dt_calving_a      ! Change in ice thickness from calving
-    INTEGER :: wfloat_margin_frac_a, wHi_actual_cf_a, wdHi_dt_calving_a
+    INTEGER :: wfloat_margin_frac_a, wHi_actual_cf_a
     
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
@@ -697,7 +696,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ghf_ghf
     INTEGER :: wghf_nlon, wghf_nlat, wghf_lon, wghf_lat, wghf_ghf
 
-    ! External forcing: climate forcing data
+    ! External forcing: climate/SMB forcing data
     TYPE(type_netcdf_climate_forcing)       :: netcdf_clim
     INTEGER,                    POINTER     :: clim_nlon, clim_nlat
     INTEGER,                    POINTER     :: clim_nx, clim_ny
@@ -706,10 +705,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), POINTER     :: clim_x, clim_y
     REAL(dp), DIMENSION(:    ), POINTER     :: clim_time
     REAL(dp),                   POINTER     :: clim_t0, clim_t1
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_T2m2, clim_Precip0, clim_Precip1, clim_Precip2  ! Monthly
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_SMB0, clim_SMB1, clim_SMB2                                            ! Yearly
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: clim_T2m0, clim_T2m1, clim_T2m2, clim_Precip0,   clim_Precip1,   clim_Precip2     ! Monthly
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: clim_SMB0, clim_SMB1, clim_SMB2, clim_T2m_year0, clim_T2m_year1, clim_T2m_year2   ! Yearly
     INTEGER :: wclim_nyears, wclim_nlat, wclim_nlon, wclim_time, wclim_lat, wclim_lon, wclim_t0, wclim_t1, wclim_T2m0, wclim_T2m1, wclim_T2m2
     INTEGER :: wclim_Precip0, wclim_Precip1, wclim_Precip2, wclim_SMB0, wclim_SMB1, wclim_SMB2, wclim_nx, wclim_ny, wclim_x, wclim_y
+    INTEGER :: wclim_T2m_year0, wclim_T2m_year1, wclim_T2m_year2
     
   END TYPE type_forcing_data
   

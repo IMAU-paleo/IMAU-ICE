@@ -41,6 +41,9 @@ CONTAINS
 
     ! Local variables
     REAL(dp)                                           :: wt0, wt1
+    INTEGER                                            :: m
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  T2m_year
+    INTEGER                                            :: wT2m_year
     
   ! ================================================
   ! ===== Exceptions for benchmark experiments =====
@@ -78,47 +81,72 @@ CONTAINS
   ! ===== End of exceptions for benchmark experiments =====
   ! =======================================================
     
-    ! Update insolation forcing at model time
-    CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA, climate%applied%Q_TOA_jun_65N, climate%applied%Q_TOA_jan_80S)
-    
     ! Different kinds of climate forcing for realistic experiments
     IF (C%choice_forcing_method == 'SMB_direct') THEN
+      ! Yearly SMB and surface temperature are prescribed as forcing
 
-      wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
-      wt1 = 1._dp - wt0
+      ! Interpolate the two timeframes in time
+      IF (par%master) THEN
+        wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
+        wt1 = 1._dp - wt0
+        forcing%clim_SMB2      = (wt0 * forcing%clim_SMB0)      + (wt1 * forcing%clim_SMB1     )
+        forcing%clim_T2m_year2 = (wt0 * forcing%clim_T2m_year0) + (wt1 * forcing%clim_T2m_year1)
+      END IF
+      CALL sync
+      
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, T2m_year, wT2m_year)
 
-      forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )
-      forcing%clim_SMB2    = (wt0 * forcing%clim_SMB0)    + (wt1 * forcing%clim_SMB1   )
-
-      IF (C%domain_climate_forcing == 'global') THEN     
-        CALL map_glob_to_grid_2D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_SMB2,  SMB%SMB_year              )
-        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,  climate%applied%T2m,    12)
-      ELSEIF (C%domain_climate_forcing == 'regional') THEN 
-        CALL map_square_to_square_cons_2nd_order_2D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_SMB2, SMB%SMB_year)
-        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12) 
+      ! Map the interpolated timeframe to the model grid
+      IF     (C%domain_climate_forcing == 'global') THEN     
+        CALL map_glob_to_grid_2D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_SMB2,      SMB%SMB_year)
+        CALL map_glob_to_grid_2D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_T2m_year2, T2m_year    )
+      ELSEIF (C%domain_climate_forcing == 'regional') THEN
+        CALL map_square_to_square_cons_2nd_order_2D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_SMB2,      SMB%SMB_year)
+        CALL map_square_to_square_cons_2nd_order_2D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m_year2, T2m_year    ) 
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
+      
+      ! Set monthly temperatures equal to annual mean
+      DO m = 1, 12
+        climate%applied%T2m( m,:,grid%i1:grid%i2) = T2m_year( :,grid%i1:grid%i2)
+      END DO
+      
+      ! Assume the prescribed climate is present-day (because we need a PD reference climate in the isotopes module)
+      climate%PD_obs%T2m( :,:,grid%i1:grid%i2) = climate%applied%T2m( :,:,grid%i1:grid%i2)
+      
+      ! Clean up after yourself
+      CALL deallocate_shared( wT2m_year)
 
     ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
+      ! Monthly climate fields are prescribed as forcing
 
-      wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
-      wt1 = 1._dp - wt0  
+      ! Interpolate the two timeframes in time
+      IF (par%master) THEN
+        wt0 = (forcing%clim_t1 - time) / (forcing%clim_t1 - forcing%clim_t0)
+        wt1 = 1._dp - wt0
+        forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )   
+        forcing%clim_Precip2 = (wt0 * forcing%clim_Precip0) + (wt1 * forcing%clim_Precip1)
+      END IF
+      CALL sync
 
-      forcing%clim_T2m2    = (wt0 * forcing%clim_T2m0)    + (wt1 * forcing%clim_T2m1   )   
-      forcing%clim_Precip2 = (wt0 * forcing%clim_Precip0) + (wt1 * forcing%clim_Precip1)
-
-      IF (C%domain_climate_forcing == 'global') THEN
-        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,    climate%applied%T2m,    12)
-        CALL map_glob_to_grid_3D( forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_Precip2, climate%applied%Precip, 12) 
+      ! Map the interpolated timeframe to the model grid
+      IF     (C%domain_climate_forcing == 'global') THEN
+        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_T2m2,    climate%applied%T2m,    12)
+        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_Precip2, climate%applied%Precip, 12) 
       ELSEIF (C%domain_climate_forcing == 'regional') THEN
-        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12)
-        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx, forcing%clim_ny, forcing%clim_x, forcing%clim_y, grid%nx, grid%ny, grid%x, grid%y, forcing%clim_Precip2, climate%applied%Precip, 12)      
+        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12)
+        CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_Precip2, climate%applied%Precip, 12)      
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: domain_climate_forcing "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
+      
+      ! Assume the prescribed climate is present-day (because we need a PD reference climate in the isotopes module)
+      climate%PD_obs%T2m(    :,:,grid%i1:grid%i2) = climate%applied%T2m(    :,:,grid%i1:grid%i2)
+      climate%PD_obs%Precip( :,:,grid%i1:grid%i2) = climate%applied%Precip( :,:,grid%i1:grid%i2)
+      CALL sync
 
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! Use the global temperature offset as calculated by the inverse routine
@@ -130,7 +158,7 @@ CONTAINS
       
       IF (C%choice_climate_matrix == 'PI_LGM') THEN
         ! Use the two-snapshot climate matrix
-        CALL run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name)
+        CALL run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name, time)
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in run_climate_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -233,7 +261,7 @@ CONTAINS
   END SUBROUTINE run_climate_model_dT_glob
   
   ! Climate matrix with PI + LGM snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
-  SUBROUTINE run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name)
+  SUBROUTINE run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name, time)
     ! Use CO2 (either prescribed or inversely modelled) to force the 2-snapshot (PI-LGM) climate matrix (Berends et al., 2018)
     
     IMPLICIT NONE
@@ -244,9 +272,13 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
     INTEGER                                            :: i,j,m
+    
+    ! Update insolation forcing at model time
+    CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA, climate%applied%Q_TOA_jun_65N, climate%applied%Q_TOA_jan_80S)
     
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_PI_LGM_temperature( grid, ice, SMB, climate, region_name)
@@ -1104,6 +1136,13 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
+    
+    ! Exception: if we're using a prescribed climate/SMB forcing, the entire matrix is not used
+    IF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
+      CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )
+      CALL initialise_subclimate( grid, climate%applied,  'applied')
+      RETURN
+    END IF
     
     ! Initialise data structures for the regional ERA40 climate and the final applied climate
     CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )

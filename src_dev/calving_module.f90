@@ -20,8 +20,8 @@ MODULE calving_module
   
 CONTAINS
 
-  ! The main routine that's called from "calc_dHi_dt" in the ice_thickness_module
-  SUBROUTINE calc_calving_flux( grid, ice, dt)
+  ! The main routine that's called from the IMAU_ICE_main_model
+  SUBROUTINE apply_calving_law( grid, ice)
     ! Calculate the calving flux
 
     IMPLICIT NONE
@@ -29,7 +29,6 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Exceptions for benchmark experiments
     IF (C%do_benchmark_experiment) THEN
@@ -57,47 +56,41 @@ CONTAINS
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
     
-    ! Apply the specified calving law
+    ! Apply the selected calving law
     IF     (C%choice_calving_law == 'none') THEN
       ! No calving at all
     ELSEIF (C%choice_calving_law == 'threshold_thickness') THEN
-      CALL threshold_thickness_calving( grid, ice, dt)
+      CALL threshold_thickness_calving( grid, ice)
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_calving_law "', TRIM(C%choice_calving_law), '" not implemented in calculate_calving_flux!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-  END SUBROUTINE calc_calving_flux
+  END SUBROUTINE apply_calving_law
   
   ! Routines for different calving laws
-  SUBROUTINE threshold_thickness_calving( grid, ice, dt)
-    ! Calculate the calving flux for a simple threshold thickness calving law
+  SUBROUTINE threshold_thickness_calving( grid, ice)
+    ! A simple threshold thickness calving law
 
     IMPLICIT NONE
 
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Local variables:
     INTEGER                                            :: i,j
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    
-      ice%dHi_dt_calving_a( j,i) = 0._dp
       
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1 .AND. ice%Hi_actual_cf_a( j,i) < C%calving_threshold_thickness) THEN
-        ice%dHi_dt_calving_a( j,i) = -ice%Hi_a( j,i) / dt
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%Hi_actual_cf_a( j,i) < C%calving_threshold_thickness) THEN
+        ice%Hi_a( j,i) = 0._dp
       END IF
       
     END DO
     END DO
     CALL sync
-    
-    ! Safety
-    CALL check_for_NaN_dp_2D( ice%dHi_dt_calving_a, 'ice%dHi_dt_calving_a', 'threshold_thickness_calving')
     
   END SUBROUTINE threshold_thickness_calving
   

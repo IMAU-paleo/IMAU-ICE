@@ -13,7 +13,6 @@ MODULE ice_thickness_module
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_BMB_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
-  USE calving_module,                  ONLY: calc_calving_flux
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              initialise_matrix_equation_CSR, solve_matrix_equation_CSR, check_CSR_for_double_entries
@@ -81,24 +80,19 @@ CONTAINS
     ! Remove ice in areas where no ice is allowed (i.e. Greenland in NAM and EAS, and Ellesmere Island in GRL)
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (mask_noice( j,i) == 1) THEN
-        ice%Hi_a(     j,i) = 0._dp
-        ice%dHi_dt_a( j,i) = 0._dp
+      IF (mask_noice(     j,i) == 1) THEN
+        ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+        ice%Hi_tplusdt_a( j,i) = 0._dp
       END IF
     END DO
     END DO
     CALL sync
     
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice)
+    CALL apply_ice_thickness_BC( grid, ice, dt)
     
     ! Remove free-floating shelves not connected to any grounded ice
-    CALL remove_unconnected_shelves( grid, ice)
-    
-    ! Calculate and apply the calving flux
-    CALL calc_calving_flux( grid, ice, dt)
-    ice%dHi_dt_a( :,grid%i1:grid%i2) = ice%dHi_dt_a( :,grid%i1:grid%i2) + ice%dHi_dt_calving_a( :,grid%i1:grid%i2)
-    CALL sync
+    CALL remove_unconnected_shelves( grid, ice, dt)
     
   END SUBROUTINE calc_dHi_dt
   
@@ -262,11 +256,20 @@ CONTAINS
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
+      
+      ! Rate of change
       ice%dHi_dt_a( j,i) = dVi_MB( j,i) / (grid%dx * grid%dx * dt) ! m/y
       IF (i > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qx_cx( j  ,i-1) / (grid%dx * grid%dx * dt)
       IF (i < grid%nx) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) - ice%Qx_cx( j  ,i  ) / (grid%dx * grid%dx * dt)
       IF (j > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qy_cy( j-1,i  ) / (grid%dx * grid%dx * dt)
       IF (j < grid%ny) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) - ice%Qy_cy( j  ,i  ) / (grid%dx * grid%dx * dt)
+      
+      ! Don't allow negative ice thickness
+      ice%dHi_dt_a( j,i) = MAX( ice%dHi_dt_a( j,i), -ice%Hi_a( j,i) / dt)
+      
+      ! Thickness at t+dt
+      ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i) + ice%dHi_dt_a( j,i) * dt
+      
     END DO
     END DO
     CALL sync
@@ -417,8 +420,8 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       n = ice%dHi_ij2n( j,i)
-      Hi_tplusdt = MAX( 0._dp, ice%dHi_m%x( n))
-      ice%dHi_dt_a( j,i) = (Hi_tplusdt - ice%Hi_a( j,i)) / dt
+      ice%Hi_tplusdt_a( j,i) = MAX( 0._dp, ice%dHi_m%x( n))
+      ice%dHi_dt_a( j,i) = (ice%Hi_tplusdt_a( j,i) - ice%Hi_a( j,i)) / dt
     END DO
     END DO
     CALL sync
@@ -681,13 +684,14 @@ CONTAINS
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit
     
   ! Some useful tools
-  SUBROUTINE apply_ice_thickness_BC( grid, ice)
+  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt)
     
     IMPLICIT NONE
     
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -695,14 +699,14 @@ CONTAINS
     IF (.NOT. C%do_benchmark_experiment) THEN
           
       ! For realistic experiments set ice thickness to zero at the domain boundary
-      ice%Hi_a(     1              ,grid%i1:grid%i2) = 0._dp
-      ice%Hi_a(     grid%ny        ,grid%i1:grid%i2) = 0._dp
-      ice%Hi_a(     grid%j1:grid%j2,1              ) = 0._dp
-      ice%Hi_a(     grid%j1:grid%j2,grid%nx        ) = 0._dp
-      ice%dHi_dt_a( 1              ,grid%i1:grid%i2) = 0._dp
-      ice%dHi_dt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
-      ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
-      ice%dHi_dt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
+      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = -ice%Hi_a( 1              ,grid%i1:grid%i2) / dt
+      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = -ice%Hi_a( grid%ny        ,grid%i1:grid%i2) / dt
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1              ) / dt
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx        ) / dt
+      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 0._dp
+      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
       CALL sync
       
     ELSE
@@ -729,14 +733,14 @@ CONTAINS
               C%choice_benchmark_experiment == 'Bueler') THEN
           
         ! Apply boundary conditions: set ice thickness to zero at the domain boundary
-        ice%Hi_a(     1              ,grid%i1:grid%i2) = 0._dp
-        ice%Hi_a(     grid%ny        ,grid%i1:grid%i2) = 0._dp
-        ice%Hi_a(     grid%j1:grid%j2,1              ) = 0._dp
-        ice%Hi_a(     grid%j1:grid%j2,grid%nx        ) = 0._dp
-        ice%dHi_dt_a( 1              ,grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
-        ice%dHi_dt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
+        ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = -ice%Hi_a( 1              ,grid%i1:grid%i2) / dt
+        ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = -ice%Hi_a( grid%ny        ,grid%i1:grid%i2) / dt
+        ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1              ) / dt
+        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx        ) / dt
+        ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 0._dp
+        ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
         CALL sync
         
       ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
@@ -755,14 +759,14 @@ CONTAINS
       ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
       
         ! Fixed ice thickness at the boundary
-        ice%Hi_a(     1              ,grid%i1:grid%i2) = 1000._dp
-        ice%Hi_a(     grid%ny        ,grid%i1:grid%i2) = 1000._dp
-        ice%Hi_a(     grid%j1:grid%j2,1              ) = 1000._dp
-        ice%Hi_a(     grid%j1:grid%j2,grid%nx        ) = 1000._dp
-        ice%dHi_dt_a( 1              ,grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
-        ice%dHi_dt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
+        ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( 1              ,grid%i1:grid%i2)) / dt
+        ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( grid%ny        ,grid%i1:grid%i2)) / dt
+        ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,1              )) / dt
+        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,grid%nx        )) / dt
+        ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 1000._dp
+        ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 1000._dp
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 1000._dp
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
         CALL sync
         
       ELSE
@@ -773,7 +777,7 @@ CONTAINS
     END IF ! IF (.NOT. C%do_benchmark_experiment) THEN
     
   END SUBROUTINE apply_ice_thickness_BC
-  SUBROUTINE remove_unconnected_shelves( grid, ice)
+  SUBROUTINE remove_unconnected_shelves( grid, ice, dt)
     ! Use a flood-fill algorithm to find all shelves connected to sheets.
     ! Remove all other shelves.
     
@@ -782,6 +786,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Local variables
     INTEGER                                            :: i,j
@@ -866,7 +871,8 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         IF (ice%mask_shelf_a( j,i) == 1 .AND. map( j,i) == 0) THEN
-          ice%Hi_a( j,i) = 0._dp
+          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+          ice%Hi_tplusdt_a( j,i) = 0._dp
         END IF
       END DO
       END DO

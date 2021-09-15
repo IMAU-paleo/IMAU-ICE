@@ -90,11 +90,27 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! Add sheet and shelf melt rates together, accounting for partial flotation/grounding
+    ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      BMB%BMB( j,i) = (         ice%f_grnd_a( j,i)  * BMB%BMB_sheet( j,i)) + &
-                      ((1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i))
+    
+      ! No sub-grid scaling for sub-sheet melt yet
+      BMB%BMB( j,i) = 0._dp
+      IF (ice%mask_sheet_a( j,i) == 1._dp) BMB%BMB( j,i) = BMB%BMB_sheet( j,i)
+      
+      ! Different sub-grid schemes for sub-shelf melt
+      IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+        IF (ice%mask_shelf_a( j,i) == 1) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+        BMB%BMB( j,i) = BMB%BMB( j,i) + (1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'NMP') THEN
+        IF (ice%f_grnd_a( j,i) == 0._dp) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_subgrid "', TRIM(C%choice_BMB_subgrid), '" not implemented in run_BMB_model!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
     END DO
     END DO
     CALL sync
@@ -218,6 +234,13 @@ CONTAINS
           w_PD   = 1._dp - w_cold
           w_warm = 0._dp
         END IF
+        
+      ELSEIF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
+        ! In this case, no CO2/d18O forcing is used; just assume PD weights
+        
+        w_warm = 0._dp
+        w_cold = 0._dp
+        w_PD   = 1._dp
         
       ELSE ! IF (C%choice_forcing_method == 'CO2_direct') THEN
         WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model_ANICE_legacy!'
