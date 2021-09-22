@@ -15,7 +15,7 @@ MODULE IMAU_ICE_main_model
                                              type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             inverse_oblique_sg_projection
+                                             inverse_oblique_sg_projection, surface_elevation
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
   USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
@@ -23,6 +23,7 @@ MODULE IMAU_ICE_main_model
                                              create_regional_scalar_output_file
   USE forcing_module,                  ONLY: forcing
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
+  USE ice_velocity_module,             ONLY: solve_DIVA
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
   USE calving_module,                  ONLY: apply_calving_law
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
@@ -151,7 +152,7 @@ CONTAINS
       ! Update ice geometry and advance region time
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
-      CALL apply_calving_law( region%grid, region%ice)
+      CALL apply_calving_law( region%grid, region%ice, region%PD)
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
@@ -362,11 +363,11 @@ CONTAINS
     
     ! Smooth input geometry (bed and ice)
     IF (C%do_smooth_geometry) THEN
-      CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb,   region%PD%Hs)
-      CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb, region%init%Hs)
+      CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb  )
+      CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb)
     END IF
     
-    CALL calculate_PD_sealevel_contribution(region)
+    CALL calculate_PD_sealevel_contribution( region)
     
     ! ===== Define mask where no ice is allowed to form (i.e. Greenland in NAM and EAS, Ellesmere Island in GRL)
     ! ==========================================================================================================
@@ -415,7 +416,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
     
-    CALL initialise_ice_model( region%grid, region%ice, region%init)
+    CALL initialise_ice_model( region%grid, region%ice, region%PD, region%init)
     
     ! Geothermal heat flux
     IF     (C%choice_geothermal_heat_flux == 'constant') THEN
@@ -435,13 +436,21 @@ CONTAINS
     CALL run_BMB_model(                 region%grid, region%ice, region%climate%applied, region%BMB, region%name)
     
     ! Initialise the ice temperature profile
-    CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init)
+    CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init, region%SMB)
     
     ! Calculate physical properties again, now with the initialised temperature profile, determine the masks and slopes
     CALL update_general_ice_model_data( region%grid, region%ice, C%start_time_of_run)
     
     ! Calculate ice sheet metadata (volume, area, GMSL contribution) for writing to the first line of the output file
     CALL calculate_icesheet_volume_and_area(region)
+    
+    ! If we're running with choice_ice_dynamics == "none", calculate a velocity field
+    ! once during initialisation (so that the thermodynamics are solved correctly)
+    IF (C%choice_ice_dynamics == 'none') THEN
+      C%choice_ice_dynamics = 'DIVA'
+      CALL solve_DIVA( region%grid, region%ice)
+      C%choice_ice_dynamics = 'none'
+    END IF
     
     ! ===== The isotopes model =====
     ! ==============================
@@ -550,9 +559,6 @@ CONTAINS
           region%grid%ny = region%init%ny
           nsx = INT((REAL(region%grid%nx,dp) - 1._dp) / 2._dp)
           nsy = INT((REAL(region%grid%ny,dp) - 1._dp) / 2._dp)
-        ELSE
-          WRITE(0,*) '  ERROR - config resolution of ', region%grid%dx, ' is different from restart file resolution of ', ABS(region%init%x(2) - region%init%x(1))
-          CALl MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
       END IF
       
@@ -650,10 +656,8 @@ CONTAINS
       END IF
       
       ! Determine the number of grid cells we can fit in this domain (based on specified resolution, and the domain covered by the initial file)
-      nsx = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
-      nsy = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
-      
-      IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') nsx = 3
+      nsx = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) + 1)
+      nsy = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) + 1)
       
       region%grid_GIA%nx = 1 + 2*nsx
       region%grid_GIA%ny = 1 + 2*nsy
@@ -808,7 +812,7 @@ CONTAINS
     END IF ! IF (region%name == 'NAM') THEN
     
   END SUBROUTINE initialise_mask_noice
-  SUBROUTINE smooth_model_geometry( grid, Hi, Hb, Hs)
+  SUBROUTINE smooth_model_geometry( grid, Hi, Hb)
     ! Apply some light smoothing to the initial geometry to improve numerical stability
     
     USE utilities_module, ONLY: smooth_Gaussian_2D, is_floating
@@ -817,20 +821,29 @@ CONTAINS
 
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi, Hb, Hs
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi, Hb
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hb_old,  dHb
-    INTEGER                                            :: wHb_old, wdHb
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hs,  Hb_old,  dHb
+    INTEGER                                            :: wHs, wHb_old, wdHb
     REAL(dp)                                           :: r_smooth
     
     ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
     r_smooth = grid%dx * C%r_smooth_geometry
     
     ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hs,     wHs    )
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hb_old, wHb_old)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb,    wdHb   )
+    
+    ! Calculate original surface elevation
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      Hs( j,i) = surface_elevation( Hi( j,i), Hb( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
     
     ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
     Hb_old( :,grid%i1:grid%i2) = Hb( :,grid%i1:grid%i2)

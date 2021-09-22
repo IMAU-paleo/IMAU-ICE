@@ -45,7 +45,8 @@ MODULE data_types_netcdf_module
     
     INTEGER :: id_var_Hi
     INTEGER :: id_var_Hb
-    INTEGER :: id_var_Hs
+    INTEGER :: id_var_SL
+    INTEGER :: id_var_dHb
     INTEGER :: id_var_Ti
     INTEGER :: id_var_FirnDepth
     INTEGER :: id_var_MeltPreviousYear
@@ -58,7 +59,8 @@ MODULE data_types_netcdf_module
   
     CHARACTER(LEN=256) :: name_var_Hi                    = 'Hi                   '
     CHARACTER(LEN=256) :: name_var_Hb                    = 'Hb                   '
-    CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
+    CHARACTER(LEN=256) :: name_var_SL                    = 'SL                   '
+    CHARACTER(LEN=256) :: name_var_dHb                   = 'dHb                  '
     CHARACTER(LEN=256) :: name_var_Ti                    = 'Ti                   '
     CHARACTER(LEN=256) :: name_var_FirnDepth             = 'FirnDepth            '
     CHARACTER(LEN=256) :: name_var_MeltPreviousYear      = 'MeltPreviousYear     '
@@ -495,7 +497,7 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_Hi                    = 'Hi                   '
     CHARACTER(LEN=256) :: name_var_Hb                    = 'Hb                   '
-    CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   ' 
+    CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
         
   END TYPE type_netcdf_PD_data
     
@@ -529,10 +531,13 @@ MODULE data_types_netcdf_module
     INTEGER :: id_var_zeta
     INTEGER :: id_var_time
     INTEGER :: id_var_month
+    
     INTEGER :: id_var_Hi
     INTEGER :: id_var_Hb
     INTEGER :: id_var_Hs
     INTEGER :: id_var_Ti
+    INTEGER :: id_var_dHb
+    INTEGER :: id_var_SL
     INTEGER :: id_var_FirnDepth
     INTEGER :: id_var_MeltPreviousYear
     
@@ -542,10 +547,13 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_var_month                 = 'month                '
+    
     CHARACTER(LEN=256) :: name_var_Hi                    = 'Hi                   '
     CHARACTER(LEN=256) :: name_var_Hb                    = 'Hb                   '
     CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
     CHARACTER(LEN=256) :: name_var_Ti                    = 'Ti                   '
+    CHARACTER(LEN=256) :: name_var_dHb                   = 'dHb                  '
+    CHARACTER(LEN=256) :: name_var_SL                    = 'SL                   '
     CHARACTER(LEN=256) :: name_var_FirnDepth             = 'FirnDepth            '
     CHARACTER(LEN=256) :: name_var_MeltPreviousYear      = 'MeltPreviousYear     '
         

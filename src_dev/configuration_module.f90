@@ -216,6 +216,8 @@ MODULE configuration_module
   
   CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
   REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  LOGICAL             :: do_remove_shelves_config                = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
+  LOGICAL             :: remove_shelves_larger_than_PD_config    = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
 
   ! Thermodynamics
   ! ==============
@@ -244,6 +246,9 @@ MODULE configuration_module
   REAL(dp)            :: ocean_temperature_warm_config           = 275.16_dp                        ! warm period temperature of the ocean beneath the shelves [K;  2.0 Celcius]
   
   REAL(dp)            :: constant_lapserate_config               = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
+  
+  ! Scaling factor for CO2 vs ice weights
+  REAL(dp)            :: climate_matrix_CO2vsice_config          = 1._dp                            ! 1 = original matrix method, 0 = CO2 only; scales continuously
   
   ! Forcing
   ! =======
@@ -401,27 +406,27 @@ MODULE configuration_module
   
   CHARACTER(LEN=256)  :: help_field_01_config                     = 'lat'
   CHARACTER(LEN=256)  :: help_field_02_config                     = 'lon'
-  CHARACTER(LEN=256)  :: help_field_03_config                     = 'uabs_surf'
-  CHARACTER(LEN=256)  :: help_field_04_config                     = 'uabs_base'
-  CHARACTER(LEN=256)  :: help_field_05_config                     = 'uabs_vav'
-  CHARACTER(LEN=256)  :: help_field_06_config                     = 'u_3D'
-  CHARACTER(LEN=256)  :: help_field_07_config                     = 'v_3D'
-  CHARACTER(LEN=256)  :: help_field_08_config                     = 'w_3D'
-  CHARACTER(LEN=256)  :: help_field_09_config                     = 'mask'
-  CHARACTER(LEN=256)  :: help_field_10_config                     = 'dHs_dx'
-  CHARACTER(LEN=256)  :: help_field_11_config                     = 'dHs_dy'
-  CHARACTER(LEN=256)  :: help_field_12_config                     = 'T2m_year'
-  CHARACTER(LEN=256)  :: help_field_13_config                     = 'Precip_year'
-  CHARACTER(LEN=256)  :: help_field_14_config                     = 'Albedo_year'
-  CHARACTER(LEN=256)  :: help_field_15_config                     = 'SMB_year'
-  CHARACTER(LEN=256)  :: help_field_16_config                     = 'BMB'
-  CHARACTER(LEN=256)  :: help_field_17_config                     = 'T2m'
-  CHARACTER(LEN=256)  :: help_field_18_config                     = 'Precip'
-  CHARACTER(LEN=256)  :: help_field_19_config                     = 'Albedo'
-  CHARACTER(LEN=256)  :: help_field_20_config                     = 'SMB'
-  CHARACTER(LEN=256)  :: help_field_21_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_22_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_23_config                     = 'none'
+  CHARACTER(LEN=256)  :: help_field_03_config                     = 'Hi'
+  CHARACTER(LEN=256)  :: help_field_04_config                     = 'Hb'
+  CHARACTER(LEN=256)  :: help_field_05_config                     = 'Hs'
+  CHARACTER(LEN=256)  :: help_field_06_config                     = 'dHs_dx'
+  CHARACTER(LEN=256)  :: help_field_07_config                     = 'dHs_dy'
+  CHARACTER(LEN=256)  :: help_field_08_config                     = 'mask'
+  CHARACTER(LEN=256)  :: help_field_09_config                     = 'uabs_surf'
+  CHARACTER(LEN=256)  :: help_field_10_config                     = 'uabs_base'
+  CHARACTER(LEN=256)  :: help_field_11_config                     = 'uabs_vav'
+  CHARACTER(LEN=256)  :: help_field_12_config                     = 'u_3D'
+  CHARACTER(LEN=256)  :: help_field_13_config                     = 'v_3D'
+  CHARACTER(LEN=256)  :: help_field_14_config                     = 'w_3D'
+  CHARACTER(LEN=256)  :: help_field_15_config                     = 'T2m_year'
+  CHARACTER(LEN=256)  :: help_field_16_config                     = 'Precip_year'
+  CHARACTER(LEN=256)  :: help_field_17_config                     = 'Albedo_year'
+  CHARACTER(LEN=256)  :: help_field_18_config                     = 'SMB_year'
+  CHARACTER(LEN=256)  :: help_field_19_config                     = 'BMB'
+  CHARACTER(LEN=256)  :: help_field_20_config                     = 'T2m'
+  CHARACTER(LEN=256)  :: help_field_21_config                     = 'Precip'
+  CHARACTER(LEN=256)  :: help_field_22_config                     = 'Albedo'
+  CHARACTER(LEN=256)  :: help_field_23_config                     = 'SMB'
   CHARACTER(LEN=256)  :: help_field_24_config                     = 'none'
   CHARACTER(LEN=256)  :: help_field_25_config                     = 'none'
   CHARACTER(LEN=256)  :: help_field_26_config                     = 'none'
@@ -625,6 +630,8 @@ MODULE configuration_module
     
     CHARACTER(LEN=256)                  :: choice_calving_law
     REAL(dp)                            :: calving_threshold_thickness
+    LOGICAL                             :: do_remove_shelves
+    LOGICAL                             :: remove_shelves_larger_than_PD
   
     ! Thermodynamics
     ! ==============
@@ -648,6 +655,7 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_temperature_warm
     
     REAL(dp)                            :: constant_lapserate
+    REAL(dp)                            :: climate_matrix_CO2vsice
     
     ! Forcing
     ! =======
@@ -1203,6 +1211,8 @@ CONTAINS
                      Martin2011till_phi_max_config,              &
                      choice_calving_law_config,                  &
                      calving_threshold_thickness_config,         &
+                     do_remove_shelves_config,                   &
+                     remove_shelves_larger_than_PD_config,       &
                      choice_geothermal_heat_flux_config,         &
                      constant_geothermal_heat_flux_config,       &
                      filename_geothermal_heat_flux_config,       &
@@ -1216,6 +1226,7 @@ CONTAINS
                      ocean_temperature_cold_config,              &
                      ocean_temperature_warm_config,              &
                      constant_lapserate_config,                  &
+                     climate_matrix_CO2vsice_config,             &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1565,6 +1576,8 @@ CONTAINS
     
     C%choice_calving_law                  = choice_calving_law_config
     C%calving_threshold_thickness         = calving_threshold_thickness_config
+    C%do_remove_shelves                   = do_remove_shelves_config
+    C%remove_shelves_larger_than_PD       = remove_shelves_larger_than_PD_config
   
     ! Thermodynamics
     ! ==============
@@ -1588,6 +1601,7 @@ CONTAINS
     C%ocean_temperature_warm              = ocean_temperature_warm_config
     
     C%constant_lapserate                  = constant_lapserate_config
+    C%climate_matrix_CO2vsice             = climate_matrix_CO2vsice_config
     
     ! Forcing
     ! =======

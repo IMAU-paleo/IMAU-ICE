@@ -122,7 +122,7 @@ CONTAINS
     RETURN
   END FUNCTION vertical_average
   
-! == The flotation criterion
+! == Floatation criterion, surface elevation, and thickness above floatation
   FUNCTION is_floating( Hi, Hb, SL) RESULT( isso)
     ! The flotation criterion
       
@@ -135,6 +135,28 @@ CONTAINS
     IF (Hi < (SL - Hb) * seawater_density/ice_density) isso = .TRUE.
     
   END FUNCTION is_floating
+  FUNCTION surface_elevation( Hi, Hb, SL) RESULT( Hs)
+    ! The surface elevation equation
+      
+    IMPLICIT NONE
+    
+    REAL(dp),                            INTENT(IN)    :: Hi, Hb, SL
+    REAL(dp)                                           :: Hs
+    
+    Hs = Hi + MAX( SL - ice_density / seawater_density * Hi, Hb)
+    
+  END FUNCTION surface_elevation
+  FUNCTION thickness_above_floatation( Hi, Hb, SL) RESULT( TAF)
+    ! The thickness-above-floatation equation
+      
+    IMPLICIT NONE
+    
+    REAL(dp),                            INTENT(IN)    :: Hi, Hb, SL
+    REAL(dp)                                           :: TAF
+    
+    TAF = Hi - MAX(0._dp, (SL - Hb) * (seawater_density / ice_density))
+  
+  END FUNCTION thickness_above_floatation
   
 ! == The error function (used in the Roe&Lindzen precipitation model)
   SUBROUTINE error_function(X, ERR)
@@ -839,18 +861,21 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),         INTENT(OUT)   :: d_dst
     
     ! Local variables
-    INTEGER                                           :: i, j, i_src, j_src, i1, i2
+    INTEGER                                           :: i,j,i_src,j_src,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
     REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst, xcmin, xcmax, ycmin, ycmax
     INTEGER,  DIMENSION(nx_dst,2)                     :: ir_src
     INTEGER,  DIMENSION(ny_dst,2)                     :: jr_src
     REAL(dp)                                          :: xomin, xomax, yomin, yomax, w0, w1x, w1y
-    REAL(dp)                                          :: Ad, Asd
-    REAL(dp), DIMENSION(:,:  ), POINTER               :: ddx_src, ddy_src
+    REAL(dp)                                          :: Ad, Asd, Asum
+    REAL(dp), DIMENSION(:,:  ), POINTER               ::  ddx_src,  ddy_src
     INTEGER                                           :: wddx_src, wddy_src
+    INTEGER,  DIMENSION(:,:  ), POINTER               ::  mask_dst_outside_src
+    INTEGER                                           :: wmask_dst_outside_src
     
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D( ny_src, nx_src, ddx_src, wddx_src)
-    CALL allocate_shared_dp_2D( ny_src, nx_src, ddy_src, wddy_src)
+    CALL allocate_shared_dp_2D(  ny_src, nx_src, ddx_src,              wddx_src             )
+    CALL allocate_shared_dp_2D(  ny_src, nx_src, ddy_src,              wddy_src             )
+    CALL allocate_shared_int_2D( ny_dst, nx_dst, mask_dst_outside_src, wmask_dst_outside_src)
     
     ! Find grid spacings
     dx_src = x_src(2) - x_src(1)
@@ -895,11 +920,14 @@ CONTAINS
     
     ! Find parallelisation domains
     CALL partition_list( nx_dst, par%i, par%n, i1, i2)
+    CALL partition_list( ny_dst, par%i, par%n, j1, j2)
     
-    DO i = MAX(2,i1), MIN(nx_dst-1,i2)
-    DO j = 2, ny_dst-1
+    DO i = i1, i2
+    DO j = 1, ny_dst
       
-      d_dst( j,i) = 0._dp
+      d_dst(                j,i) = 0._dp
+      mask_dst_outside_src( j,i) = 0
+      Asum                       = 0._dp
       
       DO i_src = ir_src( i,1), ir_src( i,2)
       DO j_src = jr_src( j,1), jr_src( j,2)
@@ -911,7 +939,8 @@ CONTAINS
         
         IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
         
-        Asd = (xomax - xomin) * (yomax - yomin)
+        Asd  = (xomax - xomin) * (yomax - yomin)
+        Asum = Asum + Asd
         
         w0  = Asd / Ad
         w1x = 1._dp / Ad * (line_integral_mxydx( [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
@@ -930,22 +959,81 @@ CONTAINS
       END DO ! DO j_src = jr_src( j,1), jr_src( j,2)
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
       
+      IF (Asum < Ad) mask_dst_outside_src( j,i) = 1
+      
     END DO ! DO j = 1, ny_dst
-    END DO ! DO i = 1, nx_dst
+    END DO ! DO i = i1, i2
     CALL sync
     
-    ! Set the boundaries manually
+    ! Use nearest-neighbour extrapolation for dst cells outside of the src grid
+    ! =========================================================================
+    
+    ! Find the range of grid cells that were mapped correctly
+    igmin = 0
+    igmax = 0
+    jgmin = 0
+    jgmax = 0
+    
+    j = INT( REAL(ny_dst,dp)/2._dp)
+    DO i = 1, nx_dst
+      IF (mask_dst_outside_src( j,i) == 0) THEN
+        igmin = i
+        EXIT
+      END IF
+    END DO
+    DO i = nx_dst, 1, -1
+      IF (mask_dst_outside_src( j,i) == 0) THEN
+        igmax = i
+        EXIT
+      END IF
+    END DO
+    
+    i = INT( REAL(nx_dst,dp)/2._dp)
+    DO j = 1, ny_dst
+      IF (mask_dst_outside_src( j,i) == 0) THEN
+        jgmin = j
+        EXIT
+      END IF
+    END DO
+    DO j = ny_dst, 1, -1
+      IF (mask_dst_outside_src( j,i) == 0) THEN
+        jgmax = j
+        EXIT
+      END IF
+    END DO
+    
+    ! Corners
     IF (par%master) THEN
-      d_dst( :     ,1     ) = d_dst( :       ,2       )
-      d_dst( :     ,nx_dst) = d_dst( :       ,nx_dst-1)
-      d_dst( 1     ,:     ) = d_dst( 2       ,:       )
-      d_dst( ny_dst,:     ) = d_dst( ny_dst-1,:       )
-    END IF
+      ! Southwest
+      d_dst( 1      :jgmin-1 ,1      :igmin-1) = d_dst( jgmin,igmin)
+      ! Southeast
+      d_dst( 1      :jgmin-1 ,igmax+1:nx_dst ) = d_dst( jgmin,igmax)
+      ! Northwest
+      d_dst( jgmax+1:ny_dst  ,1      :igmin-1) = d_dst( jgmax,igmin)
+      ! Northeast
+      d_dst( jgmax+1:ny_dst  ,igmax+1:nx_dst ) = d_dst( jgmax,igmax)
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Borders
+    DO i = MAX(i1,igmin), MIN(i2,igmax)
+      ! South
+      d_dst( 1      :jgmin-1,i) = d_dst( jgmin,i)
+      ! North
+      d_dst( jgmax+1:ny_dst ,i) = d_dst( jgmax,i)
+    END DO
+    DO j = MAX(j1,jgmin), MIN(j2,jgmax)
+      ! West
+      d_dst( j,1      :igmin-1) = d_dst( j,igmin)
+      ! East
+      d_dst( j,igmax+1:nx_dst ) = d_dst( j,igmax)
+    END DO
     CALL sync
     
     ! Clean up after yourself
-    CALL deallocate_shared( wddx_src)
-    CALL deallocate_shared( wddy_src)
+    CALL deallocate_shared( wddx_src             )
+    CALL deallocate_shared( wddy_src             )
+    CALL deallocate_shared( wmask_dst_outside_src)
   
   END SUBROUTINE map_square_to_square_cons_2nd_order_2D
   SUBROUTINE map_square_to_square_cons_2nd_order_3D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst, nz)
@@ -976,7 +1064,7 @@ CONTAINS
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( ny_src, nx_src, d_src_2D, wd_src_2D)
-    CALL allocate_shared_dp_2D( ny_src, nx_src, d_dst_2D, wd_dst_2D)
+    CALL allocate_shared_dp_2D( ny_dst, nx_dst, d_dst_2D, wd_dst_2D)
     
     ! Remap the fields one layer at a time
     DO k = 1, nz
@@ -1234,6 +1322,265 @@ CONTAINS
          (wiu * wju * d( ju,iu))
         
   END FUNCTION interp_bilin_2D
+  
+! == Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+  SUBROUTINE transpose_dp_2D( d, wd)
+    ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    
+    ! Local variables:
+    INTEGER                                      :: i,j,nx,ny,i1,i2
+    REAL(dp), DIMENSION(:,:  ), POINTER          ::  d_temp
+    INTEGER                                      :: wd_temp
+    
+    nx = SIZE( d,1)
+    ny = SIZE( d,2)
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Allocate temporary memory
+    CALL allocate_shared_dp_2D( nx, ny, d_temp, wd_temp)
+    
+    ! Copy data to temporary memory
+    DO i = i1,i2
+    DO j = 1, ny
+      d_temp( i,j) = d( i,j)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+    
+    ! Reallocate transposed memory
+    CALL allocate_shared_dp_2D( ny, nx, d, wd)
+    
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, ny
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+    
+  END SUBROUTINE transpose_dp_2D
+  SUBROUTINE transpose_dp_3D( d, wd)
+    ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    
+    ! Local variables:
+    INTEGER                                      :: i,j,k,nx,ny,nz,i1,i2
+    REAL(dp), DIMENSION(:,:,:), POINTER          ::  d_temp
+    INTEGER                                      :: wd_temp
+    
+    nx = SIZE( d,1)
+    ny = SIZE( d,2)
+    nz = SIZE( d,3)
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Allocate temporary memory
+    CALL allocate_shared_dp_3D( nx, ny, nz, d_temp, wd_temp)
+    
+    ! Copy data to temporary memory
+    DO i = i1,i2
+    DO j = 1, ny
+    DO k = 1, nz
+      d_temp( i,j,k) = d( i,j,k)
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+    
+    ! Reallocate transposed memory
+    CALL allocate_shared_dp_3D( nz, ny, nx, d, wd)
+    
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, ny
+    DO k = 1, nz
+      d( k,j,i) = d_temp( i,j,k)
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+    
+  END SUBROUTINE transpose_dp_3D
+  SUBROUTINE transpose_int_2D( d, wd)
+    ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    
+    ! Local variables:
+    INTEGER                                      :: i,j,nx,ny,i1,i2
+    INTEGER,  DIMENSION(:,:  ), POINTER          ::  d_temp
+    INTEGER                                      :: wd_temp
+    
+    nx = SIZE( d,1)
+    ny = SIZE( d,2)
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Allocate temporary memory
+    CALL allocate_shared_int_2D( nx, ny, d_temp, wd_temp)
+    
+    ! Copy data to temporary memory
+    DO i = i1,i2
+    DO j = 1, ny
+      d_temp( i,j) = d( i,j)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+    
+    ! Reallocate transposed memory
+    CALL allocate_shared_int_2D( ny, nx, d, wd)
+    
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, ny
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+    
+  END SUBROUTINE transpose_int_2D
+  SUBROUTINE transpose_int_3D( d, wd)
+    ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    
+    ! Local variables:
+    INTEGER                                      :: i,j,k,nx,ny,nz,i1,i2
+    INTEGER,  DIMENSION(:,:,:), POINTER          ::  d_temp
+    INTEGER                                      :: wd_temp
+    
+    nx = SIZE( d,1)
+    ny = SIZE( d,2)
+    nz = SIZE( d,3)
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Allocate temporary memory
+    CALL allocate_shared_int_3D( nx, ny, nz, d_temp, wd_temp)
+    
+    ! Copy data to temporary memory
+    DO i = i1,i2
+    DO j = 1, ny
+    DO k = 1, nz
+      d_temp( i,j,k) = d( i,j,k)
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+    
+    ! Reallocate transposed memory
+    CALL allocate_shared_int_3D( nz, ny, nx, d, wd)
+    
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, ny
+    DO k = 1, nz
+      d( k,j,i) = d_temp( i,j,k)
+    END DO
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+    
+  END SUBROUTINE transpose_int_3D
+  
+! == Remove Lake Vostok from Antarctic input geometry data
+  SUBROUTINE remove_Lake_Vostok( x, y, Hi, Hb, Hs)
+    ! Remove Lake Vostok from Antarctic input geometry data
+    ! by manually increasing ice thickness so that Hi = Hs - Hb
+    !
+    ! NOTE: since IMAU-ICE doesn't consider subglacial lakes, Vostok simply shows
+    !       up as a "dip" in the initial geometry. The model will run fine, the dip
+    !       fills up in a few centuries, but it slows down the model for a while and
+    !       it looks ugly, so we just remove it right away.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: x,y
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hb
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs
+    
+    ! Local variables:
+    INTEGER                                       :: i,j,nx,ny
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymin = -470750.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymax = -220750.0
+    INTEGER                                       :: il,iu,jl,ju
+    
+    IF (par%master) THEN
+      
+      nx = SIZE( Hi,2)
+      ny = SIZE( Hi,1)
+      
+      il = 1
+      DO WHILE (x( il) < lake_Vostok_xmin)
+        il = il+1
+      END DO
+      iu = nx
+      DO WHILE (x( iu) > lake_Vostok_xmax)
+        iu = iu-1
+      END DO
+      jl = 1
+      DO WHILE (y( jl) < lake_Vostok_ymin)
+        jl = jl+1
+      END DO
+      ju = ny
+      DO WHILE (y( ju) > lake_Vostok_ymax)
+        ju = ju-1
+      END DO
+        
+      DO i = il, iu
+      DO j = jl, ju
+        Hi( j,i) = Hs( j,i) - Hb( j,i)
+      END DO
+      END DO
+      
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+  END SUBROUTINE remove_Lake_Vostok
   
 ! == Debugging
   SUBROUTINE check_for_NaN_dp_1D( d, d_name, routine_name)

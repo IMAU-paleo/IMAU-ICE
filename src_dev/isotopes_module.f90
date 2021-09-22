@@ -12,7 +12,8 @@ MODULE isotopes_module
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, type_BMB_model, type_model_region
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
-                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             surface_elevation
   USE forcing_module,                  ONLY: forcing
 
   IMPLICIT NONE
@@ -318,7 +319,7 @@ CONTAINS
       
         Ts     = SUM( region%climate%PD_obs%T2m( :,j,i)) / 12._dp
         Ts_ref = SUM( region%climate%PD_obs%T2m( :,j,i)) / 12._dp
-        Hs     = region%PD%Hs( j,i)
+        Hs     = surface_elevation( region%PD%Hi( j,i), region%PD%Hb( j,i), 0._dp)
         Hs_ref = region%climate%PD_obs%Hs( j,i)
         
         region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &

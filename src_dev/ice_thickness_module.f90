@@ -175,8 +175,11 @@ CONTAINS
       ! Ice volume added to each grid cell through the (surface + basal) mass balance
       ! => With an exception for the calving front, where we only apply
       !    the mass balance to the floating fraction
+      ! => And for ice-free ocean, where no accumulation is allowed
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
         dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt * ice%float_margin_frac_a( j,i)
+      ELSEIF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 0) THEN
+        dVi_MB( j,i) = 0._dp
       ELSE
         dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt
       END IF
@@ -365,11 +368,15 @@ CONTAINS
         END IF
         
       ! Calculate the net local mass balance
-      ! (corrected for partial ice cover in floating calving front pixels)
+      ! => With an exception for the calving front, where we only apply
+      !    the mass balance to the floating fraction
+      ! => And for ice-free ocean, where no accumulation is allowed
       ! ==================================================================
       
         IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
           MB_net = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * ice%float_margin_frac_a( j,i)
+        ELSEIF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 0) THEN
+          MB_net = 0._dp
         ELSE
           MB_net = (SMB%SMB_year( j,i) + BMB%BMB( j,i))
         END IF

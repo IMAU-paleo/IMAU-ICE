@@ -16,7 +16,8 @@ MODULE general_ice_model_data_module
   USE parameters_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             is_floating, vertical_average, interp_bilin_2D
+                                             is_floating, surface_elevation, thickness_above_floatation, &
+                                             vertical_average, interp_bilin_2D
   USE derivatives_and_grids_module,    ONLY: map_a_to_cx_2D, map_a_to_cy_2D, ddx_a_to_cx_2D, ddy_a_to_cy_2D, &
                                              ddy_a_to_cx_2D, ddx_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D, &
                                              ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D
@@ -39,22 +40,14 @@ CONTAINS
     ! Local variables
     INTEGER                                            :: i,j
     
-    ! Update Hs
+    ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%Hs_a( j,i) = ice%Hi_a( j,i) + MAX( ice%SL_a( j,i) - ice_density / seawater_density * ice%Hi_a( j,i), ice%Hb_a( j,i))
+      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%TAF_a( j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
     END DO
     END DO
     CALL sync
-    
-    ! Calculate thickness above flotation
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      ice%TAF_a( j,i) = ice%Hi_a( j,i) - MAX(0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * (seawater_density / ice_density))
-    END DO
-    END DO
-    CALL sync
-    CALL map_a_to_b_2D( grid, ice%TAF_a, ice%TAF_b)
     
     ! Determine masks
     CALL determine_masks(                    grid, ice)
@@ -764,7 +757,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! In/output variables:
-    REAL(dp),                            INTENT(INOUT) :: f_NW, f_NE, f_SW, f_SE
+    REAL(dp),                            INTENT(IN)    :: f_NW, f_NE, f_SW, f_SE
     REAL(dp),                            INTENT(OUT)   :: phi
     
     ! Local variables:

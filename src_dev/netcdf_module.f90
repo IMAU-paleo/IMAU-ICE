@@ -55,7 +55,8 @@ CONTAINS
     
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_Hi,               region%ice%Hi_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_Hb,               region%ice%Hb_a,             (/1, 1,    ti/))
-    CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_Hs,               region%ice%Hs_a,             (/1, 1,    ti/))
+    CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_dHb,              region%ice%dHb_a,            (/1, 1,    ti/))
+    CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_SL,               region%ice%SL_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, region%restart%id_var_Ti,               region%ice%Ti_a,             (/1, 1, 1, ti/))
     CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, region%restart%id_var_FirnDepth,        region%SMB%FirnDepth,        (/1, 1, 1, ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%id_var_MeltPreviousYear, region%SMB%MeltPreviousYear, (/1, 1,    ti/))
@@ -752,9 +753,10 @@ CONTAINS
     CALL create_double_var( region%restart%ncid, region%restart%name_var_time,             [            t], region%restart%id_var_time,             long_name='Time', units='years'   )
     
     ! Ice model data
-    CALL create_double_var( region%restart%ncid, region%restart%name_var_Hi,               [x, y,       t], region%restart%id_var_Hi,               long_name='Ice Thickness', units='m')
-    CALL create_double_var( region%restart%ncid, region%restart%name_var_Hb,               [x, y,       t], region%restart%id_var_Hb,               long_name='Bedrock Height', units='m')
-    CALL create_double_var( region%restart%ncid, region%restart%name_var_Hs,               [x, y,       t], region%restart%id_var_Hs,               long_name='Surface Height', units='m')
+    CALL create_double_var( region%restart%ncid, region%restart%name_var_Hi,               [x, y,       t], region%restart%id_var_Hi,               long_name='Ice thickness', units='m')
+    CALL create_double_var( region%restart%ncid, region%restart%name_var_Hb,               [x, y,       t], region%restart%id_var_Hb,               long_name='Bedrock elevation', units='m')
+    CALL create_double_var( region%restart%ncid, region%restart%name_var_SL,               [x, y,       t], region%restart%id_var_SL,               long_name='Sea-level change', units='m')
+    CALL create_double_var( region%restart%ncid, region%restart%name_var_dHb,              [x, y,       t], region%restart%id_var_dHb,              long_name='Bedrock deformation', units='m')
     CALL create_double_var( region%restart%ncid, region%restart%name_var_Ti,               [x, y, z,    t], region%restart%id_var_Ti,               long_name='Ice temperature', units='K')
     CALL create_double_var( region%restart%ncid, region%restart%name_var_FirnDepth,        [x, y,    m, t], region%restart%id_var_FirnDepth,        long_name='Firn depth', units='m')
     CALL create_double_var( region%restart%ncid, region%restart%name_var_MeltPreviousYear, [x, y,       t], region%restart%id_var_MeltPreviousYear, long_name='Melt during previous year', units='mie')
@@ -2036,10 +2038,10 @@ CONTAINS
     CALL open_netcdf_file(init%netcdf%filename, init%netcdf%ncid)
     
     ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
-    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_x,    init%nx, init%netcdf%id_dim_x)
-    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_y,    init%ny, init%netcdf%id_dim_y)
-    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_zeta, init%nz, init%netcdf%id_dim_zeta)
-    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_time, init%nt, init%netcdf%id_dim_time)
+    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_x,     init%nx,   init%netcdf%id_dim_x    )
+    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_y,     init%ny,   init%netcdf%id_dim_y    )
+    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_zeta,  init%nz,   init%netcdf%id_dim_zeta )
+    CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_time,  init%nt,   init%netcdf%id_dim_time )
     CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_month, int_dummy, init%netcdf%id_dim_month)
 
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
@@ -2047,9 +2049,11 @@ CONTAINS
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_y,                (/                       init%netcdf%id_dim_y                                                    /), init%netcdf%id_var_y   )
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_zeta,             (/                                             init%netcdf%id_dim_zeta                           /), init%netcdf%id_var_zeta)
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_time,             (/                                                                       init%netcdf%id_dim_time /), init%netcdf%id_var_time)
+    
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_Hi,               (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_Hi  )
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_Hb,               (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_Hb  )
-    CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_Hs,               (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_Hs  )
+    CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_SL,               (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_SL  )
+    CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_dHb,              (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_dHb )
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_Ti,               (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y, init%netcdf%id_dim_zeta , init%netcdf%id_dim_time /), init%netcdf%id_var_Ti  )
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_FirnDepth,        (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y, init%netcdf%id_dim_month, init%netcdf%id_dim_time /), init%netcdf%id_var_FirnDepth)
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_MeltPreviousYear, (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y                          , init%netcdf%id_dim_time /), init%netcdf%id_var_MeltPreviousYear)
@@ -2078,15 +2082,13 @@ CONTAINS
     ! Read zeta, check if it matches the config zeta
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_zeta, init%zeta, start=(/1/) ))
     IF (init%nz /= C%nz) THEN
-      WRITE(0,*) ' ======== '
-      WRITE(0,*) '  WARNING - vertical coordinate zeta in restart file doesnt match zeta in config!'
-      WRITE(0,*) ' ======== '
+      WRITE(0,*) '  read_restart_file - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSE
       DO k = 1, C%nz
         IF (ABS(C%zeta(k) - init%zeta(k)) > 0.0001_dp) THEN
-      WRITE(0,*) ' ======== '
-          WRITE(0,*) '  WARNING - vertical coordinate zeta in restart file doesnt match zeta in config!'
-      WRITE(0,*) ' ======== '
+      WRITE(0,*) '  read_restart_file - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
       END DO
     END IF
@@ -2128,7 +2130,8 @@ CONTAINS
     ! Read the data
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_Hi,               init%Hi_raw,               start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_Hb,               init%Hb_raw,               start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))
-    CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_Hs,               init%Hs_raw,               start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))
+    CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_SL,               init%SL_raw,               start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))
+    CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_dHb,              init%dHb_raw,              start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_Ti,               init%Ti_raw,               start = (/ 1, 1, 1, ti /), count = (/ init%nx, init%ny, init%nz, 1 /) ))
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_FirnDepth,        init%FirnDepth_raw,        start = (/ 1, 1, 1, ti /), count = (/ init%nx, init%ny, 12,      1 /) ))
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_MeltPreviousYear, init%MeltPreviousYear_raw, start = (/ 1, 1,    ti /), count = (/ init%nx, init%ny,          1 /) ))

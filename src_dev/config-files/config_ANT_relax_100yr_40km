@@ -1,34 +1,26 @@
 &CONFIG
 
 ! Start and end time
-start_time_of_run_config                = -120000  ! Start time (in years) of the simulations
-end_time_of_run_config                  = -119990  ! End   time (in years) of the simulations
-dt_coupling_config                      = 100
+start_time_of_run_config                = 0  ! Start time (in years) of the simulations
+end_time_of_run_config                  = 100  ! End   time (in years) of the simulations
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
-create_procedural_output_dir_config     = .TRUE.
-fixed_output_dir_config                 = 'results'
-do_write_debug_data_config              = .TRUE.
+create_procedural_output_dir_config     = .FALSE.
+fixed_output_dir_config                 = 'results_ANT_relax_100yr_40km'
 
 ! Which benchmark experiment we want to run (if any)
 do_benchmark_experiment_config          = .FALSE.
 
 ! Which ice-sheets we want to simulate
-do_NAM_config                           = .FALSE.
-do_EAS_config                           = .FALSE.
-do_GRL_config                           = .FALSE.
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_NAM_config                           = 40000
-dx_EAS_config                           = 40000
-dx_GRL_config                           = 20000
 dx_ANT_config                           = 40000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 1        ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 10       ! Time step (in years) for writing output
+dt_output_config                        = 100      ! Time step (in years) for writing output
 dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
 dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
@@ -40,66 +32,28 @@ choice_ice_margin_config                = 'infinite_slab'
 m_enh_sheet_config                      = 5.0
 m_enh_shelf_config                      = 0.7
 choice_calving_law_config               = 'threshold_thickness'
+remove_shelves_larger_than_PD_config    = .TRUE.
 
 ! Sea level and GIA
-choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
-choice_GIA_model_config                 = 'ELRA'             ! Can be "none", "ELRA", or "SELEN"
+choice_sealevel_model_config            = 'fixed'         ! Can be "fixed", "eustatic", or "SELEN"
+fixed_sealevel_config                   = 0.0
+choice_GIA_model_config                 = 'none'             ! Can be "none", "ELRA", or "SELEN"
 dx_GIA_config                           = 100000.0
-
-!! Sea level and GIA
-!choice_sealevel_model_config            = 'SELEN'            ! Can be "fixed", "eustatic", or "SELEN"
-!choice_GIA_model_config                 = 'SELEN'            ! Can be "none", "ELRA", or "SELEN"
-!dx_GIA_config                           = 100000.0
-!SELEN_dir_config                        = 'SELEN_files'
-!SELEN_n_harmonics_config                = 64
-!SELEN_run_at_t_start_config             = .TRUE.
 
 ! Geothermal heat flux
 choice_geothermal_heat_flux_config      = 'spatial'
 constant_geothermal_heat_flux_config    = 1.72E06
 filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
-! Climate matrix
-filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
-filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-filename_GCM_snapshot_LGM_config        = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
-  
-! Ice5G ice-sheet geometry
-filename_ICE5G_PD_config                = 'Datasets/ICE5G/ice5g_v1.2_00.0k_1deg.nc'
-filename_ICE5G_LGM_config               = 'Datasets/ICE5G/ice5g_v1.2_21.0k_1deg.nc'
-
-constant_lapserate_config               = 0.008
-
-! Tuning parameters for the IMAU-ITM SMB model
-SMB_IMAUITM_C_abl_constant_NAM_config   = 18
-SMB_IMAUITM_C_abl_constant_EAS_config   = 34.5
-SMB_IMAUITM_C_abl_constant_GRL_config   = 24
-SMB_IMAUITM_C_abl_constant_ANT_config   = 18
-SMB_IMAUITM_C_abl_Ts_NAM_config         = 10
-SMB_IMAUITM_C_abl_Ts_EAS_config         = 10
-SMB_IMAUITM_C_abl_Ts_GRL_config         = 10
-SMB_IMAUITM_C_abl_Ts_ANT_config         = 10
-SMB_IMAUITM_C_abl_Q_NAM_config          = 0.513
-SMB_IMAUITM_C_abl_Q_EAS_config          = 0.513
-SMB_IMAUITM_C_abl_Q_GRL_config          = 0.513
-SMB_IMAUITM_C_abl_Q_ANT_config          = 0.513
-
-! Forcing
-filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
-choice_forcing_method_config            = 'CO2_direct'
-filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
-CO2_record_length_config                = 8001
+! Climate/SMB forcing
+choice_forcing_method_config            = 'SMB_direct'
+domain_climate_forcing_config           = 'regional'
+filename_GCM_climate_config             = 'Datasets/RACMO_Antarctica/SMB_RACMO2_Antarctica_PD_1kyr_40km.nc'
 
 ! Initial and PD reference data
-filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
 filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
 ! PD reference data (NetCDF)
-filename_PD_NAM_config                  = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_PD_EAS_config                  = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_PD_GRL_config                  = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
 filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! Which data fields should be written to the help_fields output file

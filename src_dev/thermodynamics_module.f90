@@ -444,7 +444,7 @@ CONTAINS
 
   END SUBROUTINE bottom_frictional_heating
   
-  SUBROUTINE initialise_ice_temperature( grid, ice, climate, init)
+  SUBROUTINE initialise_ice_temperature( grid, ice, climate, init, SMB)
       
     IMPLICIT NONE
     
@@ -453,6 +453,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_subclimate_region),        INTENT(IN)    :: climate
     TYPE(type_init_data_fields),         INTENT(IN)    :: init
+    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     
     ! Local variables
     INTEGER                                            :: i,j,k
@@ -520,17 +521,25 @@ CONTAINS
     ! Calculate Ti_pmp
     CALL ice_physical_properties( grid, ice, C%start_time_of_run)
       
-    ! Initialise with a linear profile
+!    ! Initialise with a linear profile
+!    DO i = grid%i1, grid%i2
+!    DO j = 1, grid%ny
+!      T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
+!      IF (ice%Hi_a( j,i) > 0._dp) THEN
+!        DO k = 1, C%nz
+!          ice%Ti_a( k,j,i) = T_surf_annual + C%zeta(k) * (ice%Ti_pmp_a( C%nz,j,i) - T_surf_annual)
+!        END DO
+!      ELSE
+!        ice%Ti_a( :,j,i) = T_surf_annual
+!      END IF        
+!    END DO
+!    END DO
+!    CALL sync
+      
+    ! Initialise with the Robin solution
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
-      IF (ice%Hi_a( j,i) > 0._dp) THEN
-        DO k = 1, C%nz
-          ice%Ti_a( k,j,i) = T_surf_annual + C%zeta(k) * (ice%Ti_pmp_a( C%nz,j,i) - T_surf_annual)
-        END DO
-      ELSE
-        ice%Ti_a( :,j,i) = T_surf_annual
-      END IF        
+      CALL replace_Ti_with_robin_solution( ice, climate, SMB, ice%Ti_a, i,j)    
     END DO
     END DO
     CALL sync

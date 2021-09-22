@@ -410,6 +410,9 @@ CONTAINS
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       w_tot( :,grid%i1:grid%i2) = (3._dp * w_CO2 + w_ice( :,grid%i1:grid%i2)) / 4._dp  ! Berends et al., 2018 - Eq. 9
     END IF
+    
+    ! Final scaling factor (used to "switch" between matrix method and glacial index method)
+    w_tot (:,grid%i1:grid%i2) = C%climate_matrix_CO2vsice * w_tot( :,grid%i1:grid%i2) + (1._dp - C%climate_matrix_CO2vsice) * w_CO2
 
     ! Interpolate between the GCM snapshots
     ! =====================================

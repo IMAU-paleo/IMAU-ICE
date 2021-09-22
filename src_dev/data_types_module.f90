@@ -608,8 +608,7 @@ MODULE data_types_module
     ! The data mapped to the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
-    INTEGER :: wHi, wHb, wHs
+    INTEGER :: wHi, wHb
               
   END TYPE type_PD_data_fields
   
@@ -626,18 +625,21 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_raw
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_raw
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: SL_raw
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth_raw
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear_raw
-    INTEGER :: wnx, wny, wnz, wnt, wx, wy, wzeta, wtime, wHi_raw, wHb_raw, wHs_raw, wTi_raw, wFirnDepth_raw, wMeltPreviousYear_raw
+    INTEGER :: wnx, wny, wnz, wnt, wx, wy, wzeta, wtime, wHi_raw, wHb_raw, wHs_raw, wTi_raw, wdHb_raw, wSL_raw, wFirnDepth_raw, wMeltPreviousYear_raw
     
     ! The data mapped to the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: SL
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear
-    INTEGER :: wHi, wHb, wHs, wTi, wFirnDepth, wMeltPreviousYear
+    INTEGER :: wHi, wHb, wTi, wdHb, wSL, wFirnDepth, wMeltPreviousYear
               
   END TYPE type_init_data_fields
   

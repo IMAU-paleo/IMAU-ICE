@@ -84,7 +84,7 @@ Ice dynamics:
 - Upgraded the SSA/DIVA solver from the regular (A) grid to the staggered (Cx/Cy) grid,
   based on the solver from SICOPOLIS (as included in Yelmo). This also includes the
   "cross-terms" which were previously neglected (can be turned on/off with the config option
-  "include_SSADIVA_crossterms_config"), as well as stres boundary conditions for the ice margin
+  "include_SSADIVA_crossterms_config"), as well as stress boundary conditions for the ice margin
   (although these are turned off by default as they don't seem to work very well; can be chosen
   with the config option "choice_ice_margin_config").
 - Added the predictor/corrector method of time integration (with the option of going back
@@ -100,9 +100,12 @@ Ice dynamics:
 - Added the CISM method of determining sub-grid grounded fractions on all grids (a,b,cx/cy; Leguy
   et al., 2021). These are used to scale beta_eff _AFTER_ staggering it to the cx/cy-grid. This
   results in much better GL migration, without having to use a flux condition (something which I
-  spent months trying to implement, but ultimately discarded...).
-- Included the "partial-melt parameterisation" from CISM (Leguy et al., 2021), where the sub-shelf
-  melt is scaled with the sub-grid floating fraction ( = 1 - grounded_fraction).
+  spent months trying to implement, without success...).
+- Included the three sub-grid schemes for applying basal melt from Leguy et al., 2021), which can
+  be selected through the config option "choice_BMB_subgrid".
+- Added the option choice_ice_dynamics = 'none', which keeps the ice thickness unchanged. A velocity
+  solution is still calculated during initialisation (using the DIVA), so that thermodynamics can
+  be run if necessary (useful for thermo spin-ups).
 
 Benchmark experiments:
 - Added the Schoof (2006) SSA ice stream experiment. Results match the analytical solution
@@ -153,6 +156,11 @@ Calving:
   allowed once the floating pixel is completely filled; this significantly reduces the margin
   "flickering" problem. Additionally, the mass balance (surface + basal) is also scaled with
   the floating fraction for calving front pixels.
+- Added the config option "do_remove_shelves", which - as the name suggests - forcibly removes
+  all floating ice in every time step. Used in the ABUMIP-ABUK experiment.
+- Added the config option "remove_shelves_larger_than_PD", which (as the name suggests) removes
+  any floating ice in pixels that are ice-free in the PD state. This is used in the relaxation
+  phase of the Antarctic spin-up, to make sure the ice shelves stay "nice".
 
 PETSc:
 - Currently, only two parts of the model use a sparse matrix solver: "solve_DIVA_stag_linearised"
@@ -162,6 +170,16 @@ PETSc:
   This means it is relatively simple to remove PETSc from the model entirely if the user desires this;
   simply remove the call to "solve_matrix_equation_CSR_PETSc" in the utilities_module, and remove
   the petsc_module from the Makefile.
+
+Climate/SMB (update by L. Stap):
+- Added the option to run the model with an externally prescribed climate/SMB forcing, provided on
+  either a global lon/lat-grid or a regional x/y-grid. Using this method of forcing can be done by
+  setting the config option "choice_forcing_method" to either "climate_direct" or "SMB_direct".
+  Choosing between global and regional forcing is done with the config option
+  "domain_climate_forcing_config". When using direct climate forcing, temperature and precipitation
+  are prescribed, and the SMB is calculated internally by the specified SMB model. When using direct
+  SMB forcing, a yearly total SMB is prescribed, as well as yearly mean surface temperature (which is
+  still required to run the thermodynamics solver).
   
 
 =================================
