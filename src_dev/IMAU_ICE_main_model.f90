@@ -17,7 +17,8 @@ MODULE IMAU_ICE_main_model
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              inverse_oblique_sg_projection, surface_elevation
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
-  USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid
+  USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid, &
+                                             initialise_topo_data_fields, map_topo_data_to_model_grid
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                              create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
                                              create_regional_scalar_output_file
@@ -338,10 +339,11 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%d18O_contribution            , region%wd18O_contribution            )
     CALL allocate_shared_dp_0D( region%d18O_contribution_PD         , region%wd18O_contribution_PD         )
     
-    ! ===== PD and init reference data fields =====
-    ! =============================================
+    ! ===== PD, topo, and init reference data fields =====
+    ! ====================================================
     
     CALL initialise_PD_data_fields(   region%PD,   region%name)
+    CALL initialise_topo_data_fields( region%topo, region%PD, region%name)
     CALL initialise_init_data_fields( region%init, region%name)
     
     ! ===== Initialise this region's grid =====
@@ -355,10 +357,11 @@ CONTAINS
     
     CALL initialise_debug_fields( region)
 
-    ! ===== Map PD and init data to the model grid =====
-    ! ==================================================
+    ! ===== Map PD, topo, and init data to the model grid =====
+    ! =========================================================
     
     CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
+    CALL map_topo_data_to_model_grid( region%grid, region%topo)
     CALL map_init_data_to_model_grid( region%grid, region%init)
     
     ! Smooth input geometry (bed and ice)
@@ -464,7 +467,7 @@ CONTAINS
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
       CALL initialise_GIA_model_grid( region)
-      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%PD)
+      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%topo)
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
     ELSE

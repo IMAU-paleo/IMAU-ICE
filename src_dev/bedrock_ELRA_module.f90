@@ -61,20 +61,20 @@ CONTAINS
     
     ! If needed, update the bedrock deformation rate
     IF (region%do_ELRA) THEN
-      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%PD)
+      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%topo)
     END IF
     
     ! Update bedrock with last calculated deformation rate
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
       region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
-      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%PD%Hb( j,i)
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%topo%Hb( j,i)
     END DO
     END DO
     CALL sync
     
   END SUBROUTINE run_ELRA_model
-  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, grid_GIA, ice, PD)
+  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, grid_GIA, ice, topo)
     ! Use the ELRA model to update bedrock deformation rates.
   
     IMPLICIT NONE  
@@ -83,7 +83,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
     
     ! Local variables:
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  surface_load_icemodel_grid,  dHb_eq_GIA_grid
@@ -122,7 +122,7 @@ CONTAINS
     ! Calculate the relative surface load on the GIA grid
     DO i = grid_GIA%i1, grid_GIA%i2
     DO j = 1, grid_GIA%ny
-      ice%surface_load_rel( j,i) = ice%surface_load( j,i) - ice%surface_load_PD( j,i)
+      ice%surface_load_rel( j,i) = ice%surface_load( j,i) - ice%surface_load_topo( j,i)
     END DO
     END DO
     CALL sync
@@ -179,13 +179,13 @@ CONTAINS
     ! Calculate the bedrock deformation rate on the ice model grid
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%dHb_dt_a( j,i) = (PD%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
+      ice%dHb_dt_a( j,i) = (topo%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
     END DO
     END DO
     CALL sync
     
   END SUBROUTINE calculate_ELRA_bedrock_deformation_rate
-  SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, PD)
+  SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, topo)
     ! Allocate and initialise the ELRA GIA model
       
     IMPLICIT NONE
@@ -194,18 +194,18 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
     
     ! Local variables:
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_PD_grid_GIA,  Hb_PD_grid_GIA
-    INTEGER                                            :: wHi_PD_grid_GIA, wHb_PD_grid_GIA
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_topo_grid_GIA,  Hb_topo_grid_GIA
+    INTEGER                                            :: wHi_topo_grid_GIA, wHb_topo_grid_GIA
     INTEGER                                            :: i,j,n,k,l
     REAL(dp)                                           :: Lr, r
     
     IF (par%master) WRITE (0,*) '  Initialising ELRA GIA model...'
     
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, ice%surface_load_PD,      ice%wsurface_load_PD     )
+    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, ice%surface_load_topo,    ice%wsurface_load_topo   )
     CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, ice%surface_load,         ice%wsurface_load        )
     CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, ice%surface_load_rel,     ice%wsurface_load_rel    )
     CALL allocate_shared_dp_2D( grid%ny,     grid%nx,     ice%dHb_eq,               ice%wdHb_eq              )
@@ -237,27 +237,27 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    ! Map PD data from the ice model grid to the GIA grid
-    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hi_PD_grid_GIA, wHi_PD_grid_GIA)
-    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hb_PD_grid_GIA, wHb_PD_grid_GIA)
-    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, PD%Hi, Hi_PD_grid_GIA)
-    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, PD%Hb, Hb_PD_grid_GIA)
+    ! Map topo data from the ice model grid to the GIA grid
+    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hi_topo_grid_GIA, wHi_topo_grid_GIA)
+    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hb_topo_grid_GIA, wHb_topo_grid_GIA)
+    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, topo%Hi, Hi_topo_grid_GIA)
+    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, topo%Hb, Hb_topo_grid_GIA)
     
-    ! Calculate PD reference load
+    ! Calculate topo reference load
     DO i = grid_GIA%i1, grid_GIA%i2
     DO j = 1, grid_GIA%ny
-      IF (is_floating( Hi_PD_grid_GIA( j,i), Hb_PD_grid_GIA( j,i), 0._dp)) THEN
-        ice%surface_load_PD( j,i) = -Hb_PD_grid_GIA( j,i) * grid_GIA%dx**2 * seawater_density
-      ELSEIF (Hi_PD_grid_GIA( j,i) > 0._dp) THEN
-        ice%surface_load_PD( j,i) = Hi_PD_grid_GIA( j,i) * grid_GIA%dx**2 * ice_density
+      IF (is_floating( Hi_topo_grid_GIA( j,i), Hb_topo_grid_GIA( j,i), 0._dp)) THEN
+        ice%surface_load_topo( j,i) = -Hb_topo_grid_GIA( j,i) * grid_GIA%dx**2 * seawater_density
+      ELSEIF (Hi_topo_grid_GIA( j,i) > 0._dp) THEN
+        ice%surface_load_topo( j,i) = Hi_topo_grid_GIA( j,i) * grid_GIA%dx**2 * ice_density
       END IF
     END DO
     END DO
     CALL sync
     
     ! Clean up after yourself
-    CALL deallocate_shared( wHi_PD_grid_GIA)
-    CALL deallocate_shared( wHb_PD_grid_GIA)
+    CALL deallocate_shared( wHi_topo_grid_GIA)
+    CALL deallocate_shared( wHb_topo_grid_GIA)
     
   END SUBROUTINE initialise_ELRA_model
 
