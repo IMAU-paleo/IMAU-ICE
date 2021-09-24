@@ -240,9 +240,10 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
   
   ! GCM snapshots
-  CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'PI_LGM'                         ! 'PI_LGM' uses 2 snapshots
+  CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'PI_LGM'                         ! 'warm_cold' & 'PI_LGM' use 2 snapshots
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_snapshot_LGM_config        = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
   ! GCM forcing file
   CHARACTER(LEN=256)  :: filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   
@@ -255,8 +256,19 @@ MODULE configuration_module
   REAL(dp)            :: constant_lapserate_config               = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
   
   ! Scaling factor for CO2 vs ice weights
-  REAL(dp)            :: climate_matrix_CO2vsice_config          = 1._dp                            ! 1 = original matrix method, 0 = CO2 only; scales continuously
-  
+  REAL(dp)            :: climate_matrix_CO2vsice_NAM_config          = 0.5_dp           ! Weight factor for the influence of CO2 vs ice cover on temperature 
+  REAL(dp)            :: climate_matrix_CO2vsice_EAS_config          = 0.5_dp           ! Can be set separately for different regions
+  REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp          ! Default values are from Berends et al, 2018
+  REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp          ! 1.0_dp equals glacial index method
+
+  REAL(dp)            :: climate_matrix_high_CO2_level_config        = 280._dp          ! CO2 level pertaining to the warm climate (PI  level default)         
+  REAL(dp)            :: climate_matrix_low_CO2_level_config         = 190._dp          ! CO2 level pertaining to the cold climate (LGM level default)          
+
+  REAL(dp)            :: climate_matrix_warm_orbit_time_config       = 0._dp            ! Orbit time pertaining to the warm climate (PI default)
+  REAL(dp)            :: climate_matrix_cold_orbit_time_config       = -120000._dp      ! Orbit time pertaining to the cold climate (LGM default) TODO Check this value!
+ 
+  LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+
   ! Forcing
   ! =======
   
@@ -659,7 +671,8 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
     CHARACTER(LEN=256)                  :: choice_climate_matrix
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
-    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_LGM
+    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_warm
+    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_cold
     CHARACTER(LEN=256)                  :: filename_GCM_climate
     
     CHARACTER(LEN=256)                  :: choice_ocean_temperature_model
@@ -668,7 +681,18 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_temperature_warm
     
     REAL(dp)                            :: constant_lapserate
-    REAL(dp)                            :: climate_matrix_CO2vsice
+
+    REAL(dp)                            :: climate_matrix_CO2vsice_NAM
+    REAL(dp)                            :: climate_matrix_CO2vsice_EAS
+    REAL(dp)                            :: climate_matrix_CO2vsice_GRL
+    REAL(dp)                            :: climate_matrix_CO2vsice_ANT
+
+    REAL(dp)                            :: climate_matrix_high_CO2_level
+    REAL(dp)                            :: climate_matrix_low_CO2_level
+    REAL(dp)                            :: climate_matrix_warm_orbit_time
+    REAL(dp)                            :: climate_matrix_cold_orbit_time
+
+    LOGICAL                             :: switch_glacial_index_precip
     
     ! Forcing
     ! =======
@@ -1237,14 +1261,23 @@ CONTAINS
                      filename_PD_obs_climate_config,             &
                      choice_climate_matrix_config,               &
                      filename_GCM_snapshot_PI_config,            &
-                     filename_GCM_snapshot_LGM_config,           &
+                     filename_GCM_snapshot_warm_config,          &
+                     filename_GCM_snapshot_cold_config,          &
                      filename_GCM_climate_config,                &
                      choice_ocean_temperature_model_config,      &
                      ocean_temperature_PD_config,                &
                      ocean_temperature_cold_config,              &
                      ocean_temperature_warm_config,              &
                      constant_lapserate_config,                  &
-                     climate_matrix_CO2vsice_config,             &
+                     climate_matrix_CO2vsice_NAM_config,         &
+                     climate_matrix_CO2vsice_EAS_config,         &
+                     climate_matrix_CO2vsice_GRL_config,         &
+                     climate_matrix_CO2vsice_ANT_config,         &
+                     climate_matrix_high_CO2_level_config,       &
+                     climate_matrix_low_CO2_level_config,        &
+                     climate_matrix_warm_orbit_time_config,      &
+                     climate_matrix_cold_orbit_time_config,      &
+                     switch_glacial_index_precip_config,         &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1616,7 +1649,8 @@ CONTAINS
     C%filename_PD_obs_climate             = filename_PD_obs_climate_config
     C%choice_climate_matrix               = choice_climate_matrix_config
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
-    C%filename_GCM_snapshot_LGM           = filename_GCM_snapshot_LGM_config
+    C%filename_GCM_snapshot_warm          = filename_GCM_snapshot_warm_config
+    C%filename_GCM_snapshot_cold          = filename_GCM_snapshot_cold_config
     C%filename_GCM_climate                = filename_GCM_climate_config
     
     C%choice_ocean_temperature_model      = choice_ocean_temperature_model_config
@@ -1625,7 +1659,18 @@ CONTAINS
     C%ocean_temperature_warm              = ocean_temperature_warm_config
     
     C%constant_lapserate                  = constant_lapserate_config
-    C%climate_matrix_CO2vsice             = climate_matrix_CO2vsice_config
+
+    C%climate_matrix_CO2vsice_NAM         = climate_matrix_CO2vsice_NAM_config
+    C%climate_matrix_CO2vsice_EAS         = climate_matrix_CO2vsice_EAS_config
+    C%climate_matrix_CO2vsice_GRL         = climate_matrix_CO2vsice_GRL_config
+    C%climate_matrix_CO2vsice_ANT         = climate_matrix_CO2vsice_ANT_config
+
+    C%climate_matrix_high_CO2_level       = climate_matrix_high_CO2_level_config
+    C%climate_matrix_low_CO2_level        = climate_matrix_low_CO2_level_config
+    C%climate_matrix_warm_orbit_time      = climate_matrix_warm_orbit_time_config
+    C%climate_matrix_cold_orbit_time      = climate_matrix_cold_orbit_time_config
+
+    C%switch_glacial_index_precip         = switch_glacial_index_precip_config
     
     ! Forcing
     ! =======
