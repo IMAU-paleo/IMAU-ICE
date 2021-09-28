@@ -156,9 +156,9 @@ CONTAINS
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! Use CO2 (either taken directly from the specified record, or as calculated by the inverse routine) to force the climate matrix
       
-      IF (C%choice_climate_matrix == 'PI_LGM') THEN
+      IF (C%choice_climate_matrix == 'warm_cold' .OR. C%choice_climate_matrix == 'PI_LGM') THEN
         ! Use the two-snapshot climate matrix
-        CALL run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name, time)
+        CALL run_climate_model_matrix_warm_cold( grid, ice, SMB, climate, region_name, time)
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in run_climate_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -261,7 +261,8 @@ CONTAINS
   END SUBROUTINE run_climate_model_dT_glob
   
   ! Climate matrix with PI + LGM snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
-  SUBROUTINE run_climate_model_matrix_PI_LGM( grid, ice, SMB, climate, region_name, time)
+  ! Generalised for different timeframes, L.B. Stap (2021)
+  SUBROUTINE run_climate_model_matrix_warm_cold( grid, ice, SMB, climate, region_name, time)
     ! Use CO2 (either prescribed or inversely modelled) to force the 2-snapshot (PI-LGM) climate matrix (Berends et al., 2018)
     
     IMPLICIT NONE
@@ -281,28 +282,28 @@ CONTAINS
     CALL map_insolation_to_grid( grid, forcing%ins_t0, forcing%ins_t1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1, time, climate%applied%Q_TOA, climate%applied%Q_TOA_jun_65N, climate%applied%Q_TOA_jan_80S)
     
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
-    CALL run_climate_model_matrix_PI_LGM_temperature( grid, ice, SMB, climate, region_name)
+    CALL run_climate_model_matrix_warm_cold_temperature( grid, ice, SMB, climate, region_name)
     
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
-    CALL run_climate_model_matrix_PI_LGM_precipitation( grid, ice, climate, region_name)
+    CALL run_climate_model_matrix_warm_cold_precipitation( grid, ice, climate, region_name)
       
     ! Safety checks
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     DO m = 1, 12
       IF (climate%applied%T2m( m,j,i) < 150._dp) THEN
-        WRITE(0,*) ' WARNING - run_climate_model_matrix_PI_LGM: excessively low temperatures (<150K) detected!'
+        WRITE(0,*) ' WARNING - run_climate_model_matrix_warm_cold: excessively low temperatures (<150K) detected!'
       ELSEIF (climate%applied%T2m( m,j,i) < 0._dp) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_PI_LGM: negative temperatures (<0K) detected!'
+        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: negative temperatures (<0K) detected!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       ELSEIF (climate%applied%T2m( m,j,i) /= climate%applied%T2m( m,j,i)) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_PI_LGM: NaN temperatures  detected!'
+        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: NaN temperatures  detected!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       ELSEIF (climate%applied%Precip( m,j,i) <= 0._dp) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_PI_LGM: zero/negative precipitation detected!'
+        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: zero/negative precipitation detected!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       ELSEIF (climate%applied%Precip( m,j,i) /= climate%applied%Precip( m,j,i)) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_PI_LGM: NaN precipitation  detected!'
+        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: NaN precipitation  detected!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END DO
@@ -310,8 +311,8 @@ CONTAINS
     END DO
     CALL sync
     
-  END SUBROUTINE run_climate_model_matrix_PI_LGM
-  SUBROUTINE run_climate_model_matrix_PI_LGM_temperature( grid, ice, SMB, climate, region_name)
+  END SUBROUTINE run_climate_model_matrix_warm_cold
+  SUBROUTINE run_climate_model_matrix_warm_cold_temperature( grid, ice, SMB, climate, region_name)
     ! The (CO2 + absorbed insolation)-based matrix interpolation for temperature, from Berends et al. (2018)
     
     IMPLICIT NONE
@@ -354,15 +355,15 @@ CONTAINS
       CO2 = forcing%CO2_mod
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - run_climate_model_matrix_PI_LGM must only be called with the correct forcing method, check your code!'
+      WRITE(0,*) '  ERROR - run_climate_model_matrix_warm_cold must only be called with the correct forcing method, check your code!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSE
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - choice_forcing_method "', C%choice_forcing_method, '" not implemented in run_climate_model_matrix_PI_LGM!'
+      WRITE(0,*) '  ERROR - choice_forcing_method "', C%choice_forcing_method, '" not implemented in run_climate_model_matrix_warm_cold!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - 190._dp) / (280._dp - 190._dp) ))   ! Berends et al., 2018 - Eq. 1
+    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%climate_matrix_low_CO2_level) / (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) ))   ! Berends et al., 2018 - Eq. 1
     
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -381,13 +382,13 @@ CONTAINS
     ! Calculate weighting field
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate%applied%I_abs( j,i) -     climate%GCM_LGM%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
-                                                           (    climate%GCM_PI%I_abs(  j,i) -     climate%GCM_LGM%I_abs( j,i)) ))
+      w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate%applied%I_abs( j,i) -     climate%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
+                                                           (    climate%GCM_warm%I_abs(  j,i) -     climate%GCM_cold%I_abs( j,i)) ))
     END DO
     END DO
     CALL sync
-    w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate%applied%I_abs)      - SUM(climate%GCM_LGM%I_abs)     ) / &
-                                                           (SUM(climate%GCM_PI%I_abs )      - SUM(climate%GCM_LGM%I_abs)     ) ))
+    w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate%applied%I_abs)      - SUM(climate%GCM_cold%I_abs)     ) / &
+                                                           (SUM(climate%GCM_warm%I_abs )      - SUM(climate%GCM_cold%I_abs)     ) ))
    
     ! Smooth the weighting field
     w_ins_smooth( :,grid%i1:grid%i2) = w_ins( :,grid%i1:grid%i2)
@@ -410,21 +411,32 @@ CONTAINS
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       w_tot( :,grid%i1:grid%i2) = (3._dp * w_CO2 + w_ice( :,grid%i1:grid%i2)) / 4._dp  ! Berends et al., 2018 - Eq. 9
     END IF
-    
-    ! Final scaling factor (used to "switch" between matrix method and glacial index method)
-    w_tot (:,grid%i1:grid%i2) = C%climate_matrix_CO2vsice * w_tot( :,grid%i1:grid%i2) + (1._dp - C%climate_matrix_CO2vsice) * w_CO2
+
+    ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
+    ! Berends et al., 2018 - Eqs. 5, 9 with weights 0.5 for NAM & EAS, and 0.75 for ANT 
+    ! Generalised: "switch" between matrix method and glacial index method by altering C%climate_matrix_CO2vsice_<region>
+    IF         (region_name == 'NAM') THEN
+      w_tot( :,grid%i1:grid%i2) = (C%climate_matrix_CO2vsice_NAM * w_CO2) + ((1._dp - C%climate_matrix_CO2vsice_NAM) * w_ice( :,grid%i1:grid%i2)) 
+    ELSEIF     (region_name == 'EAS') THEN
+      w_tot( :,grid%i1:grid%i2) = (C%climate_matrix_CO2vsice_EAS * w_CO2) + ((1._dp - C%climate_matrix_CO2vsice_EAS) * w_ice( :,grid%i1:grid%i2)) 
+    ELSEIF     (region_name == 'GRL') THEN
+      w_tot( :,grid%i1:grid%i2) = (C%climate_matrix_CO2vsice_GRL * w_CO2) + ((1._dp - C%climate_matrix_CO2vsice_GRL) * w_ice( :,grid%i1:grid%i2)) 
+    ELSEIF     (region_name == 'ANT') THEN
+      w_tot( :,grid%i1:grid%i2) = (C%climate_matrix_CO2vsice_ANT * w_CO2) + ((1._dp - C%climate_matrix_CO2vsice_ANT) * w_ice( :,grid%i1:grid%i2)) 
+    END IF
 
     ! Interpolate between the GCM snapshots
     ! =====================================
+    ! TODO Change bias correction, at least for warm_cold climate matrix forcing!
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
       ! Find matrix-interpolated orography, lapse rate, and temperature
-      Hs_ref_GCM(       j,i) = (w_tot( j,i) *  climate%GCM_PI%Hs_ref( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%Hs_ref( j,i))  ! Berends et al., 2018 - Eq. 8
-      lambda_ref_GCM(   j,i) = (w_tot( j,i) *  climate%GCM_PI%lambda( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%lambda( j,i))  ! Not listed in the article, shame on me!
-      T_ref_GCM(      :,j,i) = (w_tot( j,i) * (climate%GCM_PI%T2m(  :,j,i) - climate%GCM_bias_T2m( :,j,i))) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
-      !T_ref_GCM(      :,j,i) = (w_tot( j,i) *  climate%GCM_PI%T2m(  :,j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_LGM%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
+      Hs_ref_GCM(       j,i) = (w_tot( j,i) *  climate%GCM_warm%Hs_ref( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_cold%Hs_ref( j,i))  ! Berends et al., 2018 - Eq. 8
+      lambda_ref_GCM(   j,i) = (w_tot( j,i) *  climate%GCM_warm%lambda( j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_cold%lambda( j,i))  ! Not listed in the article, shame on me!
+      T_ref_GCM(      :,j,i) = (w_tot( j,i) * (climate%GCM_warm%T2m(  :,j,i) - climate%GCM_bias_T2m( :,j,i))) + ((1._dp - w_tot( j,i)) * climate%GCM_cold%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
+      !T_ref_GCM(      :,j,i) = (w_tot( j,i) *  climate%GCM_warm%T2m(  :,j,i)                                ) + ((1._dp - w_tot( j,i)) * climate%GCM_cold%T2m(  :,j,i))  ! Berends et al., 2018 - Eq. 6
     
       ! Adapt temperature to model orography using matrix-derived lapse-rate
       DO m = 1, 12
@@ -448,10 +460,10 @@ CONTAINS
     CALL deallocate_shared( wlambda_ref_GCM)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( climate%applied%T2m   , 'climate%applied%T2m'   , 'run_climate_model_matrix_PI_LGM_temperature')
+    CALL check_for_NaN_dp_3D( climate%applied%T2m   , 'climate%applied%T2m'   , 'run_climate_model_matrix_warm_cold_temperature')
     
-  END SUBROUTINE run_climate_model_matrix_PI_LGM_temperature
-  SUBROUTINE run_climate_model_matrix_PI_LGM_precipitation( grid, ice, climate, region_name)
+  END SUBROUTINE run_climate_model_matrix_warm_cold_temperature
+  SUBROUTINE run_climate_model_matrix_warm_cold_precipitation( grid, ice, climate, region_name)
     ! The (CO2 + ice geometry)-based matrix interpolation for precipitation, from Berends et al. (2018)
     ! For NAM and EAS, this is based on local ice geometry and uses the Roe&Lindzen precipitation model for downscaling.
     ! For GRL and ANT, this is based on total ice volume,  and uses the simple CC   precipitation model for downscaling.
@@ -468,8 +480,8 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_PD,  w_LGM
-    INTEGER                                            :: ww_PD, ww_LGM
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_warm,  w_cold
+    INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
     REAL(dp), DIMENSION(:,:,:), POINTER                :: T_ref_GCM, P_ref_GCM
     REAL(dp), DIMENSION(:,:  ), POINTER                :: lambda_GCM, Hs_GCM, Hs_ref_GCM
@@ -478,8 +490,8 @@ CONTAINS
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
     
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_PD,           ww_PD          )
-    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_LGM,          ww_LGM         )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_warm,         ww_warm        )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_cold,         ww_cold        )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, T_ref_GCM,      wT_ref_GCM     )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, P_ref_GCM,      wP_ref_GCM     )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, lambda_GCM,     wlambda_GCM    )
@@ -490,7 +502,7 @@ CONTAINS
     ! =====================================================
     
     ! First calculate the total ice volume term (second term in the equation)
-    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_a) - SUM(climate%GCM_PI%Hi)) / (SUM(climate%GCM_LGM%Hi) - SUM(climate%GCM_PI%Hi)) ))
+    w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hi_a) - SUM(climate%GCM_warm%Hi)) / (SUM(climate%GCM_cold%Hi) - SUM(climate%GCM_warm%Hi)) ))
     
     IF (region_name == 'NAM' .OR. region_name == 'EAS') THEN
       ! Combine total + local ice thicness; Berends et al., 2018, Eq. 12
@@ -499,58 +511,65 @@ CONTAINS
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         
-        IF (climate%GCM_PI%Hi( j,i) < 0.1_dp) THEN
-          IF (climate%GCM_LGM%Hi( j,i) < 0.1_dp) THEN
+        IF (climate%GCM_warm%Hi( j,i) < 0.1_dp) THEN
+          IF (climate%GCM_cold%Hi( j,i) < 0.1_dp) THEN
             ! No ice in any GCM state. Use only total ice volume.
-            w_LGM( j,i) = MAX(-0.25_dp, MIN(1.25_dp, w_tot ))
-            w_PD( j,i) = 1._dp - w_LGM( j,i)
+            w_cold( j,i) = MAX(-0.25_dp, MIN(1.25_dp, w_tot ))
+            w_warm( j,i) = 1._dp - w_cold( j,i)
           ELSE
-            ! No ice at PD, ice at LGM. Linear inter- / extrapolation.
-            w_LGM( j,i) = MAX(-0.25_dp, MIN(1.25_dp, ((ice%Hi_a( j,i) - 0.1_dp) / (climate%GCM_LGM%Hi( j,i) - 0.1_dp)) * w_tot ))
-            w_PD( j,i)  = 1._dp - w_LGM( j,i)  
+            ! No ice in warm climate, ice in cold climate. Linear inter- / extrapolation.
+            w_cold( j,i) = MAX(-0.25_dp, MIN(1.25_dp, ((ice%Hi_a( j,i) - 0.1_dp) / (climate%GCM_cold%Hi( j,i) - 0.1_dp)) * w_tot ))
+            w_warm( j,i)  = 1._dp - w_cold( j,i)  
           END IF
         ELSE
           ! Ice in both GCM states.  Linear inter- / extrapolation
-          w_LGM( j,i) = MAX(-0.25_dp, MIN(1.25_dp, ((ice%Hi_a( j,i) - 0.1_dp) / (climate%GCM_LGM%Hi( j,i) - 0.1_dp)) * w_tot ))
-          w_PD( j,i)  = 1._dp - w_LGM( j,i)
+          w_cold( j,i) = MAX(-0.25_dp, MIN(1.25_dp, ((ice%Hi_a( j,i) - 0.1_dp) / (climate%GCM_cold%Hi( j,i) - 0.1_dp)) * w_tot ))
+          w_warm( j,i)  = 1._dp - w_cold( j,i)
         END IF 
         
       END DO
       END DO
       CALL sync
       
-      w_LGM( :,grid%i1:grid%i2) = w_LGM( :,grid%i1:grid%i2) * w_tot
+      w_cold( :,grid%i1:grid%i2) = w_cold( :,grid%i1:grid%i2) * w_tot
       
       ! Smooth the weighting field
       !CALL smooth_Gaussian_2D( grid, w_LGM, 200000._dp) 
-      CALL smooth_Shepard_2D( grid, w_LGM, 200000._dp)
+      CALL smooth_Shepard_2D( grid, w_cold, 200000._dp)
       
-      w_PD( :,grid%i1:grid%i2) = 1._dp - w_LGM( :,grid%i1:grid%i2) 
+      w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2) 
       
     ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
       ! Use only total ice volume and CO2; Berends et al., 2018, Eq. 13
     
-      w_LGM( :,grid%i1:grid%i2) = w_tot
-      w_PD(  :,grid%i1:grid%i2) = 1._dp - w_LGM( :,grid%i1:grid%i2)
+      w_cold( :,grid%i1:grid%i2) = w_tot
+      w_warm(  :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
       
     END IF
+
+    IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%climate_matrix_low_CO2_level) / (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) )) )
+      w_cold( :,grid%i1:grid%i2) = w_tot
+      w_warm(  :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
+    END IF     
         
     ! Interpolate the GCM snapshots
     ! =============================
+    ! TODO Change bias correction, at least for warm_cold climate matrix forcing!
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      T_ref_GCM(  :,j,i) =      (w_PD( j,i) *     (climate%GCM_PI%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))  + (w_LGM( j,i) *     climate%GCM_LGM%T2m(    :,j,i))   ! Berends et al., 2018 - Eq. 6
-      lambda_GCM(   j,i) =      (w_PD( j,i) *      climate%GCM_PI%lambda(   j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%lambda(   j,i))
-      Hs_GCM(       j,i) =      (w_PD( j,i) *      climate%GCM_PI%Hs(       j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%Hs(       j,i))   ! Berends et al., 2018 - Eq. 8
-      Hs_ref_GCM(   j,i) =      (w_PD( j,i) *      climate%GCM_PI%Hs_ref(   j,i)                                  )  + (w_LGM( j,i) *     climate%GCM_LGM%Hs_ref(   j,i))
-     !P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i) / climate%GCM_bias_Precip( :,j,i))) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
+      T_ref_GCM(  :,j,i) =      (w_warm( j,i) *     (climate%GCM_warm%T2m(    :,j,i) - climate%GCM_bias_T2m(   :,j,i)))  + (w_cold( j,i) *     climate%GCM_cold%T2m(    :,j,i))   ! Berends et al., 2018 - Eq. 6
+      lambda_GCM(   j,i) =      (w_warm( j,i) *      climate%GCM_warm%lambda(   j,i)                                  )  + (w_cold( j,i) *     climate%GCM_cold%lambda(   j,i))
+      Hs_GCM(       j,i) =      (w_warm( j,i) *      climate%GCM_warm%Hs(       j,i)                                  )  + (w_cold( j,i) *     climate%GCM_cold%Hs(       j,i))   ! Berends et al., 2018 - Eq. 8
+      Hs_ref_GCM(   j,i) =      (w_warm( j,i) *      climate%GCM_warm%Hs_ref(   j,i)                                  )  + (w_cold( j,i) *     climate%GCM_cold%Hs_ref(   j,i))
+     !P_ref_GCM(  :,j,i) = EXP( (w_warm( j,i) *  LOG(climate%GCM_warm%Precip( :,j,i) / climate%GCM_bias_Precip( :,j,i))) + (w_cold( j,i) * LOG(climate%GCM_cold%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
      
-      P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
-      P_ref_GCM(  :,j,i) = P_ref_GCM( :,j,i) / (1._dp + (w_PD( j,i) * (climate%GCM_bias_Precip( :,j,i) - 1._dp)))
+      P_ref_GCM(  :,j,i) = EXP( (w_warm( j,i) *  LOG(climate%GCM_warm%Precip( :,j,i)                                  )) + (w_cold( j,i) * LOG(climate%GCM_cold%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
+      P_ref_GCM(  :,j,i) = P_ref_GCM( :,j,i) / (1._dp + (w_warm( j,i) * (climate%GCM_bias_Precip( :,j,i) - 1._dp)))
       
-!      P_ref_GCM(  :,j,i) = EXP( (w_PD( j,i) *  LOG(climate%GCM_PI%Precip( :,j,i)                                  )) + (w_LGM( j,i) * LOG(climate%GCM_LGM%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
+!      P_ref_GCM(  :,j,i) = EXP( (w_warm( j,i) *  LOG(climate%GCM_warm%Precip( :,j,i)                                  )) + (w_cold( j,i) * LOG(climate%GCM_cold%Precip( :,j,i)))) ! Berends et al., 2018 - Eq. 7
       
 !      ! Correct for GCM bias
 !      P_ref_GCM( :,j,i) = P_ref_GCM( :,j,i) / climate%GCM_bias_Precip( :,j,i)
@@ -572,8 +591,8 @@ CONTAINS
     END IF
    
     ! Clean up after yourself
-    CALL deallocate_shared( ww_PD)
-    CALL deallocate_shared( ww_LGM)
+    CALL deallocate_shared( ww_warm)
+    CALL deallocate_shared( ww_cold)
     CALL deallocate_shared( wT_ref_GCM)
     CALL deallocate_shared( wP_ref_GCM)
     CALL deallocate_shared( wlambda_GCM)
@@ -581,9 +600,9 @@ CONTAINS
     CALL deallocate_shared( wHs_ref_GCM)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( climate%applied%Precip, 'climate%applied%Precip', 'run_climate_model_matrix_PI_LGM_precipitation')
+    CALL check_for_NaN_dp_3D( climate%applied%Precip, 'climate%applied%Precip', 'run_climate_model_matrix_warm_cold_precipitation')
     
-  END SUBROUTINE run_climate_model_matrix_PI_LGM_precipitation
+  END SUBROUTINE run_climate_model_matrix_warm_cold_precipitation
   
   ! Two different parameterised precipitation models:
   ! - a simply Clausius-Clapeyron-based method, used for GRL and ANT
@@ -902,8 +921,9 @@ CONTAINS
       IF (C%choice_climate_matrix == 'PI_LGM') THEN
       
         ! Initialise the GCM snapshots
-        CALL initialise_snapshot( matrix%GCM_PI,  name = 'HadCM3_PI',  nc_filename = C%filename_GCM_snapshot_PI,  CO2 = 280._dp, orbit_time =       0._dp)
-        CALL initialise_snapshot( matrix%GCM_LGM, name = 'HadCM3_LGM', nc_filename = C%filename_GCM_snapshot_LGM, CO2 = 190._dp, orbit_time = -120000._dp)
+        CALL initialise_snapshot( matrix%GCM_PI,   name = 'HadCM3_ref_PI', nc_filename = C%filename_GCM_snapshot_PI,   CO2 = 280._dp,                         orbit_time =       0._dp)
+        CALL initialise_snapshot( matrix%GCM_warm, name = 'HadCM3_PI',     nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%climate_matrix_high_CO2_level, orbit_time = C%climate_matrix_warm_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_cold, name = 'HadCM3_LGM',    nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%climate_matrix_low_CO2_level,  orbit_time = C%climate_matrix_cold_orbit_time)
         
         ! Initialise the two ICE5G timeframes
         CALL initialise_ICE5G_timeframe( matrix%ICE5G_PD,  nc_filename = C%filename_ICE5G_PD,  time =       0._dp)
@@ -912,7 +932,16 @@ CONTAINS
         ! ICE5G defines bedrock w.r.t. sea level at that time, rather than sea level at PD. Correct for this.
         IF (par%master) matrix%ICE5G_LGM%Hb = matrix%ICE5G_LGM%Hb - 119._dp
         CALL sync
+
+      ELSEIF (C%choice_climate_matrix == 'warm_cold') THEN
+      
+        ! Initialise the GCM snapshots
+        CALL initialise_snapshot( matrix%GCM_PI,   name = 'ref_PI', nc_filename = C%filename_GCM_snapshot_PI,   CO2 = 280._dp,                         orbit_time =       0._dp)
+        CALL initialise_snapshot( matrix%GCM_warm, name = 'Warm',   nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%climate_matrix_high_CO2_level, orbit_time = C%climate_matrix_warm_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_cold, name = 'Cold',   nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%climate_matrix_low_CO2_level,  orbit_time = C%climate_matrix_cold_orbit_time)
         
+        CALL sync
+
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in initialise_climate_matrix!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1161,40 +1190,51 @@ CONTAINS
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! These two choices use the climate matrix
       
-      IF (C%choice_climate_matrix == 'PI_LGM') THEN
+      IF (C%choice_climate_matrix == 'warm_cold' .OR. C%choice_climate_matrix == 'PI_LGM') THEN
       
         ! Initialise data structures for the GCM snapshots
-        CALL initialise_subclimate( grid, climate%GCM_PI,   'HadCM3_PI' )
-        CALL initialise_subclimate( grid, climate%GCM_LGM,  'HadCM3_LGM')
+        IF (C%choice_climate_matrix == 'PI_LGM') THEN
+          CALL initialise_subclimate( grid, climate%GCM_PI,   'HadCM3_ref_PI' )
+          CALL initialise_subclimate( grid, climate%GCM_warm, 'HadCM3_PI' )
+          CALL initialise_subclimate( grid, climate%GCM_cold, 'HadCM3_LGM')
+        ELSE
+          CALL initialise_subclimate( grid, climate%GCM_PI,   'ref_PI' )
+          CALL initialise_subclimate( grid, climate%GCM_warm, 'Warm' )
+          CALL initialise_subclimate( grid, climate%GCM_cold, 'Cold')
+        END IF
         
         ! Map these subclimates from global grid to model grid
-        CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,  climate%GCM_PI )
-        CALL map_subclimate_to_grid( grid,  matrix%GCM_LGM, climate%GCM_LGM)
+        CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,   climate%GCM_PI )
+        CALL map_subclimate_to_grid( grid,  matrix%GCM_warm, climate%GCM_warm )
+        CALL map_subclimate_to_grid( grid,  matrix%GCM_cold, climate%GCM_cold)
         
         ! Right now, no wind is read from GCM output; just use PD observations everywhere
-        climate%GCM_PI%Wind_WE(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
-        climate%GCM_PI%Wind_SN(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_SN( :,:,grid%i1:grid%i2)
-        climate%GCM_LGM%Wind_WE( :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
-        climate%GCM_LGM%Wind_SN( :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_SN( :,:,grid%i1:grid%i2)
+        climate%GCM_warm%Wind_WE(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
+        climate%GCM_warm%Wind_SN(  :,:,grid%i1:grid%i2) = climate%PD_obs%Wind_SN( :,:,grid%i1:grid%i2)
+        climate%GCM_cold%Wind_WE( :,:,grid%i1:grid%i2)  = climate%PD_obs%Wind_WE( :,:,grid%i1:grid%i2)
+        climate%GCM_cold%Wind_SN( :,:,grid%i1:grid%i2)  = climate%PD_obs%Wind_SN( :,:,grid%i1:grid%i2)
         
         ! Initialise the ICE5G geometries for these two snapshots
-        CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_PI,  PD, matrix%ICE5G_PD,  matrix%ICE5G_PD, mask_noice)
-        CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_LGM, PD, matrix%ICE5G_LGM, matrix%ICE5G_PD, mask_noice)
-        
+        ! LBS: Only for PI_LGM
+        IF (C%choice_climate_matrix == 'PI_LGM') THEN
+          CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_warm,  PD, matrix%ICE5G_PD,  matrix%ICE5G_PD, mask_noice)
+          CALL initialise_subclimate_ICE5G_geometry( grid, climate%GCM_cold, PD, matrix%ICE5G_LGM, matrix%ICE5G_PD, mask_noice)
+        END IF
+  
         ! Calculate spatially variable lapse rate
-        climate%GCM_PI%lambda = 0.008_dp
+        climate%GCM_warm%lambda = 0.008_dp
         IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
-          CALL initialise_subclimate_spatially_variable_lapserate( grid, climate%GCM_LGM, climate%GCM_PI)
+          CALL initialise_subclimate_spatially_variable_lapserate( grid, climate%GCM_cold, climate%GCM_warm)
         ELSEIF (region_name == 'GLR' .OR. region_name == 'ANT') THEN
-          climate%GCM_LGM%lambda = 0.008_dp
+          climate%GCM_cold%lambda = 0.008_dp
         END IF
     
         ! Calculate GCM climate bias
         CALL initialise_climate_model_GCM_bias( grid, climate)
         
         ! Get reference absorbed insolation for the GCM snapshots
-        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_PI , region_name, mask_noice, climate%GCM_bias_T2m, climate%GCM_bias_Precip)
-        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_LGM, region_name, mask_noice, climate%GCM_bias_T2m, climate%GCM_bias_Precip)
+        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_warm, region_name, mask_noice, climate%GCM_bias_T2m, climate%GCM_bias_Precip)
+        CALL initialise_subclimate_absorbed_insolation( grid, climate%GCM_cold, region_name, mask_noice, climate%GCM_bias_T2m, climate%GCM_bias_Precip)
         
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in initialise_climate_model!'
@@ -1382,6 +1422,7 @@ CONTAINS
     ! Calculate the spatially variable lapse-rate (for non-PI GCM snapshots; see Berends et al., 2018)
     ! Only meaningful for snapshots where there is ice (LGM, M2_Medium, M2_Large),
     ! and only intended for North America and Eurasia
+    ! Generalised: technically not PI, but warm climate
      
     IMPLICIT NONE
       
@@ -1663,7 +1704,8 @@ CONTAINS
     END IF
         
     ! Correct for GCM bias (only for the PI snapshot, as the GCM data is still assumed to be The Truth (TM) for the LGM)
-    IF (snapshot%name == 'HadCM3_PI') THEN
+    ! TODO Change this, at least for warm_cold climate matrix forcing!
+    IF (snapshot%name == 'HadCM3_PI' .OR. snapshot%name == 'Warm') THEN
       climate_dummy%T2m(    :,:,grid%i1:grid%i2) = climate_dummy%T2m(    :,:,grid%i1:grid%i2) - GCM_bias_T2m(    :,:,grid%i1:grid%i2)
       climate_dummy%Precip( :,:,grid%i1:grid%i2) = climate_dummy%Precip( :,:,grid%i1:grid%i2) / GCM_bias_Precip( :,:,grid%i1:grid%i2)
     END IF

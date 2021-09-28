@@ -229,6 +229,24 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%GHF_a,          (/1, 1        /))
+
+    ! Forcing climates
+    ELSEIF (field_name == 'GCM_Warm_T2m') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_warm%T2m,    (/1, 1, 1/))
+    ELSEIF (field_name == 'GCM_Warm_Precip') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_warm%Precip, (/1, 1, 1/))
+    ELSEIF (field_name == 'GCM_Cold_T2m') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_cold%T2m,    (/1, 1, 1/))
+    ELSEIF (field_name == 'GCM_Cold_Precip') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_cold%Precip, (/1, 1, 1/))
+    ELSEIF (field_name == 'GCM_PI_T2m') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_PI%T2m,      (/1, 1, 1/))
+    ELSEIF (field_name == 'GCM_PI_Precip') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%GCM_PI%Precip,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_T2m') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%T2m,      (/1, 1, 1/))
+    ELSEIF (field_name == 'PD_obs_Precip') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%Precip,   (/1, 1, 1/))
       
     ! Fields with a time dimension
     ! ============================
@@ -326,7 +344,7 @@ CONTAINS
         d_temp( j,i) = SUM( region%climate%applied%Wind_SN( :,j,i)) / 12._dp
       END DO
       END DO
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               d_temp,                     (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               d_temp,                     (/1, 1,    ti /))    
       
     ! Mass balance
     ELSEIF (field_name == 'SMB') THEN
@@ -985,7 +1003,25 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL create_double_var( region%help_fields%ncid, 'GHF',                      [x, y      ], id_var, long_name='Geothermal heat flux', units='J m^-2 yr^-1')
-      
+ 
+    ! Forcing climates
+    ELSEIF (field_name == 'GCM_Warm_T2m') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_T2m',                 [x, y, m], id_var, long_name='Warm monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_Warm_Precip') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_Precip',              [x, y, m], id_var, long_name='Warm monthly total precipitation', units='mm')
+    ELSEIF (field_name == 'GCM_Cold_T2m') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_T2m',                 [x, y, m], id_var, long_name='Cold monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_Cold_Precip') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_Precip',              [x, y, m], id_var, long_name='Cold monthly total precipitation', units='mm')
+    ELSEIF (field_name == 'GCM_PI_T2m') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_T2m',               [x, y, m], id_var, long_name='Ref PI monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_PI_Precip') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_Precip',            [x, y, m], id_var, long_name='Ref PI monthly total precipitation', units='mm')
+    ELSEIF (field_name == 'PD_obs_T2m') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_T2m',              [x, y, m], id_var, long_name='Base PD monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'PD_obs_Precip') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_Precip',           [x, y, m], id_var, long_name='Base PD monthly total precipitation', units='mm')
+     
     ! Fields with a time dimension
     ! ============================
       

@@ -288,12 +288,12 @@ MODULE data_types_module
     ! ELRA GIA model
     INTEGER,                    POINTER     :: flex_prof_rad
     REAL(dp), DIMENSION(:,:  ), POINTER     :: flex_prof
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_PD
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_topo
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
-    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_PD, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
+    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
     
   END TYPE type_ice_model
   
@@ -464,7 +464,8 @@ MODULE data_types_module
     
     ! The GCM snapshots.
     TYPE(type_subclimate_global)            :: GCM_PI
-    TYPE(type_subclimate_global)            :: GCM_LGM
+    TYPE(type_subclimate_global)            :: GCM_warm
+    TYPE(type_subclimate_global)            :: GCM_cold
     
     ! ICE5G data
     TYPE(type_ICE5G_timeframe)              :: ICE5G_PD
@@ -520,8 +521,9 @@ MODULE data_types_module
     ! All the relevant climate data fields (PD observations, GCM snapshots, and final, applied climate) on the model region grid
 
     TYPE(type_subclimate_region)            :: PD_obs         ! PD observations (e.g. ERA40)
-    TYPE(type_subclimate_region)            :: GCM_PI         ! Pre-industrial  (e.g. HadCM3, Singarayer & Valdes, 2010)
-    TYPE(type_subclimate_region)            :: GCM_LGM        ! LGM             (e.g. HadCM3, Singarayer & Valdes, 2010)
+    TYPE(type_subclimate_region)            :: GCM_PI         ! Pre-industrial  (e.g. HadCM3, Singarayer & Valdes, 2010), for bias correction
+    TYPE(type_subclimate_region)            :: GCM_warm       ! Warm            (e.g. HadCM3, Singarayer & Valdes, 2010)
+    TYPE(type_subclimate_region)            :: GCM_cold       ! Cold            (e.g. HadCM3, Singarayer & Valdes, 2010)
     TYPE(type_subclimate_region)            :: applied        ! Final applied climate
     
     ! GCM bias
@@ -979,8 +981,9 @@ MODULE data_types_module
     INTEGER :: wmean_isotope_content, wmean_isotope_content_PD, wd18O_contribution, wd18O_contribution_PD
         
     ! Reference data fields
-    TYPE(type_PD_data_fields)               :: PD                                        ! The present-day data fields for this model region, on a high-res Cartesian grid
-    TYPE(type_init_data_fields)             :: init                                      ! The initial     data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_PD_data_fields)               :: PD                                        ! The present-day  data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_PD_data_fields)               :: topo                                      ! The (paleo-)topo data fields for this model region, on a high-res Cartesian grid
+    TYPE(type_init_data_fields)             :: init                                      ! The initial      data fields for this model region, on a high-res Cartesian grid
     
     ! Mask where ice is not allowed to form (so Greenland is not included in NAM and EAS, and Ellesmere is not included in GRL)
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_noice
