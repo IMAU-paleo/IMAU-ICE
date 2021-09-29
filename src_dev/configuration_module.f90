@@ -124,7 +124,8 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   ! (Paleo-)topographies (NetCDF)
-  LOGICAL            :: paleotopography_config                   = .FALSE.
+  LOGICAL            :: switch_remove_Lake_Vostok_config         = .TRUE.
+  LOGICAL            :: switch_paleotopography_config            = .FALSE.
   CHARACTER(LEN=256) :: filename_topo_NAM_config                 = 'dummy.nc'
   CHARACTER(LEN=256) :: filename_topo_EAS_config                 = 'dummy.nc'
   CHARACTER(LEN=256) :: filename_topo_GRL_config                 = 'dummy.nc'
@@ -265,7 +266,7 @@ MODULE configuration_module
   REAL(dp)            :: climate_matrix_low_CO2_level_config         = 190._dp          ! CO2 level pertaining to the cold climate (LGM level default)          
 
   REAL(dp)            :: climate_matrix_warm_orbit_time_config       = 0._dp            ! Orbit time pertaining to the warm climate (PI default)
-  REAL(dp)            :: climate_matrix_cold_orbit_time_config       = -120000._dp      ! Orbit time pertaining to the cold climate (LGM default) TODO Check this value!
+  REAL(dp)            :: climate_matrix_cold_orbit_time_config       = -21000._dp      ! Orbit time pertaining to the cold climate (LGM default)
  
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
 
@@ -561,7 +562,8 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_PD_GRL
     CHARACTER(LEN=256)                  :: filename_PD_ANT
 
-    LOGICAL                             :: paleotopography
+    LOGICAL                             :: switch_remove_Lake_Vostok
+    LOGICAL                             :: switch_paleotopography
     CHARACTER(LEN=256)                  :: filename_topo_NAM
     CHARACTER(LEN=256)                  :: filename_topo_EAS
     CHARACTER(LEN=256)                  :: filename_topo_GRL
@@ -1182,7 +1184,8 @@ CONTAINS
                      filename_PD_EAS_config,                     &
                      filename_PD_GRL_config,                     &
                      filename_PD_ANT_config,                     &
-                     paleotopography_config,                     &
+                     switch_remove_Lake_Vostok_config,           &
+                     switch_paleotopography_config,              &
                      filename_topo_NAM_config,                   &
                      filename_topo_EAS_config,                   &
                      filename_topo_GRL_config,                   &
@@ -1539,7 +1542,8 @@ CONTAINS
     C%filename_PD_GRL                     = filename_PD_GRL_config
     C%filename_PD_ANT                     = filename_PD_ANT_config
 
-    C%paleotopography                     = paleotopography_config
+    C%switch_remove_Lake_Vostok           = switch_remove_Lake_Vostok_config
+    C%switch_paleotopography              = switch_paleotopography_config
     C%filename_topo_NAM                   = filename_topo_NAM_config
     C%filename_topo_EAS                   = filename_topo_EAS_config
     C%filename_topo_GRL                   = filename_topo_GRL_config

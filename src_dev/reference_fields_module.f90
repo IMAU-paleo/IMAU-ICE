@@ -76,7 +76,7 @@ CONTAINS
     CALL transpose_dp_2D( PD%Hs_raw, PD%wHs_raw)
     
     ! Remove Lake Vostok from Antarctica (because it's annoying)
-    IF (region_name == 'ANT') CALL remove_Lake_Vostok( PD%x, PD%y, PD%Hi_raw, PD%Hb_raw, PD%Hs_raw)
+    IF (region_name == 'ANT'.AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( PD%x, PD%y, PD%Hi_raw, PD%Hb_raw, PD%Hs_raw)
     
   END SUBROUTINE initialise_PD_data_fields
   SUBROUTINE initialise_PD_data_fields_schematic_benchmarks( PD)
@@ -256,7 +256,7 @@ CONTAINS
     CALL allocate_shared_int_0D( topo%nx, topo%wnx)
     CALL allocate_shared_int_0D( topo%ny, topo%wny)
     
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%paleotopography)) THEN
+    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
       ! Just use the same field as PD
       IF (par%master) THEN
         topo%nx = PD%nx
@@ -278,7 +278,7 @@ CONTAINS
     CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hb_raw, topo%wHb_raw)
     CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hs_raw, topo%wHs_raw)
 
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%paleotopography)) THEN
+    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
   
       IF (par%master) THEN
         ! Just use the same field as PD
@@ -305,7 +305,7 @@ CONTAINS
     CALL transpose_dp_2D( topo%Hs_raw, topo%wHs_raw)
     
     ! Remove Lake Vostok from Antarctica (because it's annoying)
-    IF (region_name == 'ANT') CALL remove_Lake_Vostok( topo%x, topo%y, topo%Hi_raw, topo%Hb_raw, topo%Hs_raw)
+    IF (region_name == 'ANT' .AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( topo%x, topo%y, topo%Hi_raw, topo%Hb_raw, topo%Hs_raw)
 
     END IF !(C%do_benchmark_experiment)
   
@@ -378,7 +378,7 @@ CONTAINS
       CALL transpose_dp_2D( init%Hs_raw, init%wHs_raw)
     
       ! Remove Lake Vostok from Antarctica (because it's annoying)
-      IF (region_name == 'ANT') CALL remove_Lake_Vostok( init%x, init%y, init%Hi_raw, init%Hb_raw, init%Hs_raw)
+      IF (region_name == 'ANT' .AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( init%x, init%y, init%Hi_raw, init%Hb_raw, init%Hs_raw)
     
     ELSE ! IF (.NOT. C%is_restart) THEN
       ! Use the restart file of an earlier IMAU-ICE run, which also contains Ti, FirnDepth and MeltPreviousYear (and zeta, time and month dimensions)

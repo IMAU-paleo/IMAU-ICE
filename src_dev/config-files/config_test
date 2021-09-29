@@ -62,7 +62,8 @@ filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_Shap
 ! Climate matrix
 filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
 filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-filename_GCM_snapshot_LGM_config        = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+filename_GCM_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+filename_GCM_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
   
 ! Ice5G ice-sheet geometry
 filename_ICE5G_PD_config                = 'Datasets/ICE5G/ice5g_v1.2_00.0k_1deg.nc'
@@ -91,6 +92,8 @@ filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_
 CO2_record_length_config                = 8001
 
 ! Initial and PD reference data
+switch_remove_Lake_Vostok_config        = .TRUE. 
+switch_paleotopography_config           = .FALSE.
 filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
 filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
 filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'

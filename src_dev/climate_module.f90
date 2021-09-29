@@ -927,7 +927,7 @@ CONTAINS
         
         ! Initialise the two ICE5G timeframes
         CALL initialise_ICE5G_timeframe( matrix%ICE5G_PD,  nc_filename = C%filename_ICE5G_PD,  time =       0._dp)
-        CALL initialise_ICE5G_timeframe( matrix%ICE5G_LGM, nc_filename = C%filename_ICE5G_LGM, time = -120000._dp)
+        CALL initialise_ICE5G_timeframe( matrix%ICE5G_LGM, nc_filename = C%filename_ICE5G_LGM, time =  -21000._dp)
     
         ! ICE5G defines bedrock w.r.t. sea level at that time, rather than sea level at PD. Correct for this.
         IF (par%master) matrix%ICE5G_LGM%Hb = matrix%ICE5G_LGM%Hb - 119._dp
@@ -1364,7 +1364,7 @@ CONTAINS
     snapshot%sealevel = 0._dp
     IF      (ICE5G%time == 0._dp) THEN
       snapshot%sealevel = 0._dp
-    ELSEIF (ICE5G%time == -120000._dp) THEN
+    ELSEIF (ICE5G%time == -21000._dp) THEN
       snapshot%sealevel = -120._dp
     ELSE
       IF (par%master) WRITE(0,*) '   ERROR - need to define a sea level for ICE5G timeframe at t = ', ICE5G%time
