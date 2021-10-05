@@ -1,0 +1,145 @@
+&CONFIG
+
+! Start and end time
+start_time_of_run_config                = -120000  ! Start time (in years) of the simulations
+end_time_of_run_config                  = -119990  ! End   time (in years) of the simulations
+dt_coupling_config                      = 100
+
+! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
+create_procedural_output_dir_config     = .TRUE.
+fixed_output_dir_config                 = 'results'
+do_write_debug_data_config              = .TRUE.
+
+! Which benchmark experiment we want to run (if any)
+do_benchmark_experiment_config          = .FALSE.
+
+! Which ice-sheets we want to simulate
+do_NAM_config                           = .TRUE.
+do_EAS_config                           = .FALSE.
+do_GRL_config                           = .FALSE.
+do_ANT_config                           = .FALSE.
+
+! The resolutions at which we want to simulate the different ice sheets
+dx_NAM_config                           = 40000
+dx_EAS_config                           = 40000
+dx_GRL_config                           = 20000
+dx_ANT_config                           = 40000
+
+! Time stepping
+dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
+dt_thermo_config                        = 10       ! Time step (in years) for updating the thermodynamics
+dt_output_config                        = 100      ! Time step (in years) for writing output
+dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
+dt_bedrock_ELRA_config                  = 50
+dt_SELEN_config                         = 1000
+
+! Ice dynamics
+choice_ice_dynamics_config              = 'DIVA'
+choice_timestepping_config              = 'pc'
+choice_ice_margin_config                = 'infinite_slab'
+m_enh_sheet_config                      = 5.0
+m_enh_shelf_config                      = 0.7
+choice_calving_law_config               = 'threshold_thickness'
+
+! Sea level and GIA
+choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
+choice_GIA_model_config                 = 'ELRA'             ! Can be "none", "ELRA", or "SELEN"
+dx_GIA_config                           = 100000.0
+
+! Geothermal heat flux
+choice_geothermal_heat_flux_config      = 'spatial'
+filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+
+! Climate matrix
+filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
+filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+filename_GCM_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+filename_GCM_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+
+! Tuning parameters for the IMAU-ITM SMB model
+SMB_IMAUITM_C_abl_constant_NAM_config   = 18
+SMB_IMAUITM_C_abl_constant_EAS_config   = 34.5
+SMB_IMAUITM_C_abl_constant_GRL_config   = 24
+SMB_IMAUITM_C_abl_constant_ANT_config   = 18
+SMB_IMAUITM_C_abl_Ts_NAM_config         = 10
+SMB_IMAUITM_C_abl_Ts_EAS_config         = 10
+SMB_IMAUITM_C_abl_Ts_GRL_config         = 10
+SMB_IMAUITM_C_abl_Ts_ANT_config         = 10
+SMB_IMAUITM_C_abl_Q_NAM_config          = 0.513
+SMB_IMAUITM_C_abl_Q_EAS_config          = 0.513
+SMB_IMAUITM_C_abl_Q_GRL_config          = 0.513
+SMB_IMAUITM_C_abl_Q_ANT_config          = 0.513
+
+! Forcing
+filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
+choice_forcing_method_config            = 'CO2_direct'
+filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+CO2_record_length_config                = 8001
+
+! Initial and PD reference data
+switch_remove_Lake_Vostok_config        = .TRUE. 
+switch_paleotopography_config           = .FALSE.
+filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  
+! PD reference data (NetCDF)
+filename_PD_NAM_config                  = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+filename_PD_EAS_config                  = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+filename_PD_GRL_config                  = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+! Which data fields should be written to the help_fields output file
+help_field_01_config                     = 'lat'
+help_field_02_config                     = 'lon'
+help_field_03_config                     = 'Hi'
+help_field_04_config                     = 'Hb'
+help_field_05_config                     = 'Hs'
+help_field_06_config                     = 'dHs_dx'
+help_field_07_config                     = 'dHs_dy'
+help_field_08_config                     = 'mask'
+help_field_09_config                     = 'uabs_surf'
+help_field_10_config                     = 'uabs_base'
+help_field_11_config                     = 'uabs_vav'
+help_field_12_config                     = 'u_3D'
+help_field_13_config                     = 'v_3D'
+help_field_14_config                     = 'w_3D'
+help_field_15_config                     = 'T2m_year'
+help_field_16_config                     = 'Precip_year'
+help_field_17_config                     = 'Albedo_year'
+help_field_18_config                     = 'SMB_year'
+help_field_19_config                     = 'BMB'
+help_field_20_config                     = 'T2m'
+help_field_21_config                     = 'Precip'
+help_field_22_config                     = 'Albedo'
+help_field_23_config                     = 'SMB'
+help_field_24_config                     = 'none'
+help_field_25_config                     = 'none'
+help_field_26_config                     = 'none'
+help_field_27_config                     = 'none'
+help_field_28_config                     = 'none'
+help_field_29_config                     = 'none'
+help_field_30_config                     = 'none'
+help_field_31_config                     = 'none'
+help_field_32_config                     = 'none'
+help_field_33_config                     = 'none'
+help_field_34_config                     = 'none'
+help_field_35_config                     = 'none'
+help_field_36_config                     = 'none'
+help_field_37_config                     = 'none'
+help_field_38_config                     = 'none'
+help_field_39_config                     = 'none'
+help_field_40_config                     = 'none'
+help_field_41_config                     = 'none'
+help_field_42_config                     = 'none'
+help_field_43_config                     = 'none'
+help_field_44_config                     = 'none'
+help_field_45_config                     = 'none'
+help_field_46_config                     = 'none'
+help_field_47_config                     = 'none'
+help_field_48_config                     = 'none'
+help_field_49_config                     = 'none'
+help_field_50_config                     = 'none'
+
+/

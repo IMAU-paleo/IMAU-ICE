@@ -17,4 +17,4 @@ module load PETSc/3.12.4-intel-2020a-Python-3.8.2
 module load impi/2019.8.254-iccifort-2020.1.217
 
 # Submit the run script with sbatch
-sbatch run_IMAU_ICE_Cartesius.csh src_dev/config-files/config_test test
+sbatch run_IMAU_ICE_Cartesius.csh src/config-files/config_test test
