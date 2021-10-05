@@ -77,6 +77,8 @@ filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_
 CO2_record_length_config                = 8001
 
 ! Initial and PD reference data
+switch_remove_Lake_Vostok_config        = .TRUE. 
+switch_paleotopography_config           = .FALSE.
 filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
 filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
 filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
