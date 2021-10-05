@@ -426,6 +426,12 @@ CONTAINS
     REAL(dp), PARAMETER                                :: q_plastic            = 0.30_dp       ! Parameter used for basal stress (inverse of m_flow)
     REAL(dp), PARAMETER                                :: u_threshold          = 100._dp       ! scaling of tau_yield to get the correct unit (function of q_plastic)
     
+    ! Exception for when no sliding can pccur
+    IF (C%choice_ice_dynamics == 'SIA' .OR. C%no_sliding) THEN
+      ice%frictional_heating_a( :,grid%i1:grid%i2) = 0._dp
+      RETURN
+    END IF
+    
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
     
