@@ -902,9 +902,9 @@ CONTAINS
       IF (C%choice_climate_matrix == 'warm_cold') THEN
       
         ! Initialise the GCM snapshots
-        CALL initialise_snapshot( matrix%GCM_PI,   name = 'HadCM3_ref_PI', nc_filename = C%filename_GCM_snapshot_PI,   CO2 = 280._dp,                         orbit_time =       0._dp)
-        CALL initialise_snapshot( matrix%GCM_warm, name = 'HadCM3_PI',     nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%climate_matrix_high_CO2_level, orbit_time = C%climate_matrix_warm_orbit_time)
-        CALL initialise_snapshot( matrix%GCM_cold, name = 'HadCM3_LGM',    nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%climate_matrix_low_CO2_level,  orbit_time = C%climate_matrix_cold_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_PI,   name = 'ref_PI', nc_filename = C%filename_GCM_snapshot_PI,   CO2 = 280._dp,                         orbit_time =       0._dp)
+        CALL initialise_snapshot( matrix%GCM_warm, name = 'warm',   nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%climate_matrix_high_CO2_level, orbit_time = C%climate_matrix_warm_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_cold, name = 'cold',   nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%climate_matrix_low_CO2_level,  orbit_time = C%climate_matrix_cold_orbit_time)
         
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in initialise_climate_matrix!'
