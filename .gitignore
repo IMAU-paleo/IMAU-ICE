@@ -1,0 +1,13 @@
+.DS_Store
+arolla100.dat
+benchmark_experiments/*
+Datasets/*
+Datasets.zip
+documentation/*
+imagesc3.m
+IMAU_ICE_program
+MATLAB/*
+old_src_versions/*
+results_*
+SELEN_files*
+src/module-files/*

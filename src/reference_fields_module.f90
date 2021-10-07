@@ -240,48 +240,11 @@ CONTAINS
     
     IF (par%master) WRITE(0,*) '  Mapping PD      data to model grid...'
     
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
-      ! Just use the same field as PD
-      IF (par%master) THEN
-        topo%nx = PD%nx
-        topo%ny = PD%ny
-      END IF
-    ELSE
-      ! Read data from input file
-      IF (par%master) WRITE(0,*) '  Reading topo    data from file ', TRIM(topo%netcdf%filename), '...'
-      IF (par%master) CALL inquire_PD_data_file(topo)
-    END IF ! (C%do_benchmark_experiment)
-    CALL sync
-
-    ! Read paleo data
-
-    ! Allocate memory - PD
-    CALL allocate_shared_dp_1D( topo%nx,               topo%x,      topo%wx)
-    CALL allocate_shared_dp_1D(               topo%ny, topo%y,      topo%wy)
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hi_raw, topo%wHi_raw)
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hb_raw, topo%wHb_raw)
-    CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hs_raw, topo%wHs_raw)
-
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
-  
-      IF (par%master) THEN
-        ! Just use the same field as PD
-        topo%x      = PD%x
-        topo%y      = PD%y
-        topo%Hi_raw = PD%Hi_raw
-        topo%Hs_raw = PD%Hs_raw
-        topo%Hb_raw = PD%Hb_raw
-      END IF ! IF (par%master) THEN
-      CALL sync
-
-    ELSE
-      ! Read data from input file
-      IF (par%master) CALL read_PD_data_file( topo)
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( topo%Hi_raw, 'topo%Hi_raw', 'initialise_topo_data_fields')
-    CALL check_for_NaN_dp_2D( topo%Hb_raw, 'topo%Hb_raw', 'initialise_topo_data_fields')
-    CALL check_for_NaN_dp_2D( topo%Hs_raw, 'topo%Hs_raw', 'initialise_topo_data_fields')
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hi, PD%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hb, PD%wHb)
+    
+    CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hi_raw, PD%Hi)
+    CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hb_raw, PD%Hb)
     
   END SUBROUTINE map_PD_data_to_model_grid
   
@@ -809,7 +772,7 @@ CONTAINS
     CALL allocate_shared_int_0D( topo%nx, topo%wnx)
     CALL allocate_shared_int_0D( topo%ny, topo%wny)
     
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%paleotopography)) THEN
+    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
       ! Just use the same field as PD
       IF (par%master) THEN
         topo%nx = PD%nx
@@ -824,7 +787,7 @@ CONTAINS
 
     ! Read paleo data
 
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%paleotopography)) THEN
+    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
 
       ! Allocate shared memory
       CALL allocate_shared_dp_1D( topo%nx,          topo%x,      topo%wx     )
