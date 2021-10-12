@@ -53,6 +53,7 @@ IMAU_ICE_program_objects = \
         thermodynamics_module.o \
         SMB_module.o \
         BMB_module.o \
+        ocean_module.o \
         climate_module.o \
         isotopes_module.o \
         bedrock_ELRA_module.o \
