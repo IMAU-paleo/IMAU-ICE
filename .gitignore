@@ -11,3 +11,4 @@ old_src_versions/*
 results_*
 SELEN_files*
 src/module-files/*
+massbalance_module.f90

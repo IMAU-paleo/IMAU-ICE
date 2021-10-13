@@ -52,7 +52,8 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
+              C%choice_benchmark_experiment == 'MISMIPplus') THEN
         ! No calving in these experiments
         RETURN
       ELSE

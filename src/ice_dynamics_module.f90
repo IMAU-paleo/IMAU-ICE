@@ -594,7 +594,7 @@ CONTAINS
       END DO
       CALL sync
     
-    ELSE
+    ELSE ! IF (.NOT. C%is_restart) THEN
       ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
       ! Also, the current model resolution might be higher than that which was used to generate
       ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
@@ -658,6 +658,14 @@ CONTAINS
         ice%u_base_cx( j,i) = ice%u_vav_cx( j,i)
       END DO
       END DO
+      CALL sync
+    END IF
+    
+    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'MISMIPplus') THEN
+      ! Set the ice flow factor only during initialisation; don't allow the "ice_physical_properties" routine
+      ! to change it, but instead let the tune-for-GL-position routine do that
+      ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
+      ice%A_flow_vav_a(   :,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
       CALL sync
     END IF
     

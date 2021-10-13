@@ -60,6 +60,10 @@ MODULE configuration_module
   REAL(dp)            :: SSA_icestream_m_config                  = 1                                ! Values tested by Schoof are 1, 10, and 20
   REAL(dp)            :: ISMIP_HOM_L_config                      = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
   CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config      = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
+  INTEGER             :: MISMIPplus_sliding_law_config           = 1                                ! Choice of sliding law in the MISMIPplus setup (see Asay-Davis et al., 2016)
+  LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config      = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
+  REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
+  REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -325,7 +329,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
-  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'PMP'                            ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'PMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -519,6 +523,10 @@ MODULE configuration_module
     REAL(dp)                            :: SSA_icestream_m
     REAL(dp)                            :: ISMIP_HOM_L
     CHARACTER(LEN=256)                  :: ISMIP_HOM_E_Arolla_filename
+    INTEGER                             :: MISMIPplus_sliding_law
+    LOGICAL                             :: MISMIPplus_do_tune_A_for_GL
+    REAL(dp)                            :: MISMIPplus_xGL_target
+    REAL(dp)                            :: MISMIPplus_A_flow_initial
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -1170,6 +1178,10 @@ CONTAINS
                      SSA_icestream_m_config,                     &
                      ISMIP_HOM_L_config,                         &
                      ISMIP_HOM_E_Arolla_filename_config,         &
+                     MISMIPplus_sliding_law_config,              &
+                     MISMIPplus_do_tune_A_for_GL_config,         &
+                     MISMIPplus_xGL_target_config,               &
+                     MISMIPplus_A_flow_initial_config,           &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      do_write_debug_data_config,                 &
@@ -1503,6 +1515,10 @@ CONTAINS
     C%SSA_icestream_m                     = SSA_icestream_m_config
     C%ISMIP_HOM_L                         = ISMIP_HOM_L_config
     C%ISMIP_HOM_E_Arolla_filename         = ISMIP_HOM_E_Arolla_filename_config
+    C%MISMIPplus_sliding_law              = MISMIPplus_sliding_law_config
+    C%MISMIPplus_do_tune_A_for_GL         = MISMIPplus_do_tune_A_for_GL_config
+    C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
+    C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================

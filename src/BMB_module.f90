@@ -61,6 +61,8 @@ CONTAINS
         BMB%BMB( :,grid%i1:grid%i2) = 0._dp
         CALL sync
         RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        ! No exception; use the actual basal melt model
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
