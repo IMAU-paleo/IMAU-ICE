@@ -136,7 +136,7 @@ MODULE configuration_module
   CHARACTER(LEN=256) :: filename_topo_ANT_config                 = 'dummy.nc' 
    
   ! Insolation forcing (NetCDF) (Laskar et al., 2004)
-  CHARACTER(LEN=256)  :: filename_insolation_config              = '/Datasets/Insolation_laskar/Insolation_Laskar_etal_2004.nc'
+  CHARACTER(LEN=256)  :: filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
   
   ! CO2 record (ASCII text file, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
@@ -234,7 +234,7 @@ MODULE configuration_module
   ! Thermodynamics
   ! ==============
   
-  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config      = 'constant'                       ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
+  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config      = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   REAL(dp)            :: constant_geothermal_heat_flux_config    = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
   CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
   
@@ -325,11 +325,16 @@ MODULE configuration_module
   ! Basal mass balance
   ! ==================
   
-  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy"
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus"
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
-  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'PMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  
+  ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+  REAL(dp)            :: BMB_Favier2019_lin_gamma_T_config       = 3.3314E-05  ! 2.03E-5_dp         ! Heat exchange velocity [m s^-1] 
+  REAL(dp)            :: BMB_Favier2019_quad_gamma_T_config      = 111.6E-5    ! 99.32E-5_dp        ! Commented values are from Favier et al. (2019), Table 3
+  REAL(dp)            :: BMB_Favier2019_Mplus_gamma_T_config     = 108.6E-5    ! 132.9E-5_dp        ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -756,6 +761,11 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
+  
+    ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+    REAL(dp)                            :: BMB_Favier2019_lin_gamma_T
+    REAL(dp)                            :: BMB_Favier2019_quad_gamma_T
+    REAL(dp)                            :: BMB_Favier2019_Mplus_gamma_T
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1334,6 +1344,9 @@ CONTAINS
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
+                     BMB_Favier2019_lin_gamma_T_config,          &
+                     BMB_Favier2019_quad_gamma_T_config,         &
+                     BMB_Favier2019_Mplus_gamma_T_config,        &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1749,6 +1762,11 @@ CONTAINS
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
+    
+    ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+    C%BMB_Favier2019_lin_gamma_T          = BMB_Favier2019_lin_gamma_T_config
+    C%BMB_Favier2019_quad_gamma_T         = BMB_Favier2019_quad_gamma_T_config
+    C%BMB_Favier2019_Mplus_gamma_T        = BMB_Favier2019_Mplus_gamma_T_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config

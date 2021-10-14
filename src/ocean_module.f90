@@ -24,7 +24,7 @@ MODULE ocean_module
 CONTAINS
 
   
-  ! Initialising the region-specific ocean data
+! == Initialising the region-specific ocean data
   SUBROUTINE initialise_oceans_regional( grid, climate, matrix)
     ! Allocate shared memory for the ocean data of the regional subclimates
     
@@ -102,9 +102,6 @@ CONTAINS
     CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_PI)
     CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_warm)
     CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_cold)
-    
-    ! Initialise dummy ocean data fields - DENK DROM
-    CALL initialise_dummy_ocean( grid, climate%applied)
   
   END SUBROUTINE initialise_oceans_regional
   SUBROUTINE allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
@@ -161,15 +158,17 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: subclimate
     
     ! Local variables:
-    INTEGER                                            :: i,j,k
+    !INTEGER                                            :: i,j,k
     
     ! Nothing done here right now!
     
     ! Will probably need think a bit about differences in ice geometry between snapshots and PD?
   
   END SUBROUTINE correct_GCM_bias_ocean
-  SUBROUTINE initialise_dummy_ocean( grid, climate)
-    ! Initialise dummy ocean data fields - DENK DROM
+  
+! == The ISOMOP+ temperature/salinity profiles
+  SUBROUTINE set_ocean_to_ISOMIPplus_COLD( grid, climate)
+    ! Set the ocean temperature and salinity to the ISOMIP+ "COLD" profile (Asay-Davis et al., 2016, Table 5)
     
     IMPLICIT NONE
     
@@ -179,9 +178,76 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j,k
+    REAL(dp)                                           :: w
+    REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
+    REAL(dp), PARAMETER                                :: Tbot      = -1.9_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Szero     = 33.8_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: Sbot      = 34.55_dp   ! Sea floor   salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
     
-    ! A simple temperature profile based on Antarctic waters from the World Ocean Atlas
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, climate%nz_ocean
+      
+      ! Interpolation weight
+      w = MIN(1._dp, MAX(0._dp, climate%z_ocean( k) / depth_max ))
+      
+      ! Temperature
+      climate%T_ocean(          k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      climate%T_ocean_corr(     k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      climate%T_ocean_corr_ext( k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      
+      ! Salinity
+      climate%S_ocean(          k,j,i) = w * Sbot + (1._dp - w) * Szero
+      climate%S_ocean_corr(     k,j,i) = w * Sbot + (1._dp - w) * Szero
+      climate%S_ocean_corr_ext( k,j,i) = w * Sbot + (1._dp - w) * Szero
+      
+    END DO
+    END DO
+    END DO
+    CALL sync
   
-  END SUBROUTINE initialise_dummy_ocean
+  END SUBROUTINE set_ocean_to_ISOMIPplus_COLD
+  SUBROUTINE set_ocean_to_ISOMIPplus_WARM( grid, climate)
+    ! Set the ocean temperature and salinity to the ISOMIP+ "WARM" profile (Asay-Davis et al., 2016, Table 6)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
+    
+    ! Local variables
+    INTEGER                                            :: i,j,k
+    REAL(dp)                                           :: w
+    REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
+    REAL(dp), PARAMETER                                :: Tbot      =  1.0_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Szero     = 33.8_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: Sbot      = 34.7_dp    ! Sea floor   salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, climate%nz_ocean
+      
+      ! Interpolation weight
+      w = MIN(1._dp, MAX(0._dp, climate%z_ocean( k) / depth_max ))
+      
+      ! Temperature
+      climate%T_ocean(          k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      climate%T_ocean_corr(     k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      climate%T_ocean_corr_ext( k,j,i) = w * Tbot + (1._dp - w) * Tzero
+      
+      ! Salinity
+      climate%S_ocean(          k,j,i) = w * Sbot + (1._dp - w) * Szero
+      climate%S_ocean_corr(     k,j,i) = w * Sbot + (1._dp - w) * Szero
+      climate%S_ocean_corr_ext( k,j,i) = w * Sbot + (1._dp - w) * Szero
+      
+    END DO
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE set_ocean_to_ISOMIPplus_WARM
 
 END MODULE ocean_module

@@ -106,24 +106,28 @@ MODULE data_types_netcdf_module
     INTEGER :: id_dim_zeta
     INTEGER :: id_dim_time
     INTEGER :: id_dim_month
+    INTEGER :: id_dim_z_ocean
   
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_dim_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
+    CHARACTER(LEN=256) :: name_dim_z_ocean               = 'z_ocean              '
   
     INTEGER :: id_var_x
     INTEGER :: id_var_y
     INTEGER :: id_var_time
     INTEGER :: id_var_zeta
     INTEGER :: id_var_month
+    INTEGER :: id_var_z_ocean
     
     CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_var_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_var_month                 = 'month                '
+    CHARACTER(LEN=256) :: name_var_z_ocean               = 'z_ocean              '
     
   ! Variables
   ! =========
@@ -480,11 +484,9 @@ MODULE data_types_netcdf_module
     ! Dimensions
     INTEGER :: id_dim_x
     INTEGER :: id_dim_y
-    INTEGER :: id_dim_month
     
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
-    CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
     
     ! Variables:
     INTEGER :: id_var_x

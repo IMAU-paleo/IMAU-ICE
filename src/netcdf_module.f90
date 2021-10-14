@@ -203,7 +203,7 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
-    INTEGER                                       :: ncid, nx, ny, ti, nz, i, j
+    INTEGER                                       :: ncid, nx, ny, ti, nz, nzo, i, j
     REAL(dp), DIMENSION( region%grid%ny, region%grid%nx) :: d_temp
     
     IF (.NOT. par%master) RETURN
@@ -214,6 +214,7 @@ CONTAINS
     ny   = region%grid%ny
     nz   = C%nZ
     ti   = region%help_fields%ti
+    nzo  = region%climate%applied%nz_ocean
     
     IF (field_name == 'none') THEN
       RETURN
@@ -352,12 +353,6 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%SMB%SMB,       (/1, 1, 1, ti /))
     ELSEIF (field_name == 'SMB_year') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%SMB%SMB_year,  (/1, 1,    ti /))
-    ELSEIF (field_name == 'BMB_sheet') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_sheet, (/1, 1,   ti /))
-    ELSEIF (field_name == 'BMB_shelf') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
-    ELSEIF (field_name == 'BMB') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB,       (/1, 1,   ti /))
     ELSEIF (field_name == 'Snowfall') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%SMB%Snowfall,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -458,6 +453,18 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dHb') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHb_a, (/1, 1,    ti /))
+      
+    ! Oceans and basal melt
+    ELSEIF (field_name == 'BMB') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB,       (/1, 1,   ti /))
+    ELSEIF (field_name == 'BMB_sheet') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_sheet, (/1, 1,   ti /))
+    ELSEIF (field_name == 'BMB_shelf') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
+    ELSEIF (field_name == 'T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,       (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,       (/1, 1, 1, ti /))
     
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
@@ -859,7 +866,6 @@ CONTAINS
 
     ! Local variables:
     LOGICAL                                       :: file_exists
-    INTEGER                                       :: x, y, z, m, t
     
     IF (.NOT. par%master) RETURN
     
@@ -879,25 +885,20 @@ CONTAINS
     CALL handle_error(nf90_create(region%help_fields%filename,IOR(nf90_clobber,nf90_share),region%help_fields%ncid))
         
     ! Define dimensions:
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_x,     region%grid%nx, region%help_fields%id_dim_x    )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_y,     region%grid%ny, region%help_fields%id_dim_y    )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_zeta,  C%nZ,           region%help_fields%id_dim_zeta )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_month, 12,             region%help_fields%id_dim_month)
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_time,  nf90_unlimited, region%help_fields%id_dim_time )
-    
-    ! Placeholders for the dimension ID's, for shorter code
-    x = region%help_fields%id_dim_x
-    y = region%help_fields%id_dim_y
-    z = region%help_fields%id_dim_zeta
-    m = region%help_fields%id_dim_month
-    t = region%help_fields%id_dim_time
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_x,       region%grid%nx,                  region%help_fields%id_dim_x      )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_y,       region%grid%ny,                  region%help_fields%id_dim_y      )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_zeta,    C%nZ,                            region%help_fields%id_dim_zeta   )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_month,   12,                              region%help_fields%id_dim_month  )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_time,    nf90_unlimited,                  region%help_fields%id_dim_time   )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_z_ocean, region%climate%applied%nz_ocean, region%help_fields%id_dim_z_ocean)
     
     ! Dimension variables: zeta, month, time
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_x,     [region%help_fields%id_dim_x    ], region%help_fields%id_var_x,     long_name='X-coordinate', units='m')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_y,     [region%help_fields%id_dim_y    ], region%help_fields%id_var_y,     long_name='Y-coordinate', units='m')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_zeta,  [region%help_fields%id_dim_zeta ], region%help_fields%id_var_zeta,  long_name='Vertical scaled coordinate', units='unitless')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_month, [region%help_fields%id_dim_month], region%help_fields%id_var_month, long_name='Month', units='1-12'    )
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_time,  [region%help_fields%id_dim_time ], region%help_fields%id_var_time,  long_name='Time', units='years'   )
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_x,       [region%help_fields%id_dim_x      ], region%help_fields%id_var_x,       long_name='X-coordinate', units='m')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_y,       [region%help_fields%id_dim_y      ], region%help_fields%id_var_y,       long_name='Y-coordinate', units='m')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_zeta,    [region%help_fields%id_dim_zeta   ], region%help_fields%id_var_zeta,    long_name='Vertical scaled coordinate', units='unitless')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_month,   [region%help_fields%id_dim_month  ], region%help_fields%id_var_month,   long_name='Month', units='1-12'    )
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_time,    [region%help_fields%id_dim_time   ], region%help_fields%id_var_time,    long_name='Time', units='years'   )
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_z_ocean, [region%help_fields%id_dim_z_ocean], region%help_fields%id_var_z_ocean, long_name='Depth in ocean', units='m')
     
     ! Define data variables
     CALL create_help_field( region, region%help_fields%id_help_field_01, C%help_field_01)
@@ -959,6 +960,7 @@ CONTAINS
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_y,        region%grid%y                            ))
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_zeta,     C%zeta                                   ))
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_month,    (/1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12/)))
+    CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_z_ocean,  region%climate%applied%z_ocean           ))
         
     ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
     CALL handle_error(nf90_sync( region%help_fields%ncid))
@@ -979,16 +981,17 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
-    INTEGER                                       :: x, y, z, m, t
+    INTEGER                                       :: x, y, z, m, t, zo
     
     IF (.NOT. par%master) RETURN
     
     ! Placeholders for the dimension ID's, for shorter code
-    x = region%help_fields%id_dim_x
-    y = region%help_fields%id_dim_y
-    z = region%help_fields%id_dim_zeta
-    m = region%help_fields%id_dim_month
-    t = region%help_fields%id_dim_time
+    x  = region%help_fields%id_dim_x
+    y  = region%help_fields%id_dim_y
+    z  = region%help_fields%id_dim_zeta
+    m  = region%help_fields%id_dim_month
+    t  = region%help_fields%id_dim_time
+    zo = region%help_fields%id_dim_z_ocean
     
     IF (field_name == 'none') THEN
       RETURN
@@ -1106,12 +1109,6 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'SMB',                      [x, y, m, t], id_var, long_name='Monthly surface mass balance', units='m ice equivalent')
     ELSEIF (field_name == 'SMB_year') THEN
       CALL create_double_var( region%help_fields%ncid, 'SMB_year',                 [x, y,    t], id_var, long_name='Annual surface mass balance', units='m ice equivalent')
-    ELSEIF (field_name == 'BMB_sheet') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB_sheet',                [x, y,    t], id_var, long_name='Annual basal mass balance for grounded ice', units='m ice equivalent')
-    ELSEIF (field_name == 'BMB_shelf') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB_shelf',                [x, y,    t], id_var, long_name='Annual basal mass balance for floating ice', units='m ice equivalent')
-    ELSEIF (field_name == 'BMB') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB',                      [x, y,    t], id_var, long_name='Annual basal mass balance', units='m ice equivalent')
     ELSEIF (field_name == 'Snowfall') THEN
       CALL create_double_var( region%help_fields%ncid, 'Snowfall',                 [x, y, m, t], id_var, long_name='Monthly total snowfall', units='m water equivalent')
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -1182,6 +1179,18 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dHb') THEN
       CALL create_double_var( region%help_fields%ncid, 'dHb',                      [x, y,    t], id_var, long_name='Change in bedrock elevation w.r.t. PD', units='m')
+    
+    ! Oceans and basal melt
+    ELSEIF (field_name == 'BMB') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB',                      [x, y,    t], id_var, long_name='Annual basal mass balance', units='m ice equivalent')
+    ELSEIF (field_name == 'BMB_sheet') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB_sheet',                [x, y,    t], id_var, long_name='Annual basal mass balance for grounded ice', units='m ice equivalent')
+    ELSEIF (field_name == 'BMB_shelf') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB_shelf',                [x, y,    t], id_var, long_name='Annual basal mass balance for floating ice', units='m ice equivalent')
+    ELSEIF (field_name == 'T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
       
       
     ELSE

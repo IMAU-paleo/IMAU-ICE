@@ -489,11 +489,11 @@ MODULE data_types_module
     INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
     INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity [?]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr                  ! Bias-corrected 3-D annual mean ocean temperature [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr                  ! Bias-corrected 3-D annual mean ocean salinity [?]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr                  ! Bias-corrected 3-D annual mean ocean salinity    [PSU]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
     INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_corr, wS_ocean_corr, wT_ocean_corr_ext, wS_ocean_corr_ext
   
   END TYPE type_subclimate_region
@@ -547,6 +547,21 @@ MODULE data_types_module
   TYPE type_BMB_model
     ! The different BMB components
     
+    ! General data fields
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB                           ! The basal mass balance (same as SMB: negative means ice loss, positive means ice gain!) [m/yr]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_sheet                     ! The basal mass balance underneath the land-based ice sheet [m/yr]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_shelf                     ! The basal mass balance underneath the floating   ice shelf [m/yr]
+    
+    ! The linear/quadratic models from Favier et al. (2019)
+    ! =====================================================
+    
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: T_ocean_base                  ! Ocean temperature    at the ice shelf base
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: T_ocean_freeze_base           ! Ocean freezing point at the ice shelf base (depends on pressure and salinity)
+    INTEGER :: wT_ocean_base, wT_ocean_freeze_base
+    
+    ! The ANICE_legacy BMB model
+    ! ==========================
+    
     ! Tuning parameters (different for each region, set from config)
     REAL(dp),                   POINTER     :: T_ocean_mean_PD
     REAL(dp),                   POINTER     :: T_ocean_mean_cold
@@ -564,10 +579,7 @@ MODULE data_types_module
     INTEGER :: wBMB_shelf_exposed_PD, wBMB_shelf_exposed_cold, wBMB_shelf_exposed_warm
     INTEGER :: wsubshelf_melt_factor, wdeep_ocean_threshold_depth
     
-    ! Data fields
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB                           ! The basal mass balance (same as SMB: negative means melt)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_sheet                     ! The basal mass balance underneath the land-based ice sheet
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_shelf                     ! The basal mass balance underneath the floating   ice shelf
+    ! Additional data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: sub_angle                     ! "subtended angle"      for the sub-shelf melt parameterisation
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dist_open                     ! distance to open ocean for the sub-shelf melt parameterisation
     INTEGER :: wBMB, wBMB_sheet, wBMB_shelf, wsub_angle, wdist_open

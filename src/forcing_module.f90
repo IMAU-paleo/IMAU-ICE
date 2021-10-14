@@ -949,8 +949,6 @@ CONTAINS
     ! Allocate shared memory for the forcing data fields
     
     IMPLICIT NONE
-    
-    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
         
     ! The times at which we have insolation fields from Laskar, between which we'll interpolate
     ! to find the insolation at model time (ins_t0 < model_time < ins_t1)
@@ -992,6 +990,8 @@ CONTAINS
     
     ! Exception: if we use external SMB forcing, insolation is not used anywhere
     IF (C%choice_forcing_method == 'SMB_direct') RETURN
+    
+    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
     
     ! Inquire into the insolation forcing netcdf file    
     CALL allocate_shared_int_0D( forcing%ins_nyears, forcing%wins_nyears)

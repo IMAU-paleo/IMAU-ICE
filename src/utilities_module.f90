@@ -1523,6 +1523,94 @@ CONTAINS
     
   END SUBROUTINE transpose_int_3D
   
+! == Interpolate ocean column data to a queried depth
+  SUBROUTINE interpolate_ocean_depth( nz_ocean, z_ocean, f_ocean, z_query, f_query)
+    ! Interpolate ocean column data to a queried depth using a simple bisection method.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,                             INTENT(IN)    :: nz_ocean    ! Number of vertical layers
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_ocean     ! Depth of layers (assumed to be monotonically increasing, does not need to be regularly spaced)
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: f_ocean     ! Value of whatever function we want to interpolate
+    REAL(dp),                            INTENT(IN)    :: z_query     ! Depth at which we want to know the function
+    REAL(dp),                            INTENT(OUT)   :: f_query     ! Interpolated function value
+    
+    ! Local variables:
+    INTEGER                                            :: k_lo,k_hi,k_mid
+    LOGICAL                                            :: foundit
+    REAL(dp)                                           :: w
+    
+    ! Safety
+    IF (z_query < 0._dp) THEN
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query < 0; cannot extrapolate above the sea surface, obviously!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (z_query > 12000._dp) THEN
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query > 12 km; the ocean is not that deep!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (SIZE(z_ocean,1) /= nz_ocean) THEN
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(z_ocean,1) /= nz_ocean!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (SIZE(f_ocean,1) /= nz_ocean) THEN
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(f_ocean,1) /= nz_ocean!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (z_query > MAXVAL(z_ocean)) THEN
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query > MAXVAL(z_ocean)!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Exception for when z_query = 0 (the World Ocean Atlas depth starts at 1.25...)
+    IF (z_query < MINVAL(z_ocean)) THEN
+      f_query = f_ocean(1)
+      RETURN
+    END IF
+    
+    ! Bisection method
+    k_lo  = 1
+    k_hi  = nz_ocean
+    k_mid = INT( REAL(k_lo + k_hi,dp) / 2._dp)
+    
+    ! Exceptions
+    IF     (ABS(z_query - z_ocean( k_lo )) < 1E-4_dp) THEN
+      f_query = f_ocean( k_lo)
+      RETURN
+    ELSEIF (ABS(z_query - z_ocean( k_hi )) < 1E-4_dp) THEN
+      f_query = f_ocean( k_hi)
+      RETURN
+    ELSEIF (ABS(z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
+      f_query = f_ocean( k_mid)
+      RETURN
+    END IF
+    
+    ! Bisection method
+    foundit = .FALSE.
+    DO WHILE (.NOT. foundit)
+    
+      IF (ABS(z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
+        ! Exception for when the queried depth is exactly at the midpoint index depth
+        f_query = f_ocean( k_mid)
+        RETURN
+      ELSEIF (z_query > z_ocean( k_mid)) THEN
+        ! Queried depth lies to the right of the midpoint
+        k_lo = k_mid
+        k_mid = INT( REAL(k_lo + k_hi,dp) / 2._dp)
+      ELSE
+        ! Queried depth lies to the left of the midpoint
+        k_hi = k_mid
+        k_mid = INT( REAL(k_lo + k_hi,dp) / 2._dp)
+      END IF
+      
+      ! Stop iterating when endpoints lie next to each other; then just do linear interpolation between those two.
+      IF (k_hi == k_lo+1) foundit = .TRUE.
+      
+    END DO ! DO WHILE (.NOT. foundit)
+    
+    ! Linear interpolation between nearest layers
+    w = (z_query - z_ocean( k_lo)) / (z_ocean( k_hi) - z_ocean( k_lo))
+    f_query = w * f_ocean( k_hi) + (1._dp - w) * f_ocean( k_lo)
+    
+  END SUBROUTINE interpolate_ocean_depth
+  
 ! == Remove Lake Vostok from Antarctic input geometry data
   SUBROUTINE remove_Lake_Vostok( x, y, Hi, Hb, Hs)
     ! Remove Lake Vostok from Antarctic input geometry data

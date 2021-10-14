@@ -22,6 +22,7 @@ MODULE climate_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
+  USE ocean_module,                    ONLY: allocate_subclimate_regional_oceans, set_ocean_to_ISOMIPplus_COLD, set_ocean_to_ISOMIPplus_WARM
 
   IMPLICIT NONE
     
@@ -1090,7 +1091,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus') THEN
           
-        ! Entirely parameterised climate
+        ! Entirely parameterised climate, no ocean
         CALL initialise_subclimate( grid, climate%applied, 'applied')
         RETURN
         
@@ -1182,9 +1183,16 @@ CONTAINS
     
     IMPLICIT NONE
     
+    ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid  
     TYPE(type_subclimate_region),        INTENT(INOUT) :: subclimate
     CHARACTER(LEN=*),                    INTENT(IN)    :: name
+    
+    ! Local variables
+    REAL(dp), DIMENSION(:    ), POINTER                :: z_ocean_dummy  ! DENK DROM
+    INTEGER,                    POINTER                :: nz_ocean_dummy ! DENK DROM
+    INTEGER :: wz_ocean_dummy, wnz_ocean_dummy                           ! DENK DROM
+    INTEGER                                            :: k              ! DENK DROM
     
     subclimate%name = name
     
@@ -1215,6 +1223,35 @@ CONTAINS
     CALL allocate_shared_dp_0D(                       subclimate%Q_TOA_jan_80S,  subclimate%wQ_TOA_jan_80S )
     
     CALL allocate_shared_dp_0D(                       subclimate%T_ocean_mean,   subclimate%wT_ocean_mean  )
+    
+    ! DENK DROM
+    ! =========
+    
+    ! Create dummy vertical dimension
+    ! This should be replaced by copying the vertical coordinate of the World Ocean Atlas data!
+    ! GCM data should be mapped from the GCM vertical grid to the WOA vertical grid on the global lat/lon grid immediately after reading the data.
+    CALL allocate_shared_int_0D( nz_ocean_dummy, wnz_ocean_dummy)
+    IF (par%master) nz_ocean_dummy = 100
+    CALL sync
+    CALL allocate_shared_dp_1D( nz_ocean_dummy, z_ocean_dummy, wz_ocean_dummy)
+    IF (par%master) THEN
+      ! Create a "dummy" vertical coordinate running from z=1.25 to z=5500 (similar to the world ocean atlas)
+      DO k = 1, nz_ocean_dummy
+        z_ocean_dummy( k) = 1.25_dp + (5500._dp - 1.25_dp) * REAL(k-1,dp) / REAL(nz_ocean_dummy-1,dp)
+      END DO
+    END IF
+    CALL sync
+    
+    ! Allocate memory for the ocean data
+    CALL allocate_subclimate_regional_oceans( grid, subclimate, z_ocean_dummy, nz_ocean_dummy)
+    
+    ! Set oceans to the ISOMIP+ "COLD" or "WARM" profile
+    !CALL set_ocean_to_ISOMIPplus_COLD( grid, subclimate)
+    CALL set_ocean_to_ISOMIPplus_WARM( grid, subclimate)
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wz_ocean_dummy)
+    CALL deallocate_shared( wnz_ocean_dummy)
     
   END SUBROUTINE initialise_subclimate
   SUBROUTINE calculate_GCM_bias( grid, climate)

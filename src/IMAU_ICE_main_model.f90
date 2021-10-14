@@ -377,8 +377,19 @@ CONTAINS
     
     CALL initialise_mask_noice( region)
        
-    ! ===== Output files =====
-    ! ========================
+    ! ===== Debug output file =====
+    ! =============================
+    
+    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file(       region)
+    CALL associate_debug_fields(  region)
+        
+    ! ===== The climate model =====
+    ! =============================
+    
+    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)  
+       
+    ! ===== Regular output files =====
+    ! ================================
 
     ! Set output filenames for this region
     short_filename = 'restart_NAM.nc'
@@ -396,15 +407,8 @@ CONTAINS
     region%help_fields%filename = TRIM(C%output_dir)//TRIM(short_filename)
 
     ! Let the Master create the (empty) NetCDF files
-    IF (par%master)                             CALL create_restart_file(     region, forcing)
-    IF (par%master)                             CALL create_help_fields_file( region)
-    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file(       region)
-    CALL associate_debug_fields(  region)
-        
-    ! ===== The climate model =====
-    ! =============================
-    
-    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)    
+    IF (par%master) CALL create_restart_file(     region, forcing)
+    IF (par%master) CALL create_help_fields_file( region)
     
     ! ===== The SMB model =====
     ! =========================    
