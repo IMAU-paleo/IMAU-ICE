@@ -12,3 +12,6 @@ results_*
 SELEN_files*
 src/module-files/*
 massbalance_module.f90
+basal_melt/*
+*.nc
+run_basal_melt_MISMIPplus.csh

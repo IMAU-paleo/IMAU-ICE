@@ -55,6 +55,9 @@ choice_calving_law_config               = 'threshold_thickness'
 choice_BMB_shelf_model_config           = 'uniform'
 BMB_shelf_uniform_config                = 0.0
 
+! Geothermal heat flux
+choice_geothermal_heat_flux_config      = 'constant'
+
 ! Which data fields should be written to the help_fields output file
 help_field_01_config                     = 'Hi'
 help_field_02_config                     = 'Hb'

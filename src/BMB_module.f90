@@ -92,6 +92,12 @@ CONTAINS
       CALL run_BMB_model_Favier2019_quadratic( grid, ice, climate, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
       CALL run_BMB_model_Favier2019_Mplus(     grid, ice, climate, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
+      CALL run_BMB_model_Lazeroms2018_plume(   grid, ice, climate, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
+      CALL run_BMB_model_PICO(                 grid, ice, climate, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
+      CALL run_BMB_model_PICOP(                grid, ice, climate, BMB)
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in run_BMB_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -129,6 +135,11 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf', 'run_BMB_model')
+    CALL check_for_NaN_dp_2D( BMB%BMB,       'BMB%BMB',       'run_BMB_model')
     
   END SUBROUTINE run_BMB_model
 
@@ -960,7 +971,7 @@ CONTAINS
         dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
         
         ! Favier et al. (2019), Eq. 2
-        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_lin_gamma_T * seawater_density * cp_ocean * dT / (ice_density * L_fusion)
+        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_lin_GammaT * seawater_density * cp_ocean * dT / (ice_density * L_fusion)
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
       
@@ -1001,7 +1012,7 @@ CONTAINS
         dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
         
         ! Favier et al. (2019), Eq. 4
-        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_quad_gamma_T * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
+        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_quad_GammaT * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
       
@@ -1046,7 +1057,7 @@ CONTAINS
         n_shelf = n_shelf + 1
         
         ! Favier et al. (2019), Eq. 5
-        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_Mplus_gamma_T * (seawater_density * cp_ocean / (ice_density * L_fusion))**2._dp * dT
+        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_Mplus_GammaT * (seawater_density * cp_ocean / (ice_density * L_fusion))**2._dp * dT
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
       
@@ -1152,6 +1163,716 @@ CONTAINS
           
   END SUBROUTINE calc_ocean_freezing_point_at_shelf_base
   
+  ! The Lazeroms et al. (2018) quasi-2-D plume parameterisation
+  SUBROUTINE run_BMB_model_Lazeroms2018_plume( grid, ice, climate, BMB)
+    ! Calculate basal melt using the quasi-2-D plume parameterisation by Lazeroms et al. (2018), following the equations in Appendix A
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: depth                               ! Ice-shelf base depth ("draft") [m]
+    REAL(dp)                                           :: Ta                                  ! Ambient temperature at the ice-shelf base [degC]
+    REAL(dp)                                           :: Sa                                  ! Ambient salinity    at the ice-shelf base [PSU]
+    REAL(dp)                                           :: Tf_GL                               ! Freezing temperature at effective grounding-line plume source
+    REAL(dp)                                           :: alpha                               ! Effective local angle ( = atan(slope))
+    REAL(dp)                                           :: sinalpha                            ! sin( alpha) (appears so often that it's better to give it its own variable)
+    REAL(dp)                                           :: GammaTS                             ! Effective heat exchange coefficient
+    REAL(dp)                                           :: g_alpha                             ! Geometry term
+    REAL(dp)                                           :: g_alpha_term1, g_alpha_term2, g_alpha_term3, sqrtCd_GammaTS
+    REAL(dp)                                           :: M                                   ! Empirically derived melt-rate scale
+    REAL(dp)                                           :: l_geo                               ! Geometry- and temperature-dependent length scale
+    REAL(dp)                                           :: Xhat                                ! Dimensionless scaled distance along plume path
+    REAL(dp)                                           :: Mhat                                ! Dimensionless melt curve
+    
+    ! Constant parameters (Lazeroms et al. (2018), Table 1)
+    REAL(dp), PARAMETER                                :: E0              =  3.6E-2_dp        ! Entrainment coefficient             [unitless]
+    REAL(dp), PARAMETER                                :: Cd              =  2.5E-3_dp        ! Drag coefficient                    [unitless]
+    REAL(dp), PARAMETER                                :: lambda1         = -0.0573_dp        ! Freezing point salinity coefficient [K]
+    REAL(dp), PARAMETER                                :: lambda2         =  0.0832_dp        ! Freezing point offset               [K]
+    REAL(dp), PARAMETER                                :: lambda3         =  7.61E-4_dp       ! Freezing point depth coefficient    [K m^-1]
+    REAL(dp), PARAMETER                                :: M0              =  10._dp           ! Melt-rate parameter                 [m yr^1 degC^-2]
+    REAL(dp), PARAMETER                                :: sqrtCd_GammaTS0 =  6.0E-4_dp        ! Heat exchange parameter             [unitless]
+    REAL(dp), PARAMETER                                :: gamma1          =  0.545_dp         ! Heat exchange parameter             [unitless]
+    REAL(dp), PARAMETER                                :: gamma2          =  3.5E-5_dp        ! Heat exchange parameter             [m^-1]
+    REAL(dp), PARAMETER                                :: x0              =  0.56_dp          ! Empirically derived dimensionless scaling factor
+    
+    ! Calculate ocean temperature at the base of the shelf
+    CALL calc_ocean_temperature_at_shelf_base( grid, ice, climate, BMB)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Initialise
+      BMB%eff_plume_source_depth( j,i) = 0._dp
+      BMB%eff_basal_slope(        j,i) = 0._dp
+      BMB%BMB_shelf(              j,i) = 0._dp
+      
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+
+        ! Find ambient temperature and salinity at the ice-shelf base
+        IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
+          ! Use the extrapolated ocean temperature+salinity fields
+        
+          depth = ice%Hi_a( j,i) - ice%Hs_a( j,i)   ! Depth is positive when below the sea surface!
+          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, Ta)
+          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, Sa)
+          
+        ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
+          ! Use the results from the PICO ocean box model
+          
+          Ta = BMB%PICO_T( j,i)
+          Sa = BMB%PICO_S( j,i)
+          
+        ELSE
+          IF (par%master) WRITE(0,*) 'run_BMB_model_Lazeroms2018_plume - ERROR: finding ambient temperature+salinity only defined for choice_BMB_shelf_model = "Lazeroms2018_plume" or "PICOP"!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      
+        ! Determine the effective plume path to find the effective plume source depth and basal slope for this shelf grid cell
+        CALL find_effective_plume_path( grid, ice, BMB, i,j, BMB%eff_plume_source_depth( j,i), BMB%eff_basal_slope( j,i))
+        alpha = ATAN( BMB%eff_basal_slope( j,i))
+        sinalpha = SIN( alpha)
+        
+        ! Calculate freezing temperature at effective grounding-line plume source (Lazeroms et al., 2018, Eq. A7)
+        Tf_GL = lambda1 * Sa + lambda2 + lambda3 * BMB%eff_plume_source_depth( j,i)
+        
+        ! Calculate the effective heat exchange coefficient (Lazeroms et al., 2018, Eq. A8)
+        GammaTS = C%BMB_Lazeroms2018_GammaT * (gamma1 + gamma2 * ((Ta - Tf_GL) / lambda3) * ((E0 * sinalpha) / (sqrtCD_GammaTS0 + E0 * sinalpha)))
+        sqrtCd_GammaTS = SQRT( Cd) * GammaTS
+        
+        ! Calculate the geometrical factor in the melt-rate expression (Lazeroms et al., 2018, Eq. A3)
+        g_alpha_term1 = SQRT(      sinalpha  / (Cd             + E0 * sinalpha))
+        g_alpha_term2 = SQRT( sqrtCd_GammaTS / (sqrtCd_GammaTS + E0 * sinalpha))
+        g_alpha_term3 =     ( E0 * sinalpha  / (sqrtCd_GammaTS + E0 * sinalpha))
+        g_alpha = g_alpha_term1 * g_alpha_term2 * g_alpha_term3
+        
+        ! Calculate the empirically derived melt-rate scale (Lazeroms et al., 2018, Eq. A9)
+        M = M0 * g_alpha * (Ta - Tf_GL)**2
+        
+        ! Calculate the geometry- and temperature-dependent length scale (Lazeroms et al., 2018, Eq. A10)
+        l_geo = ((Ta - Tf_GL) / lambda3) * (x0 * sqrtCd_GammaTS + E0 * sinalpha) / (x0 * (sqrtCd_GammaTS + E0 * sinalpha))
+        
+        ! Calculate the dimensionless scaled distance along plume path (Lazeroms et al., 2018, Eq. A11),
+        !   and evaluate the dimensionless melt curve at that point
+        Xhat = MIN(1._dp, MAX(0._dp, (depth - BMB%eff_plume_source_depth( j,i)) / l_geo ))
+        Mhat = Lazeroms2018_dimensionless_melt_curve( Xhat)
+        
+        ! Finally, calculate the basal melt rate (Lazeroms et al., 2018, Eq. A12)
+        BMB%BMB_shelf( j,i) = -M * Mhat
+        
+      END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE run_BMB_model_Lazeroms2018_plume
+  SUBROUTINE find_effective_plume_path( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j], following
+    ! the approach outlined in Lazeroms et al. (2018), Sect. 2.3
+    !
+    ! Based loosely on code from IMAU-ICE v1.0 by Heiko Goelzer (2019?)
+    !
+    ! The straight line between the shelf point and a grounding line point indicates the 1-D path that a meltwater plume from the grounding line may 
+    ! have taken to reach the upper point. From this path, we determine the local slope beneath the ice shelf needed for the UPP melt parametrization. 
+    ! The average grounding line depth and average slope are a measure of the combined effect of plumes from multiple directions.
+    !
+    ! ***NOTE*** Only grounding-line points lying DEEPER than the shelf point 
+    ! can be a valid physical source of the meltwater plume and, consequently,
+    ! valid input for the UPP parametrization. Points lying above depth(i,j)
+    ! are ignored. Furthermore, we only consider directions in which the LOCAL
+    ! slope at (i,j) is positive.
+
+    ! Based on distance_open_ocean by Bas de Boer:
+    ! searches for grounding line points in 16 directions:
+    !
+    !             12 13 14
+    !            11 ---- 15
+    !           10 --  -- 16
+    !          09 -- ij -- 01
+    !           08 --  -- 02
+    !            07 ---- 03
+    !             06 05 04
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    ! Local variables:
+    INTEGER                                            :: n
+    INTEGER                                            :: dpi,dpj,ip1,jp1,ip2,jp2
+    REAL(dp)                                           :: basal_slope
+    REAL(dp)                                           :: zb_shelf, dist, zb_dp
+    LOGICAL                                            :: reached_end, found_source
+    REAL(dp)                                           :: TAF1,TAF2,lambda_GL
+    REAL(dp)                                           :: Hb1,Hb2,plume_source_depth
+    INTEGER                                            :: n_valid_plumes
+    REAL(dp)                                           :: sum_plume_source_depths, sum_basal_slopes
+    
+    ! Initialise
+    n_valid_plumes          = 0
+    sum_plume_source_depths = 0._dp
+    sum_basal_slopes        = 0._dp
+    
+    ! Calculate the shelf base depth (draft)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    
+    ! Investigate all 16 search directions
+    DO n = 1, 16
+      
+      ! The search direction vector
+      dpi = BMB%search_directions( n,1)
+      dpj = BMB%search_directions( n,2)
+      
+      ! Initialise the search pointer at the shelf grid cell
+      ip1 = i
+      jp1 = j
+      ip2 = i + dpi
+      jp2 = j + dpj
+        
+      ! If the search direction already points out of the model domain, don't bother
+      IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) CYCLE
+      
+      ! Calculate the basal slope in this direction (Lazeroms et al. (2018), Eq. 12)
+      zb_dp = ice%Hs_a( jp2,ip2) - ice%Hi_a( jp2,ip2)
+      dist  = SQRT( REAL(dpi,dp)**2 + REAL(dpj,dp)**2) * grid%dx
+      basal_slope = (zb_shelf - zb_dp) / dist
+      
+      ! If this slope is negative, this plume is not valid
+      IF (basal_slope < 0._dp) CYCLE
+      
+      ! Search in this direction
+      reached_end  = .FALSE.
+      found_source = .FALSE.
+      DO WHILE (.NOT. reached_end)
+        
+        ! If the pointer exits the model domain, stop the search
+        IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) THEN
+          reached_end  = .TRUE.
+          found_source = .FALSE.
+          EXIT
+        END IF
+        
+        ! If the pointer encounters open ocean, stop the search
+        IF (ice%mask_ocean_a( jp2,ip2) == 1 .AND. ice%mask_shelf_a( jp2,ip2) == 0) THEN
+          reached_end  = .TRUE.
+          found_source = .FALSE.
+          EXIT
+        END IF
+        
+        ! If the pointer encounters grounded ice, there must be a grounding line here
+        IF (ice%mask_sheet_a( jp2,ip2) == 1) THEN
+          
+          reached_end  = .TRUE.
+          found_source = .TRUE.
+          
+          ! Interpolate the thickness above flotation to find the sub-grid grounding-line depth ( = plume source depth)
+          TAF1 = ice%TAF_a( jp1,ip1)
+          TAF2 = ice%TAF_a( jp2,ip2)
+          lambda_GL = TAF1 / (TAF1 - TAF2)
+          
+          Hb1  = ice%Hb_a( jp1,ip1)
+          Hb2  = ice%Hb_a( jp2,ip2)
+          plume_source_depth = (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+          
+          ! If this grounding line is less deep than the shelf, don't use it
+          IF (plume_source_depth > zb_shelf) THEN
+            found_source = .FALSE.
+          END IF
+          
+        END IF ! IF (ice%mask_sheet_a( jp2,ip2) == 1) THEN
+        
+        ! If none of these exceptions were triggered, advance the pointer in the search direction
+        ip1 = ip2
+        jp1 = jp2
+        ip2 = ip1 + dpi
+        jp2 = jp1 + dpj
+        
+      END DO ! DO WHILE (.NOT. reached_end)
+      
+      ! If a valid plume source was found, add it to the sum for averaging
+      IF (found_source) THEN
+        n_valid_plumes          = n_valid_plumes          + 1
+        sum_plume_source_depths = sum_plume_source_depths + plume_source_depth
+        sum_basal_slopes        = sum_basal_slopes        + basal_slope
+      END IF
+      
+    END DO ! DO n = 1, 16
+    
+    ! Define the effective plume source depth and basal slope as the average
+    ! of those values for all valid plume paths
+    
+    IF (n_valid_plumes > 0) THEN
+      eff_plume_source_depth = sum_plume_source_depths / REAL(n_valid_plumes,dp)
+      eff_basal_slope        = sum_basal_slopes        / REAL(n_valid_plumes,dp)
+    ELSE
+      ! Exception for when no valid plume sources were found
+      eff_plume_source_depth = zb_shelf
+      eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
+    END IF
+    
+  END SUBROUTINE find_effective_plume_path
+  FUNCTION Lazeroms2018_dimensionless_melt_curve( xhat) RESULT( Mhat)
+    ! The dimensionless melt curve from Lazeroms et al. (2018), Appendix A, Eq. A13
+    
+    IMPLICIT NONE
+  
+    REAL(dp), INTENT(IN)                                 :: xhat                        ! Scaled distance  from grounding line
+    REAL(dp)                                             :: Mhat                        ! Scaled melt rate from polynomial fit
+    
+    ! L variables: polynomial coefficients
+    REAL(dp), PARAMETER                                  :: p11 =  6.387953795485420E4_dp
+    REAL(dp), PARAMETER                                  :: p10 = -3.520598035764990E5_dp
+    REAL(dp), PARAMETER                                  :: p9  =  8.466870335320488E5_dp
+    REAL(dp), PARAMETER                                  :: p8  = -1.166290429178556E6_dp
+    REAL(dp), PARAMETER                                  :: p7  =  1.015475347943186E6_dp
+    REAL(dp), PARAMETER                                  :: p6  = -5.820015295669482E5_dp
+    REAL(dp), PARAMETER                                  :: p5  =  2.218596970948727E5_dp
+    REAL(dp), PARAMETER                                  :: p4  = -5.563863123811898E4_dp
+    REAL(dp), PARAMETER                                  :: p3  =  8.927093637594877E3_dp
+    REAL(dp), PARAMETER                                  :: p2  = -8.951812433987858E2_dp
+    REAL(dp), PARAMETER                                  :: p1  =  5.527656234709359E1_dp
+    REAL(dp), PARAMETER                                  :: p0  =  0.1371330075095435_dp
+    
+    Mhat = p11 * xhat**11 + &
+           p10 * xhat**10 + &
+           p9  * xhat**9  + &
+           p8  * xhat**8  + &
+           p7  * xhat**7  + &
+           p6  * xhat**6  + &
+           p5  * xhat**5  + &
+           p4  * xhat**4  + &
+           p3  * xhat**3  + &
+           p2  * xhat**2  + &
+           p1  * xhat + p0
+    
+  END FUNCTION Lazeroms2018_dimensionless_melt_curve
+  
+  ! The PICO ocean box model
+  SUBROUTINE run_BMB_model_PICO( grid, ice, climate, BMB)
+    ! Calculate basal melt using the PICO ocean box model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,k,n
+    REAL(dp)                                           :: Tk0,Sk0
+    REAL(dp)                                           :: nu,lambda
+    REAL(dp)                                           :: g1,g2,s,Crbsa,Tstar,x,y
+    REAL(dp)                                           :: q
+    
+    ! Constants (Reese et al. (2018), Table 1)
+    REAL(dp), PARAMETER                                :: aa          = -0.0572_dp     ! Salinity coefficient of freezing equation         [degC PSU^-1]
+    REAL(dp), PARAMETER                                :: bb          =  0.0788_dp     ! Constant coefficient of freezing equation         [degC]
+    REAL(dp), PARAMETER                                :: cc          = 7.77E-8_dp     ! Pressure coefficient of freezing equation         [degC Pa^-1]
+    REAL(dp), PARAMETER                                :: alpha       =  7.5E-5_dp     ! Thermal expansion coefficient in EOS              [degC^-1]
+    REAL(dp), PARAMETER                                :: beta        =  7.7E-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]
+    REAL(dp), PARAMETER                                :: rhostar     = 1033_dp        ! Reference density in EOS                          [kg m^-3]
+    REAL(dp), PARAMETER                                :: gammaS      = 2.0E-6_dp      ! Turbulent salinity exchange velocity              [m s^-1]
+    REAL(dp), PARAMETER                                :: gammaT      = 5.0E-5_dp      ! Turbulent temperature exchange velocity           [m s^-1]
+    REAL(dp), PARAMETER                                :: gammaTstar  = 2.0E-5_dp      ! Effective turbulent temperature exchange velocity [m s^-1]
+    REAL(dp), PARAMETER                                :: C_overturn  = 1.0E6_dp       ! Overturning strength                              [m^6 s^-1 kg^-1]
+    
+    n = C%BMB_PICO_nboxes
+    
+    ! Initialise
+    BMB%PICO_T( :,grid%i1:grid%i2) = 0._dp
+    BMB%PICO_S( :,grid%i1:grid%i2) = 0._dp
+    BMB%PICO_m( :,grid%i1:grid%i2) = 0._dp
+    
+    ! Some intermediary constants (Reese et al. (2018), just after Eq. A2)
+    nu     = ice_density / seawater_density
+    lambda = L_fusion / cp_ocean
+    
+    ! Assign shelf grid cells to PICO ocean boxes
+    CALL PICO_assign_ocean_boxes( grid, ice, BMB)
+    
+    ! Calculate temperature and salinity in box B0
+    CALL PICO_calc_T0_S0( grid, ice, climate, Tk0, Sk0)
+    
+    ! Calculate 2-D + box-averaged basal pressures
+    BMB%PICO_p( :,grid%i1:grid%i2) = ice_density * grav * ice%Hi_a( :,grid%i1:grid%i2)
+    DO k = 1, n
+      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_p, k, BMB%PICO_pk( k))
+    END DO
+    
+  ! Calculate solution for box 1
+  ! ============================
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      IF (BMB%PICO_k( j,i) == 1) THEN
+        
+        ! Reese et al. (2018), just before Eq. A6
+        g1 = BMB%PICO_A( 1) * gammaTstar
+        g2 = g1 / (nu * lambda)
+        Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( 1) - Tk0
+        
+        ! Reese et al. (2018), just after Eq. A11
+        s = Sk0 / (nu * lambda)
+        
+        ! Intermediary constants
+        Crbsa = C_overturn * rhostar * (beta * s - alpha)
+        
+        ! Reese et al. (2018), Eq. A12
+        x = -g1 / (2._dp * Crbsa) + SQRT( (g1 / (2._dp * Crbsa))**2 - (g1 * Tstar / Crbsa))
+        
+        ! Reese et al. (2018), Eq. A8
+        y = Sk0 * x / (nu * lambda)
+        
+        BMB%PICO_T( j,i) = Tk0 - x
+        BMB%PICO_S( j,i) = Sk0 - y
+        
+        ! Reese et al. (2019), Eq. 13
+        BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+        
+      END IF ! IF (BMB%PICO_k( j,i) == 1) THEN
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Calculate box-averaged values
+    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_T, 1, BMB%PICO_Tk( 1))
+    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_S, 1, BMB%PICO_Sk( 1))
+    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_m, 1, BMB%PICO_mk( 1))
+    
+    ! Calculate overturning strength (Reese et al. (2018), Eq. A9)
+    q = C_overturn * rhostar * (beta * (Sk0 - BMB%PICO_Sk( 1)) - alpha * (Tk0 - BMB%PICO_Tk( 1))) 
+    
+  ! Calculate solutions for subsequent boxes
+  ! ========================================
+    
+    DO k = 2, n
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        
+        IF (BMB%PICO_k( j,i) == k) THEN
+        
+          ! Reese et al. (2018), just before Eq. A6
+          g1 = BMB%PICO_A( k) * gammaTstar
+          g2 = g1 / (nu * lambda)
+          Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( k-1) - BMB%PICO_Tk( k-1)
+          
+          ! Reese et al. (2018), Eq. A13
+          x = -g1 * Tstar / (q + g1 - g2 * aa * BMB%PICO_Sk( k-1))
+        
+          ! Reese et al. (2018), Eq. A8
+          y = BMB%PICO_Sk( k-1) * x / (nu * lambda)
+        
+          BMB%PICO_T( j,i) = BMB%PICO_Tk( k-1) - x
+          BMB%PICO_S( j,i) = BMB%PICO_Sk( k-1) - y
+        
+          ! Reese et al. (2019), Eq. 13
+          BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+          
+        END IF ! IF (BMB%PICO_k( j,i) == k) THEN
+        
+      END DO
+      END DO
+      CALL sync
+    
+      ! Calculate box-averaged values
+      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_T, k, BMB%PICO_Tk( k))
+      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_S, k, BMB%PICO_Sk( k))
+      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_m, k, BMB%PICO_mk( k))
+      
+    END DO
+    
+    ! Copy melt rates to final data field
+    BMB%BMB_shelf( :,grid%i1:grid%i2) = BMB%PICO_m( :,grid%i1:grid%i2)
+    CALL sync
+    
+  END SUBROUTINE run_BMB_model_PICO
+  SUBROUTINE PICO_assign_ocean_boxes( grid, ice, BMB)
+    ! Assign PICO ocean boxes to shelf grid cells using the distance-to-grounding-line / distance-to-calving-front
+    ! approach outlined in Reese et al. (2018)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,k
+    INTEGER                                            :: n
+    
+    n = C%BMB_PICO_nboxes
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Initialise
+      BMB%PICO_r( j,i) = 0._dp
+      BMB%PICO_k( j,i) = 0
+      
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+        
+        ! Calculate relative distance to grounding line (Reese et al. (2018), Eq. 10)
+        BMB%PICO_r( j,i) = calc_relative_distance_to_grounding_line( grid, ice, BMB, i,j)
+        
+        ! Assign ocean box (Reese et al. (2018), Eq. 11)
+        DO k = 1, n
+          IF (1._dp - SQRT( REAL(n - k + 1,dp)/REAL(n,dp)) <= BMB%PICO_r( j,i) .AND. &
+              1._dp - SQRT( REAL(n - k    ,dp)/REAL(n,dp)) >= BMB%PICO_r( j,i)) THEN
+            BMB%PICO_k( j,i) = k
+          END IF
+        END DO
+        
+      END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Determine area per ocean box
+    IF (par%master) THEN
+    
+      BMB%PICO_A = 0._dp
+      
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        IF (BMB%PICO_k( j,i) > 0) BMB%PICO_A( BMB%PICO_k( j,i)) = BMB%PICO_A( BMB%PICO_k( j,i)) + grid%dx**2
+      END DO
+      END DO
+      
+      ! Check if any boxes have zero pixels; if so, throw an error (don't know how to handle this!)
+      DO k = 1, n
+        IF (BMB%PICO_A( k) == 0._dp) THEN
+          WRITE(0,*) '  PICO_assign_ocean_boxes - ERROR: box ', k, ' has zero grid cells!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      END DO
+      
+    END IF
+    CALL sync
+    
+  END SUBROUTINE PICO_assign_ocean_boxes
+  FUNCTION calc_relative_distance_to_grounding_line( grid, ice, BMB, i,j) RESULT( r)
+    ! For each shelf grid cell, calculate the relative distance to the grounding-line (Reese et al. (2018), Eq. 10)
+    !
+    ! Determines d_GL and d_IF using the 16-directions search scheme.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp)                                           :: r
+    
+    ! Local variables:
+    INTEGER                                            :: n
+    INTEGER                                            :: dpi,dpj,ip1,jp1,ip2,jp2
+    REAL(dp)                                           :: d_GL, d_IF, dist
+    LOGICAL                                            :: reached_end
+    
+    ! Exception for when this grid cell isn't shelf
+    IF (ice%mask_shelf_a( j,i) == 0) THEN
+      r = 0._dp
+      RETURN
+    END IF
+    
+    ! Initialise
+    d_GL = REAL( MAX( grid%ny, grid%nx), dp) * grid%dx
+    d_IF = d_GL
+    
+    ! Investigate all 16 search directions
+    DO n = 1, 16
+      
+      ! The search direction vector
+      dpi = BMB%search_directions( n,1)
+      dpj = BMB%search_directions( n,2)
+      
+      ! Initialise the search pointer at the shelf grid cell
+      ip1 = i
+      jp1 = j
+      ip2 = i + dpi
+      jp2 = j + dpj
+        
+      ! If the search direction already points out of the model domain, don't bother
+      IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) CYCLE
+      
+      ! Search in this direction
+      reached_end  = .FALSE.
+      
+      DO WHILE (.NOT. reached_end)
+        
+        ! If the pointer exits the model domain, stop the search
+        IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) THEN
+          reached_end  = .TRUE.
+          EXIT
+        END IF
+        
+        ! If the pointer encounters open ocean, stop the search and update d_IF
+        IF (ice%mask_sheet_a( jp2,ip2) == 1) THEN
+          reached_end  = .TRUE.
+          dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
+          d_GL = MIN( d_GL, dist)
+          EXIT
+        END IF
+        
+        ! If the pointer encounters open ocean, stop the search and update d_IF
+        IF (ice%mask_ocean_a( jp2,ip2) == 1 .AND. ice%mask_shelf_a( jp2,ip2) == 0) THEN
+          reached_end  = .TRUE.
+          dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
+          d_IF = MIN( d_IF, dist)
+          EXIT
+        END IF
+        
+        ! If none of these exceptions were triggered, advance the pointer in the search direction
+        ip1 = ip2
+        jp1 = jp2
+        ip2 = ip1 + dpi
+        jp2 = jp1 + dpj
+        
+      END DO ! DO WHILE (.NOT. reached_end)
+      
+    END DO ! DO n = 1, 16  
+    
+    ! Reese et al. (2018), Eq. 10
+    r = d_GL / (d_GL + d_IF)                         
+    
+  END FUNCTION calc_relative_distance_to_grounding_line
+  SUBROUTINE PICO_calc_T0_S0( grid, ice, climate, Tk0, Sk0)
+    ! Find temperature and salinity in box B0 (defined as mean ocean-floor value at the calving front)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    REAL(dp),                            INTENT(OUT)   :: Tk0,Sk0
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,n
+    REAL(dp)                                           :: depth, T_floor, S_floor
+    
+    ! Average ocean-floor temperature and salinity over this basin's ocean-next-to-floating-ice pixels
+    n   = 0
+    Tk0 = 0._dp
+    Sk0 = 0._dp
+    
+    DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
+    DO j = 2, grid%ny-1
+      
+      IF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_ice_a( j,i) == 0) THEN
+        IF (ice%mask_shelf_a( j-1,i-1) == 1 .OR. &
+            ice%mask_shelf_a( j-1,i  ) == 1.OR. &
+            ice%mask_shelf_a( j-1,i+1) == 1.OR. &
+            ice%mask_shelf_a( j  ,i-1) == 1.OR. &
+            ice%mask_shelf_a( j  ,i+1) == 1.OR. &
+            ice%mask_shelf_a( j+1,i-1) == 1.OR. &
+            ice%mask_shelf_a( j+1,i  ) == 1.OR. &
+            ice%mask_shelf_a( j+1,i+1) == 1) THEN
+          ! This pixel is open ocean next to floating ice
+          
+          ! Find ocean-floor temperature and salinity
+          depth = -ice%Hb_a( j,i)
+          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, T_floor)
+          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, S_floor)
+          
+          ! Add to sum
+          n   = n   + 1
+          Tk0 = Tk0 + T_floor
+          Sk0 = Sk0 + S_floor
+          
+        END IF
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Combine results from processes
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, n,   1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, Tk0, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, Sk0, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    
+    Tk0 = Tk0 / REAL(n,dp)
+    Sk0 = Sk0 / REAL(n,dp)
+    
+  END SUBROUTINE PICO_calc_T0_S0
+  SUBROUTINE PICO_calc_box_average( grid, BMB, d, k, d_av)
+    ! Calculate the average d_av of field d over ocean box k
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    INTEGER,                             INTENT(IN)    :: k
+    REAL(dp),                            INTENT(OUT)   :: d_av
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,n
+    REAL(dp)                                           :: d_sum
+    
+    n     = 0
+    d_sum = 0._dp
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (BMB%PICO_k( j,i) == k) THEN
+        n     = n     + 1
+        d_sum = d_sum + d( j,i)
+      END IF
+    END DO
+    END DO
+    
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, n,     1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_sum, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    
+    d_av = d_sum / REAL(n,dp)
+    
+  END SUBROUTINE PICO_calc_box_average
+  
+  ! The PICOP ocean box + plume model
+  SUBROUTINE run_BMB_model_PICOP( grid, ice, climate, BMB)
+    ! Calculate basal melt using the PICOP ocean box + plume model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! First run the PICO ocean box model to determine the temperature and salinity in the cavity
+    CALL run_BMB_model_PICO( grid, ice, climate, BMB)
+    
+    ! Then run the Lazeroms (2018) plume parameterisation to calculate melt rates
+    CALL run_BMB_model_Lazeroms2018_plume( grid, ice, climate, BMB)
+    
+  END SUBROUTINE run_BMB_model_PICOP
+  
   ! Administration: allocation and initialisation
   SUBROUTINE initialise_BMB_model( grid, BMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
@@ -1179,6 +1900,12 @@ CONTAINS
             C%choice_BMB_shelf_model == 'Favier2019_quad' .OR. &
             C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
       CALL initialise_BMB_model_Favier2019( grid, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
+      CALL initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
+      CALL initialise_BMB_model_PICO( grid, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
+      CALL initialise_BMB_model_PICOP( grid, BMB)
     ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1286,5 +2013,139 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_freeze_base, BMB%wT_ocean_freeze_base)
       
   END SUBROUTINE initialise_BMB_model_Favier2019
+  SUBROUTINE initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
+    ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%T_ocean_base,           BMB%wT_ocean_base          )
+    CALL allocate_shared_int_2D( 16,      2,       BMB%search_directions,      BMB%wsearch_directions     )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_basal_slope,        BMB%weff_basal_slope       )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_Lazeroms2018_plume
+  SUBROUTINE initialise_BMB_model_PICO( grid, BMB)
+    ! Allocate memory for the data fields of the PICO ocean box model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_A,              BMB%wPICO_A             )
+    
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Tk,             BMB%wPICO_Tk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Sk,             BMB%wPICO_Sk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_pk,             BMB%wPICO_pk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_mk,             BMB%wPICO_mk            )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_PICO
+  SUBROUTINE initialise_BMB_model_PICOP( grid, BMB)
+    ! Allocate memory for the data fields of the PICOP ocean box + plume model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%T_ocean_base,           BMB%wT_ocean_base          )
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,      BMB%wsearch_directions     )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_basal_slope,        BMB%weff_basal_slope       )
+    
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_A,              BMB%wPICO_A             )
+    
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Tk,             BMB%wPICO_Tk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Sk,             BMB%wPICO_Sk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_pk,             BMB%wPICO_pk            )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
+    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_mk,             BMB%wPICO_mk            )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_PICOP
   
 END MODULE BMB_module

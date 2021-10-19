@@ -1227,6 +1227,8 @@ CONTAINS
     ! DENK DROM
     ! =========
     
+    IF (par%master) WRITE(0,*) 'DENK DROM - schematic ocean profiles allocated and generated in "initialise_subclimate", maybe change this?'
+    
     ! Create dummy vertical dimension
     ! This should be replaced by copying the vertical coordinate of the World Ocean Atlas data!
     ! GCM data should be mapped from the GCM vertical grid to the WOA vertical grid on the global lat/lon grid immediately after reading the data.
@@ -1246,8 +1248,17 @@ CONTAINS
     CALL allocate_subclimate_regional_oceans( grid, subclimate, z_ocean_dummy, nz_ocean_dummy)
     
     ! Set oceans to the ISOMIP+ "COLD" or "WARM" profile
-    !CALL set_ocean_to_ISOMIPplus_COLD( grid, subclimate)
-    CALL set_ocean_to_ISOMIPplus_WARM( grid, subclimate)
+    ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+    IF (C%use_schematic_ocean) THEN
+      IF     (C%choice_schematic_ocean == 'MISMIPplus_WARM') THEN
+        CALL set_ocean_to_ISOMIPplus_WARM( grid, subclimate)
+      ELSEIF (C%choice_schematic_ocean == 'MISMIPplus_COLD') THEN
+        CALL set_ocean_to_ISOMIPplus_COLD( grid, subclimate)
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_schematic_ocean "', TRIM(C%choice_schematic_ocean), '" not implemented in initialise_subclimate!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END IF
     
     ! Clean up after yourself
     CALL deallocate_shared( wz_ocean_dummy)

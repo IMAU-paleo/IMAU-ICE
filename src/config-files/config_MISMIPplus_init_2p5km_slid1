@@ -2,7 +2,7 @@
 
 ! Start and end time
 start_time_of_run_config                = 0        ! Start time (in years) of the simulations
-end_time_of_run_config                  = 10       ! End   time (in years) of the simulations
+end_time_of_run_config                  = 25000    ! End   time (in years) of the simulations
 dt_coupling_config                      = 1000
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
@@ -14,9 +14,8 @@ do_write_debug_data_config              = .TRUE.
 do_check_for_NaN_config                 = .TRUE.
 
 ! Which benchmark experiment we want to run (if any)
-do_benchmark_experiment_config          = .FALSE.
-
-! Make sure the velocity solution still sorta kinda works
+do_benchmark_experiment_config          = .TRUE.
+choice_benchmark_experiment_config      = 'MISMIPplus'
 DIVA_boundary_BC_u_west_config          = 'zero'
 DIVA_boundary_BC_u_east_config          = 'infinite'
 DIVA_boundary_BC_u_south_config         = 'infinite'
@@ -25,22 +24,18 @@ DIVA_boundary_BC_v_west_config          = 'zero'
 DIVA_boundary_BC_v_east_config          = 'infinite'
 DIVA_boundary_BC_v_south_config         = 'zero'
 DIVA_boundary_BC_v_north_config         = 'zero'
-
-! Initialise with the MISMIPplus geometry
-filename_init_ANT_config                = 'MISMIPplus_5km.nc'
-filename_PD_ANT_config                  = 'MISMIPplus_5km.nc'
-switch_remove_Lake_Vostok_config        = .FALSE.
-
-! Basal melt
-choice_BMB_shelf_model_config           = 'PICO'
-use_schematic_ocean_config              = .TRUE.
-choice_schematic_ocean_config           = 'MISMIPplus_WARM'
+MISMIPplus_sliding_law_config           = 1
+MISMIPplus_do_tune_A_for_GL_config      = .FALSE.      
+MISMIPplus_xGL_target_config            = 450000.0
+MISMIPplus_A_flow_initial_config        = 1.262E-17
 
 ! Which ice-sheets we want to simulate
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_ANT_config                           = 5000
+dx_ANT_config                           = 2500
+DIVA_PETSc_rtol_config                  = 0.001
+DIVA_PETSc_abstol_config                = 0.001
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
@@ -51,27 +46,19 @@ dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
 
 ! Ice dynamics
-choice_ice_dynamics_config              = 'none'
+choice_ice_dynamics_config              = 'DIVA'
 choice_timestepping_config              = 'pc'
 choice_ice_margin_config                = 'infinite_slab'
 m_enh_sheet_config                      = 1.0
 m_enh_shelf_config                      = 1.0
 choice_calving_law_config               = 'threshold_thickness'
 
+! Basal melt
+choice_BMB_shelf_model_config           = 'uniform'
+BMB_shelf_uniform_config                = 0.0
+
 ! Geothermal heat flux
 choice_geothermal_heat_flux_config      = 'constant'
-constant_geothermal_heat_flux_config    = 0.0
-
-! Climate/SMB forcing
-choice_forcing_method_config            = 'SMB_direct'
-domain_climate_forcing_config           = 'regional'
-filename_GCM_climate_config             = 'Datasets/RACMO_Antarctica/SMB_RACMO2_Antarctica_PD_1kyr_40km.nc'
-
-! Sea level and GIA
-choice_sealevel_model_config            = 'fixed'         ! Can be "fixed", "eustatic", or "SELEN"
-fixed_sealevel_config                   = 0.0
-choice_GIA_model_config                 = 'none'             ! Can be "none", "ELRA", or "SELEN"
-dx_GIA_config                           = 100000.0
 
 ! Which data fields should be written to the help_fields output file
 help_field_01_config                     = 'Hi'
@@ -82,9 +69,9 @@ help_field_05_config                     = 'uabs_vav'
 help_field_06_config                     = 'u_vav'
 help_field_07_config                     = 'v_vav'
 help_field_08_config                     = 'BMB'
-help_field_09_config                     = 'T_ocean_3D'
-help_field_10_config                     = 'S_ocean_3D'
-help_field_11_config                     = 'BMB_shelf'
+help_field_09_config                     = 'none'
+help_field_10_config                     = 'none'
+help_field_11_config                     = 'none'
 help_field_12_config                     = 'none'
 help_field_13_config                     = 'none'
 help_field_14_config                     = 'none'

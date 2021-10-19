@@ -800,8 +800,8 @@ CONTAINS
     
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        x = grid%x( i) + 395000._dp ! The MISMIP+ domain is defined for x = [0,800km], y = [0,80km]
-        y = grid%y( j) +  35000._dp ! but IMAU-ICE wants x,y to be symmetric around zero..
+        x = REAL(i-1,dp) * grid%dx ! The MISMIP+ domain is defined for x = [0,800km], y = [0,80km]
+        y = REAL(j-1,dp) * grid%dx ! but IMAU-ICE wants x,y to be symmetric around zero..
         xtilde = x / xbar
         Bx = B0 + (B2 * xtilde**2._dp) + (B4 * xtilde**4._dp) + (B6 * xtilde**6._dp)
         By = (dc / (1 + EXP(-2._dp*(y - Ly/2._dp - wc)/fc))) + &

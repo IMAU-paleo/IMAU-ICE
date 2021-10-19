@@ -559,6 +559,35 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: T_ocean_freeze_base           ! Ocean freezing point at the ice shelf base (depends on pressure and salinity)
     INTEGER :: wT_ocean_base, wT_ocean_freeze_base
     
+    ! The Lazeroms (2018) plume model
+    ! ===============================
+    
+    ! NOTE: also uses T_ocean_base!
+    
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: search_directions             ! The 16 search directions
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: eff_plume_source_depth        ! Effective plume source depth (average source depth over all valid plume paths)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: eff_basal_slope               ! Effective basal slope        (average slope        over all valid plume paths)
+    INTEGER :: wsearch_directions, weff_plume_source_depth, weff_basal_slope
+    
+    ! The PICO model
+    ! ==============
+    
+    ! NOTE: also uses search_directions!
+    
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_r                        ! Relative distance to grounding line [0-1]
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: PICO_k                        ! PICO ocean box number to which the shelf grid cells belong
+    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_A                        ! Area covered by each ocean box
+    
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_T                        ! 2-D          ambient temperature [K]
+    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_Tk                       ! Box-averaged ambient temperature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_S                        ! 2-D          ambient salinity    [PSU]
+    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_Sk                       ! Box-averaged ambient salinity
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_p                        ! 2-D          basal pressure      [Pa]
+    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_pk                       ! Box-averaged basal pressure
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_m                        ! 2-D          melt rate           [m/yr]
+    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_mk                       ! Box-averaged melt rate
+    INTEGER :: wPICO_r, wPICO_k, wPICO_A, wPICO_T, wPICO_Tk, wPICO_S, wPICO_Sk, wPICO_p, wPICO_pk, wPICO_m, wPICO_mk
+    
     ! The ANICE_legacy BMB model
     ! ==========================
     

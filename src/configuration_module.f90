@@ -325,16 +325,26 @@ MODULE configuration_module
   ! Basal mass balance
   ! ==================
   
-  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus"
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   
+  ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+  LOGICAL             :: use_schematic_ocean_config              = .TRUE.
+  CHARACTER(LEN=256)  :: choice_schematic_ocean_config           = 'MISMIPplus_WARM'                ! Can be 'MISMIPplus_WARM' or 'MISMIPplus_COLD'
+  
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-  REAL(dp)            :: BMB_Favier2019_lin_gamma_T_config       = 3.3314E-05  ! 2.03E-5_dp         ! Heat exchange velocity [m s^-1] 
-  REAL(dp)            :: BMB_Favier2019_quad_gamma_T_config      = 111.6E-5    ! 99.32E-5_dp        ! Commented values are from Favier et al. (2019), Table 3
-  REAL(dp)            :: BMB_Favier2019_Mplus_gamma_T_config     = 108.6E-5    ! 132.9E-5_dp        ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config        = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
+  REAL(dp)            :: BMB_Favier2019_quad_GammaT_config       = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
+  REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config      = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  
+  ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 1.1E-3_dp                        ! Thermal exchange velocity
+  
+  ! Parameters for the PICO BMB model
+  INTEGER             :: BMB_PICO_nboxes_config                  = 5                                ! Number of sub-shelf ocean boxes used by PICO
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -762,10 +772,20 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
   
+    ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+    LOGICAL                             :: use_schematic_ocean
+    CHARACTER(LEN=256)                  :: choice_schematic_ocean
+  
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-    REAL(dp)                            :: BMB_Favier2019_lin_gamma_T
-    REAL(dp)                            :: BMB_Favier2019_quad_gamma_T
-    REAL(dp)                            :: BMB_Favier2019_Mplus_gamma_T
+    REAL(dp)                            :: BMB_Favier2019_lin_GammaT
+    REAL(dp)                            :: BMB_Favier2019_quad_GammaT
+    REAL(dp)                            :: BMB_Favier2019_Mplus_GammaT
+    
+    ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+    REAL(dp)                            :: BMB_Lazeroms2018_GammaT
+  
+    ! Parameters for the PICO BMB model
+    INTEGER                             :: BMB_PICO_nboxes
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1344,9 +1364,13 @@ CONTAINS
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
-                     BMB_Favier2019_lin_gamma_T_config,          &
-                     BMB_Favier2019_quad_gamma_T_config,         &
-                     BMB_Favier2019_Mplus_gamma_T_config,        &
+                     use_schematic_ocean_config,                 &
+                     choice_schematic_ocean_config,              &
+                     BMB_Favier2019_lin_GammaT_config,           &
+                     BMB_Favier2019_quad_GammaT_config,          &
+                     BMB_Favier2019_Mplus_GammaT_config,         &
+                     BMB_Lazeroms2018_GammaT_config,             &
+                     BMB_PICO_nboxes_config,                     &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1762,11 +1786,21 @@ CONTAINS
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
+  
+    ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+    C%use_schematic_ocean                 = use_schematic_ocean_config
+    C%choice_schematic_ocean              = choice_schematic_ocean_config
     
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-    C%BMB_Favier2019_lin_gamma_T          = BMB_Favier2019_lin_gamma_T_config
-    C%BMB_Favier2019_quad_gamma_T         = BMB_Favier2019_quad_gamma_T_config
-    C%BMB_Favier2019_Mplus_gamma_T        = BMB_Favier2019_Mplus_gamma_T_config
+    C%BMB_Favier2019_lin_GammaT           = BMB_Favier2019_lin_GammaT_config
+    C%BMB_Favier2019_quad_GammaT          = BMB_Favier2019_quad_GammaT_config
+    C%BMB_Favier2019_Mplus_GammaT         = BMB_Favier2019_Mplus_GammaT_config
+    
+    ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+    C%BMB_Lazeroms2018_GammaT             = BMB_Lazeroms2018_GammaT_config
+  
+    ! Parameters for the PICO BMB model
+    C%BMB_PICO_nboxes                     = BMB_PICO_nboxes_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config

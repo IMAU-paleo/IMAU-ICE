@@ -160,7 +160,7 @@ CONTAINS
     
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged = .FALSE.
+    has_converged         = .FALSE.
     viscosity_iteration: DO WHILE (.NOT. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
       
@@ -274,7 +274,7 @@ CONTAINS
     
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged = .FALSE.
+    has_converged         = .FALSE.
     viscosity_iteration: DO WHILE (.NOT. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
       
@@ -2394,10 +2394,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: inv_dx2
-
-    ! Abbreviations of common factors in the equations
-    inv_dx2 = 1._dp / (grid%dx * grid%dx)
 
     ! Grid indices of the grid cell represented by equation n
     i = ice%DIVA_m_n2ij_uv( n,3)
@@ -2522,10 +2518,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: inv_dx2
-
-    ! Abbreviations of common factors in the equations
-    inv_dx2 = 1._dp / (grid%dx * grid%dx)
 
     ! Grid indices of the grid cell represented by equation n
     i = ice%DIVA_m_n2ij_uv( n,3)
@@ -2787,9 +2779,9 @@ CONTAINS
     
     CALL initialise_matrix_equation_CSR( ice%DIVA_m, neq, neq, nnz_per_row_max)
     
-    CALL allocate_shared_int_2D( grid%ny  , grid%nx-1, ice%DIVA_m_ij2n_u  , ice%wDIVA_m_ij2n_u )
-    CALL allocate_shared_int_2D( grid%ny-1, grid%nx  , ice%DIVA_m_ij2n_v  , ice%wDIVA_m_ij2n_v )
-    CALL allocate_shared_int_2D( neq,       4        , ice%DIVA_m_n2ij_uv , ice%wDIVA_m_n2ij_uv)
+    CALL allocate_shared_int_2D( grid%ny  , grid%nx-1, ice%DIVA_m_ij2n_u , ice%wDIVA_m_ij2n_u )
+    CALL allocate_shared_int_2D( grid%ny-1, grid%nx  , ice%DIVA_m_ij2n_v , ice%wDIVA_m_ij2n_v )
+    CALL allocate_shared_int_2D( neq,       4        , ice%DIVA_m_n2ij_uv, ice%wDIVA_m_n2ij_uv)
 
     ! Alternate equations 1 and 2 in the matrix rows for better stability
     n = 0
