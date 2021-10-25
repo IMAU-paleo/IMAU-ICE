@@ -900,6 +900,7 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         IF (ice%mask_shelf_a( j,i) == 1 .AND. map( j,i) == 0) THEN
+          ice%Hi_a(         j,i) = 0._dp
           ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
           ice%Hi_tplusdt_a( j,i) = 0._dp
         END IF

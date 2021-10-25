@@ -166,7 +166,7 @@ CONTAINS
   
   END SUBROUTINE correct_GCM_bias_ocean
   
-! == The ISOMOP+ temperature/salinity profiles
+! == Some schematic ocean temperature/salinity profiles
   SUBROUTINE set_ocean_to_ISOMIPplus_COLD( grid, climate)
     ! Set the ocean temperature and salinity to the ISOMIP+ "COLD" profile (Asay-Davis et al., 2016, Table 5)
     
@@ -249,5 +249,104 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE set_ocean_to_ISOMIPplus_WARM
+  SUBROUTINE set_ocean_to_Reese2018( grid, ice, climate)
+    ! Set the ocean temperature and salinity to basin-dependent values
+    ! provided by Reese et al. (2018) so that PICO gives realistic present-day melt rates
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
+    
+    ! Local variables
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: T,S
+    
+    ! Safety
+    IF (.NOT. (C%choice_basin_scheme_ANT == 'file' .AND. C%do_merge_basins_ANT)) THEN
+      IF (par%master) THEN
+        WRITE(0,*) ''
+        WRITE(0,*) ' ===== '
+        WRITE(0,*) 'set_ocean_to_Reese2018 - WARNING: This really only works when using the external Antarctic ice basins file "ant_full_drainagesystem_polygons.txt"'
+        WRITE(0,*) '                                  This can be downloaded from https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems'
+        WRITE(0,*) '  and you will also need to set do_merge_basins_ANT_config = .TRUE.'
+        WRITE(0,*) ' ===== '
+        WRITE(0,*) ''
+      END IF
+    END IF
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      IF     (ice%basin_ID( j,i) == 1) THEN
+        T = -1.76_dp
+        S = 34.82_dp
+      ELSEIF (ice%basin_ID( j,i) == 2) THEN
+        T = -1.66_dp
+        S = 34.70_dp
+      ELSEIF (ice%basin_ID( j,i) == 3) THEN
+        T = -1.65_dp
+        S = 34.48_dp
+      ELSEIF (ice%basin_ID( j,i) == 4) THEN
+        T = -1.58_dp
+        S = 34.49_dp
+      ELSEIF (ice%basin_ID( j,i) == 5) THEN
+        T = -1.51_dp
+        S = 34.50_dp
+      ELSEIF (ice%basin_ID( j,i) == 6) THEN
+        T = -1.73_dp
+        S = 34.70_dp
+      ELSEIF (ice%basin_ID( j,i) == 7) THEN
+        T = -1.68_dp
+        S = 34.65_dp
+      ELSEIF (ice%basin_ID( j,i) == 8) THEN
+        T = -0.73_dp
+        S = 34.73_dp
+      ELSEIF (ice%basin_ID( j,i) == 9) THEN
+        T = -1.61_dp
+        S = 34.75_dp
+      ELSEIF (ice%basin_ID( j,i) == 10) THEN
+        T = -1.30_dp
+        S = 34.84_dp
+      ELSEIF (ice%basin_ID( j,i) == 11) THEN
+        T = -1.58_dp
+        S = 34.79_dp
+      ELSEIF (ice%basin_ID( j,i) == 12) THEN
+        T = -0.36_dp
+        S = 34.58_dp
+      ELSEIF (ice%basin_ID( j,i) == 13) THEN
+        T =  0.80_dp
+        S = 34.79_dp
+      ELSEIF (ice%basin_ID( j,i) == 14) THEN
+        T =  1.10_dp
+        S = 34.85_dp
+      ELSEIF (ice%basin_ID( j,i) == 15) THEN
+        T =  0.23_dp
+        S = 34.7_dp
+      ELSEIF (ice%basin_ID( j,i) == 16) THEN
+        T = -1.23_dp
+        S = 34.67_dp
+      ELSEIF (ice%basin_ID( j,i) == 17) THEN
+        T = -1.80_dp
+        S = 34.84_dp
+      END IF
+      
+      ! Temperature
+      climate%T_ocean(          :,j,i) = T
+      climate%T_ocean_corr(     :,j,i) = T
+      climate%T_ocean_corr_ext( :,j,i) = T
+      
+      ! Salinity
+      climate%S_ocean(          :,j,i) = S
+      climate%S_ocean_corr(     :,j,i) = S
+      climate%S_ocean_corr_ext( :,j,i) = S
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE set_ocean_to_Reese2018
 
 END MODULE ocean_module

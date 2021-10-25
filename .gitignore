@@ -15,3 +15,5 @@ massbalance_module.f90
 basal_melt/*
 *.nc
 run_basal_melt_MISMIPplus.csh
+MISMIPplus/*
+run_*

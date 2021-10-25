@@ -64,6 +64,7 @@ MODULE configuration_module
   LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config      = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
   REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
+  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = 'ice0'                           ! Choose between the five MISMIP+ scenarios from Cornford et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -331,6 +332,17 @@ MODULE configuration_module
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   
+  CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config          = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config          = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_GRL_config          = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_ANT_config          = 'none'
+  CHARACTER(LEN=256)  :: filename_basins_NAM_config              = 'dummy.txt'                      ! Path to a text file containing polygons of drainage basins
+  CHARACTER(LEN=256)  :: filename_basins_EAS_config              = 'dummy.txt'
+  CHARACTER(LEN=256)  :: filename_basins_GRL_config              = 'dummy.txt'
+  CHARACTER(LEN=256)  :: filename_basins_ANT_config              = 'dummy.txt'
+  LOGICAL             :: do_merge_basins_ANT_config              = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
+  LOGICAL             :: do_merge_basins_GRL_config              = .TRUE.                           ! Whether or not to merge some of the Greenland basins
+  
   ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
   LOGICAL             :: use_schematic_ocean_config              = .TRUE.
   CHARACTER(LEN=256)  :: choice_schematic_ocean_config           = 'MISMIPplus_WARM'                ! Can be 'MISMIPplus_WARM' or 'MISMIPplus_COLD'
@@ -542,6 +554,7 @@ MODULE configuration_module
     LOGICAL                             :: MISMIPplus_do_tune_A_for_GL
     REAL(dp)                            :: MISMIPplus_xGL_target
     REAL(dp)                            :: MISMIPplus_A_flow_initial
+    CHARACTER(LEN=256)                  :: MISMIPplus_scenario
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -771,6 +784,17 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
+    
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_GRL
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_ANT
+    CHARACTER(LEN=256)                  :: filename_basins_NAM
+    CHARACTER(LEN=256)                  :: filename_basins_EAS
+    CHARACTER(LEN=256)                  :: filename_basins_GRL
+    CHARACTER(LEN=256)                  :: filename_basins_ANT
+    LOGICAL                             :: do_merge_basins_ANT
+    LOGICAL                             :: do_merge_basins_GRL
   
     ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
     LOGICAL                             :: use_schematic_ocean
@@ -1212,6 +1236,7 @@ CONTAINS
                      MISMIPplus_do_tune_A_for_GL_config,         &
                      MISMIPplus_xGL_target_config,               &
                      MISMIPplus_A_flow_initial_config,           &
+                     MISMIPplus_scenario_config,                 &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      do_write_debug_data_config,                 &
@@ -1364,6 +1389,16 @@ CONTAINS
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
+                     choice_basin_scheme_NAM_config,             &
+                     choice_basin_scheme_EAS_config,             &
+                     choice_basin_scheme_GRL_config,             &
+                     choice_basin_scheme_ANT_config,             &
+                     filename_basins_NAM_config,                 &
+                     filename_basins_EAS_config,                 &
+                     filename_basins_GRL_config,                 &
+                     filename_basins_ANT_config,                 &
+                     do_merge_basins_ANT_config,                 &
+                     do_merge_basins_GRL_config,                 &
                      use_schematic_ocean_config,                 &
                      choice_schematic_ocean_config,              &
                      BMB_Favier2019_lin_GammaT_config,           &
@@ -1556,6 +1591,7 @@ CONTAINS
     C%MISMIPplus_do_tune_A_for_GL         = MISMIPplus_do_tune_A_for_GL_config
     C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
     C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
+    C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -1786,6 +1822,17 @@ CONTAINS
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
+    
+    C%choice_basin_scheme_NAM             = choice_basin_scheme_NAM_config
+    C%choice_basin_scheme_EAS             = choice_basin_scheme_EAS_config
+    C%choice_basin_scheme_GRL             = choice_basin_scheme_GRL_config
+    C%choice_basin_scheme_ANT             = choice_basin_scheme_ANT_config
+    C%filename_basins_NAM                 = filename_basins_NAM_config
+    C%filename_basins_EAS                 = filename_basins_EAS_config
+    C%filename_basins_GRL                 = filename_basins_GRL_config
+    C%filename_basins_ANT                 = filename_basins_ANT_config
+    C%do_merge_basins_ANT                 = do_merge_basins_ANT_config
+    C%do_merge_basins_GRL                 = do_merge_basins_GRL_config
   
     ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
     C%use_schematic_ocean                 = use_schematic_ocean_config

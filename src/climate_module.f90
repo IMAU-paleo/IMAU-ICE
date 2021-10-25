@@ -22,7 +22,8 @@ MODULE climate_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
-  USE ocean_module,                    ONLY: allocate_subclimate_regional_oceans, set_ocean_to_ISOMIPplus_COLD, set_ocean_to_ISOMIPplus_WARM
+  USE ocean_module,                    ONLY: allocate_subclimate_regional_oceans, set_ocean_to_ISOMIPplus_COLD, set_ocean_to_ISOMIPplus_WARM, &
+                                             set_ocean_to_Reese2018
 
   IMPLICIT NONE
     
@@ -1056,14 +1057,15 @@ CONTAINS
   
   ! Initialising the region-specific climate model, containing all the subclimates
   ! (PD observations, GCM snapshots and the applied climate) on the model grid
-  SUBROUTINE initialise_climate_model( grid, climate, matrix, region_name, mask_noice)
+  SUBROUTINE initialise_climate_model( grid, ice, climate, matrix, region_name, mask_noice)
     ! Allocate shared memory for the regional climate models, containing the PD observed,
     ! GCM snapshots and applied climates as "subclimates"
     
     IMPLICIT NONE
     
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     TYPE(type_climate_matrix),           INTENT(IN)    :: matrix
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
@@ -1092,7 +1094,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'MISMIPplus') THEN
           
         ! Entirely parameterised climate, no ocean
-        CALL initialise_subclimate( grid, climate%applied, 'applied')
+        CALL initialise_subclimate( grid, ice, climate%applied, 'applied')
         RETURN
         
       ELSE
@@ -1103,14 +1105,14 @@ CONTAINS
     
     ! Exception: if we're using a prescribed climate/SMB forcing, the entire matrix is not used
     IF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
-      CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )
-      CALL initialise_subclimate( grid, climate%applied,  'applied')
+      CALL initialise_subclimate( grid, ice, climate%PD_obs,   'ERA40'  )
+      CALL initialise_subclimate( grid, ice, climate%applied,  'applied')
       RETURN
     END IF
     
     ! Initialise data structures for the regional ERA40 climate and the final applied climate
-    CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )
-    CALL initialise_subclimate( grid, climate%applied,  'applied')
+    CALL initialise_subclimate( grid, ice, climate%PD_obs,   'ERA40'  )
+    CALL initialise_subclimate( grid, ice, climate%applied,  'applied')
     
     ! Map these subclimates from global grid to model grid
     CALL map_subclimate_to_grid( grid,  matrix%PD_obs,  climate%PD_obs)
@@ -1125,9 +1127,9 @@ CONTAINS
       IF (C%choice_climate_matrix == 'warm_cold') THEN
       
         ! Initialise data structures for the GCM snapshots
-        CALL initialise_subclimate( grid, climate%GCM_PI,   'ref_PI' )
-        CALL initialise_subclimate( grid, climate%GCM_warm, 'Warm' )
-        CALL initialise_subclimate( grid, climate%GCM_cold, 'Cold')
+        CALL initialise_subclimate( grid, ice, climate%GCM_PI,   'ref_PI' )
+        CALL initialise_subclimate( grid, ice, climate%GCM_warm, 'Warm' )
+        CALL initialise_subclimate( grid, ice, climate%GCM_cold, 'Cold')
         
         ! Map these subclimates from global grid to model grid
         CALL map_subclimate_to_grid( grid,  matrix%GCM_PI,   climate%GCM_PI  )
@@ -1178,13 +1180,14 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE initialise_climate_model  
-  SUBROUTINE initialise_subclimate( grid, subclimate, name)
+  SUBROUTINE initialise_subclimate( grid, ice, subclimate, name)
     ! Allocate shared memory for a "subclimate" (PD observed, GCM snapshot or applied climate) on the grid
     
     IMPLICIT NONE
     
     ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_subclimate_region),        INTENT(INOUT) :: subclimate
     CHARACTER(LEN=*),                    INTENT(IN)    :: name
     
@@ -1254,6 +1257,8 @@ CONTAINS
         CALL set_ocean_to_ISOMIPplus_WARM( grid, subclimate)
       ELSEIF (C%choice_schematic_ocean == 'MISMIPplus_COLD') THEN
         CALL set_ocean_to_ISOMIPplus_COLD( grid, subclimate)
+      ELSEIF (C%choice_schematic_ocean == 'Reese2018') THEN
+        CALL set_ocean_to_Reese2018( grid, ice, subclimate)
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_schematic_ocean "', TRIM(C%choice_schematic_ocean), '" not implemented in initialise_subclimate!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

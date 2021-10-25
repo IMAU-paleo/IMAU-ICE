@@ -4,4 +4,4 @@
 
 rm -rf results_2021*
 
-mpiexec -n 2 IMAU_ICE_program src/config-files/config_test_basal_melt
+mpiexec -n 2 IMAU_ICE_program src/config-files/config_test

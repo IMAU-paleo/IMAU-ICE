@@ -138,10 +138,13 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_b
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: basin_ID              ! The drainage basin to which each grid cell belongs
+    INTEGER,                    POINTER     :: nbasins               ! Total number of basins defined for this region
     INTEGER :: wmask_land_a, wmask_ocean_a, wmask_lake_a, wmask_ice_a, wmask_sheet_a, wmask_shelf_a
     INTEGER :: wmask_coast_a, wmask_coast_cx, wmask_coast_cy, wmask_margin_a, wmask_margin_cx, wmask_margin_cy
     INTEGER :: wmask_gl_a, wmask_gl_cx, wmask_gl_cy, wmask_cf_a, wmask_cf_cx, wmask_cf_cy, wmask_a
     INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy, wf_grnd_b
+    INTEGER :: wbasin_ID, wnbasins
     
     ! Ice physical properties
     REAL(dp), DIMENSION(:,:,:), POINTER     :: A_flow_3D_a           ! Flow parameter [Pa^-3 y^-1]
@@ -574,19 +577,23 @@ MODULE data_types_module
     
     ! NOTE: also uses search_directions!
     
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_d_GL                     ! Distance to grounding line [m]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_d_IF                     ! Distance to ice front      [m]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_r                        ! Relative distance to grounding line [0-1]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_A                        ! Area covered by each ocean box in each basin [n_basins x n_boxes]
+    INTEGER,  DIMENSION(:    ), POINTER     :: PICO_n_D                      ! Number of ocean boxes for each ice basin
     INTEGER,  DIMENSION(:,:  ), POINTER     :: PICO_k                        ! PICO ocean box number to which the shelf grid cells belong
-    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_A                        ! Area covered by each ocean box
+    INTEGER :: wPICO_d_GL, wPICO_d_IF, wPICO_r, wPICO_A, wPICO_n_D, wPICO_k
     
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_T                        ! 2-D          ambient temperature [K]
-    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_Tk                       ! Box-averaged ambient temperature
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_S                        ! 2-D          ambient salinity    [PSU]
-    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_Sk                       ! Box-averaged ambient salinity
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_p                        ! 2-D          basal pressure      [Pa]
-    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_pk                       ! Box-averaged basal pressure
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_m                        ! 2-D          melt rate           [m/yr]
-    REAL(dp), DIMENSION(:    ), POINTER     :: PICO_mk                       ! Box-averaged melt rate
-    INTEGER :: wPICO_r, wPICO_k, wPICO_A, wPICO_T, wPICO_Tk, wPICO_S, wPICO_Sk, wPICO_p, wPICO_pk, wPICO_m, wPICO_mk
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_T                        ! 2-D     ambient temperature [K]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_Tk                       ! Average ambient temperature within each basin-box
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_S                        ! 2-D     ambient salinity    [PSU]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_Sk                       ! Average ambient salinity    within each basin-box
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_p                        ! 2-D     basal pressure      [Pa]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_pk                       ! Average basal pressure      within each basin-box
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_m                        ! 2-D     melt rate           [m/yr]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_mk                       ! Average melt rate           within each basin-box
+    INTEGER :: wPICO_T, wPICO_Tk, wPICO_S, wPICO_Sk, wPICO_p, wPICO_pk, wPICO_m, wPICO_mk
     
     ! The ANICE_legacy BMB model
     ! ==========================

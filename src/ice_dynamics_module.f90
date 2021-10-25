@@ -20,7 +20,8 @@ MODULE ice_dynamics_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
   USE ice_velocity_module,             ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA
-  USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC
+  USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
+                                             remove_unconnected_shelves
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
 
   IMPLICIT NONE
@@ -634,7 +635,10 @@ CONTAINS
     END IF ! IF (.NOT. C%is_restart) THEN
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice, C%dt_min)
+    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
+    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
+    CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
+    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
     
     ! Initialise some numbers for the predictor/corrector ice thickness update method
     IF (par%master) THEN

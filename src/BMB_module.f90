@@ -23,7 +23,7 @@ MODULE BMB_module
 CONTAINS
 
   ! The main routine that is called from the IMAU_ICE_main_model
-  SUBROUTINE run_BMB_model( grid, ice, climate, BMB, region_name)
+  SUBROUTINE run_BMB_model( grid, ice, climate, BMB, region_name, time)
     ! Run the selected BMB model
     
     IMPLICIT NONE
@@ -34,6 +34,7 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -63,7 +64,9 @@ CONTAINS
         CALL sync
         RETURN
       ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        ! No exception; use the actual basal melt model
+        ! Basal melt in the MISMIPplus experiments
+        CALL BMB_MISMIPplus( grid, ice, BMB, time)
+        RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -142,6 +145,194 @@ CONTAINS
     CALL check_for_NaN_dp_2D( BMB%BMB,       'BMB%BMB',       'run_BMB_model')
     
   END SUBROUTINE run_BMB_model
+  
+  ! The schematic basal melt used in the MISMIPplus experiments
+  SUBROUTINE BMB_MISMIPplus( grid, ice, BMB, time)
+    ! The schematic basal melt used in the MISMIPplus experiments
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    REAL(dp),                            INTENT(IN)    :: time
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: zd, cavity_thickness
+    
+    IF     (C%MISMIPplus_scenario == 'ice0') THEN
+      ! The reference scenario; no basal melt ever
+      
+      BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+      BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+      BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+      CALL sync
+      
+    ELSEIF (C%MISMIPplus_scenario == 'ice1ra') THEN
+      ! Increased melt for 100 yr, followed by zero melt for 100 yr
+      
+      IF (time < 0._dp) THEN
+        ! t = -10,000 to t = 0: spin-up, no melt
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      ELSEIF (time < 100._dp) THEN
+        ! t = 0 to t = 100: melt
+        
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          
+          zd = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+          cavity_thickness = MAX( 0._dp, zd - ice%Hb_a( j,i))
+          
+          ! Cornford et al. (2020), Eq. 7
+          BMB%BMB_shelf( j,i) = -0.2_dp * TANH( cavity_thickness / 75._dp) * MAX( -100._dp - zd, 0._dp)
+          
+        END DO
+        END DO
+        CALL sync
+        
+      ELSE ! IF (time < 0._dp) THEN
+        ! After t = 100: no melt
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      END IF ! IF (time < 0._dp) THEN
+      
+    ELSEIF (C%MISMIPplus_scenario == 'ice1rr') THEN
+      ! Increased melt forever
+      
+      IF (time < 0._dp) THEN
+        ! t = -10,000 to t = 0: spin-up, no melt
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      ELSE ! IF (time < 0._dp) THEN
+        ! t > 0: melt
+        
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          
+          zd = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+          cavity_thickness = MAX( 0._dp, zd - ice%Hb_a( j,i))
+          
+          ! Cornford et al. (2020), Eq. 7
+          BMB%BMB_shelf( j,i) = -0.2_dp * TANH( cavity_thickness / 75._dp) * MAX( -100._dp - zd, 0._dp)
+          
+        END DO
+        END DO
+        CALL sync
+        
+      END IF ! IF (time < 0._dp) THEN
+      
+    ELSEIF (C%MISMIPplus_scenario == 'ice2ra') THEN
+      ! Increased "calving" for 100 yr, followed by zero "calving" for 100 yr
+      
+      IF (time < 0._dp) THEN
+        ! t = -10,000 to t = 0: spin-up, no "calving"
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      ELSEIF (time < 100._dp) THEN
+        ! t = 0 to t = 100: "calving"
+        
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          IF (grid%x( i) > 80000._dp) THEN ! Actually the border is at x = 480 km, but our coordinate system is shifted...
+            BMB%BMB_shelf( j,i) = -100._dp
+          ELSE
+            BMB%BMB_shelf( j,i) = 0._dp
+          END IF
+        END DO
+        END DO
+        CALL sync
+        
+      ELSE ! IF (time < 0._dp) THEN
+        ! After t = 100: no "calving"
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      END IF ! IF (time < 0._dp) THEN
+      
+    ELSEIF (C%MISMIPplus_scenario == 'ice2rr') THEN
+      ! Increased "calving" forever
+      
+      IF (time < 0._dp) THEN
+        ! t = -10,000 to t = 0: spin-up, no "calving"
+        
+        BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
+        CALL sync
+        
+      ELSE
+        ! t > 0: "calving"
+        
+        BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          IF (grid%x( i) > 80000._dp) THEN ! Actually the border is at x = 480 km, but our coordinate system is shifted...
+            BMB%BMB_shelf( j,i) = -100._dp
+          ELSE
+            BMB%BMB_shelf( j,i) = 0._dp
+          END IF
+        END DO
+        END DO
+        CALL sync
+        
+      END IF ! IF (time < 0._dp) THEN
+      
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: MISMIPplus_scenario "', TRIM(C%MISMIPplus_scenario), '" not implemented in BMB_MISMIPplus!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! No sub-grid scaling for sub-sheet melt yet
+      BMB%BMB( j,i) = 0._dp
+      IF (ice%mask_sheet_a( j,i) == 1._dp) BMB%BMB( j,i) = BMB%BMB_sheet( j,i)
+      
+      ! Different sub-grid schemes for sub-shelf melt
+      IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+        IF (ice%mask_shelf_a( j,i) == 1) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+        BMB%BMB( j,i) = BMB%BMB( j,i) + (1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'NMP') THEN
+        IF (ice%f_grnd_a( j,i) == 0._dp) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_subgrid "', TRIM(C%choice_BMB_subgrid), '" not implemented in run_BMB_model!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE BMB_MISMIPplus
 
   ! The ANICE_legacy sub-shelf melt model
   SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, climate, BMB, region_name)
@@ -958,7 +1149,6 @@ CONTAINS
     CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
     CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
     
-    ! The linear parameterisation by Favier et al. (2019)
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -999,7 +1189,6 @@ CONTAINS
     CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
     CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
     
-    ! The linear parameterisation by Favier et al. (2019)
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -1033,16 +1222,13 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
-    INTEGER                                            :: i,j,n_shelf
+    INTEGER                                            :: i,j,n_shelf,basin_i
     REAL(dp)                                           :: dT,dT_av
     
     ! Calculate ocean temperature and freezing point at the base of the shelf
     CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
     CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
     
-    ! The linear parameterisation by Favier et al. (2019)
-    dT_av   = 0._dp
-    n_shelf = 0
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -1053,10 +1239,8 @@ CONTAINS
         
         ! Temperature forcing
         dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
-        dT_av = dT_av + dT
-        n_shelf = n_shelf + 1
         
-        ! Favier et al. (2019), Eq. 5
+        ! Favier et al. (2019), Eq. 5 (part 1, without the basin-averaged term, that comes later)
         BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_Mplus_GammaT * (seawater_density * cp_ocean / (ice_density * L_fusion))**2._dp * dT
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
@@ -1065,20 +1249,43 @@ CONTAINS
     END DO
     CALL sync
     
-    ! Calculate shelf-averaged temperature forcing
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT_av,   1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_shelf, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    ! Calculate and apply basin-averaged temperature forcing
+    DO basin_i = 1, ice%nbasins
     
-    ! Safety
-    IF (n_shelf == 0) THEN
-      dT_av = 0._dp
-    ELSE
-      dT_av = dT_av / n_shelf
-    END IF
+      dT_av   = 0._dp
+      n_shelf = 0
     
-    ! Add last term to the equation
-    BMB%BMB_shelf( :,grid%i1:grid%i2) = BMB%BMB_shelf( :,grid%i1:grid%i2) * dT_av
-    CALL sync
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%basin_ID( j,i) == basin_i .AND. ice%mask_shelf_a( j,i) == 1) THEN
+          dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
+          dT_av   = dT_av   + dT
+          n_shelf = n_shelf + 1
+        END IF
+      END DO
+      END DO
+        
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT_av,   1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_shelf, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+        
+      ! Safety
+      IF (n_shelf == 0) THEN
+        dT_av = 0._dp
+      ELSE
+        dT_av = dT_av / n_shelf
+      END IF
+      
+      ! Add last term to the equation
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%basin_ID( j,i) == basin_i .AND. ice%mask_shelf_a( j,i) == 1) THEN
+          BMB%BMB_shelf( j,i) = BMB%BMB_shelf( j,i) * dT_av
+        END IF
+      END DO
+      END DO
+      CALL sync
+    
+    END DO ! DO basin_i = 1, ice%nbasins
           
   END SUBROUTINE run_BMB_model_Favier2019_Mplus
   SUBROUTINE calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
@@ -1474,7 +1681,153 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables:
-    INTEGER                                            :: i,j,k,n
+    INTEGER                                            :: basin_i
+    
+    ! Assign PICO ocean boxes to all shelf grid cells in all basins
+    CALL PICO_assign_ocean_boxes( grid, ice, BMB)
+    
+    ! Run PICO for all basins
+    DO basin_i = 1, ice%nbasins
+      CALL run_BMB_model_PICO_basin( grid, ice, climate, BMB, basin_i)
+    END DO
+    
+  END SUBROUTINE run_BMB_model_PICO
+  SUBROUTINE PICO_assign_ocean_boxes( grid, ice, BMB)
+    ! Assign PICO ocean boxes to shelf grid cells using the distance-to-grounding-line / distance-to-calving-front
+    ! approach outlined in Reese et al. (2018)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,k
+    REAL(dp), DIMENSION(:    ), POINTER                ::  d_GL_D
+    INTEGER                                            :: wd_GL_D
+    REAL(dp)                                           :: d_max
+    INTEGER                                            :: basin_i
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: n_cells_per_box
+    LOGICAL                                            :: do_reduce_n_D
+    
+  ! Determine number of PICO boxes to be used for each basin
+  ! ========================================================
+    
+    CALL allocate_shared_dp_1D(  ice%nbasins, d_GL_D, wd_GL_D)
+    
+    ! Determine relative distance to grounding line for all shelf grid cells in the entire model domain
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      BMB%PICO_d_GL( j,i) = 0._dp
+      BMB%PICO_d_IF( j,i) = 0._dp
+      BMB%PICO_r(    j,i) = 0._dp
+      IF (ice%mask_shelf_a( j,i) == 1) CALL calc_dGL_dIF_r( grid, ice, BMB, i,j, BMB%PICO_d_GL( j,i), BMB%PICO_d_IF( j,i), BMB%PICO_r( j,i))
+    END DO
+    END DO
+    CALL sync
+    
+    ! Calculate maximum distance to grounding line within each basin
+    DO basin_i = 1, ice%nbasins
+      d_max = 0._dp
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%basin_ID( j,i) == basin_i) THEN
+          d_max = MAX( d_max, BMB%PICO_d_GL( j,i))
+        END IF
+      END DO
+      END DO
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, d_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
+      IF (par%master) d_GL_D( basin_i) = d_max
+      CALL sync
+    END DO ! DO basin_i = 1, ice%nbasins
+    
+    ! Calculate maximum distance to grounding line within the entire model doman
+    IF (par%master) d_max = MAXVAL( d_GL_D)
+    CALL MPI_BCAST( d_max, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Determine number of PICO boxes for each basin
+    IF (par%master) THEN
+      DO basin_i = 1, ice%nbasins
+        ! Reese et al. (2018), Eq. 9
+        BMB%PICO_n_D( basin_i) = 1 + INT( SQRT( d_GL_D( basin_i) / d_max) * REAL( C%BMB_PICO_nboxes - 1,dp))
+      END DO
+    END IF
+    CALL sync
+    
+  ! Assign PICO boxes to all shelf grid cells in all basins
+  ! =======================================================
+    
+    ALLOCATE( n_cells_per_box( C%BMB_PICO_nboxes))
+    
+    DO basin_i = 1, ice%nbasins
+    
+      ! If necessary, reduce the maximum number of boxes for a basin
+      ! until every box is assigned at least one grid cell
+      
+      n_cells_per_box = 0
+      
+      DO WHILE (.TRUE.)
+        
+        ! Assign ocean boxes according to Reese et al. (2018), Eq. 11
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          IF (ice%basin_ID( j,i) == basin_i) THEN
+            BMB%PICO_k( j,i) = 0
+            IF (ice%mask_shelf_a( j,i) == 1) THEN
+              DO k = 1, BMB%PICO_n_D( basin_i)
+                  IF (1._dp - SQRT( REAL(BMB%PICO_n_D( basin_i) - k + 1, dp) / REAL( BMB%PICO_n_D( basin_i), dp)) <= BMB%PICO_r( j,i) .AND. &
+                      1._dp - SQRT( REAL(BMB%PICO_n_D( basin_i) - k    , dp) / REAL( BMB%PICO_n_D( basin_i), dp)) >= BMB%PICO_r( j,i)) THEN
+                  BMB%PICO_k( j,i) = k
+                  n_cells_per_box( k) = n_cells_per_box( k) + 1
+                END IF
+              END DO ! DO k = 1, BMB%PICO_n_D( basin_i)
+            END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
+          END IF ! IF (ice%basin_ID( j,i) == basin_i) THEN
+        END DO
+        END DO
+        CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_cells_per_box, C%BMB_PICO_nboxes, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)
+        IF (par%master) BMB%PICO_A( basin_i,:) = n_cells_per_box * grid%dx**2
+        CALL sync
+        
+        ! If any of the boxes have zero grid cells assigned, reduce the maximum number of boxes and try again
+        do_reduce_n_D = .FALSE.
+        DO k = 1, BMB%PICO_n_D( basin_i)
+          IF (n_cells_per_box( k) == 0) THEN
+            do_reduce_n_D = .TRUE.
+          END IF
+        END DO
+        IF (do_reduce_n_D) THEN
+          IF (par%master) BMB%PICO_n_D( basin_i) = BMB%PICO_n_D( basin_i) - 1
+          CALL sync
+        ELSE
+          EXIT
+        END IF
+        
+      END DO ! DO WHILE (.TRUE.)
+      
+    END DO ! DO basin_i = 1, ice%nbasins
+    
+    ! Clean up after yourself
+    DEALLOCATE( n_cells_per_box)
+    CALL deallocate_shared( wd_GL_D)
+    
+  END SUBROUTINE PICO_assign_ocean_boxes
+  SUBROUTINE run_BMB_model_PICO_basin( grid, ice, climate, BMB, basin_i)
+    ! Calculate basal melt for ice basin i using the PICO ocean box model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    INTEGER,                             INTENT(IN)    :: basin_i
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,k
     REAL(dp)                                           :: Tk0,Sk0
     REAL(dp)                                           :: nu,lambda
     REAL(dp)                                           :: g1,g2,s,Crbsa,Tstar,x,y
@@ -1492,27 +1845,29 @@ CONTAINS
     REAL(dp), PARAMETER                                :: gammaTstar  = 2.0E-5_dp      ! Effective turbulent temperature exchange velocity [m s^-1]
     REAL(dp), PARAMETER                                :: C_overturn  = 1.0E6_dp       ! Overturning strength                              [m^6 s^-1 kg^-1]
     
-    n = C%BMB_PICO_nboxes
-    
     ! Initialise
-    BMB%PICO_T( :,grid%i1:grid%i2) = 0._dp
-    BMB%PICO_S( :,grid%i1:grid%i2) = 0._dp
-    BMB%PICO_m( :,grid%i1:grid%i2) = 0._dp
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (ice%basin_ID( j,i) == basin_i) THEN
+        BMB%PICO_T( j,i) = 0._dp
+        BMB%PICO_S( j,i) = 0._dp
+        BMB%PICO_m( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
     
     ! Some intermediary constants (Reese et al. (2018), just after Eq. A2)
     nu     = ice_density / seawater_density
     lambda = L_fusion / cp_ocean
     
-    ! Assign shelf grid cells to PICO ocean boxes
-    CALL PICO_assign_ocean_boxes( grid, ice, BMB)
-    
-    ! Calculate temperature and salinity in box B0
-    CALL PICO_calc_T0_S0( grid, ice, climate, Tk0, Sk0)
+    ! Calculate temperature and salinity in box B0 for this basin
+    CALL PICO_calc_T0_S0( grid, ice, climate, basin_i, Tk0, Sk0)
     
     ! Calculate 2-D + box-averaged basal pressures
     BMB%PICO_p( :,grid%i1:grid%i2) = ice_density * grav * ice%Hi_a( :,grid%i1:grid%i2)
-    DO k = 1, n
-      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_p, k, BMB%PICO_pk( k))
+    DO k = 1, BMB%PICO_n_D( basin_i)
+      CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_p, basin_i, k, BMB%PICO_pk( basin_i, k))
     END DO
     
   ! Calculate solution for box 1
@@ -1521,12 +1876,12 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
-      IF (BMB%PICO_k( j,i) == 1) THEN
+      IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == 1) THEN
         
         ! Reese et al. (2018), just before Eq. A6
-        g1 = BMB%PICO_A( 1) * gammaTstar
+        g1 = BMB%PICO_A( basin_i, 1) * gammaTstar
         g2 = g1 / (nu * lambda)
-        Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( 1) - Tk0
+        Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, 1) - Tk0
         
         ! Reese et al. (2018), just after Eq. A11
         s = Sk0 / (nu * lambda)
@@ -1553,36 +1908,36 @@ CONTAINS
     CALL sync
     
     ! Calculate box-averaged values
-    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_T, 1, BMB%PICO_Tk( 1))
-    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_S, 1, BMB%PICO_Sk( 1))
-    CALL PICO_calc_box_average( grid, BMB, BMB%PICO_m, 1, BMB%PICO_mk( 1))
+    CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_T, basin_i, 1, BMB%PICO_Tk( basin_i, 1))
+    CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_S, basin_i, 1, BMB%PICO_Sk( basin_i, 1))
+    CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_m, basin_i, 1, BMB%PICO_mk( basin_i, 1))
     
     ! Calculate overturning strength (Reese et al. (2018), Eq. A9)
-    q = C_overturn * rhostar * (beta * (Sk0 - BMB%PICO_Sk( 1)) - alpha * (Tk0 - BMB%PICO_Tk( 1))) 
+    q = C_overturn * rhostar * (beta * (Sk0 - BMB%PICO_Sk( basin_i, 1)) - alpha * (Tk0 - BMB%PICO_Tk( basin_i, 1))) 
     
   ! Calculate solutions for subsequent boxes
   ! ========================================
     
-    DO k = 2, n
+    DO k = 2, BMB%PICO_n_D( basin_i)
       
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         
-        IF (BMB%PICO_k( j,i) == k) THEN
+        IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == k) THEN
         
           ! Reese et al. (2018), just before Eq. A6
-          g1 = BMB%PICO_A( k) * gammaTstar
+          g1 = BMB%PICO_A( basin_i, k) * gammaTstar
           g2 = g1 / (nu * lambda)
-          Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( k-1) - BMB%PICO_Tk( k-1)
+          Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, k-1) - BMB%PICO_Tk( basin_i, k-1)
           
           ! Reese et al. (2018), Eq. A13
-          x = -g1 * Tstar / (q + g1 - g2 * aa * BMB%PICO_Sk( k-1))
+          x = -g1 * Tstar / (q + g1 - g2 * aa * BMB%PICO_Sk( basin_i, k-1))
         
           ! Reese et al. (2018), Eq. A8
-          y = BMB%PICO_Sk( k-1) * x / (nu * lambda)
+          y = BMB%PICO_Sk( basin_i, k-1) * x / (nu * lambda)
         
-          BMB%PICO_T( j,i) = BMB%PICO_Tk( k-1) - x
-          BMB%PICO_S( j,i) = BMB%PICO_Sk( k-1) - y
+          BMB%PICO_T( j,i) = BMB%PICO_Tk( basin_i, k-1) - x
+          BMB%PICO_S( j,i) = BMB%PICO_Sk( basin_i, k-1) - y
         
           ! Reese et al. (2019), Eq. 13
           BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
@@ -1594,85 +1949,24 @@ CONTAINS
       CALL sync
     
       ! Calculate box-averaged values
-      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_T, k, BMB%PICO_Tk( k))
-      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_S, k, BMB%PICO_Sk( k))
-      CALL PICO_calc_box_average( grid, BMB, BMB%PICO_m, k, BMB%PICO_mk( k))
+      CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_T, basin_i, k, BMB%PICO_Tk( basin_i, k))
+      CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_S, basin_i, k, BMB%PICO_Sk( basin_i, k))
+      CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_m, basin_i, k, BMB%PICO_mk( basin_i, k))
       
-    END DO
+    END DO ! DO k = 2, BMB%PICO_n_D( basin_i)
     
-    ! Copy melt rates to final data field
-    BMB%BMB_shelf( :,grid%i1:grid%i2) = BMB%PICO_m( :,grid%i1:grid%i2)
-    CALL sync
-    
-  END SUBROUTINE run_BMB_model_PICO
-  SUBROUTINE PICO_assign_ocean_boxes( grid, ice, BMB)
-    ! Assign PICO ocean boxes to shelf grid cells using the distance-to-grounding-line / distance-to-calving-front
-    ! approach outlined in Reese et al. (2018)
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,k
-    INTEGER                                            :: n
-    
-    n = C%BMB_PICO_nboxes
-    
+    ! Copy melt rates to final data field      
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    
-      ! Initialise
-      BMB%PICO_r( j,i) = 0._dp
-      BMB%PICO_k( j,i) = 0
-      
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
-        
-        ! Calculate relative distance to grounding line (Reese et al. (2018), Eq. 10)
-        BMB%PICO_r( j,i) = calc_relative_distance_to_grounding_line( grid, ice, BMB, i,j)
-        
-        ! Assign ocean box (Reese et al. (2018), Eq. 11)
-        DO k = 1, n
-          IF (1._dp - SQRT( REAL(n - k + 1,dp)/REAL(n,dp)) <= BMB%PICO_r( j,i) .AND. &
-              1._dp - SQRT( REAL(n - k    ,dp)/REAL(n,dp)) >= BMB%PICO_r( j,i)) THEN
-            BMB%PICO_k( j,i) = k
-          END IF
-        END DO
-        
-      END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
-      
+      IF (ice%basin_ID( j,i) == basin_i) BMB%BMB_shelf( j,i) = BMB%PICO_m( j,i)
     END DO
     END DO
     CALL sync
     
-    ! Determine area per ocean box
-    IF (par%master) THEN
-    
-      BMB%PICO_A = 0._dp
-      
-      DO i = 1, grid%nx
-      DO j = 1, grid%ny
-        IF (BMB%PICO_k( j,i) > 0) BMB%PICO_A( BMB%PICO_k( j,i)) = BMB%PICO_A( BMB%PICO_k( j,i)) + grid%dx**2
-      END DO
-      END DO
-      
-      ! Check if any boxes have zero pixels; if so, throw an error (don't know how to handle this!)
-      DO k = 1, n
-        IF (BMB%PICO_A( k) == 0._dp) THEN
-          WRITE(0,*) '  PICO_assign_ocean_boxes - ERROR: box ', k, ' has zero grid cells!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-      END DO
-      
-    END IF
-    CALL sync
-    
-  END SUBROUTINE PICO_assign_ocean_boxes
-  FUNCTION calc_relative_distance_to_grounding_line( grid, ice, BMB, i,j) RESULT( r)
-    ! For each shelf grid cell, calculate the relative distance to the grounding-line (Reese et al. (2018), Eq. 10)
+  END SUBROUTINE run_BMB_model_PICO_basin
+  SUBROUTINE calc_dGL_dIF_r( grid, ice, BMB, i,j, d_GL, d_IF, r)
+    ! For each shelf grid cell, calculate the distance to the grounding line dGL,
+    ! the distance to the ice front dIF, and the relative distance r (Reese et al. (2018), Eq. 10)
     !
     ! Determines d_GL and d_IF using the 16-directions search scheme.
     
@@ -1683,17 +1977,19 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     INTEGER,                             INTENT(IN)    :: i,j
-    REAL(dp)                                           :: r
+    REAL(dp),                            INTENT(OUT)   :: d_GL, d_IF, r
     
     ! Local variables:
     INTEGER                                            :: n
     INTEGER                                            :: dpi,dpj,ip1,jp1,ip2,jp2
-    REAL(dp)                                           :: d_GL, d_IF, dist
+    REAL(dp)                                           :: dist
     LOGICAL                                            :: reached_end
     
     ! Exception for when this grid cell isn't shelf
     IF (ice%mask_shelf_a( j,i) == 0) THEN
-      r = 0._dp
+      d_GL = 0._dp
+      d_IF = 0._dp
+      r    = 0._dp
       RETURN
     END IF
     
@@ -1757,8 +2053,8 @@ CONTAINS
     ! Reese et al. (2018), Eq. 10
     r = d_GL / (d_GL + d_IF)                         
     
-  END FUNCTION calc_relative_distance_to_grounding_line
-  SUBROUTINE PICO_calc_T0_S0( grid, ice, climate, Tk0, Sk0)
+  END SUBROUTINE calc_dGL_dIF_r
+  SUBROUTINE PICO_calc_T0_S0( grid, ice, climate, basin_i, Tk0, Sk0)
     ! Find temperature and salinity in box B0 (defined as mean ocean-floor value at the calving front)
     
     IMPLICIT NONE
@@ -1767,11 +2063,13 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    INTEGER,                             INTENT(IN)    :: basin_i
     REAL(dp),                            INTENT(OUT)   :: Tk0,Sk0
     
     ! Local variables:
     INTEGER                                            :: i,j,n
-    REAL(dp)                                           :: depth, T_floor, S_floor
+    REAL(dp)                                           :: depth, T_floor, S_floor, depth_max
+    INTEGER                                            :: ii,jj
     
     ! Average ocean-floor temperature and salinity over this basin's ocean-next-to-floating-ice pixels
     n   = 0
@@ -1781,14 +2079,14 @@ CONTAINS
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
       
-      IF (ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_ice_a( j,i) == 0) THEN
+      IF (ice%basin_ID( j,i) == basin_i .AND. ice%mask_ocean_a( j,i) == 1 .AND. ice%mask_ice_a( j,i) == 0) THEN
         IF (ice%mask_shelf_a( j-1,i-1) == 1 .OR. &
-            ice%mask_shelf_a( j-1,i  ) == 1.OR. &
-            ice%mask_shelf_a( j-1,i+1) == 1.OR. &
-            ice%mask_shelf_a( j  ,i-1) == 1.OR. &
-            ice%mask_shelf_a( j  ,i+1) == 1.OR. &
-            ice%mask_shelf_a( j+1,i-1) == 1.OR. &
-            ice%mask_shelf_a( j+1,i  ) == 1.OR. &
+            ice%mask_shelf_a( j-1,i  ) == 1 .OR. &
+            ice%mask_shelf_a( j-1,i+1) == 1 .OR. &
+            ice%mask_shelf_a( j  ,i-1) == 1 .OR. &
+            ice%mask_shelf_a( j  ,i+1) == 1 .OR. &
+            ice%mask_shelf_a( j+1,i-1) == 1 .OR. &
+            ice%mask_shelf_a( j+1,i  ) == 1 .OR. &
             ice%mask_shelf_a( j+1,i+1) == 1) THEN
           ! This pixel is open ocean next to floating ice
           
@@ -1817,16 +2115,53 @@ CONTAINS
     Tk0 = Tk0 / REAL(n,dp)
     Sk0 = Sk0 / REAL(n,dp)
     
+    ! Safety
+    IF (n == 0) THEN
+      ! No ocean-next-to-shelf grid cells could be found within this basin;
+      ! instead, just take the value from the deepest ocean floor grid cell (which must by definition be ice-covered...)
+      
+      IF (par%master) THEN
+      
+        depth_max = 0._dp
+        ii = 0
+        jj = 0
+        
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+          IF (ice%mask_ocean_a( j,i) == 1) THEN
+            depth = -ice%Hb_a( j,i)
+            IF (depth > depth_max) THEN
+              depth_max = depth
+              ii = i
+              jj = j
+            END IF
+          END IF
+        END DO
+        END DO
+        
+        ! Find ocean-floor temperature and salinity
+        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
+        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)
+        
+      END IF ! IF (par%master) THEN
+      
+      CALL MPI_BCAST( Tk0, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+      CALL MPI_BCAST( Sk0, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+      
+    END IF ! IF (n == 0) THEN
+    
   END SUBROUTINE PICO_calc_T0_S0
-  SUBROUTINE PICO_calc_box_average( grid, BMB, d, k, d_av)
-    ! Calculate the average d_av of field d over ocean box k
+  SUBROUTINE PICO_calc_box_average( grid, ice, BMB, d, basin_i, k, d_av)
+    ! Calculate the average d_av of field d over ocean box k in basin i
     
     IMPLICIT NONE
     
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d
+    INTEGER,                             INTENT(IN)    :: basin_i
     INTEGER,                             INTENT(IN)    :: k
     REAL(dp),                            INTENT(OUT)   :: d_av
     
@@ -1839,7 +2174,7 @@ CONTAINS
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (BMB%PICO_k( j,i) == k) THEN
+      IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == k) THEN
         n     = n     + 1
         d_sum = d_sum + d( j,i)
       END IF
@@ -1874,13 +2209,14 @@ CONTAINS
   END SUBROUTINE run_BMB_model_PICOP
   
   ! Administration: allocation and initialisation
-  SUBROUTINE initialise_BMB_model( grid, BMB, region_name)
+  SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
     
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
@@ -1903,9 +2239,9 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
       CALL initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
-      CALL initialise_BMB_model_PICO( grid, BMB)
+      CALL initialise_BMB_model_PICO(  grid, ice, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
-      CALL initialise_BMB_model_PICOP( grid, BMB)
+      CALL initialise_BMB_model_PICOP( grid, ice, BMB)
     ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -2050,29 +2386,33 @@ CONTAINS
     CALL sync
       
   END SUBROUTINE initialise_BMB_model_Lazeroms2018_plume
-  SUBROUTINE initialise_BMB_model_PICO( grid, BMB)
+  SUBROUTINE initialise_BMB_model_PICO( grid, ice, BMB)
     ! Allocate memory for the data fields of the PICO ocean box model
     
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Variables
     CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
+    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
     CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_A,              BMB%wPICO_A             )
     
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Tk,             BMB%wPICO_Tk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Sk,             BMB%wPICO_Sk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_pk,             BMB%wPICO_pk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_mk,             BMB%wPICO_mk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
     
     ! Define the 16 search directions
     IF (par%master) THEN
@@ -2096,13 +2436,14 @@ CONTAINS
     CALL sync
       
   END SUBROUTINE initialise_BMB_model_PICO
-  SUBROUTINE initialise_BMB_model_PICOP( grid, BMB)
+  SUBROUTINE initialise_BMB_model_PICOP( grid, ice, BMB)
     ! Allocate memory for the data fields of the PICOP ocean box + plume model
     
     IMPLICIT NONE
     
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Variables
@@ -2112,18 +2453,21 @@ CONTAINS
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_basal_slope,        BMB%weff_basal_slope       )
     
     CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
+    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
     CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_A,              BMB%wPICO_A             )
     
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Tk,             BMB%wPICO_Tk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_Sk,             BMB%wPICO_Sk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_pk,             BMB%wPICO_pk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
-    CALL allocate_shared_dp_1D(  C%BMB_PICO_nboxes, BMB%PICO_mk,             BMB%wPICO_mk            )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
     
     ! Define the 16 search directions
     IF (par%master) THEN

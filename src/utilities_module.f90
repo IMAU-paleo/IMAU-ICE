@@ -1323,6 +1323,140 @@ CONTAINS
         
   END FUNCTION interp_bilin_2D
   
+! == Check if a point lies inside a polygon (used in basin definition)
+  FUNCTION is_in_polygon( Vpoly, p) RESULT( isso)
+    ! Use the ray-casting algorithm to check if the point p = [px,py]
+    ! lies inside the polygon spanned by poly = [x1,y1; x2,y2; ...; xn,yn]
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Vpoly
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
+    LOGICAL                                            :: isso
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(2)                             :: q,r,s,llis
+    REAL(dp)                                           :: xmin,xmax,ymin,ymax
+    INTEGER                                            :: n_intersects
+    INTEGER                                            :: vi,vj,n_vertices
+    LOGICAL                                            :: do_cross
+    REAL(dp), PARAMETER                                :: tol_dist = 1E-5_dp
+    
+    isso = .FALSE.
+    
+    xmin = MINVAL( Vpoly(:,1))
+    xmax = MAXVAL( Vpoly(:,1))
+    ymin = MINVAL( Vpoly(:,2))
+    ymax = MAXVAL( Vpoly(:,2))
+    
+    ! Quick test
+    IF (p(1) < xmin .OR. p(1) > xmax .OR. &
+        p(2) < ymin .OR. p(2) > ymax) THEN
+      isso = .FALSE.
+      RETURN
+    END IF
+    
+    ! Define the endpoint of the east-pointing ray
+    q = [xmax + (xmax - xmin) / 10._dp, p(2)]
+    
+    ! Determine how often the ray intersects the polygon
+    
+    n_vertices   = SIZE( Vpoly,1)
+    n_intersects = 0
+    
+    DO vi = 1, n_vertices
+    
+      ! Find vertices spanning a polygon line section
+      IF (vi < n_vertices) THEN
+        vj = vi + 1
+      ELSE
+        vj = 1
+      END IF
+      
+      ! Define the line section
+      r = Vpoly( vi,:)
+      s = Vpoly( vj,:)
+      
+      ! Determine if the ray intersects the line section
+      IF ((r(2) < p(2) .AND. s(2) < p(2)) .OR. (r(2) > p(2) .AND. s(2) > p(2))) THEN
+        do_cross = .FALSE.
+      ELSE
+        CALL segment_intersection( p, q, r, s, llis, do_cross, tol_dist)
+      END IF
+      
+      IF (do_cross) n_intersects = n_intersects + 1
+      
+    END DO ! DO vi = 1, n_vertices
+    
+    ! If the number of intersections is odd, p lies inside the polygon
+    IF (MOD( n_intersects,2) == 1) THEN
+      isso = .TRUE.
+    ELSE
+      isso = .FALSE.
+    END IF
+  
+  END FUNCTION is_in_polygon
+  SUBROUTINE segment_intersection( p, q, r, s, llis, do_cross, tol_dist)
+    ! Find out if the line segments [pq] and [rs] intersect. If so, return
+    ! the coordinates of the point of intersection    
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(2),   INTENT(IN)          :: p, q, r, s
+    REAL(dp), DIMENSION(2),   INTENT(OUT)         :: llis
+    LOGICAL,                  INTENT(OUT)         :: do_cross
+    REAL(dp),                 INTENT(IN)          :: tol_dist
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(2,2)                      :: A
+    REAL(dp), DIMENSION(2)                        :: x, b
+    INTEGER,  DIMENSION(2)                        :: IPIV
+    INTEGER                                       :: info
+
+    ! External subroutines:      
+    EXTERNAL DGESV ! Lapack routine that solves matrix equation Ax=b for x (in double precision)
+    
+    ! If pq and rs are colinear, define them as not intersecting
+    IF ( ABS( cross2( [q(1)-p(1), q(2)-p(2)], [s(1)-r(1), s(2)-r(2)] )) < tol_dist) THEN
+      llis = [0._dp, 0._dp]
+      do_cross = .FALSE.
+      RETURN
+    END IF
+    
+    A(1,:) = [(p(1)-q(1)), (r(1)-s(1))]
+    A(2,:) = [(p(2)-q(2)), (r(2)-s(2))]
+    b = [(r(1)-q(1)), (r(2)-q(2))]
+    
+    ! The LAPACK solver will overwrite the right-hand side b with the solution x. Therefore we 
+    ! first copy the rhs in the solution vector x:
+    x = b
+    
+    ! Solve Ax = b using LAPACK
+    CALL DGESV( 2, 1, A, 2, IPIV, x, 2, info)
+    
+    llis = [q(1) + x(1) * (p(1)-q(1)), q(2) + x(1) * (p(2)-q(2))]
+    
+    IF (x(1)>0._dp .AND. x(1)<1._dp .AND. x(2)>0._dp .AND. x(2)<1._dp) THEN
+      do_cross = .TRUE.
+    ELSE
+      do_cross = .FALSE.
+    END IF
+    
+  END SUBROUTINE segment_intersection
+  FUNCTION cross2( a,b) RESULT(z)
+    ! Vector product z between 2-dimensional vectors a and b    
+    
+    IMPLICIT NONE
+    
+    REAL(dp), DIMENSION(2),     INTENT(IN)        :: a, b
+    REAL(dp)                                      :: z
+
+    z = (a(1)*b(2)) - (a(2)*b(1))
+
+  END FUNCTION cross2
+  
 ! == Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
   SUBROUTINE transpose_dp_2D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)

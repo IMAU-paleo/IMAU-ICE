@@ -231,6 +231,10 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%GHF_a,          (/1, 1        /))
+    
+    ! Ice basins
+    ELSEIF (field_name == 'basin_ID') THEN
+      CALL write_data_to_file_int_2D( ncid, nx, ny,    id_var,               region%ice%basin_ID,       (/1, 1        /))
 
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
@@ -1008,6 +1012,10 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL create_double_var( region%help_fields%ncid, 'GHF',                      [x, y      ], id_var, long_name='Geothermal heat flux', units='J m^-2 yr^-1')
+      
+    ! Ice basins
+    ELSEIF (field_name == 'basin_ID') THEN
+      CALL create_int_var(    region%help_fields%ncid, 'basin_ID',                 [x, y      ], id_var, long_name='Basin ID')
  
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
