@@ -1313,7 +1313,7 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
       
         ! Calculate depth
-        depth = ice%Hi_a( j,i) * ice_density / seawater_density
+        depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
         
         ! Find ocean temperature at this depth
         CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, BMB%T_ocean_base( j,i))
@@ -1354,7 +1354,7 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
       
         ! Calculate depth
-        depth = ice%Hi_a( j,i) * ice_density / seawater_density
+        depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
         
         ! Find salinity at this depth
         CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, S0)
@@ -1427,7 +1427,7 @@ CONTAINS
         IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
           ! Use the extrapolated ocean temperature+salinity fields
         
-          depth = ice%Hi_a( j,i) - ice%Hs_a( j,i)   ! Depth is positive when below the sea surface!
+          depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
           CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, Ta)
           CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, Sa)
           
@@ -2091,7 +2091,7 @@ CONTAINS
           ! This pixel is open ocean next to floating ice
           
           ! Find ocean-floor temperature and salinity
-          depth = -ice%Hb_a( j,i)
+          depth = MAX( 0.1_dp, -ice%Hb_a( j,i))
           CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, T_floor)
           CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, S_floor)
           

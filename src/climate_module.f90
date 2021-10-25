@@ -1191,12 +1191,6 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: subclimate
     CHARACTER(LEN=*),                    INTENT(IN)    :: name
     
-    ! Local variables
-    REAL(dp), DIMENSION(:    ), POINTER                :: z_ocean_dummy  ! DENK DROM
-    INTEGER,                    POINTER                :: nz_ocean_dummy ! DENK DROM
-    INTEGER :: wz_ocean_dummy, wnz_ocean_dummy                           ! DENK DROM
-    INTEGER                                            :: k              ! DENK DROM
-    
     subclimate%name = name
     
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, subclimate%Hs,             subclimate%wHs            )
@@ -1232,24 +1226,6 @@ CONTAINS
     
     IF (par%master) WRITE(0,*) 'DENK DROM - schematic ocean profiles allocated and generated in "initialise_subclimate", maybe change this?'
     
-    ! Create dummy vertical dimension
-    ! This should be replaced by copying the vertical coordinate of the World Ocean Atlas data!
-    ! GCM data should be mapped from the GCM vertical grid to the WOA vertical grid on the global lat/lon grid immediately after reading the data.
-    CALL allocate_shared_int_0D( nz_ocean_dummy, wnz_ocean_dummy)
-    IF (par%master) nz_ocean_dummy = 100
-    CALL sync
-    CALL allocate_shared_dp_1D( nz_ocean_dummy, z_ocean_dummy, wz_ocean_dummy)
-    IF (par%master) THEN
-      ! Create a "dummy" vertical coordinate running from z=1.25 to z=5500 (similar to the world ocean atlas)
-      DO k = 1, nz_ocean_dummy
-        z_ocean_dummy( k) = 1.25_dp + (5500._dp - 1.25_dp) * REAL(k-1,dp) / REAL(nz_ocean_dummy-1,dp)
-      END DO
-    END IF
-    CALL sync
-    
-    ! Allocate memory for the ocean data
-    CALL allocate_subclimate_regional_oceans( grid, subclimate, z_ocean_dummy, nz_ocean_dummy)
-    
     ! Set oceans to the ISOMIP+ "COLD" or "WARM" profile
     ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
     IF (C%use_schematic_ocean) THEN
@@ -1264,10 +1240,6 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wz_ocean_dummy)
-    CALL deallocate_shared( wnz_ocean_dummy)
     
   END SUBROUTINE initialise_subclimate
   SUBROUTINE calculate_GCM_bias( grid, climate)

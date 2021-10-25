@@ -178,6 +178,9 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j,k
+    INTEGER,  PARAMETER                                :: nz_ocean  = 30
+    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
+    INTEGER                                            :: wz_ocean
     REAL(dp)                                           :: w
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      = -1.9_dp    ! Sea floor   temperature [degC]
@@ -185,6 +188,19 @@ CONTAINS
     REAL(dp), PARAMETER                                :: Sbot      = 34.55_dp   ! Sea floor   salinity    [PSU]
     REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
     
+    ! Create vertical dimension
+    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
+    IF (par%master) THEN
+      DO k = 1, nz_ocean
+        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+      END DO
+    END IF
+    CALL sync
+    
+    ! Allocate memory for the ocean data
+    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    
+    ! Fill in the temperature and salinity profiles
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     DO k = 1, climate%nz_ocean
@@ -206,6 +222,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wz_ocean)
   
   END SUBROUTINE set_ocean_to_ISOMIPplus_COLD
   SUBROUTINE set_ocean_to_ISOMIPplus_WARM( grid, climate)
@@ -219,6 +238,9 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j,k
+    INTEGER,  PARAMETER                                :: nz_ocean  = 30
+    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
+    INTEGER                                            :: wz_ocean
     REAL(dp)                                           :: w
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      =  1.0_dp    ! Sea floor   temperature [degC]
@@ -226,6 +248,19 @@ CONTAINS
     REAL(dp), PARAMETER                                :: Sbot      = 34.7_dp    ! Sea floor   salinity    [PSU]
     REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
     
+    ! Create vertical dimension
+    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
+    IF (par%master) THEN
+      DO k = 1, nz_ocean
+        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+      END DO
+    END IF
+    CALL sync
+    
+    ! Allocate memory for the ocean data
+    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    
+    ! Fill in the temperature and salinity profiles
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     DO k = 1, climate%nz_ocean
@@ -247,6 +282,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wz_ocean)
   
   END SUBROUTINE set_ocean_to_ISOMIPplus_WARM
   SUBROUTINE set_ocean_to_Reese2018( grid, ice, climate)
@@ -261,8 +299,12 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
     
     ! Local variables
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,k
     REAL(dp)                                           :: T,S
+    INTEGER,  PARAMETER                                :: nz_ocean  = 2
+    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
+    INTEGER                                            :: wz_ocean
+    REAL(dp), PARAMETER                                :: depth_max = 5000._dp    ! Maximum depth for the profile (constant values below that)
     
     ! Safety
     IF (.NOT. (C%choice_basin_scheme_ANT == 'file' .AND. C%do_merge_basins_ANT)) THEN
@@ -277,6 +319,21 @@ CONTAINS
       END IF
     END IF
     
+    ! Create vertical dimension
+    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
+    IF (par%master) THEN
+      DO k = 1, nz_ocean
+        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+      END DO
+    END IF
+    CALL sync
+    
+    ! Allocate memory for the ocean data
+    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    
+    ! Fill in the temperature and salinity values
+    T = 0._dp
+    S = 0._dp
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -346,6 +403,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wz_ocean)
     
   END SUBROUTINE set_ocean_to_Reese2018
 
