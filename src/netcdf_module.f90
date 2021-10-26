@@ -1063,7 +1063,7 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Ti_basal',                 [x, y,    t], id_var, long_name='Ice basal temperature', units='K')
     ELSEIF (field_name == 'Ti_pmp') THEN
       CALL create_double_var( region%help_fields%ncid, 'Ti_pmp',                   [x, y, z, t], id_var, long_name='Ice pressure melting point temperature', units='K')
-    ELSEIF (field_name == 'A_flow') THEN
+    ELSEIF (field_name == 'A_flow_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_3D',                [x, y, z, t], id_var, long_name='Ice flow factor', units='Pa^-3 y^-1')
     ELSEIF (field_name == 'A_flow_vav') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_vav',               [x, y,    t], id_var, long_name='Vertically averaged ice flow factor', units='Pa^-3 y^-1')

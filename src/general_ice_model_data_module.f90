@@ -1059,7 +1059,7 @@ CONTAINS
     
     ! Adjust the flow factor
     A_flow_old = ice%A_flow_vav_a( 1,1)
-    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 60000._dp)
+    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
     A_flow_new = A_flow_old * f
     
     ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_new
