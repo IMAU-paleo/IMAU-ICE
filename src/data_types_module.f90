@@ -483,9 +483,18 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: Q_TOA_jun_65N, Q_TOA_jan_80S
     INTEGER :: wQ_TOA, wAlbedo, wI_abs, wQ_TOA_jun_65N, wQ_TOA_jan_80S
     
-    ! Ocean temperature (parameterised right now)
-    REAL(dp),                   POINTER     :: T_ocean_mean
-    INTEGER :: wT_ocean_mean
+    ! Ocean
+    REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
+    REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
+    INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
+    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity [?]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr                  ! Bias-corrected 3-D annual mean ocean temperature [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr                  ! Bias-corrected 3-D annual mean ocean salinity [?]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves
+    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_corr, wS_ocean_corr, wT_ocean_corr_ext, wS_ocean_corr_ext
   
   END TYPE type_subclimate_region
   
