@@ -286,7 +286,7 @@ CONTAINS
     ELSEIF (field_name == 'A_flow_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_3D_a,    (/1, 1, 1, ti /))
     ELSEIF (field_name == 'A_flow_vav') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_vav_a,   (/1, 1, 1, ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_flow_vav_a,   (/1, 1, 1, ti /))
       
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -1065,7 +1065,7 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Ti_pmp',                   [x, y, z, t], id_var, long_name='Ice pressure melting point temperature', units='K')
     ELSEIF (field_name == 'A_flow') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_3D',                [x, y, z, t], id_var, long_name='Ice flow factor', units='Pa^-3 y^-1')
-    ELSEIF (field_name == 'A_flow_mean') THEN
+    ELSEIF (field_name == 'A_flow_vav') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_vav',               [x, y,    t], id_var, long_name='Vertically averaged ice flow factor', units='Pa^-3 y^-1')
       
     ! Velocity fields
