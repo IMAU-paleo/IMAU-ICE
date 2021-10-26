@@ -60,6 +60,11 @@ MODULE configuration_module
   REAL(dp)            :: SSA_icestream_m_config                  = 1                                ! Values tested by Schoof are 1, 10, and 20
   REAL(dp)            :: ISMIP_HOM_L_config                      = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
   CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config      = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
+  INTEGER             :: MISMIPplus_sliding_law_config           = 1                                ! Choice of sliding law in the MISMIPplus setup (see Asay-Davis et al., 2016)
+  LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config      = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
+  REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
+  REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
+  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = 'ice0'                           ! Choose between the five MISMIP+ scenarios from Cornford et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -132,7 +137,7 @@ MODULE configuration_module
   CHARACTER(LEN=256) :: filename_topo_ANT_config                 = 'dummy.nc' 
    
   ! Insolation forcing (NetCDF) (Laskar et al., 2004)
-  CHARACTER(LEN=256)  :: filename_insolation_config              = '/Datasets/Insolation_laskar/Insolation_Laskar_etal_2004.nc'
+  CHARACTER(LEN=256)  :: filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
   
   ! CO2 record (ASCII text file, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
@@ -230,7 +235,7 @@ MODULE configuration_module
   ! Thermodynamics
   ! ==============
   
-  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config      = 'constant'                       ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
+  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config      = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   REAL(dp)            :: constant_geothermal_heat_flux_config    = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
   CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
   
@@ -321,11 +326,37 @@ MODULE configuration_module
   ! Basal mass balance
   ! ==================
   
-  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy"
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
-  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'PMP'                            ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  
+  CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config          = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config          = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_GRL_config          = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_ANT_config          = 'none'
+  CHARACTER(LEN=256)  :: filename_basins_NAM_config              = 'dummy.txt'                      ! Path to a text file containing polygons of drainage basins
+  CHARACTER(LEN=256)  :: filename_basins_EAS_config              = 'dummy.txt'
+  CHARACTER(LEN=256)  :: filename_basins_GRL_config              = 'dummy.txt'
+  CHARACTER(LEN=256)  :: filename_basins_ANT_config              = 'dummy.txt'
+  LOGICAL             :: do_merge_basins_ANT_config              = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
+  LOGICAL             :: do_merge_basins_GRL_config              = .TRUE.                           ! Whether or not to merge some of the Greenland basins
+  
+  ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+  LOGICAL             :: use_schematic_ocean_config              = .TRUE.
+  CHARACTER(LEN=256)  :: choice_schematic_ocean_config           = 'MISMIPplus_WARM'                ! Can be 'MISMIPplus_WARM' or 'MISMIPplus_COLD'
+  
+  ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config        = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
+  REAL(dp)            :: BMB_Favier2019_quad_GammaT_config       = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
+  REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config      = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  
+  ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 1.1E-3_dp                        ! Thermal exchange velocity
+  
+  ! Parameters for the PICO BMB model
+  INTEGER             :: BMB_PICO_nboxes_config                  = 5                                ! Number of sub-shelf ocean boxes used by PICO
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -519,6 +550,11 @@ MODULE configuration_module
     REAL(dp)                            :: SSA_icestream_m
     REAL(dp)                            :: ISMIP_HOM_L
     CHARACTER(LEN=256)                  :: ISMIP_HOM_E_Arolla_filename
+    INTEGER                             :: MISMIPplus_sliding_law
+    LOGICAL                             :: MISMIPplus_do_tune_A_for_GL
+    REAL(dp)                            :: MISMIPplus_xGL_target
+    REAL(dp)                            :: MISMIPplus_A_flow_initial
+    CHARACTER(LEN=256)                  :: MISMIPplus_scenario
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -748,6 +784,32 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
+    
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_GRL
+    CHARACTER(LEN=256)                  :: choice_basin_scheme_ANT
+    CHARACTER(LEN=256)                  :: filename_basins_NAM
+    CHARACTER(LEN=256)                  :: filename_basins_EAS
+    CHARACTER(LEN=256)                  :: filename_basins_GRL
+    CHARACTER(LEN=256)                  :: filename_basins_ANT
+    LOGICAL                             :: do_merge_basins_ANT
+    LOGICAL                             :: do_merge_basins_GRL
+  
+    ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+    LOGICAL                             :: use_schematic_ocean
+    CHARACTER(LEN=256)                  :: choice_schematic_ocean
+  
+    ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+    REAL(dp)                            :: BMB_Favier2019_lin_GammaT
+    REAL(dp)                            :: BMB_Favier2019_quad_GammaT
+    REAL(dp)                            :: BMB_Favier2019_Mplus_GammaT
+    
+    ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+    REAL(dp)                            :: BMB_Lazeroms2018_GammaT
+  
+    ! Parameters for the PICO BMB model
+    INTEGER                             :: BMB_PICO_nboxes
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1170,6 +1232,11 @@ CONTAINS
                      SSA_icestream_m_config,                     &
                      ISMIP_HOM_L_config,                         &
                      ISMIP_HOM_E_Arolla_filename_config,         &
+                     MISMIPplus_sliding_law_config,              &
+                     MISMIPplus_do_tune_A_for_GL_config,         &
+                     MISMIPplus_xGL_target_config,               &
+                     MISMIPplus_A_flow_initial_config,           &
+                     MISMIPplus_scenario_config,                 &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      do_write_debug_data_config,                 &
@@ -1322,6 +1389,23 @@ CONTAINS
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
+                     choice_basin_scheme_NAM_config,             &
+                     choice_basin_scheme_EAS_config,             &
+                     choice_basin_scheme_GRL_config,             &
+                     choice_basin_scheme_ANT_config,             &
+                     filename_basins_NAM_config,                 &
+                     filename_basins_EAS_config,                 &
+                     filename_basins_GRL_config,                 &
+                     filename_basins_ANT_config,                 &
+                     do_merge_basins_ANT_config,                 &
+                     do_merge_basins_GRL_config,                 &
+                     use_schematic_ocean_config,                 &
+                     choice_schematic_ocean_config,              &
+                     BMB_Favier2019_lin_GammaT_config,           &
+                     BMB_Favier2019_quad_GammaT_config,          &
+                     BMB_Favier2019_Mplus_GammaT_config,         &
+                     BMB_Lazeroms2018_GammaT_config,             &
+                     BMB_PICO_nboxes_config,                     &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1503,6 +1587,11 @@ CONTAINS
     C%SSA_icestream_m                     = SSA_icestream_m_config
     C%ISMIP_HOM_L                         = ISMIP_HOM_L_config
     C%ISMIP_HOM_E_Arolla_filename         = ISMIP_HOM_E_Arolla_filename_config
+    C%MISMIPplus_sliding_law              = MISMIPplus_sliding_law_config
+    C%MISMIPplus_do_tune_A_for_GL         = MISMIPplus_do_tune_A_for_GL_config
+    C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
+    C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
+    C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -1733,6 +1822,32 @@ CONTAINS
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
+    
+    C%choice_basin_scheme_NAM             = choice_basin_scheme_NAM_config
+    C%choice_basin_scheme_EAS             = choice_basin_scheme_EAS_config
+    C%choice_basin_scheme_GRL             = choice_basin_scheme_GRL_config
+    C%choice_basin_scheme_ANT             = choice_basin_scheme_ANT_config
+    C%filename_basins_NAM                 = filename_basins_NAM_config
+    C%filename_basins_EAS                 = filename_basins_EAS_config
+    C%filename_basins_GRL                 = filename_basins_GRL_config
+    C%filename_basins_ANT                 = filename_basins_ANT_config
+    C%do_merge_basins_ANT                 = do_merge_basins_ANT_config
+    C%do_merge_basins_GRL                 = do_merge_basins_GRL_config
+  
+    ! DENK DROM - this will probably need to be changed when implementing actual ocean data fields!
+    C%use_schematic_ocean                 = use_schematic_ocean_config
+    C%choice_schematic_ocean              = choice_schematic_ocean_config
+    
+    ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+    C%BMB_Favier2019_lin_GammaT           = BMB_Favier2019_lin_GammaT_config
+    C%BMB_Favier2019_quad_GammaT          = BMB_Favier2019_quad_GammaT_config
+    C%BMB_Favier2019_Mplus_GammaT         = BMB_Favier2019_Mplus_GammaT_config
+    
+    ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+    C%BMB_Lazeroms2018_GammaT             = BMB_Lazeroms2018_GammaT_config
+  
+    ! Parameters for the PICO BMB model
+    C%BMB_PICO_nboxes                     = BMB_PICO_nboxes_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config

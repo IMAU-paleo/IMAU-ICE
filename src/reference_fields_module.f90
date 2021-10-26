@@ -126,6 +126,9 @@ CONTAINS
             C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
       PD%nx = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
       PD%ny = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
+    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+      PD%nx = 161
+      PD%ny = 17
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_PD_data_fields_schematic_benchmarks!'
       STOP
@@ -214,6 +217,24 @@ CONTAINS
         END DO
         DO j = 1, PD%ny
           PD%y(j) = -0.5_dp * C%ISMIP_HOM_L + C%ISMIP_HOM_L * (j-1) / (PD%ny-1)
+        END DO
+        
+        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
+        PD%Hi_raw = 0._dp
+        PD%Hb_raw = 0._dp
+        PD%Hs_raw = 0._dp
+        
+      END IF ! IF (par%master) THEN
+      CALL sync
+    
+    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+    
+      IF (par%master) THEN
+        DO i = 1, PD%nx
+          PD%x(i) = -400000._dp + 800000._dp * (i-1) / (PD%nx-1)
+        END DO
+        DO j = 1, PD%ny
+          PD%y(j) =  -40000._dp +  80000._dp * (j-1) / (PD%ny-1)
         END DO
         
         ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
@@ -402,6 +423,9 @@ CONTAINS
     ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
       init%nx = 51
       init%ny = 251
+    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+      init%nx = 161
+      init%ny = 17
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -516,6 +540,24 @@ CONTAINS
         
       END IF ! IF (par%master) THEN
       CALL sync
+    
+    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+    
+      IF (par%master) THEN
+        DO i = 1, init%nx
+        DO j = 1, init%ny
+          init%x(i) = -400000._dp + 800000._dp * (i-1) / (init%nx-1)
+          init%y(j) =  -40000._dp +  80000._dp * (j-1) / (init%ny-1)
+        END DO
+        END DO
+        
+        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
+        init%Hi_raw = 0._dp
+        init%Hb_raw = 0._dp
+        init%Hs_raw = 0._dp
+        
+      END IF ! IF (par%master) THEN
+      CALL sync
       
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
@@ -619,7 +661,23 @@ CONTAINS
     INTEGER                                       :: i,j
     REAL(dp)                                      :: x,Hs,Hb
     INTEGER                                       :: ios,slides
+    
+    ! ISMIP-HOM F
     REAL(dp)                                      :: H0,a0,sigma
+    
+    ! MISMIPplus
+    REAL(dp)                                      :: y,xtilde,Bx,By
+    REAL(dp), PARAMETER                           :: Lx     = 640000._dp
+    REAL(dp), PARAMETER                           :: Ly     = 80000._dp
+    REAL(dp), PARAMETER                           :: B0     = -150._dp
+    REAL(dp), PARAMETER                           :: B2     = -728.8_dp
+    REAL(dp), PARAMETER                           :: B4     = 343.91_dp
+    REAL(dp), PARAMETER                           :: B6     = -50.57_dp
+    REAL(dp), PARAMETER                           :: xbar   = 300000._dp
+    REAL(dp), PARAMETER                           :: fc     = 4000._dp
+    REAL(dp), PARAMETER                           :: dc     = 500._dp
+    REAL(dp), PARAMETER                           :: wc     = 24000._dp
+    REAL(dp), PARAMETER                           :: zbdeep = -720._dp
     
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hi, init%wHi)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hb, init%wHb)
@@ -735,6 +793,21 @@ CONTAINS
         Hs = 5000._dp - grid%x( i) * TAN( 3._dp * pi / 180._dp)
         init%Hb( j,i) = Hs - H0 + a0 * EXP( -(init%x( i)**2 + init%y( j)**2) / sigma**2)
         init%Hi( j,i) = Hs - init%Hb( j,i)
+      END DO
+      END DO
+    
+    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+    
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        x = REAL(i-1,dp) * grid%dx ! The MISMIP+ domain is defined for x = [0,800km], y = [0,80km]
+        y = REAL(j-1,dp) * grid%dx ! but IMAU-ICE wants x,y to be symmetric around zero..
+        xtilde = x / xbar
+        Bx = B0 + (B2 * xtilde**2._dp) + (B4 * xtilde**4._dp) + (B6 * xtilde**6._dp)
+        By = (dc / (1 + EXP(-2._dp*(y - Ly/2._dp - wc)/fc))) + &
+             (dc / (1 + EXP( 2._dp*(y - Ly/2._dp + wc)/fc)))
+        init%Hi( j,i) = 100._dp
+        init%Hb( j,i) = MAX( Bx + By, zbdeep)
       END DO
       END DO
       

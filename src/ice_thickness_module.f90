@@ -49,7 +49,8 @@ CONTAINS
               C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
               C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
               C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
+              C%choice_benchmark_experiment == 'MISMIPplus') THEN
         ! No exceptions here; these experiments have evolving ice geometry
       ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
@@ -776,6 +777,27 @@ CONTAINS
         ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
         CALL sync
         
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        ! Calving front at x = 640 km
+        
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          IF (grid%x( i) > 240000._dp) THEN ! x = 640 km in the original set-up, coordinates are centered around zero in IMAU-ICE
+            ice%Hi_a(     j,i) = 0._dp
+            ice%dHi_dt_a( j,i) = 0._dp
+          END IF
+        END DO
+        END DO
+        CALL sync
+        
+        ! Ice divides at west, south, and north boundaries
+        ice%Hi_a(     grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2              )
+        ice%Hi_a(     1,              grid%i1:grid%i2) = ice%Hi_a( 2,              grid%i1:grid%i2)
+        ice%Hi_a(     grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,      grid%i1:grid%i2)
+        ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
+        ice%dHi_dt_a( 1,              grid%i1:grid%i2) = 0._dp
+        ice%dHi_dt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
+        
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in apply_ice_thickness_BC!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -878,6 +900,7 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         IF (ice%mask_shelf_a( j,i) == 1 .AND. map( j,i) == 0) THEN
+          ice%Hi_a(         j,i) = 0._dp
           ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
           ice%Hi_tplusdt_a( j,i) = 0._dp
         END IF

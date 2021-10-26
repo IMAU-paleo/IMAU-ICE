@@ -79,6 +79,11 @@ CONTAINS
         SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
         CALL sync
         RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        SMB%SMB_year(   :,grid%i1:grid%i2) = 0.3_dp
+        SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
+        CALL sync
+        RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_SMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

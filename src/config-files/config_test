@@ -7,23 +7,20 @@ dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
 create_procedural_output_dir_config     = .TRUE.
-fixed_output_dir_config                 = 'results'
+fixed_output_dir_config                 = 'basal_melt/ANT_Favier2019_Mplus_PD_20km'
+
+! Debugging
 do_write_debug_data_config              = .TRUE.
+do_check_for_NaN_config                 = .TRUE.
 
 ! Which benchmark experiment we want to run (if any)
 do_benchmark_experiment_config          = .FALSE.
 
 ! Which ice-sheets we want to simulate
-do_NAM_config                           = .TRUE.
-do_EAS_config                           = .FALSE.
-do_GRL_config                           = .FALSE.
-do_ANT_config                           = .FALSE.
+do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_NAM_config                           = 40000
-dx_EAS_config                           = 40000
-dx_GRL_config                           = 20000
-dx_ANT_config                           = 40000
+dx_ANT_config                           = 20000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
@@ -34,12 +31,17 @@ dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
 
 ! Ice dynamics
-choice_ice_dynamics_config              = 'DIVA'
+choice_ice_dynamics_config              = 'none'
 choice_timestepping_config              = 'pc'
 choice_ice_margin_config                = 'infinite_slab'
 m_enh_sheet_config                      = 5.0
 m_enh_shelf_config                      = 0.7
 choice_calving_law_config               = 'threshold_thickness'
+
+! Basal melt
+choice_BMB_shelf_model_config           = 'Favier2019_Mplus'
+use_schematic_ocean_config              = .TRUE.
+choice_schematic_ocean_config           = 'Reese2018'
 
 ! Sea level and GIA
 choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
@@ -79,41 +81,39 @@ CO2_record_length_config                = 8001
 ! Initial and PD reference data
 switch_remove_Lake_Vostok_config        = .TRUE. 
 switch_paleotopography_config           = .FALSE.
-filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
 filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
 ! PD reference data (NetCDF)
-filename_PD_NAM_config                  = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_PD_EAS_config                  = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_PD_GRL_config                  = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
 filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+! Ice basins
+choice_basin_scheme_ANT_config          = 'file'
+filename_basins_ANT_config              = '/Users/berends/Documents/Datasets/basins_Antarctica/ant_full_drainagesystem_polygons.txt'
 
 ! Which data fields should be written to the help_fields output file
 help_field_01_config                     = 'lat'
 help_field_02_config                     = 'lon'
-help_field_03_config                     = 'Hi'
-help_field_04_config                     = 'Hb'
-help_field_05_config                     = 'Hs'
-help_field_06_config                     = 'dHs_dx'
-help_field_07_config                     = 'dHs_dy'
-help_field_08_config                     = 'mask'
-help_field_09_config                     = 'uabs_surf'
-help_field_10_config                     = 'uabs_base'
-help_field_11_config                     = 'uabs_vav'
-help_field_12_config                     = 'u_3D'
-help_field_13_config                     = 'v_3D'
-help_field_14_config                     = 'w_3D'
-help_field_15_config                     = 'T2m_year'
-help_field_16_config                     = 'Precip_year'
-help_field_17_config                     = 'Albedo_year'
-help_field_18_config                     = 'SMB_year'
-help_field_19_config                     = 'BMB'
-help_field_20_config                     = 'T2m'
-help_field_21_config                     = 'Precip'
-help_field_22_config                     = 'Albedo'
-help_field_23_config                     = 'SMB'
+help_field_03_config                     = 'basin_ID'
+help_field_04_config                     = 'Hi'
+help_field_05_config                     = 'Hb'
+help_field_06_config                     = 'Hs'
+help_field_07_config                     = 'mask'
+help_field_08_config                     = 'uabs_vav'
+help_field_09_config                     = 'BMB_shelf'
+help_field_10_config                     = 'T_ocean_3D'
+help_field_11_config                     = 'S_ocean_3D'
+help_field_12_config                     = 'none'
+help_field_13_config                     = 'none'
+help_field_14_config                     = 'none'
+help_field_15_config                     = 'none'
+help_field_16_config                     = 'none'
+help_field_17_config                     = 'none'
+help_field_18_config                     = 'none'
+help_field_19_config                     = 'none'
+help_field_20_config                     = 'none'
+help_field_21_config                     = 'none'
+help_field_22_config                     = 'none'
+help_field_23_config                     = 'none'
 help_field_24_config                     = 'none'
 help_field_25_config                     = 'none'
 help_field_26_config                     = 'none'

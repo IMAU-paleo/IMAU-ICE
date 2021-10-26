@@ -160,7 +160,7 @@ CONTAINS
     
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged = .FALSE.
+    has_converged         = .FALSE.
     viscosity_iteration: DO WHILE (.NOT. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
       
@@ -274,7 +274,7 @@ CONTAINS
     
     ! The viscosity iteration
     viscosity_iteration_i = 0
-    has_converged = .FALSE.
+    has_converged         = .FALSE.
     viscosity_iteration: DO WHILE (.NOT. has_converged)
       viscosity_iteration_i = viscosity_iteration_i + 1
       
@@ -802,6 +802,9 @@ CONTAINS
     REAL(dp)                                           :: dummy1, dummy2, dummy3, tauc_a_Schoof
     REAL(dp)                                           :: uabs_a
     INTEGER                                            :: ios,slides
+    REAL(dp), PARAMETER                                :: MISMIPplus_alpha_sq = 0.5_dp   ! See Asay-Davis et al., 2016
+    REAL(dp), PARAMETER                                :: MISMIPplus_beta_sq  = 1.0E4_dp ! Idem dito
+    REAL(dp)                                           :: N, hf
       
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_a, wu_a)
@@ -894,6 +897,56 @@ CONTAINS
         END DO
         CALL sync
         RETURN
+      
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        ! Apply the selected sliding law for the MISMIP+ experiment (see Asay-Davis et al., 2016)
+        
+        IF     (C%MISMIPplus_sliding_law == 1) THEN
+          ! Basically a Weertman sliding law
+       
+          DO i = grid%i1, grid%i2
+          DO j = 1, grid%ny
+            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
+            ice%beta_a( j,i) = MISMIPplus_beta_sq * uabs_a ** (1._dp / C%slid_Weertman_m - 1._dp) ! Asay-Davis et al. (2016), Eq. 6
+          END DO
+          END DO
+          CALL sync
+          RETURN
+          
+        ELSEIF (C%MISMIPplus_sliding_law == 2) THEN
+          ! A sort of combined Coulomb/Weertman law
+       
+          DO i = grid%i1, grid%i2
+          DO j = 1, grid%ny
+            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
+            hf = MAX( 0._dp, -seawater_density * ice%Hb_a( j,i) / ice_density)                                                              ! Asay-Davis et al. (2016), Eq. 10
+            N  = MAX( 0._dp, ice_density * grav * (ice%Hi_a( j,i) - hf) )                                                                   ! Asay-Davis et al. (2016), Eq. 9
+            ice%beta_a( j,i) = MIN( MISMIPplus_alpha_sq * N, MISMIPplus_beta_sq * uabs_a ** (1._dp / C%slid_Weertman_m)) * uabs_a**(-1._dp) ! Asay-Davis et al. (2016), Eq. 7
+          END DO
+          END DO
+          CALL sync
+          RETURN
+          
+        ELSEIF (C%MISMIPplus_sliding_law == 3) THEN
+          ! Another combined Coulomb/Weertman law, with (apparently) a smoother transition between the two regimes
+       
+          DO i = grid%i1, grid%i2
+          DO j = 1, grid%ny
+            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
+            hf = MAX( 0._dp, -seawater_density * ice%Hb_a( j,i) / ice_density)                                                              ! Asay-Davis et al. (2016), Eq. 10
+            N  = MAX( 0._dp, ice_density * grav * (ice%Hi_a( j,i) - hf) )                                                                   ! Asay-Davis et al. (2016), Eq. 9
+            ice%beta_a( j,i) = ((MISMIPplus_beta_sq * uabs_a**(1._dp / C%slid_Weertman_m) * MISMIPplus_alpha_sq * N) / &                    ! Asay-Davis et al. (2016), Eq. 11
+              ((MISMIPplus_beta_sq**C%slid_Weertman_m * uabs_a + (MISMIPplus_alpha_sq * N)**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) &
+              * uabs_a**(-1._dp)
+          END DO
+          END DO
+          CALL sync
+          RETURN
+          
+        ELSE
+          IF (par%master) WRITE(0,*) '  calc_sliding_term_beta - ERROR: MISMIPplus_sliding_law can only be 1, 2, or 3!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
         
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calc_sliding_term_beta!'
@@ -2341,10 +2394,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: inv_dx2
-
-    ! Abbreviations of common factors in the equations
-    inv_dx2 = 1._dp / (grid%dx * grid%dx)
 
     ! Grid indices of the grid cell represented by equation n
     i = ice%DIVA_m_n2ij_uv( n,3)
@@ -2469,10 +2518,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: inv_dx2
-
-    ! Abbreviations of common factors in the equations
-    inv_dx2 = 1._dp / (grid%dx * grid%dx)
 
     ! Grid indices of the grid cell represented by equation n
     i = ice%DIVA_m_n2ij_uv( n,3)
@@ -2734,9 +2779,9 @@ CONTAINS
     
     CALL initialise_matrix_equation_CSR( ice%DIVA_m, neq, neq, nnz_per_row_max)
     
-    CALL allocate_shared_int_2D( grid%ny  , grid%nx-1, ice%DIVA_m_ij2n_u  , ice%wDIVA_m_ij2n_u )
-    CALL allocate_shared_int_2D( grid%ny-1, grid%nx  , ice%DIVA_m_ij2n_v  , ice%wDIVA_m_ij2n_v )
-    CALL allocate_shared_int_2D( neq,       4        , ice%DIVA_m_n2ij_uv , ice%wDIVA_m_n2ij_uv)
+    CALL allocate_shared_int_2D( grid%ny  , grid%nx-1, ice%DIVA_m_ij2n_u , ice%wDIVA_m_ij2n_u )
+    CALL allocate_shared_int_2D( grid%ny-1, grid%nx  , ice%DIVA_m_ij2n_v , ice%wDIVA_m_ij2n_v )
+    CALL allocate_shared_int_2D( neq,       4        , ice%DIVA_m_n2ij_uv, ice%wDIVA_m_n2ij_uv)
 
     ! Alternate equations 1 and 2 in the matrix rows for better stability
     n = 0

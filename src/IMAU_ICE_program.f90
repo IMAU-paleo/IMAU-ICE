@@ -32,6 +32,7 @@ PROGRAM IMAU_ICE_program
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
   USE scalar_data_output_module,       ONLY: initialise_global_scalar_data, write_global_scalar_data
+  USE general_ice_model_data_module,   ONLY: MISMIPplus_adapt_flow_factor
 
   IMPLICIT NONE
   
@@ -58,6 +59,9 @@ PROGRAM IMAU_ICE_program
   
   ! Computation time tracking
   REAL(dp)                               :: tstart, tstop
+  
+  ! MISMIPplus flow factor tuning
+  REAL(dp)                               :: Hprev, Hcur
   
   ! ======================================================================================
   
@@ -183,6 +187,7 @@ PROGRAM IMAU_ICE_program
 ! =============================
 
   t_coupling = C%start_time_of_run
+  Hcur       = 0._dp
   
   DO WHILE (t_coupling < C%end_time_of_run)
   
@@ -266,6 +271,17 @@ PROGRAM IMAU_ICE_program
     
     ! Write global scalar data to output file
     CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, t_coupling)
+    
+    ! MISMIP+ flow factor tuning for GL position
+    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'MISMIPplus' .AND. C%MISMIPplus_do_tune_A_for_GL) THEN
+      Hprev = Hcur
+      Hcur  = ANT%ice%Hs_a( CEILING( REAL(ANT%grid%ny,dp)/2._dp), 1)
+      IF (par%master) WRITE(0,*) 'Hprev = ', Hprev, ', Hcur = ', Hcur
+      IF (ABS(1._dp - Hcur/Hprev) < 5.0E-3_dp) THEN
+        ! The model has converged to a steady state; adapt the flow factor
+        CALL MISMIPplus_adapt_flow_factor( ANT%grid, ANT%ice)
+      END IF
+    END IF
       
   END DO ! DO WHILE (t_coupling < C%end_time_of_run)
   

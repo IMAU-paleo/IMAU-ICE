@@ -27,7 +27,7 @@ MODULE general_ice_model_data_module
 
 CONTAINS
   
-  ! Routines for calculating general ice model data - Hs, masks, ice physical properties
+! ==Routines for calculating general ice model data - Hs, masks, ice physical properties
   SUBROUTINE update_general_ice_model_data( grid, ice, time)
     
     IMPLICIT NONE
@@ -338,6 +338,12 @@ CONTAINS
         ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = 2.140373E-7_dp
         ice%A_flow_vav_a(   :,grid%i1:grid%i2) = 2.140373E-7_dp
         CALL sync
+        
+        RETURN
+        
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        ! Don't change the flow factor here; set it once during initialisation (done in initialise_ice_model),
+        ! then only change it with the tuning subroutine!
         
         RETURN
         
@@ -764,52 +770,53 @@ CONTAINS
     REAL(dp)                                           :: f_NWp, f_NEp, f_SWp, f_SEp
     REAL(dp)                                           :: aa,bb,cc,dd,x,f1,f2
     INTEGER                                            :: scen
+    REAL(dp), PARAMETER                                :: ftol = 1E-4_dp
     
     ! The analytical solutions sometime give problems when one or more of the corner
     ! values is VERY close to zero; avoid this.
     IF (f_NW == 0._dp) THEN
-      f_NWp = 1E-8_dp
+      f_NWp = ftol
     ELSEIF (f_NW > 0._dp) THEN
-      f_NWp = MAX(  1E-8_dp, f_NW)
+      f_NWp = MAX(  ftol, f_NW)
     ELSEIF (f_NW < 0._dp) THEN
-      f_NWp = MIN( -1E-8_dp, f_NW)
+      f_NWp = MIN( -ftol, f_NW)
     ELSE
       f_NWp = f_NW
     END IF
     IF (f_NE == 0._dp) THEN
-      f_NEp = 1E-8_dp
+      f_NEp = ftol
     ELSEIF (f_NE > 0._dp) THEN
-      f_NEp = MAX(  1E-8_dp, f_NE)
+      f_NEp = MAX(  ftol, f_NE)
     ELSEIF (f_NE < 0._dp) THEN
-      f_NEp = MIN( -1E-8_dp, f_NE)
+      f_NEp = MIN( -ftol, f_NE)
     ELSE
       f_NEp = f_NE
     END IF
     IF (f_SW == 0._dp) THEN
-      f_SWp = 1E-8_dp
+      f_SWp = ftol
     ELSEIF (f_SW > 0._dp) THEN
-      f_SWp = MAX(  1E-8_dp, f_SW)
+      f_SWp = MAX(  ftol, f_SW)
     ELSEIF (f_SW < 0._dp) THEN
-      f_SWp = MIN( -1E-8_dp, f_SW)
+      f_SWp = MIN( -ftol, f_SW)
     ELSE
       f_SWp = f_SW
     END IF
     IF (f_SE == 0._dp) THEN
-      f_SEp = 1E-8_dp
+      f_SEp = ftol
     ELSEIF (f_SE > 0._dp) THEN
-      f_SEp = MAX(  1E-8_dp, f_SE)
+      f_SEp = MAX(  ftol, f_SE)
     ELSEIF (f_SE < 0._dp) THEN
-      f_SEp = MIN( -1E-8_dp, f_SE)
+      f_SEp = MIN( -ftol, f_SE)
     ELSE
       f_SEp = f_SE
     END IF
     
-    IF     (f_NWp > 0._dp .AND. f_NEp > 0._dp .AND. f_SWp > 0._dp .AND. f_SEp > 0._dp) THEN
+    IF     (f_NWp >= 0._dp .AND. f_NEp >= 0._dp .AND. f_SWp >= 0._dp .AND. f_SEp >= 0._dp) THEN
       ! All four corners are grounded.
       
       phi = 1._dp
       
-    ELSEIF (f_NWp < 0._dp .AND. f_NEp < 0._dp .AND. f_SWp < 0._dp .AND. f_SEp < 0._dp) THEN
+    ELSEIF (f_NWp <= 0._dp .AND. f_NEp <= 0._dp .AND. f_SWp <= 0._dp .AND. f_SEp <= 0._dp) THEN
       ! All four corners are floating
       
       phi = 0._dp
@@ -834,6 +841,20 @@ CONTAINS
         cc  = f_NWp - f_SWp
         dd  = f_NEp + f_SWp - f_NWp - f_SEp
         phi =         ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+          
+        ! Exception for when d=0
+        IF (ABS(dd) < 1E-4_dp) THEN
+          IF (f_SWp > 0._dp) THEN
+            f_SWp = f_SWp + 0.1_dp
+          ELSE
+            f_SWp = f_SWp - 0.1_dp
+          END IF
+          aa  = f_SWp
+          bb  = f_SEp - f_SWp
+          cc  = f_NWp - f_SWp
+          dd  = f_NEp + f_SWp - f_NWp - f_SEp
+          phi =         ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+        END IF
         
       ELSEIF (scen == 2) THEN
         ! 2: SW floating, rest grounded
@@ -843,6 +864,20 @@ CONTAINS
         cc  = -(f_NWp - f_SWp)
         dd  = -(f_NEp + f_SWp - f_NWp - f_SEp)
         phi = 1._dp - ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+          
+        ! Exception for when d=0
+        IF (ABS(dd) < 1E-4_dp) THEN
+          IF (f_SWp > 0._dp) THEN
+            f_SWp = f_SWp + 0.1_dp
+          ELSE
+            f_SWp = f_SWp - 0.1_dp
+          END IF
+          aa  = -(f_SWp)
+          bb  = -(f_SEp - f_SWp)
+          cc  = -(f_NWp - f_SWp)
+          dd  = -(f_NEp + f_SWp - f_NWp - f_SEp)
+          phi = 1._dp - ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
+        END IF
         
       ELSEIF (scen == 3) THEN
         ! 3: south grounded, north floating
@@ -863,6 +898,24 @@ CONTAINS
           x   = 1._dp
           f2  = ((bb*cc - aa*dd) * LOG(ABS(cc+dd*x)) - bb*dd*x) / (dd**2)
           phi = f2-f1
+          
+          ! Exception for when d=0
+          IF (ABS(dd) < 1E-4_dp) THEN
+            IF (f_SWp > 0._dp) THEN
+              f_SWp = f_SWp + 0.1_dp
+            ELSE
+              f_SWp = f_SWp - 0.1_dp
+            END IF
+            aa  = f_SWp
+            bb  = f_SEp - f_SWp
+            cc  = f_NWp - f_SWp
+            dd  = f_NEp + f_SWp - f_NWp - f_SEp
+            x   = 0._dp
+            f1  = ((bb*cc - aa*dd) * LOG(ABS(cc+dd*x)) - bb*dd*x) / (dd**2)
+            x   = 1._dp
+            f2  = ((bb*cc - aa*dd) * LOG(ABS(cc+dd*x)) - bb*dd*x) / (dd**2)
+            phi = f2-f1
+          END IF
         
         END IF
         
@@ -891,6 +944,16 @@ CONTAINS
       END IF
       
     END IF
+    
+    IF (pi < -0.01_dp .OR. phi > 1.01_dp .OR. phi /= phi) THEN
+      WRITE(0,*) 'calc_fraction_above_zero - ERROR: phi = ', phi
+      WRITE(0,*) 'f = [', f_NWp, ',', f_NEp, ',', f_SWp, ',', f_SEp, ']'
+      WRITE(0,*) 'scen = ', scen
+      WRITE(0,*) 'aa = ', aa, ', bb = ', bb, ', cc = ', cc, ', dd = ', dd, ', f1 = ', f1, ',f2 = ', f2
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    phi = MAX( 0._dp, MIN( 1._dp, phi))
     
   END SUBROUTINE calc_fraction_above_zero
   SUBROUTINE rotate_quad_until_match( f_NW, f_NE, f_SW, f_SE, scen)
@@ -964,5 +1027,47 @@ CONTAINS
     f_SW = fvals( 1)
     
   END SUBROUTINE rotate_quad
+  
+! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
+  SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    INTEGER                                            :: i,jmid
+    REAL(dp)                                           :: TAF1,TAF2,lambda_GL, x_GL
+    REAL(dp)                                           :: A_flow_old, f, A_flow_new
+    
+    ! Determine mid-channel grounding-line position
+    jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
+    i = 1
+    DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
+      i = i+1
+    END DO
+    
+    TAF1 = ice%TAF_a( jmid,i-1)
+    TAF2 = ice%TAF_a( jmid,i  )
+    lambda_GL = TAF1 / (TAF1 - TAF2)
+    x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
+    
+    ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
+    x_GL = x_GL + 400000._dp
+    
+    ! Adjust the flow factor
+    A_flow_old = ice%A_flow_vav_a( 1,1)
+    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 60000._dp)
+    A_flow_new = A_flow_old * f
+    
+    ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_new
+    ice%A_flow_vav_a(   :,grid%i1:grid%i2) = A_flow_new
+    CALL sync
+    
+    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
+    
+  END SUBROUTINE MISMIPplus_adapt_flow_factor
 
 END MODULE general_ice_model_data_module
