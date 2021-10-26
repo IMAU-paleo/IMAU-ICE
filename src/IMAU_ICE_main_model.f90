@@ -551,8 +551,8 @@ CONTAINS
       END IF
       
       ! Determine the number of grid cells we can fit in this domain (based on specified resolution, and the domain covered by the initial file)
-      nsx = FLOOR( (1 / region%grid%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
-      nsy = FLOOR( (1 / region%grid%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
+      nsx = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
+      nsy = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
       
       IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') nsx = 3
       

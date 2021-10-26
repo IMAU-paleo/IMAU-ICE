@@ -596,41 +596,57 @@ CONTAINS
       CALL sync
     
     ELSE ! IF (.NOT. C%is_restart) THEN
-      ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
-      ! Also, the current model resolution might be higher than that which was used to generate
-      ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
     
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
+      IF (C%do_benchmark_experiment) THEN
+        ! Exception for restarting benchmark experiments
       
-        ! Assume the mapped surface elevation is correct
-        Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
+          ice%Hi_a( j,i) = init%Hi( j,i)
+          ice%Hb_a( j,i) = init%Hb( j,i)
+          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+        END DO
+        END DO
+        CALL sync
         
-        ! Define bedrock as PD bedrock + restarted deformation
-        ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
+      ELSE ! IF (C%do_benchmark_experiment) THEN
+        ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
+        ! Also, the current model resolution might be higher than that which was used to generate
+        ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
+      
+        DO i = grid%i1, grid%i2
+        DO j = 1, grid%ny
         
-        ! Take geoid from restart file
-        ice%SL_a( j,i) = init%SL( j,i)
-        
-        ! Surface elevation cannot be below bedrock
-        Hs = MAX( Hs, ice%Hb_a( j,i))
-        
-        ! Define ice thickness
-        Hs_max_float = ice%Hb_a( j,i) + MAX( 0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density / ice_density)
-        IF (Hs > Hs_max_float) THEN
-          ! Ice here must be grounded
-          ice%Hi_a( j,i) = Hs - ice%Hb_a( j,i)
-        ELSE
-          ! Ice here must be floating
-          ice%Hi_a( j,i) = MIN( Hs - ice%Hb_a( j,i), MAX( 0._dp, (Hs - ice%SL_a( j,i))) / (1._dp - ice_density / seawater_density))
-        END IF
-        
-        ! Recalculate surface elevation
-        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
-        
-      END DO
-      END DO
-      CALL sync
+          ! Assume the mapped surface elevation is correct
+          Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
+          
+          ! Define bedrock as PD bedrock + restarted deformation
+          ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
+          
+          ! Take geoid from restart file
+          ice%SL_a( j,i) = init%SL( j,i)
+          
+          ! Surface elevation cannot be below bedrock
+          Hs = MAX( Hs, ice%Hb_a( j,i))
+          
+          ! Define ice thickness
+          Hs_max_float = ice%Hb_a( j,i) + MAX( 0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density / ice_density)
+          IF (Hs > Hs_max_float) THEN
+            ! Ice here must be grounded
+            ice%Hi_a( j,i) = Hs - ice%Hb_a( j,i)
+          ELSE
+            ! Ice here must be floating
+            ice%Hi_a( j,i) = MIN( Hs - ice%Hb_a( j,i), MAX( 0._dp, (Hs - ice%SL_a( j,i))) / (1._dp - ice_density / seawater_density))
+          END IF
+          
+          ! Recalculate surface elevation
+          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+          
+        END DO
+        END DO
+        CALL sync
+      
+      END IF ! IF (C%do_benchmark_experiment) THEN
       
     END IF ! IF (.NOT. C%is_restart) THEN
     
