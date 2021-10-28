@@ -60,7 +60,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
               C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Thermodynamics are not included in these experiments
         RETURN
       ELSE
@@ -499,7 +499,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
               C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
               
         ice%Ti_a( :,:,grid%i1:grid%i2) = 270._dp
         CALL sync

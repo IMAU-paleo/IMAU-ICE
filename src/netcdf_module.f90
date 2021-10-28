@@ -82,7 +82,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_to_restart_file!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -812,7 +812,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in create_restart_file!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

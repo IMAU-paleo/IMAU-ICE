@@ -23,7 +23,7 @@ MODULE climate_module
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
   USE ocean_module,                    ONLY: allocate_subclimate_regional_oceans, set_ocean_to_ISOMIPplus_COLD, set_ocean_to_ISOMIPplus_WARM, &
-                                             set_ocean_to_Reese2018, MISOMIPplus_ocean_profiles
+                                             set_ocean_to_Reese2018, MISOMIP1_ocean_profiles
 
   IMPLICIT NONE
     
@@ -76,9 +76,9 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
               C%choice_benchmark_experiment == 'MISMIPplus') THEN
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Set ocean temperature/salinity profiles according to the MISOMIP+ protocol
-        CALL MISOMIPplus_ocean_profiles( grid, climate%applied, time)
+        CALL MISOMIP1_ocean_profiles( grid, climate%applied, time)
         RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
@@ -887,7 +887,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_matrix!'
@@ -1097,7 +1097,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
           
         ! Entirely parameterised climate, no ocean
         CALL initialise_subclimate( grid, ice, climate%applied, 'applied')

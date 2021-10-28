@@ -127,7 +127,7 @@ CONTAINS
       PD%nx = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
       PD%ny = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
     ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+            C%choice_benchmark_experiment == 'MISOMIP1') THEN
       PD%nx = 161
       PD%ny = 17
     ELSE
@@ -229,7 +229,7 @@ CONTAINS
       CALL sync
     
     ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+            C%choice_benchmark_experiment == 'MISOMIP1') THEN
     
       IF (par%master) THEN
         DO i = 1, PD%nx
@@ -473,7 +473,7 @@ CONTAINS
       init%nx = 51
       init%ny = 251
     ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+            C%choice_benchmark_experiment == 'MISOMIP1') THEN
       init%nx = 161
       init%ny = 17
     ELSE
@@ -592,7 +592,7 @@ CONTAINS
       CALL sync
     
     ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+            C%choice_benchmark_experiment == 'MISOMIP1') THEN
     
       IF (par%master) THEN
         DO i = 1, init%nx
@@ -848,7 +848,7 @@ CONTAINS
       END DO
     
     ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+            C%choice_benchmark_experiment == 'MISOMIP1') THEN
     
       imid = CEILING( REAL(grid%nx,dp) / 2._dp)
       jmid = CEILING( REAL(grid%nx,dp) / 2._dp)

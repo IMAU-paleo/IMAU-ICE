@@ -342,7 +342,7 @@ CONTAINS
         RETURN
         
       ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Don't change the flow factor here; set it once during initialisation (done in initialise_ice_model),
         ! then only change it with the tuning subroutine!
         

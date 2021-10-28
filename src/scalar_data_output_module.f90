@@ -64,7 +64,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Do nothing; regional scalar output not needed in these experiments
         RETURN
       ELSE
@@ -176,7 +176,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
           C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Do nothing; global scalar output not needed in these experiments
         RETURN
       ELSE

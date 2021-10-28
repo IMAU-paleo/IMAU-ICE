@@ -167,7 +167,7 @@ CONTAINS
   END SUBROUTINE correct_GCM_bias_ocean
   
 ! == Some schematic ocean temperature/salinity profiles
-  SUBROUTINE MISOMIPplus_ocean_profiles( grid, climate, time)
+  SUBROUTINE MISOMIP1_ocean_profiles( grid, climate, time)
     ! Set the ocean temperature and salinity according to the ISOMIP+ protocol
     
     IMPLICIT NONE
@@ -177,13 +177,13 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
     REAL(dp),                            INTENT(IN)    :: time
     
-    IF     (C%MISOMIPplus_scenario == 'IceOcean0') THEN
+    IF     (C%MISOMIP1_scenario == 'IceOcean0') THEN
       ! Cold ocean always
       
       CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
       
-    ELSEIF (C%MISOMIPplus_scenario == 'IceOcean1ra' .OR. &
-            C%MISOMIPplus_scenario == 'IceOcean2ra') THEN
+    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
+            C%MISOMIP1_scenario == 'IceOcean2ra') THEN
       ! Cold ocean during spin-up; warm ocean for 100 years, then cold ocean again
       
       IF (time < 0._dp) THEN
@@ -194,8 +194,8 @@ CONTAINS
         CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
       END IF
       
-    ELSEIF (C%MISOMIPplus_scenario == 'IceOcean1rr' .OR. &
-            C%MISOMIPplus_scenario == 'IceOcean2rr') THEN
+    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1rr' .OR. &
+            C%MISOMIP1_scenario == 'IceOcean2rr') THEN
       ! Cold ocean during spin-up; warm ocean after t = 0
       
       IF (time < 0._dp) THEN
@@ -205,11 +205,11 @@ CONTAINS
       END IF
       
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: MISOMIPplus_scenario "', TRIM(C%MISOMIPplus_scenario), '" not implemented in MISOMIPplus_ocean_profiles!'
+      IF (par%master) WRITE(0,*) '  ERROR: MISOMIP1_scenario "', TRIM(C%MISOMIP1_scenario), '" not implemented in MISOMIP1_ocean_profiles!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
   
-  END SUBROUTINE MISOMIPplus_ocean_profiles
+  END SUBROUTINE MISOMIP1_ocean_profiles
   SUBROUTINE set_ocean_to_ISOMIPplus_COLD( grid, climate)
     ! Set the ocean temperature and salinity to the ISOMIP+ "COLD" profile (Asay-Davis et al., 2016, Table 5)
     

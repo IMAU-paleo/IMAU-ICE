@@ -56,20 +56,20 @@ CONTAINS
               C%choice_benchmark_experiment == 'MISMIPplus') THEN
         ! No calving in these experiments
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Use the specified calving law in these experiments
-        IF     (C%MISOMIPplus_scenario == 'IceOcean0' .OR. &
-                C%MISOMIPplus_scenario == 'IceOcean1ra' .OR. &
-                C%MISOMIPplus_scenario == 'IceOcean1rr') THEN
+        IF     (C%MISOMIP1_scenario == 'IceOcean0' .OR. &
+                C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
+                C%MISOMIP1_scenario == 'IceOcean1rr') THEN
           ! No calving here
           RETURN
-        ELSEIF (C%MISOMIPplus_scenario == 'IceOcean2ra' .OR. &
-                C%MISOMIPplus_scenario == 'IceOcean2rr') THEN
+        ELSEIF (C%MISOMIP1_scenario == 'IceOcean2ra' .OR. &
+                C%MISOMIP1_scenario == 'IceOcean2rr') THEN
           ! Threshold thickness calving here
           C%choice_calving_law = 'threshold_thickness'
           C%calving_threshold_thickness = 100._dp
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: MISOMIPplus_scenario "', TRIM(C%MISOMIPplus_scenario), '" not implemented in calculate_calving_flux!'
+          IF (par%master) WRITE(0,*) '  ERROR: MISOMIP1_scenario "', TRIM(C%MISOMIP1_scenario), '" not implemented in calculate_calving_flux!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
       ELSE

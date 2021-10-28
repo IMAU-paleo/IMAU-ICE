@@ -67,8 +67,8 @@ CONTAINS
         ! Basal melt in the MISMIPplus experiments
         CALL BMB_MISMIPplus( grid, ice, BMB, time)
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIPplus') THEN
-        ! The MISOMIPplus experiments use the existing basal melt parameterisations
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
+        ! The MISOMIP1 experiments use the existing basal melt parameterisations
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

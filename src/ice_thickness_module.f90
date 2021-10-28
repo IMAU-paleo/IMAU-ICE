@@ -51,7 +51,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
               C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! No exceptions here; these experiments have evolving ice geometry
       ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
@@ -779,7 +779,7 @@ CONTAINS
         CALL sync
         
       ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Calving front at x = 640 km
         
         DO i = grid%i1, grid%i2

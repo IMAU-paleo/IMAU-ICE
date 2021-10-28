@@ -65,7 +65,7 @@ MODULE configuration_module
   REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
-  CHARACTER(LEN=256)  :: MISOMIPplus_scenario_config             = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
+  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config             = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -558,7 +558,7 @@ MODULE configuration_module
     REAL(dp)                            :: MISMIPplus_xGL_target
     REAL(dp)                            :: MISMIPplus_A_flow_initial
     CHARACTER(LEN=256)                  :: MISMIPplus_scenario
-    CHARACTER(LEN=256)                  :: MISOMIPplus_scenario
+    CHARACTER(LEN=256)                  :: MISOMIP1_scenario
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -1243,7 +1243,7 @@ CONTAINS
                      MISMIPplus_xGL_target_config,               &
                      MISMIPplus_A_flow_initial_config,           &
                      MISMIPplus_scenario_config,                 &
-                     MISOMIPplus_scenario_config,                &
+                     MISOMIP1_scenario_config,                &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      fixed_output_dir_suffix_config,             &
@@ -1601,7 +1601,7 @@ CONTAINS
     C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
     C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
     C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
-    C%MISOMIPplus_scenario                = MISOMIPplus_scenario_config
+    C%MISOMIP1_scenario                = MISOMIP1_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
