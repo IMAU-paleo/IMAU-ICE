@@ -681,7 +681,9 @@ CONTAINS
       CALL sync
     END IF
     
-    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'MISMIPplus') THEN
+    IF (C%do_benchmark_experiment .AND. ( &
+          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+          C%choice_benchmark_experiment == 'MISOMIPplus')) THEN
       ! Set the ice flow factor only during initialisation; don't allow the "ice_physical_properties" routine
       ! to change it, but instead let the tune-for-GL-position routine do that
       ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial

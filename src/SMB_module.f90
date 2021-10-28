@@ -79,7 +79,8 @@ CONTAINS
         SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
         CALL sync
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+              C%choice_benchmark_experiment == 'MISOMIPplus') THEN
         SMB%SMB_year(   :,grid%i1:grid%i2) = 0.3_dp
         SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
         CALL sync

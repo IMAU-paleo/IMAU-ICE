@@ -17,3 +17,4 @@ basal_melt/*
 run_basal_melt_MISMIPplus.csh
 MISMIPplus/*
 run_*
+MISOMIPplus/*

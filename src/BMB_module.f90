@@ -67,6 +67,8 @@ CONTAINS
         ! Basal melt in the MISMIPplus experiments
         CALL BMB_MISMIPplus( grid, ice, BMB, time)
         RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIPplus') THEN
+        ! The MISOMIPplus experiments use the existing basal melt parameterisations
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1840,9 +1842,6 @@ CONTAINS
     REAL(dp), PARAMETER                                :: alpha       =  7.5E-5_dp     ! Thermal expansion coefficient in EOS              [degC^-1]
     REAL(dp), PARAMETER                                :: beta        =  7.7E-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]
     REAL(dp), PARAMETER                                :: rhostar     = 1033_dp        ! Reference density in EOS                          [kg m^-3]
-    REAL(dp), PARAMETER                                :: gammaS      = 2.0E-6_dp      ! Turbulent salinity exchange velocity              [m s^-1]
-    REAL(dp), PARAMETER                                :: gammaT      = 5.0E-5_dp      ! Turbulent temperature exchange velocity           [m s^-1]
-    REAL(dp), PARAMETER                                :: gammaTstar  = 2.0E-5_dp      ! Effective turbulent temperature exchange velocity [m s^-1]
     REAL(dp), PARAMETER                                :: C_overturn  = 1.0E6_dp       ! Overturning strength                              [m^6 s^-1 kg^-1]
     
     ! Initialise
@@ -1879,7 +1878,7 @@ CONTAINS
       IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == 1) THEN
         
         ! Reese et al. (2018), just before Eq. A6
-        g1 = BMB%PICO_A( basin_i, 1) * gammaTstar
+        g1 = BMB%PICO_A( basin_i, 1) * C%BMB_PICO_GammaTstar
         g2 = g1 / (nu * lambda)
         Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, 1) - Tk0
         
@@ -1899,7 +1898,7 @@ CONTAINS
         BMB%PICO_S( j,i) = Sk0 - y
         
         ! Reese et al. (2019), Eq. 13
-        BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+        BMB%PICO_m( j,i) = sec_per_year * C%BMB_PICO_GammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
         
       END IF ! IF (BMB%PICO_k( j,i) == 1) THEN
       
@@ -1926,7 +1925,7 @@ CONTAINS
         IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == k) THEN
         
           ! Reese et al. (2018), just before Eq. A6
-          g1 = BMB%PICO_A( basin_i, k) * gammaTstar
+          g1 = BMB%PICO_A( basin_i, k) * C%BMB_PICO_GammaTstar
           g2 = g1 / (nu * lambda)
           Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, k-1) - BMB%PICO_Tk( basin_i, k-1)
           
@@ -1940,7 +1939,7 @@ CONTAINS
           BMB%PICO_S( j,i) = BMB%PICO_Sk( basin_i, k-1) - y
         
           ! Reese et al. (2019), Eq. 13
-          BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+          BMB%PICO_m( j,i) = sec_per_year * C%BMB_PICO_GammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
           
         END IF ! IF (BMB%PICO_k( j,i) == k) THEN
         
