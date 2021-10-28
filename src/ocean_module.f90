@@ -235,7 +235,7 @@ CONTAINS
     CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
     IF (par%master) THEN
       DO k = 1, nz_ocean
-        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
       END DO
     END IF
     CALL sync
@@ -295,7 +295,7 @@ CONTAINS
     CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
     IF (par%master) THEN
       DO k = 1, nz_ocean
-        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
       END DO
     END IF
     CALL sync

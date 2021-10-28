@@ -2138,6 +2138,11 @@ CONTAINS
         END DO
         END DO
         
+        IF (ii == 0 .OR. jj == 0) THEN
+          WRITE(0,*) '  PICO_calc_T0_S0 - ERROR: couldnt find deepest ocean floor grid cell!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+        
         ! Find ocean-floor temperature and salinity
         CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
         CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)

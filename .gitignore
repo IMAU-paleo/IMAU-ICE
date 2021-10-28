@@ -11,6 +11,7 @@ old_src_versions/*
 results_*
 SELEN_files*
 src/module-files/*
+src/object-files/*
 massbalance_module.f90
 basal_melt/*
 *.nc

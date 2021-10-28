@@ -1677,19 +1677,19 @@ CONTAINS
     
     ! Safety
     IF (z_query < 0._dp) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query < 0; cannot extrapolate above the sea surface, obviously!'
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '< 0; cannot extrapolate above the sea surface, obviously!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (z_query > 12000._dp) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query > 12 km; the ocean is not that deep!'
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> 12 km; the ocean is not that deep!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (SIZE(z_ocean,1) /= nz_ocean) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(z_ocean,1) /= nz_ocean!'
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(z_ocean,1) = ', SIZE(z_ocean,1), ' /= nz_ocean = ', nz_ocean, '!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (SIZE(f_ocean,1) /= nz_ocean) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(f_ocean,1) /= nz_ocean!'
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(f_ocean,1) = ', SIZE(f_ocean,1), ' /= nz_ocean = ', nz_ocean, '!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (z_query > MAXVAL(z_ocean)) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query > MAXVAL(z_ocean)!'
+      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> MAXVAL(z_ocean) = ', MAXVAL(z_ocean), '!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
