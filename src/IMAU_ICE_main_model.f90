@@ -436,12 +436,10 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! Run the climate, BMB and SMB models once, to get the correct surface temperature field for the ice temperature initialisation,
-    ! and so that all the relevant fields already have sensible values in the first time frame of the output file.
+    ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
     CALL update_general_ice_model_data( region%grid, region%ice, region%time)
     CALL run_climate_model(             region%grid, region%ice, region%SMB, region%climate, region%name, C%start_time_of_run)
     CALL run_SMB_model(                 region%grid, region%ice, region%climate%applied, C%start_time_of_run, region%SMB, region%mask_noice)
-    CALL run_BMB_model(                 region%grid, region%ice, region%climate%applied, region%BMB, region%name, C%start_time_of_run)
     
     ! Initialise the ice temperature profile
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init, region%SMB)

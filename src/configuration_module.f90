@@ -356,6 +356,7 @@ MODULE configuration_module
   
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
+  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config  = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
   
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                  = 5                                ! Number of sub-shelf ocean boxes used by PICO
@@ -812,6 +813,7 @@ MODULE configuration_module
     
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     REAL(dp)                            :: BMB_Lazeroms2018_GammaT
+    CHARACTER(LEN=256)                  :: BMB_Lazeroms2018_find_GL_scheme
   
     ! Parameters for the PICO BMB model
     INTEGER                             :: BMB_PICO_nboxes
@@ -1173,7 +1175,7 @@ CONTAINS
       
       INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
       IF (ex) THEN
-        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(fixed_output_dir_config), ' already exists!'
+        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(fixed_output_dir_config), TRIM(C%fixed_output_dir_suffix), ' already exists!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
@@ -1413,6 +1415,7 @@ CONTAINS
                      BMB_Favier2019_quad_GammaT_config,          &
                      BMB_Favier2019_Mplus_GammaT_config,         &
                      BMB_Lazeroms2018_GammaT_config,             &
+                     BMB_Lazeroms2018_find_GL_scheme_config,     &
                      BMB_PICO_nboxes_config,                     &
                      BMB_PICO_GammaTstar_config,                 &
                      T_ocean_mean_PD_NAM_config,                 &
@@ -1856,6 +1859,7 @@ CONTAINS
     
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     C%BMB_Lazeroms2018_GammaT             = BMB_Lazeroms2018_GammaT_config
+    C%BMB_Lazeroms2018_find_GL_scheme     = BMB_Lazeroms2018_find_GL_scheme_config
   
     ! Parameters for the PICO BMB model
     C%BMB_PICO_nboxes                     = BMB_PICO_nboxes_config

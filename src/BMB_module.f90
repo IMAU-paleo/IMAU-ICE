@@ -15,7 +15,7 @@ MODULE BMB_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             interpolate_ocean_depth
+                                             interpolate_ocean_depth, interp_bilin_2D
   USE forcing_module,                  ONLY: forcing
 
   IMPLICIT NONE
@@ -1484,6 +1484,29 @@ CONTAINS
     
   END SUBROUTINE run_BMB_model_Lazeroms2018_plume
   SUBROUTINE find_effective_plume_path( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j]
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    IF     (C%BMB_Lazeroms2018_find_GL_scheme == 'GL_average') THEN
+      CALL find_effective_plume_path_GL_average(     grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ELSEIF (C%BMB_Lazeroms2018_find_GL_scheme == 'along_ice_flow') THEN
+      CALL find_effective_plume_path_along_ice_flow( grid, ice,      i,j, eff_plume_source_depth, eff_basal_slope)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: BMB_Lazeroms2018_find_GL_scheme "', TRIM(C%BMB_Lazeroms2018_find_GL_scheme), '" not implemented in find_effective_plume_path!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE find_effective_plume_path
+  SUBROUTINE find_effective_plume_path_GL_average( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
     ! Find the effective plume source depth and basal slope for shelf grid cell [i,j], following
     ! the approach outlined in Lazeroms et al. (2018), Sect. 2.3
     !
@@ -1633,7 +1656,107 @@ CONTAINS
       eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
     END IF
     
-  END SUBROUTINE find_effective_plume_path
+  END SUBROUTINE find_effective_plume_path_GL_average
+  SUBROUTINE find_effective_plume_path_along_ice_flow( grid, ice, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j] by
+    ! assuming plumes follow the same horizontal flow field as the ice shelf
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(2)                             :: t1 ,t2 ,uv
+    INTEGER                                            :: nit, nit_max
+    REAL(dp)                                           :: u1, v1, TAF1, TAF2, depth1, Hi2, Hs2, depth2, lambda, GLx, GLy
+    LOGICAL                                            :: found_GL, got_stuck
+    REAL(dp)                                           :: zb_shelf, dist
+    
+    ! Calculate the shelf base depth (draft)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    
+    ! Track a tracer upstream along the ice flow field until grounded ice is found
+    t1     = [grid%x( i), grid%y( j)]
+    t2     = t1
+    TAF1   = ice%TAF_a( j,i)
+    depth1 = zb_shelf
+    
+    found_GL  = .FALSE.
+    got_stuck = .FALSE.
+    nit       = 0
+    nit_max   = grid%nx + grid%ny
+    DO WHILE (.NOT. found_GL)
+      
+      ! Safety
+      nit = nit + 1
+      IF (nit > nit_max) THEN
+        got_stuck = .TRUE.
+        EXIT
+        !WRITE(0,*) '  find_effective_plume_path_along_ice_flow - ERROR: tracer got stuck!'
+        !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Interpolate velocity field to exact tracer location
+      u1 = interp_bilin_2D( ice%u_vav_a, grid%x, grid%y, t1( 1), t1( 2))
+      v1 = interp_bilin_2D( ice%v_vav_a, grid%x, grid%y, t1( 1), t1( 2))
+      
+      ! Move the tracer upstream
+      uv = [u1, v1]
+      uv = uv / NORM2( uv)
+      t2 = t1 - uv * grid%dx
+      
+      ! Safety
+      IF (t2( 1) < grid%xmin .OR. t2( 1) > grid%xmax .OR. t2( 2) < grid%ymin .OR. t2( 2) > grid%ymax) THEN
+        got_stuck = .TRUE.
+        EXIT
+        !WRITE(0,*) '  find_effective_plume_path_along_ice_flow - ERROR: tracer outside domain!'
+        !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Interpolate data to new tracer location
+      TAF2   = interp_bilin_2D( ice%TAF_a, grid%x, grid%y, t2( 1), t2( 2))
+      Hi2    = interp_bilin_2D( ice%Hi_a,  grid%x, grid%y, t2( 1), t2( 2))
+      Hs2    = interp_bilin_2D( ice%Hs_a,  grid%x, grid%y, t2( 1), t2( 2))
+      depth2 = Hs2 - Hi2
+      
+      ! Check if we've found grounded ice
+      IF (TAF2 > 0._dp) THEN
+      
+        found_GL = .TRUE.
+        
+        ! Find exact GL depth
+        lambda = TAF1 / (TAF1 - TAF2)
+        eff_plume_source_depth = lambda * depth2 + (1._dp - lambda) * depth1
+        GLx                    = lambda * t2( 1) + (1._dp - lambda) * t1( 1)
+        GLy                    = lambda * t2( 2) + (1._dp - lambda) * t1( 2)
+      
+        ! Calculate the plume source depth and basal slope
+        dist  = SQRT( (GLx - grid%x( i))**2 + (GLy - grid%y( j))**2 )
+        eff_basal_slope = (zb_shelf - eff_plume_source_depth) / dist
+        
+      ELSE
+        ! Cycle the tracer
+        
+        t1     = t2
+        TAF1   = TAF2
+        depth1 = depth2
+        
+      END IF ! IF (TAF2 > 0._dp) THEN
+      
+    END DO ! DO WHILE (.NOT. found_GL)
+    
+    ! Exception for when the GL source is less deep than the shelf base
+    IF (eff_plume_source_depth >= zb_shelf .OR. got_stuck) THEN
+      eff_plume_source_depth = zb_shelf
+      eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
+    END IF
+    
+  END SUBROUTINE find_effective_plume_path_along_ice_flow
   FUNCTION Lazeroms2018_dimensionless_melt_curve( xhat) RESULT( Mhat)
     ! The dimensionless melt curve from Lazeroms et al. (2018), Appendix A, Eq. A13
     

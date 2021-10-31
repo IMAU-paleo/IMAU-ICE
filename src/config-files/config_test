@@ -1,82 +1,90 @@
 &CONFIG
 
 ! Start and end time
-start_time_of_run_config                = -30000   ! Start time (in years) of the simulations
-end_time_of_run_config                  =      0   ! End   time (in years) of the simulations
-dt_coupling_config                      = 1000
+start_time_of_run_config                =       0  ! Start time (in years) of the simulations
+end_time_of_run_config                  =      10  ! End   time (in years) of the simulations
+dt_coupling_config                      = 100
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
 create_procedural_output_dir_config     = .TRUE.
-fixed_output_dir_config                 = 'MISMIPplus/MISMIPplus_autotune_2km_slid1'
+fixed_output_dir_config                 = 'basal_melt/ANT_Lazeroms2018_plume_PD_20km'
 
 ! Debugging
 do_write_debug_data_config              = .TRUE.
 do_check_for_NaN_config                 = .TRUE.
 
 ! Which benchmark experiment we want to run (if any)
-do_benchmark_experiment_config          = .TRUE.
-choice_benchmark_experiment_config      = 'MISMIPplus'
-DIVA_boundary_BC_u_west_config          = 'zero'
-DIVA_boundary_BC_u_east_config          = 'infinite'
-DIVA_boundary_BC_u_south_config         = 'infinite'
-DIVA_boundary_BC_u_north_config         = 'infinite'
-DIVA_boundary_BC_v_west_config          = 'zero'
-DIVA_boundary_BC_v_east_config          = 'infinite'
-DIVA_boundary_BC_v_south_config         = 'zero'
-DIVA_boundary_BC_v_north_config         = 'zero'
-MISMIPplus_sliding_law_config           = 1
-MISMIPplus_do_tune_A_for_GL_config      = .TRUE.      
-MISMIPplus_xGL_target_config            = 450000.0
-MISMIPplus_A_flow_initial_config        = 1.262E-17
-MISMIPplus_scenario_config              = 'ice0'
-
-! DENK DROM
-is_restart_config                       = .TRUE.
-filename_init_ANT_config                = 'MISMIPplus/MISMIPplus_autotune_2km_slid1/restart_ANT.nc'
-time_to_restart_from_config             = -30000.0
+do_benchmark_experiment_config          = .FALSE.
 
 ! Which ice-sheets we want to simulate
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_ANT_config                           = 2000
+dx_ANT_config                           = 20000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 10       ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 100     ! Time step (in years) for writing output
+dt_output_config                        = 100      ! Time step (in years) for writing output
 dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
 dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
 
 ! Ice dynamics
-choice_ice_dynamics_config              = 'DIVA'
+choice_ice_dynamics_config              = 'none'
 choice_timestepping_config              = 'pc'
 choice_ice_margin_config                = 'infinite_slab'
-m_enh_sheet_config                      = 1.0
-m_enh_shelf_config                      = 1.0
+m_enh_sheet_config                      = 5.0
+m_enh_shelf_config                      = 0.7
 choice_calving_law_config               = 'threshold_thickness'
-pc_epsilon_config                       = 0.5
 
 ! Basal melt
-choice_BMB_shelf_model_config           = 'uniform'
-BMB_shelf_uniform_config                = 0.0
+choice_BMB_shelf_model_config           = 'Lazeroms2018_plume'
+use_schematic_ocean_config              = .TRUE.
+choice_schematic_ocean_config           = 'Reese2018'
+BMB_Lazeroms2018_GammaT_config          = 3.7506E-04
+
+! Sea level and GIA
+choice_sealevel_model_config            = 'eustatic'         ! Can be "fixed", "eustatic", or "SELEN"
+choice_GIA_model_config                 = 'ELRA'             ! Can be "none", "ELRA", or "SELEN"
+dx_GIA_config                           = 100000.0
 
 ! Geothermal heat flux
-choice_geothermal_heat_flux_config      = 'constant'
+choice_geothermal_heat_flux_config      = 'spatial'
+filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+
+! Climate/SMB forcing
+choice_forcing_method_config            = 'SMB_direct'
+domain_climate_forcing_config           = 'regional'
+filename_GCM_climate_config             = 'Datasets/RACMO_Antarctica/SMB_RACMO2_Antarctica_PD_1kyr_40km.nc'
+
+! Forcing
+filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
+
+! Initial and PD reference data
+switch_remove_Lake_Vostok_config        = .TRUE. 
+switch_paleotopography_config           = .FALSE.
+filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  
+! PD reference data (NetCDF)
+filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+! Ice basins
+choice_basin_scheme_ANT_config          = 'file'
+filename_basins_ANT_config              = '/Users/berends/Documents/Datasets/basins_Antarctica/ant_full_drainagesystem_polygons.txt'
 
 ! Which data fields should be written to the help_fields output file
-help_field_01_config                     = 'A_flow_vav'
-help_field_02_config                     = 'none'
-help_field_03_config                     = 'none'
-help_field_04_config                     = 'none'
-help_field_05_config                     = 'none'
-help_field_06_config                     = 'none'
-help_field_07_config                     = 'none'
-help_field_08_config                     = 'none'
-help_field_09_config                     = 'none'
-help_field_10_config                     = 'none'
-help_field_11_config                     = 'none'
+help_field_01_config                     = 'lat'
+help_field_02_config                     = 'lon'
+help_field_03_config                     = 'basin_ID'
+help_field_04_config                     = 'Hi'
+help_field_05_config                     = 'Hb'
+help_field_06_config                     = 'Hs'
+help_field_07_config                     = 'mask'
+help_field_08_config                     = 'uabs_vav'
+help_field_09_config                     = 'BMB_shelf'
+help_field_10_config                     = 'T_ocean_3D'
+help_field_11_config                     = 'S_ocean_3D'
 help_field_12_config                     = 'none'
 help_field_13_config                     = 'none'
 help_field_14_config                     = 'none'
