@@ -730,29 +730,41 @@ CONTAINS
     ! Allocate shared memory
     CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
     
+    ! Initialise
     region%mask_noice(    :,region%grid%i1:region%grid%i2) = 0
     
     ! Exceptions for benchmark experiments
     IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-          C%choice_benchmark_experiment == 'Bueler' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+      IF     (C%choice_benchmark_experiment == 'Halfar' .OR. &
+              C%choice_benchmark_experiment == 'Bueler' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
+              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
+              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
+              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
+        ! No-ice mask not needed in these benchmark experiments
         RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
+        ! Don't allow ice for x > 640 km
+        
+        DO i = region%grid%i1, region%grid%i2
+        DO j = 1, region%grid%ny
+          IF (region%grid%x( i) > 240000._dp) region%mask_noice( j,i) = 1
+        END DO
+        END DO
+        CALL sync
+        RETURN
+
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_mask_noice!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
