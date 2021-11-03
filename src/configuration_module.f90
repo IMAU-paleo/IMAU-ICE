@@ -247,7 +247,7 @@ MODULE configuration_module
   ! Present-day observed climate (ERA40) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
   ! Present-day observed ocean (WOA18) (NetCDF)  
-  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_fillmiss.nc'
+  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   
   ! GCM snapshots
   CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'warm_cold'                      ! 'warm_cold' uses 2 snapshots
@@ -258,7 +258,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   
   ! Ocean temperature (used for both thermodynamics and basal melt)
-  CHARACTER(LEN=256)  :: choice_ocean_temperature_model_config   = 'WOA'                            ! Can be "fixed" (use PD value) 
+  CHARACTER(LEN=256)  :: choice_ocean_temperature_model_config   = 'scaled'                         ! Can be "fixed" (use PD value) 
                                                                                                     ! or "scaled" (scale between "PD", "warm", and "cold" values based on forcing (prescribed or inverse-modelled))
                                                                                                     ! or "matrix_warm_cold" (scale between the 3D fields yielded by the matrix snapshots)
                                                                                                     ! or 'schematic' (schemtic ocean temperatures)
@@ -334,7 +334,7 @@ MODULE configuration_module
   ! Basal mass balance
   ! ==================
   
-  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'Favier2019_lin'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
