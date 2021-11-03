@@ -63,8 +63,9 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        ! Do nothing; global scalar output not needed in these experiments
+          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+        ! Do nothing; regional scalar output not needed in these experiments
         RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_regional_scalar_data!'
@@ -174,7 +175,8 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Do nothing; global scalar output not needed in these experiments
         RETURN
       ELSE

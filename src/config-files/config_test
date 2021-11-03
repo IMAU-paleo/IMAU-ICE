@@ -1,13 +1,13 @@
 &CONFIG
 
 ! Start and end time
-start_time_of_run_config                = -30000   ! Start time (in years) of the simulations
+start_time_of_run_config                = -25000   ! Start time (in years) of the simulations
 end_time_of_run_config                  =      0   ! End   time (in years) of the simulations
 dt_coupling_config                      = 1000
 
 ! Whether or not we want IMAU-ICE to create its own output folder (e.g. "results_20200618_001")
 create_procedural_output_dir_config     = .TRUE.
-fixed_output_dir_config                 = 'MISMIPplus/MISMIPplus_autotune_2km_slid1'
+fixed_output_dir_config                 = 'MISMIPplus/MISMIPplus_init_5km_slid1'
 
 ! Debugging
 do_write_debug_data_config              = .TRUE.
@@ -25,26 +25,21 @@ DIVA_boundary_BC_v_east_config          = 'infinite'
 DIVA_boundary_BC_v_south_config         = 'zero'
 DIVA_boundary_BC_v_north_config         = 'zero'
 MISMIPplus_sliding_law_config           = 1
-MISMIPplus_do_tune_A_for_GL_config      = .TRUE.      
+MISMIPplus_do_tune_A_for_GL_config      = .FALSE.      
 MISMIPplus_xGL_target_config            = 450000.0
-MISMIPplus_A_flow_initial_config        = 1.262E-17
+MISMIPplus_A_flow_initial_config        = 1.1480E-17   ! 1.262E-17
 MISMIPplus_scenario_config              = 'ice0'
-
-! DENK DROM
-is_restart_config                       = .TRUE.
-filename_init_ANT_config                = 'MISMIPplus/MISMIPplus_autotune_2km_slid1/restart_ANT.nc'
-time_to_restart_from_config             = -30000.0
 
 ! Which ice-sheets we want to simulate
 do_ANT_config                           = .TRUE.
 
 ! The resolutions at which we want to simulate the different ice sheets
-dx_ANT_config                           = 2000
+dx_ANT_config                           = 5000
 
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 10       ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 100     ! Time step (in years) for writing output
+dt_output_config                        = 500     ! Time step (in years) for writing output
 dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
 dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
@@ -66,7 +61,7 @@ BMB_shelf_uniform_config                = 0.0
 choice_geothermal_heat_flux_config      = 'constant'
 
 ! Which data fields should be written to the help_fields output file
-help_field_01_config                     = 'A_flow_vav'
+help_field_01_config                     = 'none'
 help_field_02_config                     = 'none'
 help_field_03_config                     = 'none'
 help_field_04_config                     = 'none'

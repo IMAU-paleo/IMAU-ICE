@@ -277,6 +277,49 @@ CONTAINS
   END SUBROUTINE initialise_PD_obs_ocean_fields
   
 ! == Some schematic ocean temperature/salinity profiles
+  SUBROUTINE MISOMIP1_ocean_profiles( grid, climate, time)
+    ! Set the ocean temperature and salinity according to the ISOMIP+ protocol
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
+    REAL(dp),                            INTENT(IN)    :: time
+    
+    IF     (C%MISOMIP1_scenario == 'IceOcean0') THEN
+      ! Cold ocean always
+      
+      CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
+      
+    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
+            C%MISOMIP1_scenario == 'IceOcean2ra') THEN
+      ! Cold ocean during spin-up; warm ocean for 100 years, then cold ocean again
+      
+      IF (time < 0._dp) THEN
+        CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
+      ELSEIF (time < 100._dp) THEN
+        CALL set_ocean_to_ISOMIPplus_WARM( grid, climate)
+      ELSE
+        CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
+      END IF
+      
+    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1rr' .OR. &
+            C%MISOMIP1_scenario == 'IceOcean2rr') THEN
+      ! Cold ocean during spin-up; warm ocean after t = 0
+      
+      IF (time < 0._dp) THEN
+        CALL set_ocean_to_ISOMIPplus_COLD( grid, climate)
+      ELSE
+        CALL set_ocean_to_ISOMIPplus_WARM( grid, climate)
+      END IF
+      
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: MISOMIP1_scenario "', TRIM(C%MISOMIP1_scenario), '" not implemented in MISOMIP1_ocean_profiles!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+  
+  END SUBROUTINE MISOMIP1_ocean_profiles
   SUBROUTINE set_ocean_to_ISOMIPplus_COLD( grid, climate)
     ! Set the ocean temperature and salinity to the ISOMIP+ "COLD" profile (Asay-Davis et al., 2016, Table 5)
     
@@ -302,7 +345,7 @@ CONTAINS
     CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
     IF (par%master) THEN
       DO k = 1, nz_ocean
-        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
       END DO
     END IF
     CALL sync
@@ -362,7 +405,7 @@ CONTAINS
     CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
     IF (par%master) THEN
       DO k = 1, nz_ocean
-        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
+        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
       END DO
     END IF
     CALL sync

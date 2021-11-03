@@ -898,7 +898,8 @@ CONTAINS
         CALL sync
         RETURN
       
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
+      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! Apply the selected sliding law for the MISMIP+ experiment (see Asay-Davis et al., 2016)
         
         IF     (C%MISMIPplus_sliding_law == 1) THEN

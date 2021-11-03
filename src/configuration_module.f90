@@ -64,7 +64,8 @@ MODULE configuration_module
   LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config      = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
   REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
-  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = 'ice0'                           ! Choose between the five MISMIP+ scenarios from Cornford et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
+  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
+  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config             = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -72,6 +73,7 @@ MODULE configuration_module
   
   LOGICAL             :: create_procedural_output_dir_config     = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
   CHARACTER(LEN=256)  :: fixed_output_dir_config                 = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config          = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   
   ! Debugging
   ! ======================
@@ -355,10 +357,12 @@ MODULE configuration_module
   REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config      = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
   
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
-  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 1.1E-3_dp                        ! Thermal exchange velocity
+  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
+  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config  = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
   
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                  = 5                                ! Number of sub-shelf ocean boxes used by PICO
+  REAL(dp)            :: BMB_PICO_GammaTstar_config              = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -557,12 +561,14 @@ MODULE configuration_module
     REAL(dp)                            :: MISMIPplus_xGL_target
     REAL(dp)                            :: MISMIPplus_A_flow_initial
     CHARACTER(LEN=256)                  :: MISMIPplus_scenario
+    CHARACTER(LEN=256)                  :: MISOMIP1_scenario
 
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
    
     LOGICAL                             :: create_procedural_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir
+    CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     
     ! Debugging
     ! =========
@@ -807,9 +813,11 @@ MODULE configuration_module
     
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     REAL(dp)                            :: BMB_Lazeroms2018_GammaT
+    CHARACTER(LEN=256)                  :: BMB_Lazeroms2018_find_GL_scheme
   
     ! Parameters for the PICO BMB model
     INTEGER                             :: BMB_PICO_nboxes
+    REAL(dp)                            :: BMB_PICO_GammaTstar
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1163,11 +1171,11 @@ CONTAINS
     ELSE
       ! Use the provided name (return an error if this directory already exists)
 
-      C%output_dir = TRIM(C%fixed_output_dir) // '/'
+      C%output_dir = TRIM(C%fixed_output_dir) // TRIM(C%fixed_output_dir_suffix) // '/'
       
       INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
       IF (ex) THEN
-        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(fixed_output_dir_config), ' already exists!'
+        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(fixed_output_dir_config), TRIM(C%fixed_output_dir_suffix), ' already exists!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
@@ -1237,8 +1245,10 @@ CONTAINS
                      MISMIPplus_xGL_target_config,               &
                      MISMIPplus_A_flow_initial_config,           &
                      MISMIPplus_scenario_config,                 &
+                     MISOMIP1_scenario_config,                &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
+                     fixed_output_dir_suffix_config,             &
                      do_write_debug_data_config,                 &
                      do_check_for_NaN_config,                    &
                      is_restart_config,                          &
@@ -1405,7 +1415,9 @@ CONTAINS
                      BMB_Favier2019_quad_GammaT_config,          &
                      BMB_Favier2019_Mplus_GammaT_config,         &
                      BMB_Lazeroms2018_GammaT_config,             &
+                     BMB_Lazeroms2018_find_GL_scheme_config,     &
                      BMB_PICO_nboxes_config,                     &
+                     BMB_PICO_GammaTstar_config,                 &
                      T_ocean_mean_PD_NAM_config,                 &
                      T_ocean_mean_PD_EAS_config,                 &
                      T_ocean_mean_PD_GRL_config,                 &
@@ -1592,12 +1604,14 @@ CONTAINS
     C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
     C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
     C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
+    C%MISOMIP1_scenario                = MISOMIP1_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
    
     C%create_procedural_output_dir        = create_procedural_output_dir_config
     C%fixed_output_dir                    = fixed_output_dir_config
+    C%fixed_output_dir_suffix             = fixed_output_dir_suffix_config
     
     ! Debugging
     ! =========
@@ -1843,9 +1857,11 @@ CONTAINS
     
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     C%BMB_Lazeroms2018_GammaT             = BMB_Lazeroms2018_GammaT_config
+    C%BMB_Lazeroms2018_find_GL_scheme     = BMB_Lazeroms2018_find_GL_scheme_config
   
     ! Parameters for the PICO BMB model
     C%BMB_PICO_nboxes                     = BMB_PICO_nboxes_config
+    C%BMB_PICO_GammaTstar                 = BMB_PICO_GammaTstar_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config

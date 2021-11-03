@@ -15,7 +15,7 @@ MODULE BMB_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             interpolate_ocean_depth
+                                             interpolate_ocean_depth, interp_bilin_2D
   USE forcing_module,                  ONLY: forcing
 
   IMPLICIT NONE
@@ -67,6 +67,8 @@ CONTAINS
         ! Basal melt in the MISMIPplus experiments
         CALL BMB_MISMIPplus( grid, ice, BMB, time)
         RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
+        ! The MISOMIP1 experiments use the existing basal melt parameterisations
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1482,6 +1484,29 @@ CONTAINS
     
   END SUBROUTINE run_BMB_model_Lazeroms2018_plume
   SUBROUTINE find_effective_plume_path( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j]
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    IF     (C%BMB_Lazeroms2018_find_GL_scheme == 'GL_average') THEN
+      CALL find_effective_plume_path_GL_average(     grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ELSEIF (C%BMB_Lazeroms2018_find_GL_scheme == 'along_ice_flow') THEN
+      CALL find_effective_plume_path_along_ice_flow( grid, ice,      i,j, eff_plume_source_depth, eff_basal_slope)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: BMB_Lazeroms2018_find_GL_scheme "', TRIM(C%BMB_Lazeroms2018_find_GL_scheme), '" not implemented in find_effective_plume_path!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE find_effective_plume_path
+  SUBROUTINE find_effective_plume_path_GL_average( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
     ! Find the effective plume source depth and basal slope for shelf grid cell [i,j], following
     ! the approach outlined in Lazeroms et al. (2018), Sect. 2.3
     !
@@ -1631,7 +1656,107 @@ CONTAINS
       eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
     END IF
     
-  END SUBROUTINE find_effective_plume_path
+  END SUBROUTINE find_effective_plume_path_GL_average
+  SUBROUTINE find_effective_plume_path_along_ice_flow( grid, ice, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j] by
+    ! assuming plumes follow the same horizontal flow field as the ice shelf
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(2)                             :: t1 ,t2 ,uv
+    INTEGER                                            :: nit, nit_max
+    REAL(dp)                                           :: u1, v1, TAF1, TAF2, depth1, Hi2, Hs2, depth2, lambda, GLx, GLy
+    LOGICAL                                            :: found_GL, got_stuck
+    REAL(dp)                                           :: zb_shelf, dist
+    
+    ! Calculate the shelf base depth (draft)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    
+    ! Track a tracer upstream along the ice flow field until grounded ice is found
+    t1     = [grid%x( i), grid%y( j)]
+    t2     = t1
+    TAF1   = ice%TAF_a( j,i)
+    depth1 = zb_shelf
+    
+    found_GL  = .FALSE.
+    got_stuck = .FALSE.
+    nit       = 0
+    nit_max   = grid%nx + grid%ny
+    DO WHILE (.NOT. found_GL)
+      
+      ! Safety
+      nit = nit + 1
+      IF (nit > nit_max) THEN
+        got_stuck = .TRUE.
+        EXIT
+        !WRITE(0,*) '  find_effective_plume_path_along_ice_flow - ERROR: tracer got stuck!'
+        !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Interpolate velocity field to exact tracer location
+      u1 = interp_bilin_2D( ice%u_vav_a, grid%x, grid%y, t1( 1), t1( 2))
+      v1 = interp_bilin_2D( ice%v_vav_a, grid%x, grid%y, t1( 1), t1( 2))
+      
+      ! Move the tracer upstream
+      uv = [u1, v1]
+      uv = uv / NORM2( uv)
+      t2 = t1 - uv * grid%dx
+      
+      ! Safety
+      IF (t2( 1) < grid%xmin .OR. t2( 1) > grid%xmax .OR. t2( 2) < grid%ymin .OR. t2( 2) > grid%ymax) THEN
+        got_stuck = .TRUE.
+        EXIT
+        !WRITE(0,*) '  find_effective_plume_path_along_ice_flow - ERROR: tracer outside domain!'
+        !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Interpolate data to new tracer location
+      TAF2   = interp_bilin_2D( ice%TAF_a, grid%x, grid%y, t2( 1), t2( 2))
+      Hi2    = interp_bilin_2D( ice%Hi_a,  grid%x, grid%y, t2( 1), t2( 2))
+      Hs2    = interp_bilin_2D( ice%Hs_a,  grid%x, grid%y, t2( 1), t2( 2))
+      depth2 = Hs2 - Hi2
+      
+      ! Check if we've found grounded ice
+      IF (TAF2 > 0._dp) THEN
+      
+        found_GL = .TRUE.
+        
+        ! Find exact GL depth
+        lambda = TAF1 / (TAF1 - TAF2)
+        eff_plume_source_depth = lambda * depth2 + (1._dp - lambda) * depth1
+        GLx                    = lambda * t2( 1) + (1._dp - lambda) * t1( 1)
+        GLy                    = lambda * t2( 2) + (1._dp - lambda) * t1( 2)
+      
+        ! Calculate the plume source depth and basal slope
+        dist  = SQRT( (GLx - grid%x( i))**2 + (GLy - grid%y( j))**2 )
+        eff_basal_slope = (zb_shelf - eff_plume_source_depth) / dist
+        
+      ELSE
+        ! Cycle the tracer
+        
+        t1     = t2
+        TAF1   = TAF2
+        depth1 = depth2
+        
+      END IF ! IF (TAF2 > 0._dp) THEN
+      
+    END DO ! DO WHILE (.NOT. found_GL)
+    
+    ! Exception for when the GL source is less deep than the shelf base
+    IF (eff_plume_source_depth >= zb_shelf .OR. got_stuck) THEN
+      eff_plume_source_depth = zb_shelf
+      eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
+    END IF
+    
+  END SUBROUTINE find_effective_plume_path_along_ice_flow
   FUNCTION Lazeroms2018_dimensionless_melt_curve( xhat) RESULT( Mhat)
     ! The dimensionless melt curve from Lazeroms et al. (2018), Appendix A, Eq. A13
     
@@ -1840,9 +1965,6 @@ CONTAINS
     REAL(dp), PARAMETER                                :: alpha       =  7.5E-5_dp     ! Thermal expansion coefficient in EOS              [degC^-1]
     REAL(dp), PARAMETER                                :: beta        =  7.7E-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]
     REAL(dp), PARAMETER                                :: rhostar     = 1033_dp        ! Reference density in EOS                          [kg m^-3]
-    REAL(dp), PARAMETER                                :: gammaS      = 2.0E-6_dp      ! Turbulent salinity exchange velocity              [m s^-1]
-    REAL(dp), PARAMETER                                :: gammaT      = 5.0E-5_dp      ! Turbulent temperature exchange velocity           [m s^-1]
-    REAL(dp), PARAMETER                                :: gammaTstar  = 2.0E-5_dp      ! Effective turbulent temperature exchange velocity [m s^-1]
     REAL(dp), PARAMETER                                :: C_overturn  = 1.0E6_dp       ! Overturning strength                              [m^6 s^-1 kg^-1]
     
     ! Initialise
@@ -1879,7 +2001,7 @@ CONTAINS
       IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == 1) THEN
         
         ! Reese et al. (2018), just before Eq. A6
-        g1 = BMB%PICO_A( basin_i, 1) * gammaTstar
+        g1 = BMB%PICO_A( basin_i, 1) * C%BMB_PICO_GammaTstar
         g2 = g1 / (nu * lambda)
         Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, 1) - Tk0
         
@@ -1899,7 +2021,7 @@ CONTAINS
         BMB%PICO_S( j,i) = Sk0 - y
         
         ! Reese et al. (2019), Eq. 13
-        BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+        BMB%PICO_m( j,i) = sec_per_year * C%BMB_PICO_GammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
         
       END IF ! IF (BMB%PICO_k( j,i) == 1) THEN
       
@@ -1926,9 +2048,10 @@ CONTAINS
         IF (ice%basin_ID( j,i) == basin_i .AND. BMB%PICO_k( j,i) == k) THEN
         
           ! Reese et al. (2018), just before Eq. A6
-          g1 = BMB%PICO_A( basin_i, k) * gammaTstar
+          g1 = BMB%PICO_A( basin_i, k) * C%BMB_PICO_GammaTstar
           g2 = g1 / (nu * lambda)
-          Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, k-1) - BMB%PICO_Tk( basin_i, k-1)
+          !Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, k-1) - BMB%PICO_Tk( basin_i, k-1)
+          Tstar = aa * BMB%PICO_Sk( basin_i, k-1) + bb - cc * BMB%PICO_pk( basin_i, k) - BMB%PICO_Tk( basin_i, k-1)
           
           ! Reese et al. (2018), Eq. A13
           x = -g1 * Tstar / (q + g1 - g2 * aa * BMB%PICO_Sk( basin_i, k-1))
@@ -1940,7 +2063,7 @@ CONTAINS
           BMB%PICO_S( j,i) = BMB%PICO_Sk( basin_i, k-1) - y
         
           ! Reese et al. (2019), Eq. 13
-          BMB%PICO_m( j,i) = sec_per_year * gammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
+          BMB%PICO_m( j,i) = sec_per_year * C%BMB_PICO_GammaTstar / (nu*lambda) * (aa * BMB%PICO_S( j,i) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_T( j,i))
           
         END IF ! IF (BMB%PICO_k( j,i) == k) THEN
         
@@ -2138,6 +2261,11 @@ CONTAINS
           END IF
         END DO
         END DO
+        
+        IF (ii == 0 .OR. jj == 0) THEN
+          WRITE(0,*) '  PICO_calc_T0_S0 - ERROR: couldnt find deepest ocean floor grid cell!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
         
         ! Find ocean-floor temperature and salinity
         CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)

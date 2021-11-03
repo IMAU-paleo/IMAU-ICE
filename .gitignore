@@ -11,9 +11,11 @@ old_src_versions/*
 results_*
 SELEN_files*
 src/module-files/*
+src/object-files/*
 massbalance_module.f90
 basal_melt/*
 *.nc
 run_basal_melt_MISMIPplus.csh
 MISMIPplus/*
 run_*
+MISOMIP1/*

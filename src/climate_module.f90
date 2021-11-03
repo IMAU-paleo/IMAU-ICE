@@ -24,6 +24,7 @@ MODULE climate_module
   USE SMB_module,                      ONLY: run_SMB_model
   USE ocean_module,                    ONLY: initialise_PD_obs_ocean_fields
 
+
   IMPLICIT NONE
     
 CONTAINS
@@ -74,6 +75,10 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
               C%choice_benchmark_experiment == 'MISMIPplus') THEN
+        RETURN
+      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
+        ! Set ocean temperature/salinity profiles according to the MISOMIP+ protocol
+        CALL MISOMIP1_ocean_profiles( grid, climate%applied, time)
         RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
@@ -881,7 +886,8 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_matrix!'
@@ -1092,7 +1098,8 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus') THEN
+          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
+          C%choice_benchmark_experiment == 'MISOMIP1') THEN
           
         ! Entirely parameterised climate, no ocean
         CALL initialise_subclimate( grid, climate%applied, 'applied')
