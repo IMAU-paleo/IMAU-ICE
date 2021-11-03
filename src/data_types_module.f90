@@ -428,6 +428,16 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south_north wind speed (m/s)
     INTEGER :: wHs, wT2m, wPrecip, wWind_WE, wWind_SN
     
+    ! Ocean
+    REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
+    INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
+    REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
+    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
+    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean
+
+    
     ! Paralelisation
     INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
   
@@ -438,6 +448,9 @@ MODULE data_types_module
     
     ! The present-day observed climate (ERA40)
     TYPE(type_subclimate_global)            :: PD_obs
+    
+    ! The present-day observed ocean (WOA18)
+    TYPE(type_subclimate_global)            :: PD_obs_ocean
     
     ! The GCM snapshots.
     TYPE(type_subclimate_global)            :: GCM_PI
@@ -493,11 +506,11 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr                  ! Bias-corrected 3-D annual mean ocean temperature [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr                  ! Bias-corrected 3-D annual mean ocean salinity    [PSU]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_ext                   ! 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_ext                   ! 3-D annual mean ocean salinity   , extrapolated beneath ice shelves [PSU]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
-    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_corr, wS_ocean_corr, wT_ocean_corr_ext, wS_ocean_corr_ext
+    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
   
   END TYPE type_subclimate_region
   

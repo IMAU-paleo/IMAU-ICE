@@ -2592,6 +2592,68 @@ CONTAINS
     
   END SUBROUTINE read_PD_obs_data_file
   
+  ! Present-day observed global ocean (e.g. WOA18)
+  SUBROUTINE inquire_PD_obs_data_file_ocean( PD_obs_ocean) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
+ 
+    ! Local variables:
+    INTEGER                               :: int_dummy
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file(PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_lat,     PD_obs_ocean%nlat,     PD_obs_ocean%netcdf%id_dim_lat    )
+    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_lon,     PD_obs_ocean%nlon,     PD_obs_ocean%netcdf%id_dim_lon    )
+    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_z_ocean, PD_obs_ocean%nz_ocean, PD_obs_ocean%netcdf%id_dim_z_ocean)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lat,     (/ PD_obs_ocean%netcdf%id_dim_lat     /),  PD_obs_ocean%netcdf%id_var_lat    )
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lon,     (/ PD_obs_ocean%netcdf%id_dim_lon     /),  PD_obs_ocean%netcdf%id_var_lon    )
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_z_ocean, (/ PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_z_ocean)
+
+    !CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_mask_ocean, (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_mask_ocean)
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_T_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_T_ocean)
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_S_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_S_ocean)
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(PD_obs_ocean%netcdf%ncid)
+    
+  END SUBROUTINE inquire_PD_obs_data_file_ocean
+  SUBROUTINE read_PD_obs_data_file_ocean( PD_obs_ocean)
+    ! Read the PD_obs_ocean netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file(PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_lon,     PD_obs_ocean%lon,     start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_lat,     PD_obs_ocean%lat,     start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_z_ocean, PD_obs_ocean%z_ocean, start = (/ 1       /) ))
+
+    !CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_mask_ocean,  PD_obs_ocean%mask_ocean,  start = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_T_ocean,     PD_obs_ocean%T_ocean, start = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_S_ocean,     PD_obs_ocean%S_ocean, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(PD_obs_ocean%netcdf%ncid)
+    
+  END SUBROUTINE read_PD_obs_data_file_ocean
+  
   ! GCM global climate (climate matrix snapshots)
   SUBROUTINE inquire_GCM_snapshot( snapshot) 
     ! Check if the right dimensions and variables are present in the file.
