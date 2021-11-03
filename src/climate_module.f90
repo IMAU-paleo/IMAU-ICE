@@ -22,7 +22,7 @@ MODULE climate_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
-  USE ocean_module,                    ONLY: initialise_PD_obs_ocean_fields
+  USE ocean_module,                    ONLY: initialise_PD_obs_ocean_fields, MISOMIP1_ocean_profiles
 
 
   IMPLICIT NONE
