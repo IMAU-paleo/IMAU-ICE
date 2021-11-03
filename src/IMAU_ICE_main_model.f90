@@ -28,6 +28,7 @@ MODULE IMAU_ICE_main_model
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
   USE calving_module,                  ONLY: apply_calving_law
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
+  USE ocean_module,                    ONLY: initialise_oceans_regional
   USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model
   USE SMB_module,                      ONLY: initialise_SMB_model,       run_SMB_model
   USE BMB_module,                      ONLY: initialise_BMB_model,       run_BMB_model
@@ -387,7 +388,12 @@ CONTAINS
     ! ===== The climate model =====
     ! =============================
     
-    CALL initialise_climate_model( region%grid, region%ice, region%climate, matrix, region%name, region%mask_noice)  
+    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)
+    
+    ! ===== The climate model =====
+    ! =============================
+    
+    CALL initialise_oceans_regional( region%grid, region%ice, region%climate, matrix)   
        
     ! ===== Regular output files =====
     ! ================================

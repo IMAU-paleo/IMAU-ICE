@@ -57,15 +57,25 @@ dx_GIA_config                           = 100000.0
 ! Geothermal heat flux
 choice_geothermal_heat_flux_config      = 'spatial'
 constant_geothermal_heat_flux_config    = 1.72E06
-filename_geothermal_heat_flux_config    = '/home/lstap/IMAU_ICE/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+filename_geothermal_heat_flux_config    = '/Users/3137902/Models/IMAU-ICE/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
 ! Climate matrix
-choice_climate_matrix_config            = PI_LGM
+choice_climate_matrix_config            = 'warm_cold'
 switch_glacial_index_precip_config      = .FALSE.
-filename_PD_obs_climate_config          = '/home/lstap/IMAU_ICE/Datasets/ERA40/ERA40_climate_global.nc'
-filename_GCM_snapshot_PI_config         = '/home/lstap/IMAU_ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-filename_GCM_snapshot_warm_config       = '/home/lstap/IMAU_ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-filename_GCM_snapshot_cold_config       = '/home/lstap/IMAU_ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+filename_PD_obs_climate_config          = '/Users/3137902/Models/IMAU-ICE/Datasets/ERA40/ERA40_climate_global.nc'
+filename_GCM_snapshot_PI_config         = '/Users/3137902/Models/IMAU-ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+filename_GCM_snapshot_warm_config       = '/Users/3137902/Models/IMAU-ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+filename_GCM_snapshot_cold_config       = '/Users/3137902/Models/IMAU-ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+
+filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+choice_ocean_temperature_model_config   = 'WOA' ! schematic, WOA, matrix
+! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+choice_BMB_shelf_model_config           = 'uniform' 
+
+filename_basins_ANT_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/ant_full_drainagesystem_polygons.txt'
+choice_basin_scheme_ANT_config          = 'file'
+do_merge_basins_ANT_config              = .TRUE.
+!choice_schematic_ocean_config           = 'Reese2018'
 
 climate_matrix_high_CO2_level_config    = 280.0
 climate_matrix_low_CO2_level_config     = 190.0
@@ -76,10 +86,6 @@ climate_matrix_CO2vsice_NAM_config      = 0.5
 climate_matrix_CO2vsice_EAS_config      = 0.5
 climate_matrix_CO2vsice_GRL_config      = 0.75
 climate_matrix_CO2vsice_ANT_config      = 0.75
-  
-! Ice5G ice-sheet geometry
-filename_ICE5G_PD_config                = '/home/lstap/IMAU_ICE/Datasets/ICE5G/ice5g_v1.2_00.0k_1deg.nc'
-filename_ICE5G_LGM_config               = '/home/lstap/IMAU_ICE/Datasets/ICE5G/ice5g_v1.2_21.0k_1deg.nc'
 
 constant_lapserate_config               = 0.008
 
@@ -98,28 +104,28 @@ SMB_IMAUITM_C_abl_Q_GRL_config          = 0.513
 SMB_IMAUITM_C_abl_Q_ANT_config          = 0.513
 
 ! Forcing
-filename_insolation_config              = '/home/lstap/IMAU_ICE/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
+filename_insolation_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
 choice_forcing_method_config            = 'CO2_direct'
-filename_CO2_record_config              = '/home/lstap/IMAU_ICE/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+filename_CO2_record_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
 CO2_record_length_config                = 8001
 
 ! Initial and PD reference data
-filename_init_NAM_config                = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_init_EAS_config                = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_init_GRL_config                = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-filename_init_ANT_config                = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+filename_init_NAM_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+filename_init_EAS_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+filename_init_GRL_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+filename_init_ANT_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
 ! PD reference data (NetCDF)
-filename_PD_NAM_config                  = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_PD_EAS_config                  = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_PD_GRL_config                  = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-filename_PD_ANT_config                  = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+filename_PD_NAM_config                  = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+filename_PD_EAS_config                  = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+filename_PD_GRL_config                  = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+filename_PD_ANT_config                  = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! topo reference data (NetCDF)
-filename_topo_NAM_config                = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-filename_topo_EAS_config                = '/home/lstap/IMAU_ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-filename_topo_GRL_config                = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-filename_topo_ANT_config                = '/home/lstap/IMAU_ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+filename_topo_NAM_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+filename_topo_EAS_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+filename_topo_GRL_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+filename_topo_ANT_config                = '/Users/3137902/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! Which data fields should be written to the help_fields output file
 help_field_01_config                     = 'lat'
@@ -153,8 +159,8 @@ help_field_28_config                     = 'GCM_PI_T2m'
 help_field_29_config                     = 'GCM_PI_Precip'
 help_field_30_config                     = 'PD_obs_T2m'
 help_field_31_config                     = 'PD_obs_Precip'
-help_field_32_config                     = 'none'
-help_field_33_config                     = 'none'
+help_field_32_config                     = 'T_ocean_3D'
+help_field_33_config                     = 'S_ocean_3D'
 help_field_34_config                     = 'none'
 help_field_35_config                     = 'none'
 help_field_36_config                     = 'none'

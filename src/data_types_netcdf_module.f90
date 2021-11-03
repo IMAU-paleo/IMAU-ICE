@@ -577,27 +577,37 @@ MODULE data_types_netcdf_module
     INTEGER :: id_dim_lon
     INTEGER :: id_dim_lat
     INTEGER :: id_dim_month
+    INTEGER :: id_dim_z_ocean
     
     CHARACTER(LEN=256) :: name_dim_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_dim_lat                   = 'lat                  '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
+    CHARACTER(LEN=256) :: name_dim_z_ocean               = 'depth                '
     
     ! Variables
     INTEGER :: id_var_lon
     INTEGER :: id_var_lat
+    INTEGER :: id_var_z_ocean
     INTEGER :: id_var_Hs
     INTEGER :: id_var_T2m
     INTEGER :: id_var_Precip
     INTEGER :: id_var_Wind_WE
     INTEGER :: id_var_Wind_SN
+    INTEGER :: id_var_mask_ocean
+    INTEGER :: id_var_T_ocean
+    INTEGER :: id_var_S_ocean
     
     CHARACTER(LEN=256) :: name_var_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_var_lat                   = 'lat                  '
+    CHARACTER(LEN=256) :: name_var_z_ocean               = 'depth                '
     CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
     CHARACTER(LEN=256) :: name_var_T2m                   = 'T2m                  '
     CHARACTER(LEN=256) :: name_var_Precip                = 'Precip               '
     CHARACTER(LEN=256) :: name_var_Wind_WE               = 'Wind_WE              '
     CHARACTER(LEN=256) :: name_var_Wind_SN               = 'Wind_SN              '
+    CHARACTER(LEN=256) :: name_var_mask_ocean            = '                     '
+    CHARACTER(LEN=256) :: name_var_T_ocean               = 't_an                 '
+    CHARACTER(LEN=256) :: name_var_S_ocean               = 's_an                 '
         
   END TYPE type_netcdf_climate_data
     

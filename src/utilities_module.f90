@@ -2129,5 +2129,250 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_int_3D
+  
+! == Smoothing operations
+  SUBROUTINE extend_Gaussian_2D( grid, d, r, truncate, ice_basin)
+    ! Apply a Gaussian smoothing filter of with sigma = n*dx to the 2D data field d
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+    REAL(dp),                            INTENT(IN)    :: r             ! Sigma in m
+    REAL(dp),                            INTENT(IN)    :: truncate      ! Truncation in m
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: ice_basin
+    !REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: bathymetry
+    !REAL(dp),                            INTENT(IN)    :: depth    
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,ii,jj,n
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_ext,  d_ext_smooth
+    INTEGER                                            :: wd_ext, wd_ext_smooth
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  ice_basin_ext
+    INTEGER                                            :: wice_basin_ext
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f, ff
+    REAL(dp)                                           :: arg = -1.0_dp ! To generate NaN
+    
+    n = CEILING ( truncate / grid%dx )
+    
+    ! Fill in the smoothing filters
+    ALLOCATE( f( -n:n))
+    ALLOCATE( ff( -n:n))
+    f = 0._dp
+    DO i = -n, n
+      f(i) = EXP( -0.5_dp * (REAL(i,dp) * grid%dx/r)**2)
+    END DO
+    f = f / SUM(f)
+    
+        
+    ! Allocate temporary shared memory for the extended and smoothed data fields
+    CALL allocate_shared_dp_2D ( grid%ny + 2*n, grid%nx + 2*n, d_ext,         wd_ext        )
+    CALL allocate_shared_dp_2D ( grid%ny + 2*n, grid%nx + 2*n, d_ext_smooth,  wd_ext_smooth )
+    CALL allocate_shared_int_2D( grid%ny + 2*n, grid%nx + 2*n, ice_basin_ext, wice_basin_ext)
+    
+    ! Copy data to the extended array and fill in the margins
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      d_ext( j+n,i+n) = d( j,i)
+    END DO
+    END DO
+    IF (par%master) THEN
+      ! West
+      d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
+      ! East
+      d_ext( n+1:n+grid%ny, grid%nx+2*n  ) = d( :      ,grid%nx)
+      ! South
+      d_ext( 1            , n+1:n+grid%nx) = d( 1      ,:      )
+      ! North
+      d_ext( grid%ny+2*n  , n+1:n+grid%nx) = d( grid%ny,:      )
+      ! Corners
+      d_ext( 1:n,                     1:n                    ) = d( 1      ,1      )
+      d_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = d( 1      ,grid%nx)
+      d_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = d( grid%ny,1      )
+      d_ext( grid%ny+n+1:grid%ny+2*n, grid%nx+n+1:grid%nx+2*n) = d( grid%ny,grid%nx)
+    END IF
+    CALL sync
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice_basin_ext( j+n,i+n) = ice_basin( j,i)
+    END DO
+    END DO
+    IF (par%master) THEN
+      ! West
+      ice_basin_ext( n+1:n+grid%ny, 1            ) = ice_basin( :      ,1      )
+      ! East
+      ice_basin_ext( n+1:n+grid%ny, grid%nx+2*n  ) = ice_basin( :      ,grid%nx)
+      ! South
+      ice_basin_ext( 1            , n+1:n+grid%nx) = ice_basin( 1      ,:      )
+      ! North
+      ice_basin_ext( grid%ny+2*n  , n+1:n+grid%nx) = ice_basin( grid%ny,:      )
+      ! Corners
+      ice_basin_ext( 1:n,                     1:n                    ) = ice_basin( 1      ,1      )
+      ice_basin_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = ice_basin( 1      ,grid%nx)
+      ice_basin_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = ice_basin( grid%ny,1      )
+      ice_basin_ext( grid%ny+n+1:grid%ny+2*n, grid%nx+n+1:grid%nx+2*n) = ice_basin( grid%ny,grid%nx)
+    END IF
+    CALL sync
+    
+    ! Convolute extended data with the smoothing filter
+    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
+    CALL sync
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1,       grid%ny
+      ff(-n:n) = 0._dp
+      DO jj = -n, n
+        IF (d_ext( j+n+jj,i+n) == d_ext( j+n+jj,i+n) .AND. &
+            ice_basin_ext(j+n,i+n) == ice_basin_ext(j+n+jj,i+n) ) THEN !.AND. &
+            !abs(bathymetry(j,i)) > depth) THEN
+          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n+jj,i+n) * f(jj)
+          ff(jj) = f(jj)
+        ELSE
+          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n)
+          ff(jj) = 0._dp
+        END IF
+      END DO
+      IF (SUM(ff(-n:n)) == 0._dp) THEN
+        d_ext_smooth( j+n,i+n) = sqrt(arg) ! Set to NaN
+      ELSE
+        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) / SUM(ff(-n:n))
+      END IF
+    END DO
+    END DO
+    CALL sync
+    
+    d_ext( :,grid%i1+n:grid%i2+n) = d_ext_smooth( :,grid%i1+n:grid%i2+n)
+    CALL sync
+    
+    DO j = grid%j1, grid%j2
+      d_ext( j,           1:          n) = d( j,1      )
+      d_ext( j, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
+      ice_basin_ext( j,           1:          n) = ice_basin( j,1      )
+      ice_basin_ext( j, grid%nx+n+1:grid%nx+2*n) = ice_basin( j,grid%nx)
+    END DO
+    CALL sync
+    
+    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
+    CALL sync
+    
+    DO j = grid%j1, grid%j2
+    DO i = 1,       grid%nx
+      ff(-n:n) = 0._dp
+      DO ii = -n, n
+        IF (d_ext( j+n,i+n+ii) == d_ext( j+n,i+n+ii) .AND. &
+            ice_basin_ext(j+n,i+n) == ice_basin_ext(j+n,i+n+ii) ) THEN !.AND. &
+            !abs(bathymetry(j,i)) > depth) THEN 
+          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n,i+n+ii) * f(ii)
+          ff(ii) = f(ii)
+        ELSE
+          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n)
+          ff(ii) = 0._dp
+        END IF
+      END DO
+      IF (SUM(ff(-n:n)) == 0._dp) THEN
+        d_ext_smooth( j+n,i+n) = sqrt(arg) ! Set to NaN
+      ELSE
+        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) / SUM(ff(-n:n))
+      END IF
+    END DO
+    END DO
+    CALL sync
+    
+    ! Copy data back, only to extend
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (d (j,i) == d (j,i)) THEN ! Check for NaN
+        d (j,i) = d (j,i)
+      ELSE   
+        d( j,i) = d_ext_smooth( j+n, i+n)
+      END IF  
+    END DO
+    END DO
+    CALL sync
+    
+    ! Clean up after yourself
+    DEALLOCATE( f )
+    DEALLOCATE( ff)
+    CALL deallocate_shared( wd_ext)
+    CALL deallocate_shared( wd_ext_smooth)
+    CALL deallocate_shared( wice_basin_ext)
+
+    
+  END SUBROUTINE extend_Gaussian_2D
+  SUBROUTINE extend_Gaussian_3D( grid, d, r, truncate, nz, ice_basins)
+    ! Apply a Gaussian smoothing filter of with sigma = n*dx to the 3D data field d
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+    REAL(dp),                            INTENT(IN)    :: r             ! Sigma in km
+    REAL(dp),                            INTENT(IN)    :: truncate      ! Truncation in m
+    INTEGER,                             INTENT(IN)    :: nz
+    INTEGER, DIMENSION(:,:  ),           INTENT(IN)    :: ice_basins
+    !REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: bathymetry
+    !REAL(dp), DIMENSION(:),              INTENT(IN)    :: depth
+    
+    ! Local variables:
+    INTEGER                                            :: k ! layers
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_2D
+    INTEGER                                            :: wd_2D 
+    
+    ! Allocate temporary shared memory for the extended and smoothed data fields
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_2D, wd_2D)    
+
+    DO k = 1, nz 
+      d_2D( :,grid%i1:grid%i2) = d( k,:,grid%i1:grid%i2)
+      CALL extend_Gaussian_2D( grid, d_2D, r, truncate, ice_basins)
+      d( k,:,grid%i1:grid%i2) = d_2D( :,grid%i1:grid%i2)
+    END DO
+         
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_2D)
+    
+  END SUBROUTINE extend_Gaussian_3D
+  
+  SUBROUTINE check_for_NaN_dp_2D_return( d, check)
+    ! Check if NaN values occur in the 2-D dp data field d
+    ! NOTE: parallelised!
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
+    LOGICAL,                                 INTENT(INOUT) :: check
+    
+    ! Local variables:
+    INTEGER                                                :: nx,ny,i,j,i1,i2
+    
+    ! Initialise
+    check =.FALSE.
+    
+    ! Field size
+    nx = SIZE(d,2)
+    ny = SIZE(d,1)
+    
+    ! Parallelisation range
+    CALL partition_list( nx, par%i, par%n, i1, i2)
+    
+    ! Inspect data field
+    DO i = i1, i2
+    DO j = 1, ny
+    
+      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
+      ! you use the property that a NaN is never equal to anything, including itself...
+      
+      IF (d( j,i) /= d( j,i)) THEN
+        check = .TRUE.
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE check_for_NaN_dp_2D_return
 
 END MODULE utilities_module
