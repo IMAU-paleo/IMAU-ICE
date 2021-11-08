@@ -2718,6 +2718,69 @@ CONTAINS
     
   END SUBROUTINE read_GCM_snapshot
   
+  ! GCM global ocean (ocean matrix snapshots)
+  SUBROUTINE inquire_GCM_ocean_snapshot( snapshot) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_subclimate_global), INTENT(INOUT) :: snapshot
+ 
+    ! Local variables:
+    INTEGER                                     :: int_dummy
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( snapshot%netcdf%filename, snapshot%netcdf%ncid)
+ 
+     ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( snapshot%netcdf%ncid, snapshot%netcdf%name_dim_lat,     snapshot%nlat,     snapshot%netcdf%id_dim_lat    )
+    CALL inquire_dim( snapshot%netcdf%ncid, snapshot%netcdf%name_dim_lon,     snapshot%nlon,     snapshot%netcdf%id_dim_lon    )
+    CALL inquire_dim( snapshot%netcdf%ncid, snapshot%netcdf%name_dim_z_ocean, snapshot%nz_ocean, snapshot%netcdf%id_dim_z_ocean)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lat,     (/ snapshot%netcdf%id_dim_lat     /),  snapshot%netcdf%id_var_lat    )
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lon,     (/ snapshot%netcdf%id_dim_lon     /),  snapshot%netcdf%id_var_lon    )
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_z_ocean, (/ snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_z_ocean)
+
+    !CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_mask_ocean, (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_mask_ocean)
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_T_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
+    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_S_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
+   
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(snapshot%netcdf%ncid)
+    
+  END SUBROUTINE inquire_GCM_ocean_snapshot
+  SUBROUTINE read_GCM_ocean_snapshot(    snapshot)
+    ! Read the PD_obs0 netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_subclimate_global), INTENT(INOUT) :: snapshot
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file(snapshot%netcdf%filename, snapshot%netcdf%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_lon,     snapshot%lon,     start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_lat,     snapshot%lat,     start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_z_ocean, snapshot%z_ocean, start = (/ 1       /) ))
+
+    !CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_mask_ocean,  snapshot%mask_ocean,  start = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_T_ocean,     snapshot%T_ocean, start = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_S_ocean,     snapshot%S_ocean, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file(snapshot%netcdf%ncid)
+    
+  END SUBROUTINE read_GCM_ocean_snapshot  
+  
   ! Insolation solution (e.g. Laskar 2004)
   SUBROUTINE inquire_insolation_data_file( forcing)
     IMPLICIT NONE

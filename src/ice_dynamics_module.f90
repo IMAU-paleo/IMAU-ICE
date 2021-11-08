@@ -520,6 +520,14 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_climate)
       
+      region%do_ocean   = .FALSE.
+      IF (region%time == region%t_next_ocean) THEN
+        region%do_ocean       = .TRUE.
+        region%t_last_ocean   = region%time
+        region%t_next_ocean   = region%t_last_ocean + C%dt_ocean
+      END IF
+      t_next = MIN( t_next, region%t_next_ocean)
+      
       region%do_SMB     = .FALSE.
       IF (region%time == region%t_next_SMB) THEN
         region%do_SMB         = .TRUE.

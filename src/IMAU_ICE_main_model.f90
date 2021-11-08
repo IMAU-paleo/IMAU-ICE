@@ -28,7 +28,7 @@ MODULE IMAU_ICE_main_model
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
   USE calving_module,                  ONLY: apply_calving_law
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
-  USE ocean_module,                    ONLY: initialise_oceans_regional
+  USE ocean_module,                    ONLY: initialise_oceans_regional, run_ocean_model
   USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model
   USE SMB_module,                      ONLY: initialise_SMB_model,       run_SMB_model
   USE BMB_module,                      ONLY: initialise_BMB_model,       run_BMB_model
@@ -114,6 +114,11 @@ CONTAINS
       IF (region%do_climate) THEN
         CALL run_climate_model( region%grid, region%ice, region%SMB, region%climate, region%name, region%time)
       END IF
+      
+      ! Run the ocean model
+      IF (region%do_ocean) THEN
+        CALL run_ocean_model( region%grid, region%ice, region%climate, region%name, region%time)
+      END IF     
     
       ! Run the SMB model
       IF (region%do_SMB) THEN
@@ -255,6 +260,10 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%t_next_climate,   region%wt_next_climate  )
     CALL allocate_shared_bool_0D( region%do_climate,       region%wdo_climate      )
     
+    CALL allocate_shared_dp_0D(   region%t_last_ocean,     region%wt_last_ocean    )
+    CALL allocate_shared_dp_0D(   region%t_next_ocean,     region%wt_next_ocean    )
+    CALL allocate_shared_bool_0D( region%do_ocean,         region%wdo_ocean        )
+    
     CALL allocate_shared_dp_0D(   region%t_last_SMB,       region%wt_last_SMB      )
     CALL allocate_shared_dp_0D(   region%t_next_SMB,       region%wt_next_SMB      )
     CALL allocate_shared_bool_0D( region%do_SMB,           region%wdo_SMB          )
@@ -291,6 +300,10 @@ CONTAINS
       region%t_last_climate = C%start_time_of_run
       region%t_next_climate = C%start_time_of_run
       region%do_climate     = .TRUE.
+      
+      region%t_last_ocean   = C%start_time_of_run
+      region%t_next_ocean   = C%start_time_of_run
+      region%do_ocean       = .TRUE.
       
       region%t_last_SMB     = C%start_time_of_run
       region%t_next_SMB     = C%start_time_of_run
@@ -390,7 +403,7 @@ CONTAINS
     
     CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)
     
-    ! ===== The climate model =====
+    ! ===== The ocean model =====
     ! =============================
     
     CALL initialise_oceans_regional( region%grid, region%ice, region%climate, matrix)   

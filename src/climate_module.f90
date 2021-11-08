@@ -22,8 +22,6 @@ MODULE climate_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
-  USE ocean_module,                    ONLY: initialise_PD_obs_ocean_fields, MISOMIP1_ocean_profiles
-
 
   IMPLICIT NONE
     
@@ -74,11 +72,8 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Set ocean temperature/salinity profiles according to the MISOMIP+ protocol
-        CALL MISOMIP1_ocean_profiles( grid, climate%applied, time)
+              C%choice_benchmark_experiment == 'MISMIPplus'  .OR. &
+              C%choice_benchmark_experiment == 'MISOMIP1') THEN
         RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_climate_model!'
@@ -372,7 +367,7 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%climate_matrix_low_CO2_level) / (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) ))   ! Berends et al., 2018 - Eq. 1
+    w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) ))   ! Berends et al., 2018 - Eq. 1
     
     ! Find the interpolation weights based on absorbed insolation
     ! ===========================================================
@@ -435,7 +430,6 @@ CONTAINS
 
     ! Interpolate between the GCM snapshots
     ! =====================================
-    ! TODO Change bias correction, at least for warm_cold climate matrix forcing!
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -549,7 +543,7 @@ CONTAINS
     END IF
 
     IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
-      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%climate_matrix_low_CO2_level) / (C%climate_matrix_high_CO2_level - C%climate_matrix_low_CO2_level) )) )
+      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
       w_cold( :,grid%i1:grid%i2) = w_tot
       w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
     END IF     
@@ -900,10 +894,7 @@ CONTAINS
     
     ! The global ERA40 climate
     CALL initialise_PD_obs_data_fields( matrix%PD_obs, 'ERA40')
-    
-    ! The global WOA18 ocean, if needed
-    CALL initialise_PD_obs_ocean_fields ( matrix%PD_obs_ocean, 'WOA18')
-    
+        
     ! The differenct GCM snapshots 
     IF ((C%choice_forcing_method == 'd18O_inverse_dT_glob') .OR. (C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
       ! These choices of forcing don't use any GCM (snapshot) data
@@ -915,8 +906,8 @@ CONTAINS
       
         ! Initialise the GCM snapshots
         CALL initialise_snapshot( matrix%GCM_PI,   name = 'ref_PI', nc_filename = C%filename_GCM_snapshot_PI,   CO2 = 280._dp,                         orbit_time =       0._dp)
-        CALL initialise_snapshot( matrix%GCM_warm, name = 'warm',   nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%climate_matrix_high_CO2_level, orbit_time = C%climate_matrix_warm_orbit_time)
-        CALL initialise_snapshot( matrix%GCM_cold, name = 'cold',   nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%climate_matrix_low_CO2_level,  orbit_time = C%climate_matrix_cold_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_warm, name = 'warm',   nc_filename = C%filename_GCM_snapshot_warm, CO2 = C%matrix_high_CO2_level, orbit_time = C%matrix_warm_orbit_time)
+        CALL initialise_snapshot( matrix%GCM_cold, name = 'cold',   nc_filename = C%filename_GCM_snapshot_cold, CO2 = C%matrix_low_CO2_level,  orbit_time = C%matrix_cold_orbit_time)
         
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_climate_matrix "', TRIM(C%choice_climate_matrix), '" not implemented in initialise_climate_matrix!'
