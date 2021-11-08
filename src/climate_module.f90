@@ -137,8 +137,8 @@ CONTAINS
 
       ! Map the interpolated timeframe to the model grid
       IF     (C%domain_climate_forcing == 'global') THEN
-        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_T2m2,    climate%applied%T2m,    12)
-        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid,                             forcing%clim_Precip2, climate%applied%Precip, 12) 
+        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_T2m2,    climate%applied%T2m,    12)
+        CALL map_glob_to_grid_3D(                    forcing%clim_nlat, forcing%clim_nlon, forcing%clim_lat, forcing%clim_lon, grid, forcing%clim_Precip2, climate%applied%Precip, 12) 
       ELSEIF (C%domain_climate_forcing == 'regional') THEN
         CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_T2m2, climate%applied%T2m, 12)
         CALL map_square_to_square_cons_2nd_order_3D( forcing%clim_nx,   forcing%clim_ny,   forcing%clim_x,   forcing%clim_y,   grid%nx, grid%ny, grid%x, grid%y, forcing%clim_Precip2, climate%applied%Precip, 12)      
@@ -1101,6 +1101,13 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
     END IF ! IF (C%do_benchmark_experiment) THEN
+
+    ! Exception: if we're using a prescribed climate/SMB forcing, the entire matrix is not used
+    IF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
+      CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )
+      CALL initialise_subclimate( grid, climate%applied,  'applied')
+      RETURN
+    END IF
         
     ! Initialise data structures for the regional ERA40 climate and the final applied climate
     CALL initialise_subclimate( grid, climate%PD_obs,   'ERA40'  )

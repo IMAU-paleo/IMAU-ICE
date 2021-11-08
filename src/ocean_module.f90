@@ -78,7 +78,7 @@ CONTAINS
   ! =======================================================
     
     
-    IF (C%choice_ocean_temperature_model == 'PI' .OR. &
+    IF (C%choice_ocean_temperature_model == 'fixed' .OR. &
         C%choice_ocean_temperature_model == 'scaled' .OR. &
         C%choice_ocean_temperature_model == 'schematic' .OR. &
         C%choice_ocean_temperature_model == 'WOA') THEN
@@ -211,7 +211,7 @@ CONTAINS
     CALL initialise_PD_obs_ocean_fields ( matrix%PD_obs_ocean, 'WOA18')
     
     ! The different GCM snapshots 
-    IF ((C%choice_ocean_temperature_model == 'PI') .OR. (C%choice_ocean_temperature_model == 'scaled') .OR. &
+    IF ((C%choice_ocean_temperature_model == 'fixed') .OR. (C%choice_ocean_temperature_model == 'scaled') .OR. &
         (C%choice_ocean_temperature_model == 'schematic') .OR. (C%choice_ocean_temperature_model == 'WOA')) THEN
       ! These choices of forcing don't use any GCM (snapshot) ocean data
       RETURN
@@ -396,7 +396,7 @@ CONTAINS
     
     IF (C%choice_ocean_temperature_model == 'WOA') THEN
       IF (par%master) WRITE(*,*) '    Constant present-day ocean forcing used for BMB forcing!'
-    ELSE IF (C%choice_ocean_temperature_model == 'PI' .OR. C%choice_ocean_temperature_model == 'scaled')  THEN
+    ELSE IF (C%choice_ocean_temperature_model == 'fixed' .OR. C%choice_ocean_temperature_model == 'scaled')  THEN
       IF (par%master) WRITE(*,*) '    Ocean forcing initialised, but not actually used for BMB forcing!'
     ELSE IF (C%choice_ocean_temperature_model == 'matrix_warm_cold') THEN    
       CALL allocate_subclimate_regional_oceans( grid, climate%GCM_PI,   matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
@@ -509,11 +509,7 @@ CONTAINS
       CALL check_for_NaN_dp_2D_return ( clim_reg%T_ocean_ext(1,:,:) ,check ) 
       !WRITE(*,*) 'check=',check
 
-    END DO
-    
-    !CALL extend_Gaussian_3D ( grid, clim_reg%T_ocean_ext, 1250000._dp, 2500000._dp, 67, ice%basin_ID)
-    !CALL extend_Gaussian_3D ( grid, clim_reg%S_ocean_ext, 1250000._dp, 2500000._dp, 67, ice%basin_ID)
-    
+    END DO    
     ! Initialize the final bias-corrected value. Bias correction will follow later for the climates where this is desired.
     clim_reg%T_ocean_corr_ext      = clim_reg%T_ocean_ext
     clim_reg%S_ocean_corr_ext      = clim_reg%S_ocean_ext
