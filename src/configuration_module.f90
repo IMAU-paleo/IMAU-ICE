@@ -38,6 +38,7 @@ MODULE configuration_module
   REAL(dp)            :: dt_max_config                           = 10.0_dp                          ! Maximum time step (in years) of the ice model
   REAL(dp)            :: dt_thermo_config                        = 10.0_dp                          ! Time step (in years) for updating thermodynamics
   REAL(dp)            :: dt_climate_config                       = 10._dp                           ! Time step (in years) for updating the climate
+  REAL(dp)            :: dt_ocean_config                         = 10._dp                           ! Time step (in years) for updating the ocean
   REAL(dp)            :: dt_SMB_config                           = 10._dp                           ! Time step (in years) for updating the SMB
   REAL(dp)            :: dt_BMB_config                           = 10._dp                           ! Time step (in years) for updating the BMB
   REAL(dp)            :: dt_bedrock_ELRA_config                  = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
@@ -254,6 +255,11 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config   = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'  
+
   ! GCM forcing file
   CHARACTER(LEN=256)  :: filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   
@@ -275,11 +281,16 @@ MODULE configuration_module
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                      ! Default values are from Berends et al, 2018
   REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                      ! 1.0_dp equals glacial index method
 
-  REAL(dp)            :: climate_matrix_high_CO2_level_config        = 280._dp                      ! CO2 level pertaining to the warm climate (PI  level default)         
-  REAL(dp)            :: climate_matrix_low_CO2_level_config         = 190._dp                      ! CO2 level pertaining to the cold climate (LGM level default)          
+  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 1.0_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
+  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 1.0_dp                       ! Can be set separately for different regions
+  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 1.0_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 1.0_dp                       
 
-  REAL(dp)            :: climate_matrix_warm_orbit_time_config       = 0._dp                        ! Orbit time pertaining to the warm climate (PI default)
-  REAL(dp)            :: climate_matrix_cold_orbit_time_config       = -21000._dp                   ! Orbit time pertaining to the cold climate (LGM default)
+  REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                      ! CO2 level pertaining to the warm climate (PI  level default)         
+  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                      ! CO2 level pertaining to the cold climate (LGM level default)          
+
+  REAL(dp)            :: matrix_warm_orbit_time_config               = 0._dp                        ! Orbit time pertaining to the warm climate (PI default)
+  REAL(dp)            :: matrix_cold_orbit_time_config               = -21000._dp                   ! Orbit time pertaining to the cold climate (LGM default)
   
   LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                       ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
   LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                       ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
@@ -534,6 +545,7 @@ MODULE configuration_module
     REAL(dp)                            :: dt_max
     REAL(dp)                            :: dt_thermo
     REAL(dp)                            :: dt_climate
+    REAL(dp)                            :: dt_ocean
     REAL(dp)                            :: dt_SMB
     REAL(dp)                            :: dt_BMB
     REAL(dp)                            :: dt_bedrock_ELRA
@@ -723,6 +735,9 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_cold
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
     CHARACTER(LEN=256)                  :: filename_GCM_climate
     
     CHARACTER(LEN=256)                  :: choice_ocean_temperature_model
@@ -738,10 +753,15 @@ MODULE configuration_module
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
 
-    REAL(dp)                            :: climate_matrix_high_CO2_level
-    REAL(dp)                            :: climate_matrix_low_CO2_level
-    REAL(dp)                            :: climate_matrix_warm_orbit_time
-    REAL(dp)                            :: climate_matrix_cold_orbit_time
+    REAL(dp)                            :: ocean_matrix_CO2vsice_NAM
+    REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
+    REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
+    REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
+
+    REAL(dp)                            :: matrix_high_CO2_level
+    REAL(dp)                            :: matrix_low_CO2_level
+    REAL(dp)                            :: matrix_warm_orbit_time
+    REAL(dp)                            :: matrix_cold_orbit_time
     
     LOGICAL                             :: climate_matrix_biascorrect_warm
     LOGICAL                             :: climate_matrix_biascorrect_cold
@@ -1226,6 +1246,7 @@ CONTAINS
                      dt_max_config,                              &
                      dt_thermo_config,                           &
                      dt_climate_config,                          &
+                     dt_ocean_config,                            &
                      dt_SMB_config,                              &
                      dt_BMB_config,                              &
                      dt_bedrock_ELRA_config,                     &
@@ -1350,6 +1371,9 @@ CONTAINS
                      filename_GCM_snapshot_PI_config,            &
                      filename_GCM_snapshot_warm_config,          &
                      filename_GCM_snapshot_cold_config,          &
+                     filename_GCM_ocean_snapshot_PI_config,      &
+                     filename_GCM_ocean_snapshot_warm_config,    &
+                     filename_GCM_ocean_snapshot_cold_config,    &
                      filename_GCM_climate_config,                &
                      choice_ocean_temperature_model_config,      &
                      choice_schematic_ocean_config,              &
@@ -1361,10 +1385,14 @@ CONTAINS
                      climate_matrix_CO2vsice_EAS_config,         &
                      climate_matrix_CO2vsice_GRL_config,         &
                      climate_matrix_CO2vsice_ANT_config,         &
-                     climate_matrix_high_CO2_level_config,       &
-                     climate_matrix_low_CO2_level_config,        &
-                     climate_matrix_warm_orbit_time_config,      &
-                     climate_matrix_cold_orbit_time_config,      &
+                     ocean_matrix_CO2vsice_NAM_config,           &
+                     ocean_matrix_CO2vsice_EAS_config,           &
+                     ocean_matrix_CO2vsice_GRL_config,           &
+                     ocean_matrix_CO2vsice_ANT_config,           &
+                     matrix_high_CO2_level_config,               &
+                     matrix_low_CO2_level_config,                &
+                     matrix_warm_orbit_time_config,              &
+                     matrix_cold_orbit_time_config,              &
                      climate_matrix_biascorrect_warm_config,     &
                      climate_matrix_biascorrect_cold_config,     &
                      switch_glacial_index_precip_config,         &
@@ -1577,6 +1605,7 @@ CONTAINS
     C%dt_max                              = dt_max_config
     C%dt_thermo                           = dt_thermo_config
     C%dt_climate                          = dt_climate_config
+    C%dt_ocean                            = dt_ocean_config
     C%dt_SMB                              = dt_SMB_config
     C%dt_BMB                              = dt_BMB_config
     C%dt_bedrock_ELRA                     = dt_bedrock_ELRA_config
@@ -1767,6 +1796,9 @@ CONTAINS
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
     C%filename_GCM_snapshot_warm          = filename_GCM_snapshot_warm_config
     C%filename_GCM_snapshot_cold          = filename_GCM_snapshot_cold_config
+    C%filename_GCM_ocean_snapshot_PI      = filename_GCM_ocean_snapshot_PI_config
+    C%filename_GCM_ocean_snapshot_warm    = filename_GCM_ocean_snapshot_warm_config
+    C%filename_GCM_ocean_snapshot_cold    = filename_GCM_ocean_snapshot_cold_config
     C%filename_GCM_climate                = filename_GCM_climate_config
     
     C%choice_ocean_temperature_model      = choice_ocean_temperature_model_config
@@ -1782,10 +1814,15 @@ CONTAINS
     C%climate_matrix_CO2vsice_GRL         = climate_matrix_CO2vsice_GRL_config
     C%climate_matrix_CO2vsice_ANT         = climate_matrix_CO2vsice_ANT_config
 
-    C%climate_matrix_high_CO2_level       = climate_matrix_high_CO2_level_config
-    C%climate_matrix_low_CO2_level        = climate_matrix_low_CO2_level_config
-    C%climate_matrix_warm_orbit_time      = climate_matrix_warm_orbit_time_config
-    C%climate_matrix_cold_orbit_time      = climate_matrix_cold_orbit_time_config
+    C%ocean_matrix_CO2vsice_NAM           = ocean_matrix_CO2vsice_NAM_config
+    C%ocean_matrix_CO2vsice_EAS           = ocean_matrix_CO2vsice_EAS_config
+    C%ocean_matrix_CO2vsice_GRL           = ocean_matrix_CO2vsice_GRL_config
+    C%ocean_matrix_CO2vsice_ANT           = ocean_matrix_CO2vsice_ANT_config
+
+    C%matrix_high_CO2_level               = matrix_high_CO2_level_config
+    C%matrix_low_CO2_level                = matrix_low_CO2_level_config
+    C%matrix_warm_orbit_time              = matrix_warm_orbit_time_config
+    C%matrix_cold_orbit_time              = matrix_cold_orbit_time_config
     
     C%climate_matrix_biascorrect_warm     = climate_matrix_biascorrect_warm_config
     C%climate_matrix_biascorrect_cold     = climate_matrix_biascorrect_cold_config

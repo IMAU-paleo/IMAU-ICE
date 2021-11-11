@@ -446,16 +446,13 @@ MODULE data_types_module
   TYPE type_climate_matrix
     ! The climate matrix data structure. Contains all the different global GCM snapshots.
     
-    ! The present-day observed climate (ERA40)
-    TYPE(type_subclimate_global)            :: PD_obs
+    ! The present-day observed climate (ERA40) & ocean (WOA18)
+    TYPE(type_subclimate_global)            :: PD_obs, PD_obs_ocean
     
-    ! The present-day observed ocean (WOA18)
-    TYPE(type_subclimate_global)            :: PD_obs_ocean
-    
-    ! The GCM snapshots.
-    TYPE(type_subclimate_global)            :: GCM_PI
-    TYPE(type_subclimate_global)            :: GCM_warm
-    TYPE(type_subclimate_global)            :: GCM_cold
+    ! The GCM snapshots for climate and ocean.
+    TYPE(type_subclimate_global)            :: GCM_PI, GCM_PI_ocean
+    TYPE(type_subclimate_global)            :: GCM_warm, GCM_warm_ocean
+    TYPE(type_subclimate_global)            :: GCM_cold, GCM_cold_ocean
   
   END TYPE type_climate_matrix
   
@@ -977,6 +974,7 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: t_last_thermo,  t_next_thermo
     REAL(dp), POINTER                       :: t_last_output,  t_next_output
     REAL(dp), POINTER                       :: t_last_climate, t_next_climate
+    REAL(dp), POINTER                       :: t_last_ocean,   t_next_ocean
     REAL(dp), POINTER                       :: t_last_SMB,     t_next_SMB
     REAL(dp), POINTER                       :: t_last_BMB,     t_next_BMB
     REAL(dp), POINTER                       :: t_last_ELRA,    t_next_ELRA
@@ -985,14 +983,15 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_DIVA
     LOGICAL,  POINTER                       :: do_thermo
     LOGICAL,  POINTER                       :: do_climate
+    LOGICAL,  POINTER                       :: do_ocean
     LOGICAL,  POINTER                       :: do_SMB
     LOGICAL,  POINTER                       :: do_BMB
     LOGICAL,  POINTER                       :: do_output
     LOGICAL,  POINTER                       :: do_ELRA
     INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
-    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_SMB, wt_last_BMB, wt_last_ELRA
-    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_SMB, wt_next_BMB, wt_next_ELRA
-    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_SMB,     wdo_BMB,     wdo_ELRA
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA
     
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area

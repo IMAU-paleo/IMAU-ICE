@@ -28,6 +28,7 @@ PROGRAM IMAU_ICE_program
                                              calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
                                              initialise_geothermal_heat_flux, initialise_climate_SMB_forcing_data, update_climate_SMB_forcing_data
   USE climate_module,                  ONLY: initialise_climate_matrix
+  USE ocean_module,                    ONLY: initialise_ocean_matrix
   USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
@@ -126,6 +127,11 @@ PROGRAM IMAU_ICE_program
   ELSE
     CALL initialise_climate_matrix( matrix)
   END IF
+  
+  ! ===== Initialise the ocean matrix =====
+  ! =======================================
+  
+  CALL initialise_ocean_matrix ( matrix)  
     
   ! ===== Initialise the model regions ======
   ! =========================================
