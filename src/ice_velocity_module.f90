@@ -638,7 +638,7 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dv_dx_a, wdv_dx_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dv_dy_a, wdv_dy_a)
     
-    ! Calculate effective strain components from horizontal stretching on ab-nodes
+    ! Calculate effective strain components from horizontal stretching on the regular grid
     CALL ddx_cx_to_a_2D( grid, u_cx, du_dx_a)
     CALL ddy_cx_to_a_2D( grid, u_cx, du_dy_a)
     CALL ddx_cy_to_a_2D( grid, v_cy, dv_dx_a)

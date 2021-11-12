@@ -66,7 +66,7 @@ MODULE configuration_module
   REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
-  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config             = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
+  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config                = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -296,6 +296,13 @@ MODULE configuration_module
   LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                       ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
  
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                      ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+  
+  ! Ocean matrix
+  ! ============
+  
+  CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                    ! Choice of vertical grid to be used for ocean data
+  REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                     ! Maximum depth           to be used for ocean data
+  REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                      ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
 
   ! Forcing
   ! =======
@@ -350,6 +357,7 @@ MODULE configuration_module
   REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  LOGICAL             :: do_asynchronous_BMB_config              = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
   
   CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config          = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config          = 'none'
@@ -767,6 +775,13 @@ MODULE configuration_module
     LOGICAL                             :: climate_matrix_biascorrect_cold
 
     LOGICAL                             :: switch_glacial_index_precip
+  
+    ! Ocean matrix
+    ! ============
+    
+    CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
+    REAL(dp)                            :: ocean_vertical_grid_max_depth
+    REAL(dp)                            :: ocean_regular_grid_dz
     
     ! Forcing
     ! =======
@@ -814,6 +829,7 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
+    LOGICAL                             :: do_asynchronous_BMB
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1266,7 +1282,7 @@ CONTAINS
                      MISMIPplus_xGL_target_config,               &
                      MISMIPplus_A_flow_initial_config,           &
                      MISMIPplus_scenario_config,                 &
-                     MISOMIP1_scenario_config,                &
+                     MISOMIP1_scenario_config,                   &
                      create_procedural_output_dir_config,        &
                      fixed_output_dir_config,                    &
                      fixed_output_dir_suffix_config,             &
@@ -1396,6 +1412,9 @@ CONTAINS
                      climate_matrix_biascorrect_warm_config,     &
                      climate_matrix_biascorrect_cold_config,     &
                      switch_glacial_index_precip_config,         &
+                     choice_ocean_vertical_grid_config,          &
+                     ocean_vertical_grid_max_depth_config,       &
+                     ocean_regular_grid_dz_config,               &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1429,6 +1448,7 @@ CONTAINS
                      BMB_shelf_uniform_config,                   &
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
+                     do_asynchronous_BMB_config,                 &
                      choice_basin_scheme_NAM_config,             &
                      choice_basin_scheme_EAS_config,             &
                      choice_basin_scheme_GRL_config,             &
@@ -1633,7 +1653,7 @@ CONTAINS
     C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
     C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
     C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
-    C%MISOMIP1_scenario                = MISOMIP1_scenario_config
+    C%MISOMIP1_scenario                   = MISOMIP1_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
@@ -1829,6 +1849,13 @@ CONTAINS
 
     C%switch_glacial_index_precip         = switch_glacial_index_precip_config
     
+    ! Ocean matrix
+    ! ============
+    
+    C%choice_ocean_vertical_grid          = choice_ocean_vertical_grid_config
+    C%ocean_vertical_grid_max_depth       = ocean_vertical_grid_max_depth_config
+    C%ocean_regular_grid_dz               = ocean_regular_grid_dz_config
+    
     ! Forcing
     ! =======
     
@@ -1875,6 +1902,7 @@ CONTAINS
     C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
+    C%do_asynchronous_BMB                 = do_asynchronous_BMB_config
     
     C%choice_basin_scheme_NAM             = choice_basin_scheme_NAM_config
     C%choice_basin_scheme_EAS             = choice_basin_scheme_EAS_config

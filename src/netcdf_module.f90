@@ -287,7 +287,7 @@ CONTAINS
     ELSEIF (field_name == 'A_flow_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_3D_a,    (/1, 1, 1, ti /))
     ELSEIF (field_name == 'A_flow_vav') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_flow_vav_a,   (/1, 1, 1, ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_flow_vav_a,   (/1, 1,    ti /))
       
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -2602,14 +2602,11 @@ CONTAINS
     
     ! Input variables:
     TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
- 
-    ! Local variables:
-    INTEGER                               :: int_dummy
     
     IF (.NOT. par%master) RETURN
         
     ! Open the netcdf file
-    CALL open_netcdf_file(PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
+    CALL open_netcdf_file( PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
     
     ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
     CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_lat,     PD_obs_ocean%nlat,     PD_obs_ocean%netcdf%id_dim_lat    )
@@ -2621,12 +2618,11 @@ CONTAINS
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lon,     (/ PD_obs_ocean%netcdf%id_dim_lon     /),  PD_obs_ocean%netcdf%id_var_lon    )
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_z_ocean, (/ PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_z_ocean)
 
-    !CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_mask_ocean, (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_mask_ocean)
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_T_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_T_ocean)
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_S_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_S_ocean)
         
     ! Close the netcdf file
-    CALL close_netcdf_file(PD_obs_ocean%netcdf%ncid)
+    CALL close_netcdf_file( PD_obs_ocean%netcdf%ncid)
     
   END SUBROUTINE inquire_PD_obs_data_file_ocean
   SUBROUTINE read_PD_obs_data_file_ocean( PD_obs_ocean)
@@ -2647,7 +2643,6 @@ CONTAINS
     CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_lat,     PD_obs_ocean%lat,     start = (/ 1       /) ))
     CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_z_ocean, PD_obs_ocean%z_ocean, start = (/ 1       /) ))
 
-    !CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_mask_ocean,  PD_obs_ocean%mask_ocean,  start = (/ 1, 1, 1 /) ))
     CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_T_ocean,     PD_obs_ocean%T_ocean, start = (/ 1, 1, 1 /) ))
     CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_S_ocean,     PD_obs_ocean%S_ocean, start = (/ 1, 1, 1 /) ))
         
@@ -2726,9 +2721,6 @@ CONTAINS
     
     ! Input variables:
     TYPE(type_subclimate_global), INTENT(INOUT) :: snapshot
- 
-    ! Local variables:
-    INTEGER                                     :: int_dummy
     
     IF (.NOT. par%master) RETURN
         
@@ -2745,11 +2737,9 @@ CONTAINS
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lon,     (/ snapshot%netcdf%id_dim_lon     /),  snapshot%netcdf%id_var_lon    )
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_z_ocean, (/ snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_z_ocean)
 
-    !CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_mask_ocean, (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_mask_ocean)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_T_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_S_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
    
-        
     ! Close the netcdf file
     CALL close_netcdf_file(snapshot%netcdf%ncid)
     
@@ -2772,7 +2762,6 @@ CONTAINS
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_lat,     snapshot%lat,     start = (/ 1       /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_z_ocean, snapshot%z_ocean, start = (/ 1       /) ))
 
-    !CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_mask_ocean,  snapshot%mask_ocean,  start = (/ 1, 1, 1 /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_T_ocean,     snapshot%T_ocean, start = (/ 1, 1, 1 /) ))
     CALL handle_error(nf90_get_var( snapshot%netcdf%ncid, snapshot%netcdf%id_var_S_ocean,     snapshot%S_ocean, start = (/ 1, 1, 1 /) ))
         

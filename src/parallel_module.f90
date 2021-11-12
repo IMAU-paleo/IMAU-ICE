@@ -599,17 +599,21 @@ CONTAINS
     INTEGER,                    INTENT(IN)        :: ntot, i, n
     INTEGER,                    INTENT(OUT)       :: i1, i2
     
+    ! Local variables:
+    INTEGER                                       :: ii
+    
     IF (ntot > n*2) THEN
       i1 = MAX(1,    FLOOR(REAL(ntot *  i      / n)) + 1)
       i2 = MIN(ntot, FLOOR(REAL(ntot * (i + 1) / n)))
     ELSE
-      IF (i==0) THEN
-        i1 = 1
-        i2 = ntot
-      ELSE
-        i1 = 1
-        i2 = 0
-      END IF
+      i1 = 0
+      i2 = 0
+      DO ii = 1, n
+        IF (ii == i) THEN
+          i1 = i
+          i2 = i
+        END IF
+      END DO
     END IF
     
   END SUBROUTINE partition_list

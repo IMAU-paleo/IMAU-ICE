@@ -11,7 +11,7 @@ MODULE ocean_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_matrix, type_subclimate_global, &
-                                             type_climate_model, type_subclimate_region
+                                             type_climate_model, type_subclimate_region, type_init_data_fields
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
                                              inquire_PD_obs_data_file_ocean, read_PD_obs_data_file_ocean, &
                                              inquire_GCM_ocean_snapshot, read_GCM_ocean_snapshot
@@ -19,9 +19,9 @@ MODULE ocean_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              error_function, smooth_Gaussian_2D, smooth_Gaussian_3D, smooth_Shepard_2D, &
-                                             extend_Gaussian_2D, extend_Gaussian_3D, check_for_NaN_dp_2D_return, &
                                              map_glob_to_grid_2D, map_glob_to_grid_3D, &
-                                             map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
+                                             map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
+                                             remap_cons_2nd_order_1D, surface_elevation, extrapolate_Gaussian_floodfill
 
   IMPLICIT NONE
     
@@ -105,7 +105,7 @@ CONTAINS
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables:
-    INTEGER                                            :: i,j,k
+    INTEGER                                            :: i,j
     REAL(dp)                                           :: CO2
     REAL(dp)                                           :: w_CO2, w_ice, w_tot
     REAL(dp)                                           :: w_cold, w_warm
@@ -140,6 +140,7 @@ CONTAINS
     ! Combine weigths CO2 and ice
     ! ===========================
     
+    w_tot = 0._dp
     IF         (region_name == 'NAM') THEN
       w_tot  = (C%ocean_matrix_CO2vsice_NAM * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_NAM) * w_ice) 
     ELSEIF     (region_name == 'EAS') THEN
@@ -161,9 +162,7 @@ CONTAINS
       climate%applied%S_ocean_corr_ext(:,j,i) = (w_tot * climate%GCM_warm%S_ocean_corr_ext( :,j,i)) + ((1._dp - w_tot) * climate%GCM_cold%S_ocean_corr_ext( :,j,i))      
     END DO
     END DO
-    CALL sync       
-    
-    
+    CALL sync
       
   END SUBROUTINE run_ocean_model_matrix_warm_cold
 
@@ -229,7 +228,11 @@ CONTAINS
     END IF
     
   END SUBROUTINE initialise_ocean_matrix
+  
+! == Initialising the global ocean matrix
   SUBROUTINE initialise_PD_obs_ocean_fields (PD_obs_ocean, name)
+    ! Allocate shared memory for the global PD observed ocean data fields (stored in the climate matrix),
+    ! read them from the specified NetCDF file (latter only done by master process). 
      
     IMPLICIT NONE
       
@@ -237,8 +240,8 @@ CONTAINS
     TYPE(type_subclimate_global),   INTENT(INOUT) :: PD_obs_ocean
     CHARACTER(LEN=*),               INTENT(IN)    :: name
     
-    PD_obs_ocean%name = name 
-    PD_obs_ocean%netcdf%filename   = C%filename_PD_obs_ocean
+    PD_obs_ocean%name            = name 
+    PD_obs_ocean%netcdf%filename = C%filename_PD_obs_ocean
         
     ! Inquire if all required variables are present in the NetCDF file, and read the grid size.
     CALL allocate_shared_int_0D( PD_obs_ocean%nlon,     PD_obs_ocean%wnlon)
@@ -248,12 +251,12 @@ CONTAINS
     CALL sync
     
     ! Allocate memory  
-    CALL allocate_shared_dp_1D(                        PD_obs_ocean%nlon,                    PD_obs_ocean%lon,     PD_obs_ocean%wlon    )
-    CALL allocate_shared_dp_1D(                                           PD_obs_ocean%nlat, PD_obs_ocean%lat,     PD_obs_ocean%wlat    )
-    CALL allocate_shared_dp_1D( PD_obs_ocean%nz_ocean,                                       PD_obs_ocean%z_ocean, PD_obs_ocean%wz_ocean)        
-    !CALL allocate_shared_dp_3D( PD_obs_ocean%nlon, PD_obs_ocean%nlat, PD_obs_ocean%nz_ocean, PD_obs_ocean%mask_ocean,      PD_obs_ocean%wmask_ocean     )
-    CALL allocate_shared_dp_3D( PD_obs_ocean%nlon, PD_obs_ocean%nlat, PD_obs_ocean%nz_ocean, PD_obs_ocean%T_ocean,     PD_obs_ocean%wT_ocean    )
-    CALL allocate_shared_dp_3D( PD_obs_ocean%nlon, PD_obs_ocean%nlat, PD_obs_ocean%nz_ocean, PD_obs_ocean%S_ocean,     PD_obs_ocean%wS_ocean    )
+    CALL allocate_shared_dp_1D( PD_obs_ocean%nlon,                                           PD_obs_ocean%lon,     PD_obs_ocean%wlon    )
+    CALL allocate_shared_dp_1D(                    PD_obs_ocean%nlat,                        PD_obs_ocean%lat,     PD_obs_ocean%wlat    )
+    CALL allocate_shared_dp_1D(                                       PD_obs_ocean%nz_ocean, PD_obs_ocean%z_ocean, PD_obs_ocean%wz_ocean)        
+    
+    CALL allocate_shared_dp_3D( PD_obs_ocean%nlon, PD_obs_ocean%nlat, PD_obs_ocean%nz_ocean, PD_obs_ocean%T_ocean, PD_obs_ocean%wT_ocean)
+    CALL allocate_shared_dp_3D( PD_obs_ocean%nlon, PD_obs_ocean%nlat, PD_obs_ocean%nz_ocean, PD_obs_ocean%S_ocean, PD_obs_ocean%wS_ocean)
      
     ! Read data from the NetCDF file
     IF (par%master) WRITE(0,*) '   Reading PD observed ocean data from file ', TRIM(PD_obs_ocean%netcdf%filename), '...'
@@ -262,6 +265,9 @@ CONTAINS
       
     ! Determine process domains
     CALL partition_list( PD_obs_ocean%nlon, par%i, par%n, PD_obs_ocean%i1, PD_obs_ocean%i2)
+    
+    ! Map the data to the desired vertical grid
+    CALL map_global_ocean_data_to_IMAUICE_vertical_grid( PD_obs_ocean)
       
   END SUBROUTINE initialise_PD_obs_ocean_fields  
   SUBROUTINE initialise_ocean_snapshot( snapshot, name, nc_filename, CO2, orbit_time)
@@ -276,7 +282,6 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: nc_filename
     REAL(dp),                       INTENT(IN)    :: CO2
     REAL(dp),                       INTENT(IN)    :: orbit_time
-    
     
     ! Metadata
     snapshot%name            = name 
@@ -315,11 +320,13 @@ CONTAINS
     ! Determine process domains
     CALL partition_list( snapshot%nlon, par%i, par%n, snapshot%i1, snapshot%i2)
     
+    ! Map the data to the desired vertical grid
+    CALL map_global_ocean_data_to_IMAUICE_vertical_grid( snapshot)
     
   END SUBROUTINE initialise_ocean_snapshot
   
 ! == Initialising the region-specific ocean data
-  SUBROUTINE initialise_oceans_regional( grid, ice, climate, matrix)
+  SUBROUTINE initialise_oceans_regional( grid, ice, climate, matrix, init)
     ! Allocate shared memory for the ocean data of the regional subclimates
     
     IMPLICIT NONE
@@ -328,7 +335,8 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice  
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
-    TYPE(type_climate_matrix),           INTENT(IN)    :: matrix
+    TYPE(type_climate_matrix),           INTENT(INOUT) :: matrix
+    TYPE(type_init_data_fields),         INTENT(IN)    :: init
         
     IF (par%master) WRITE (0,*) '  Initialising ocean model...'
     
@@ -385,32 +393,38 @@ CONTAINS
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       RETURN  
-    END IF    
+    END IF
     
     ! Allocate memory for ocean data in all the regional subclimates
-    CALL allocate_subclimate_regional_oceans( grid, climate%PD_obs,   matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
-    CALL allocate_subclimate_regional_oceans( grid, climate%applied,  matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
+    CALL allocate_subclimate_regional_oceans( grid, climate%PD_obs )
+    CALL allocate_subclimate_regional_oceans( grid, climate%applied)
     
-    CALL map_ocean_data_global_to_regional( grid, matrix%PD_obs_ocean, climate%PD_obs  )    
-    CALL extend_ocean_data_to_cover_grid ( grid, climate%PD_obs, ice )
+    ! Map PD ocean data from the global lon/lat-grid to the regional x/y-grid
+    CALL map_ocean_data_global_to_regional( grid, matrix%PD_obs_ocean, climate%PD_obs)
+    
+    ! Extend regional ocean data to cover the entire 3D domain
+    CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%PD_obs, init%Hi, init%Hb)
     
     IF (C%choice_ocean_temperature_model == 'WOA') THEN
       IF (par%master) WRITE(*,*) '    Constant present-day ocean forcing used for BMB forcing!'
     ELSE IF (C%choice_ocean_temperature_model == 'fixed' .OR. C%choice_ocean_temperature_model == 'scaled')  THEN
       IF (par%master) WRITE(*,*) '    Ocean forcing initialised, but not actually used for BMB forcing!'
-    ELSE IF (C%choice_ocean_temperature_model == 'matrix_warm_cold') THEN    
-      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_PI,   matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
-      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_cold, matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
-      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_warm, matrix%PD_obs_ocean%z_ocean, matrix%PD_obs_ocean%nz_ocean)
+    ELSE IF (C%choice_ocean_temperature_model == 'matrix_warm_cold') THEN 
     
-      ! Map ocean data from the global subclimates to the regional subclimates, and extend the ocean data over the whole grid
-      ! TODO: z-coordinate interpolation    
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_PI_ocean,       climate%GCM_PI  )
-      CALL extend_ocean_data_to_cover_grid ( grid, climate%GCM_PI, ice )
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_cold_ocean,     climate%GCM_cold)
-      CALL extend_ocean_data_to_cover_grid ( grid, climate%GCM_cold, ice )
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_warm_ocean,     climate%GCM_warm)
-      CALL extend_ocean_data_to_cover_grid ( grid, climate%GCM_warm, ice )
+      ! Allocate memory for regional ocean data     
+      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_PI  )
+      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_cold)
+      CALL allocate_subclimate_regional_oceans( grid, climate%GCM_warm)
+    
+      ! Map ocean data from the global lon/lat-grid to the regional x/y-grid
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_PI,   climate%GCM_PI  )
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_cold, climate%GCM_cold)
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_warm, climate%GCM_warm)
+    
+      ! Extend regional ocean data to cover the entire 3D domain
+      CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%GCM_PI,   init%Hi, init%Hb)
+      CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%GCM_cold, init%Hi, init%Hb)
+      CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%GCM_warm, init%Hi, init%Hb)
     
       ! Correct regional ocean data for GCM bias
       CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_PI)
@@ -427,15 +441,15 @@ CONTAINS
       climate%applied%mask_ocean       = climate%PD_obs%mask_ocean
       climate%applied%T_ocean          = climate%PD_obs%T_ocean
       climate%applied%T_ocean_ext      = climate%PD_obs%T_ocean_ext
-      climate%applied%T_ocean_corr_ext = climate%PD_obs%T_ocean_corr_ext
+      climate%applied%T_ocean_corr_ext = climate%PD_obs%T_ocean_ext
       climate%applied%S_ocean          = climate%PD_obs%S_ocean
       climate%applied%S_ocean_ext      = climate%PD_obs%S_ocean_ext
-      climate%applied%S_ocean_corr_ext = climate%PD_obs%S_ocean_corr_ext
+      climate%applied%S_ocean_corr_ext = climate%PD_obs%S_ocean_ext
     END IF ! IF (par%master) THEN
     CALL sync
   
   END SUBROUTINE initialise_oceans_regional
-  SUBROUTINE allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+  SUBROUTINE allocate_subclimate_regional_oceans( grid, climate)
     ! Allocate shared memory for the ocean data of a regional subclimate models
     
     IMPLICIT NONE
@@ -443,16 +457,9 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid  
     TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_ocean
-    INTEGER,                             INTENT(IN)    :: nz_ocean
     
     ! Set up the vertical coordinate
-    CALL allocate_shared_int_0D( climate%nz_ocean, climate%wnz_ocean)
-    IF (par%master) climate%nz_ocean = nz_ocean
-    CALL sync
-    CALL allocate_shared_dp_1D( climate%nz_ocean, climate%z_ocean, climate%wz_ocean)
-    IF (par%master) climate%z_ocean = z_ocean
-    CALL sync
+    CALL create_ocean_vertical_grid( climate%nz_ocean, climate%wnz_ocean, climate%z_ocean, climate%wz_ocean)
     
     ! Allocate shared memory
     CALL allocate_shared_int_3D( climate%nz_ocean, grid%ny, grid%nx, climate%mask_ocean,       climate%wmask_ocean      )
@@ -474,47 +481,352 @@ CONTAINS
     TYPE(type_subclimate_global),        INTENT(IN)    :: clim_glob
     TYPE(type_subclimate_region),        INTENT(INOUT) :: clim_reg
     
-    ! TODO: instead of a taking the WOA vertical, remap to a predefined regular (e.g. 60-km) vertical coordinates 
     CALL map_glob_to_grid_3D ( clim_glob%nlat, clim_glob%nlon, clim_glob%lat, clim_glob%lon, grid, clim_glob%T_ocean, clim_reg%T_ocean, clim_glob%nz_ocean)
-    CALL map_glob_to_grid_3D ( clim_glob%nlat, clim_glob%nlon, clim_glob%lat, clim_glob%lon, grid, clim_glob%S_ocean, clim_reg%S_ocean, clim_glob%nz_ocean)    
-    
-    ! TODO: check if needed
-    clim_reg%mask_ocean       = 0._dp   
+    CALL map_glob_to_grid_3D ( clim_glob%nlat, clim_glob%nlon, clim_glob%lat, clim_glob%lon, grid, clim_glob%S_ocean, clim_reg%S_ocean, clim_glob%nz_ocean)
   
   END SUBROUTINE map_ocean_data_global_to_regional
-  SUBROUTINE extend_ocean_data_to_cover_grid (grid, clim_reg, ice)
-    ! Extend the ocean data over the whole grid, based on the procedure outlined in 
+  SUBROUTINE extend_regional_ocean_data_to_cover_domain( grid, ice, ocean_data, Hi, Hb)
+    ! Extend global ocean data over the whole grid, based on the procedure outlined in 
     ! Jourdain, N. C., Asay-Davis, X., Hattermann, T., Straneo, F., Seroussi, H., Little, C. M., & Nowicki, S. (2020). 
     ! A protocol for calculating basal melt rates in the ISMIP6 Antarctic ice sheet projections. The Cryosphere, 14(9), 3111-3134. 
 
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_subclimate_region),        INTENT(INOUT) :: clim_reg
     TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_subclimate_region),        INTENT(INOUT) :: ocean_data
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hi, Hb   ! DENK DROM - this is the geometry for which the ocean data is valid, probably should be part of the ocean_data structure...
     
-    ! local variables
-    INTEGER                                            :: l ! iterations
-    LOGICAL                                            :: check = .TRUE.
+    ! Local variables:
+    INTEGER                                            :: i,j,k
+    REAL(dp)                                           :: NaN, Hs, z_bedrock, z_icebase, z
+    INTEGER,  DIMENSION(:,:,:), POINTER                ::  mask_wetdry,  mask_hasdata
+    INTEGER                                            :: wmask_wetdry, wmask_hasdata
+    INTEGER                                            :: k1,k2,bi
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: mask, mask_filled
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: d_T, d_S
+    REAL(dp), PARAMETER                                :: sigma_Gaussian = 12000._dp
     
-    clim_reg%T_ocean_ext      = clim_reg%T_ocean
-    clim_reg%S_ocean_ext      = clim_reg%S_ocean
+    ! Useful
+    NaN = -1._dp
+    NaN = SQRT( NaN)
     
-    DO l=1,50 ! Random number of iterations
-      WRITE(*,*) "Climate=", TRIM(clim_reg%name), ", l=",l
-      !CALL extend_Gaussian_3D ( grid, clim_reg%T_ocean_ext, 8000._dp, 12000._dp, 67, ice%basin_ID) ! TODO: 67 -> clim_reg%nz_ocean
-      !CALL extend_Gaussian_3D ( grid, clim_reg%S_ocean_ext, 8000._dp, 12000._dp, 67, ice%basin_ID) ! TODO: 67 -> clim_reg%nz_ocean
-      CALL extend_Gaussian_3D ( grid, clim_reg%T_ocean_ext, 8000._dp, 12000._dp, 40, ice%basin_ID) ! TODO: 40 -> clim_reg%nz_ocean
-      CALL extend_Gaussian_3D ( grid, clim_reg%S_ocean_ext, 8000._dp, 12000._dp, 40, ice%basin_ID) ! TODO: 40 -> clim_reg%nz_ocean
+    ! Initialise the extrapolated product with the provided ocean data
+    ocean_data%T_ocean_ext( :,:,grid%i1:grid%i2) = ocean_data%T_ocean( :,:,grid%i1:grid%i2)
+    ocean_data%S_ocean_ext( :,:,grid%i1:grid%i2) = ocean_data%S_ocean( :,:,grid%i1:grid%i2)
+    CALL sync
+    
+    ! Define the two masks needed for the four extrapolation steps:
+    ! 
+    !  - mask_wetdry:
+    !      1 = actually    wet (i.e. open ocean, sub-shelf cavity, above sea floor and beneath ice base)
+    !      2 = potentially wet (i.e. grounded marine ice, above sea floor)
+    !      3 =             dry (i.e. beneath bedrock                     )
+    ! 
+    !  - mask_hasdata:
+    !      0 = has no data
+    !      1 = has data provided
+    !      2 = has data extrapolated
+    
+    CALL allocate_shared_int_3D( ocean_data%nz_ocean, grid%ny, grid%nx, mask_wetdry,  wmask_wetdry )
+    CALL allocate_shared_int_3D( ocean_data%nz_ocean, grid%ny, grid%nx, mask_hasdata, wmask_hasdata)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
       
-      CALL check_for_NaN_dp_2D_return ( clim_reg%T_ocean_ext(1,:,:) ,check ) 
-      !WRITE(*,*) 'check=',check
-
-    END DO    
-    ! Initialize the final bias-corrected value. Bias correction will follow later for the climates where this is desired.
-    clim_reg%T_ocean_corr_ext      = clim_reg%T_ocean_ext
-    clim_reg%S_ocean_corr_ext      = clim_reg%S_ocean_ext
+      Hs = surface_elevation( Hi( j,i), Hb( j,i), 0._dp)
+      z_bedrock = Hb( j,i)
+      z_icebase = Hs - Hi( j,i)
+      
+      DO k = 1, ocean_data%nz_ocean
+        
+        z = -ocean_data%z_ocean( k)
+        
+        ! mask_wetdry
+        IF (z < z_bedrock) THEN
+          ! This 3D grid box is beneath the bedrock surface, so dry
+          mask_wetdry( k,j,i) = 3
+        ELSE
+          ! This 3D grid box is above the bedrock surface so at least potentially wet
+          IF (z < z_icebase) THEN
+            ! This 3D grid box is above the bedrock surface and below the ice base, so it is actually wet
+            mask_wetdry( k,j,i) = 1
+          ELSE
+            ! This 3D grid box is above the bedrock surface and above the ice base, so it is potentially wet (i.e. inside grounded marine ice)
+            mask_wetdry( k,j,i) = 2
+          END IF
+        END IF
+        
+        ! mask_hasdata
+        IF (ocean_data%T_ocean( k,j,i) /= ocean_data%T_ocean( k,j,i)) THEN
+          ! This 3D grid box has no data (yet)
+          mask_hasdata( k,j,i) = 0
+        ELSE
+          ! Data is already provided for this 3D grid box
+          mask_hasdata( k,j,i) = 1
+        END IF
+        
+      END DO
+      
+    END DO
+    END DO
+    CALL sync
+        
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_3D_01( 1:10,:,:) = ocean_data%T_ocean_ext( 1:10,:,:)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
     
-  END SUBROUTINE extend_ocean_data_to_cover_grid
+  ! ================================================================
+  ! ===== Step 1: horizontal extrapolation into shelf cavities =====
+  ! ================================================================
+  
+    ! Here, we start with the ocean data as provided (i.e. only for open ocean), and
+    ! perform a horizontal extrapolation (so for each vertical layer separately) into
+    ! the shelf cavities. Only "actually wet" 3D grid cells are allowed to be filled,
+    ! so the fill is limited by both bedrock sills and grounded ice.
+    
+    ! Allocate memory for the mask and data field of a single extrapolation step
+    ALLOCATE( mask(        grid%ny, grid%nx))
+    ALLOCATE( mask_filled( grid%ny, grid%nx))
+    ALLOCATE( d_T(         grid%ny, grid%nx))
+    ALLOCATE( d_S(         grid%ny, grid%nx))
+    
+    ! Parallelised by partitioning the vertical domain
+    CALL partition_list( ocean_data%nz_ocean, par%i, par%n, k1, k2)
+    
+    DO k = k1, k2
+    
+      ! Extrapolate per basin
+      DO bi = 1, ice%nbasins
+        
+        ! Define the mask and initial data fields for this particular flood-fill
+        ! (i.e. this vertical layer and this basin)
+        mask        = 0
+        d_T         = NaN
+        d_S         = NaN
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+          IF (ice%basin_ID( j,i) == bi) THEN
+            IF (mask_hasdata( k,j,i) == 1) THEN
+              ! This is where the source data comes from
+              mask( j,i) = 2
+              d_T(  j,i) = ocean_data%T_ocean_ext( k,j,i)
+              d_S(  j,i) = ocean_data%S_ocean_ext( k,j,i)
+            ELSEIF (mask_hasdata( k,j,i) == 0 .AND. mask_wetdry( k,j,i) == 1) THEN
+              ! This is where we're supposed to fill it in
+              mask( j,i) = 1
+            END IF
+          END IF
+        END DO
+        END DO
+        
+        ! Perform the flood-fill-based Gaussian extrapolation
+        CALL extrapolate_Gaussian_floodfill( grid, mask, d_T, sigma_Gaussian, mask_filled)
+        CALL extrapolate_Gaussian_floodfill( grid, mask, d_S, sigma_Gaussian, mask_filled)
+        
+        ! Copy extrapolated data to the data structure
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+          IF (mask_filled( j,i) == 1) THEN
+            ocean_data%T_ocean_ext( k,j,i) = d_T( j,i)
+            ocean_data%S_ocean_ext( k,j,i) = d_S( j,i)
+            mask_hasdata(           k,j,i) = 2
+          END IF
+        END DO
+        END DO
+        
+      END DO ! DO bi = 1, ice%nbasins
+      
+    END DO ! DO k = k1, k2
+    CALL sync
+    
+    ! Clean up after yourself
+    DEALLOCATE( mask       )
+    DEALLOCATE( mask_filled)
+    DEALLOCATE( d_T        )
+    DEALLOCATE( d_S        )
+        
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_3D_02( 1:10,:,:) = ocean_data%T_ocean_ext( 1:10,:,:)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
+    
+  ! ===========================================================================
+  ! ===== Step 2: vertical extrapolation into sill-blocked shelf cavities =====
+  ! ===========================================================================
+  
+    ! Here, we start with the ocean data that has been horizontally extrapolated into
+    ! the shelf cavities, allowing for bedrock topography to block the fill, so that
+    ! for example the lower parts of the Filchner-Ronne and Ross cavities have not yet
+    ! been filled. We now extrapolate the data vertically from the filled parts to
+    ! fill those parts of the cavities. Barring any really weird geometry, the entire
+    ! cavities will now be filled.
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ! Move down through the vertical column
+      DO k = 2, ocean_data%nz_ocean
+        ! If this grid box is wet and has no data, but the one above it does,
+        ! copy data from the one above it.
+        IF (mask_wetdry( k,j,i) == 1 .AND. mask_hasdata( k,j,i) == 0) THEN
+          ! This 3D grid box is wet but has no data
+          IF (mask_hasdata( k-1,j,i) == 1 .OR. mask_hasdata( k-1,j,i) == 2) THEN
+            ! The one above it has data; copy data
+            mask_hasdata( k,j,i) = 2
+            ocean_data%T_ocean_ext( k,j,i) = ocean_data%T_ocean_ext( k-1,j,i)
+            ocean_data%S_ocean_ext( k,j,i) = ocean_data%S_ocean_ext( k-1,j,i)
+          END IF
+        END IF
+      END DO
+      
+    END DO
+    END DO
+    CALL sync
+        
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_3D_03( 1:10,:,:) = ocean_data%T_ocean_ext( 1:10,:,:)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
+    
+  ! ===============================================================
+  ! ===== Step 3: vertical extrapolation into ice and bedrock =====
+  ! ===============================================================
+  
+    ! Extrapolate data vertically into 3D grid boxes that are occupied by ice
+    ! or bedrock (since they might turn into ocean at some point during a simulation)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ! Move down through the vertical column
+      DO k = 2, ocean_data%nz_ocean
+        ! If this grid box is wet and has no data, but the one above it does,
+        ! copy data from the one above it.
+        IF (mask_hasdata( k,j,i) == 0) THEN
+          ! This 3D grid box is wet but has no data
+          IF (mask_hasdata( k-1,j,i) == 1 .OR. mask_hasdata( k-1,j,i) == 2) THEN
+            ! The one above it has data; copy data
+            mask_hasdata( k,j,i) = 2
+            ocean_data%T_ocean_ext( k,j,i) = ocean_data%T_ocean_ext( k-1,j,i)
+            ocean_data%S_ocean_ext( k,j,i) = ocean_data%S_ocean_ext( k-1,j,i)
+          END IF
+        END IF
+      END DO
+      
+      ! Move up through the vertical column
+      DO k = ocean_data%nz_ocean-1, 1, -1
+        ! If this grid box is wet and has no data, but the one above it does,
+        ! copy data from the one above it.
+        IF (mask_hasdata( k,j,i) == 0) THEN
+          ! This 3D grid box is wet but has no data
+          IF (mask_hasdata( k+1,j,i) == 1 .OR. mask_hasdata( k+1,j,i) == 2) THEN
+            ! The one above it has data; copy data
+            mask_hasdata( k,j,i) = 2
+            ocean_data%T_ocean_ext( k,j,i) = ocean_data%T_ocean_ext( k+1,j,i)
+            ocean_data%S_ocean_ext( k,j,i) = ocean_data%S_ocean_ext( k+1,j,i)
+          END IF
+        END IF
+      END DO
+      
+    END DO
+    END DO
+    CALL sync
+        
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_3D_04( 1:10,:,:) = ocean_data%T_ocean_ext( 1:10,:,:)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
+    
+  ! =================================================================
+  ! ===== Step 4: horizontal extrapolation into ice and bedrock =====
+  ! =================================================================
+  
+    ! In the last step, extrapolate data horizontally into 3D
+    ! grid boxes that are occupied by ice or bedrock
+    
+    ! Allocate memory for the mask and data field of a single extrapolation step
+    ALLOCATE( mask(        grid%ny, grid%nx))
+    ALLOCATE( mask_filled( grid%ny, grid%nx))
+    ALLOCATE( d_T(         grid%ny, grid%nx))
+    ALLOCATE( d_S(         grid%ny, grid%nx))
+    
+    ! Parallelised by partitioning the vertical domain
+    CALL partition_list( ocean_data%nz_ocean, par%i, par%n, k1, k2)
+    
+    DO k = k1, k2
+    
+      ! Extrapolate per basin
+      DO bi = 1, ice%nbasins
+        
+        ! Define the mask and initial data fields for this particular flood-fill
+        ! (i.e. this vertical layer and this basin)
+        mask        = 0
+        d_T         = NaN
+        d_S         = NaN
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+          IF (ice%basin_ID( j,i) == bi) THEN
+            IF (mask_hasdata( k,j,i) == 1 .OR. mask_hasdata( k,j,i) == 2) THEN
+              ! This is where the source data comes from
+              mask( j,i) = 2
+              d_T(  j,i) = ocean_data%T_ocean_ext( k,j,i)
+              d_S(  j,i) = ocean_data%S_ocean_ext( k,j,i)
+            ELSEIF (mask_hasdata( k,j,i) == 0) THEN
+              ! This is where we're supposed to fill it in
+              mask( j,i) = 1
+            END IF
+          END IF
+        END DO
+        END DO
+        
+        ! Perform the flood-fill-based Gaussian extrapolation
+        CALL extrapolate_Gaussian_floodfill( grid, mask, d_T, sigma_Gaussian, mask_filled)
+        CALL extrapolate_Gaussian_floodfill( grid, mask, d_S, sigma_Gaussian, mask_filled)
+        
+        ! Copy extrapolated data to the data structure
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+          IF (mask_filled( j,i) == 1) THEN
+            ocean_data%T_ocean_ext( k,j,i) = d_T( j,i)
+            ocean_data%S_ocean_ext( k,j,i) = d_S( j,i)
+            mask_hasdata(           k,j,i) = 2
+          END IF
+        END DO
+        END DO
+        
+      END DO ! DO bi = 1, ice%nbasins
+      
+    END DO ! DO k = k1, k2
+    CALL sync
+    
+    ! Clean up after yourself
+    DEALLOCATE( mask       )
+    DEALLOCATE( mask_filled)
+    DEALLOCATE( d_T        )
+    DEALLOCATE( d_S        )
+        
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_3D_05( 1:10,:,:) = ocean_data%T_ocean_ext( 1:10,:,:)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
+!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wmask_wetdry )
+    CALL deallocate_shared( wmask_hasdata)
+    
+  END SUBROUTINE extend_regional_ocean_data_to_cover_domain
   SUBROUTINE correct_GCM_bias_ocean( grid, climate, subclimate)
     ! Correct regional ocean data for GCM bias
     ! (must be done on regional grid, since the GCM grid and the World Ocean Atlas grid are generally not the same!)
@@ -526,11 +838,179 @@ CONTAINS
     TYPE(type_climate_model),            INTENT(IN)    :: climate
     TYPE(type_subclimate_region),        INTENT(INOUT) :: subclimate
     
-    subclimate%T_ocean_corr_ext = subclimate%T_ocean_ext - (climate%GCM_PI%T_ocean_ext - climate%PD_obs%T_ocean_ext)
-    subclimate%s_ocean_corr_ext = subclimate%S_ocean_ext - (climate%GCM_PI%S_ocean_ext - climate%PD_obs%S_ocean_ext)       
+    ! Local variables
+    INTEGER                                            :: i,j,k
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, subclimate%nz_ocean
+      subclimate%T_ocean_corr_ext( k,j,i) = subclimate%T_ocean_ext( k,j,i) - (climate%GCM_PI%T_ocean_ext( k,j,i) - climate%PD_obs%T_ocean_ext( k,j,i))
+      subclimate%T_ocean_corr_ext( k,j,i) = subclimate%S_ocean_ext( k,j,i) - (climate%GCM_PI%S_ocean_ext( k,j,i) - climate%PD_obs%S_ocean_ext( k,j,i))
+    END DO
+    END DO
+    END DO
+    CALL sync
   
   END SUBROUTINE correct_GCM_bias_ocean
+  
+! == Regrid 3-D ocean data fields in the vertical direction
+  SUBROUTINE map_global_ocean_data_to_IMAUICE_vertical_grid( ocean_data)
+    ! Map global 3-D ocean temperature and salinity from whatever vertical grid
+    ! it has been provided on to the vertical grid used by IMAU-ICE
+     
+    IMPLICIT NONE
+      
+    ! Input variables:
+    TYPE(type_subclimate_global),   INTENT(INOUT) :: ocean_data
     
+    ! Local variables:
+    INTEGER,                    POINTER           :: nz_new
+    REAL(dp), DIMENSION(:    ), POINTER           :: z_new
+    REAL(dp), DIMENSION(:,:,:), POINTER           :: T_ocean_new, S_ocean_new
+    INTEGER                                       :: wnz_new, wz_new, wT_ocean_new, wS_ocean_new
+    INTEGER                                       :: i,j,k
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE       :: z_mask_old, z_mask_new
+    REAL(dp)                                      :: z_floor
+    REAL(dp)                                      :: NaN
+    
+    ! A trick
+    NaN = -1._dp
+    NaN = SQRT( NaN)
+    
+    ! Set up the desired vertical grid
+    CALL create_ocean_vertical_grid( nz_new, wnz_new, z_new, wz_new)
+    
+    ! Regrid 3-D ocean temperature and salinity
+    CALL allocate_shared_dp_3D( ocean_data%nlon, ocean_data%nlat, nz_new, T_ocean_new, wT_ocean_new)
+    CALL allocate_shared_dp_3D( ocean_data%nlon, ocean_data%nlat, nz_new, S_ocean_new, wS_ocean_new)
+    
+    ALLOCATE( z_mask_old( ocean_data%nz_ocean))
+    ALLOCATE( z_mask_new( nz_new             ))
+    
+    DO i = ocean_data%i1, ocean_data%i2
+    DO j = 1, ocean_data%nlat
+      
+      ! Determine local depth of the ocean floor, fill in both data masks
+      IF (ocean_data%T_ocean( i,j,ocean_data%nz_ocean) == ocean_data%T_ocean( i,j,ocean_data%nz_ocean)) THEN
+        ! Ocean floor lies below the vertical limit of the provided data
+        z_mask_old = 1
+        z_floor = ocean_data%z_ocean( ocean_data%nz_ocean) + (ocean_data%z_ocean( 2) - ocean_data%z_ocean( 1))
+      ELSEIF (ocean_data%T_ocean( i,j,1) /= ocean_data%T_ocean( i,j,1)) THEN
+        ! This grid cell isn't ocean at all
+        z_mask_old = 0
+        z_floor    = 0._dp
+      ELSE
+        z_mask_old = 1
+        k = ocean_data%nz_ocean
+        DO WHILE (ocean_data%T_ocean( i,j,k) /= ocean_data%T_ocean( i,j,k))
+          z_mask_old( k) = 0
+          z_floor = ocean_data%z_ocean( k)
+          k = k - 1
+        END DO
+      END IF
+      
+      z_mask_new = 0
+      DO k = 1, nz_new
+        IF (z_new( k) < z_floor) z_mask_new = 1
+      END DO
+      
+      ! Regrid vertical column
+      CALL remap_cons_2nd_order_1D( ocean_data%z_ocean, z_mask_old, ocean_data%T_ocean( i,j,:), z_new, z_mask_new, T_ocean_new( i,j,:))
+      CALL remap_cons_2nd_order_1D( ocean_data%z_ocean, z_mask_old, ocean_data%S_ocean( i,j,:), z_new, z_mask_new, S_ocean_new( i,j,:))
+      
+      ! Fill masked values with NaN
+      DO k = 1, nz_new
+        IF (z_mask_new( k) == 0) THEN
+          T_ocean_new( i,j,k) = NaN
+          S_ocean_new( i,j,k) = NaN
+        END IF
+      END DO
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Deallocate old ocean data
+    CALL deallocate_shared( ocean_data%wz_ocean )
+    CALL deallocate_shared( ocean_data%wT_ocean )
+    CALL deallocate_shared( ocean_data%wS_ocean )
+    
+    ! Allocate shared memory for regridded ocean data
+    CALL allocate_shared_dp_1D(                                   nz_new, ocean_data%z_ocean, ocean_data%wz_ocean)  
+    CALL allocate_shared_dp_3D( ocean_data%nlon, ocean_data%nlat, nz_new, ocean_data%T_ocean, ocean_data%wT_ocean)
+    CALL allocate_shared_dp_3D( ocean_data%nlon, ocean_data%nlat, nz_new, ocean_data%S_ocean, ocean_data%wS_ocean)
+    
+    ! Copy regridded ocean data
+    IF (par%master) THEN
+      ocean_data%nz_ocean = nz_new
+      ocean_data%z_ocean  = z_new
+    END IF
+    CALL sync
+    ocean_data%T_ocean( ocean_data%i1:ocean_data%i2,:,:) = T_ocean_new( ocean_data%i1:ocean_data%i2,:,:)
+    ocean_data%S_ocean( ocean_data%i1:ocean_data%i2,:,:) = S_ocean_new( ocean_data%i1:ocean_data%i2,:,:)
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wnz_new)
+    CALL deallocate_shared( wz_new )
+    DEALLOCATE( z_mask_old)
+    DEALLOCATE( z_mask_new)
+    CALL deallocate_shared( wT_ocean_new)
+    CALL deallocate_shared( wS_ocean_new)
+    
+  END SUBROUTINE map_global_ocean_data_to_IMAUICE_vertical_grid
+  SUBROUTINE create_ocean_vertical_grid( nz, wnz, z, wz)
+    ! Set up the vertical grid used for ocean data
+     
+    IMPLICIT NONE
+      
+    ! Input variables:
+    INTEGER,                    POINTER, INTENT(OUT)   :: nz
+    INTEGER,                             INTENT(OUT)   :: wnz
+    REAL(dp), DIMENSION(:    ), POINTER, INTENT(OUT)   :: z
+    INTEGER,                             INTENT(OUT)   :: wz
+    
+    IF (C%choice_ocean_vertical_grid == 'regular') THEN
+      CALL create_ocean_vertical_grid_regular( nz, wnz, z, wz)
+    ELSE
+      IF (par%master) WRITE(0,*) '  create_ocean_vertical_grid - ERROR: choice_ocean_vertical_grid "', TRIM(C%choice_ocean_vertical_grid), '" not implemented!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE create_ocean_vertical_grid
+  SUBROUTINE create_ocean_vertical_grid_regular( nz, wnz, z, wz)
+    ! Set up the vertical grid used for ocean data - regular grid
+     
+    IMPLICIT NONE
+      
+    ! Input variables:
+    INTEGER,                    POINTER, INTENT(OUT)   :: nz
+    INTEGER,                             INTENT(OUT)   :: wnz
+    REAL(dp), DIMENSION(:    ), POINTER, INTENT(OUT)   :: z
+    INTEGER,                             INTENT(OUT)   :: wz
+    
+    ! Local variables:
+    INTEGER                                       :: k
+    
+    ! Determine the number of vertical layers to be used
+    CALL allocate_shared_int_0D( nz, wnz)
+    IF (par%master) THEN
+      nz = 1 + FLOOR( C%ocean_vertical_grid_max_depth / C%ocean_regular_grid_dz)
+    END IF
+    CALL sync
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_1D( nz, z, wz)
+    
+    ! Fill in the values
+    IF (par%master) THEN
+      DO k = 1, nz
+        z( k) = REAL(k-1,dp) * C%ocean_regular_grid_dz
+      END DO
+    END IF
+    CALL sync
+    
+  END SUBROUTINE create_ocean_vertical_grid_regular
+  
 ! == Some schematic ocean temperature/salinity profiles
   SUBROUTINE MISOMIP1_ocean_profiles( grid, climate, time)
     ! Set the ocean temperature and salinity according to the ISOMIP+ protocol
@@ -586,9 +1066,6 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j,k
-    INTEGER,  PARAMETER                                :: nz_ocean  = 30
-    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
-    INTEGER                                            :: wz_ocean
     REAL(dp)                                           :: w
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      = -1.9_dp    ! Sea floor   temperature [degC]
@@ -596,17 +1073,8 @@ CONTAINS
     REAL(dp), PARAMETER                                :: Sbot      = 34.55_dp   ! Sea floor   salinity    [PSU]
     REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
     
-    ! Create vertical dimension
-    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
-    IF (par%master) THEN
-      DO k = 1, nz_ocean
-        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
-      END DO
-    END IF
-    CALL sync
-    
     ! Allocate memory for the ocean data
-    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    CALL allocate_subclimate_regional_oceans( grid, climate)
     
     ! Fill in the temperature and salinity profiles
     DO i = grid%i1, grid%i2
@@ -630,9 +1098,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wz_ocean)
   
   END SUBROUTINE set_ocean_to_ISOMIPplus_COLD
   SUBROUTINE set_ocean_to_ISOMIPplus_WARM( grid, climate)
@@ -646,9 +1111,6 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j,k
-    INTEGER,  PARAMETER                                :: nz_ocean  = 30
-    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
-    INTEGER                                            :: wz_ocean
     REAL(dp)                                           :: w
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      =  1.0_dp    ! Sea floor   temperature [degC]
@@ -656,17 +1118,8 @@ CONTAINS
     REAL(dp), PARAMETER                                :: Sbot      = 34.7_dp    ! Sea floor   salinity    [PSU]
     REAL(dp), PARAMETER                                :: depth_max = 720._dp    ! Maximum depth for the profile (constant values below that)
     
-    ! Create vertical dimension
-    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
-    IF (par%master) THEN
-      DO k = 1, nz_ocean
-        z_ocean( k) = 1000._dp * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
-      END DO
-    END IF
-    CALL sync
-    
     ! Allocate memory for the ocean data
-    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    CALL allocate_subclimate_regional_oceans( grid, climate)
     
     ! Fill in the temperature and salinity profiles
     DO i = grid%i1, grid%i2
@@ -690,9 +1143,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wz_ocean)
   
   END SUBROUTINE set_ocean_to_ISOMIPplus_WARM
   SUBROUTINE set_ocean_to_Reese2018( grid, ice, climate)
@@ -707,12 +1157,8 @@ CONTAINS
     TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
     
     ! Local variables
-    INTEGER                                            :: i,j,k
+    INTEGER                                            :: i,j
     REAL(dp)                                           :: T,S
-    INTEGER,  PARAMETER                                :: nz_ocean  = 2
-    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
-    INTEGER                                            :: wz_ocean
-    REAL(dp), PARAMETER                                :: depth_max = 5000._dp    ! Maximum depth for the profile (constant values below that)
     
     ! Safety
     IF (.NOT. (C%choice_basin_scheme_ANT == 'file' .AND. C%do_merge_basins_ANT)) THEN
@@ -727,17 +1173,8 @@ CONTAINS
       END IF
     END IF
     
-    ! Create vertical dimension
-    CALL allocate_shared_dp_1D( nz_ocean, z_ocean, wz_ocean)
-    IF (par%master) THEN
-      DO k = 1, nz_ocean
-        z_ocean( k) = depth_max * REAL(k-1,dp) / REAL(nz_ocean-1,dp)
-      END DO
-    END IF
-    CALL sync
-    
     ! Allocate memory for the ocean data
-    CALL allocate_subclimate_regional_oceans( grid, climate, z_ocean, nz_ocean)
+    CALL allocate_subclimate_regional_oceans( grid, climate)
     
     ! Fill in the temperature and salinity values
     T = 0._dp
@@ -811,9 +1248,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wz_ocean)
     
   END SUBROUTINE set_ocean_to_Reese2018
 

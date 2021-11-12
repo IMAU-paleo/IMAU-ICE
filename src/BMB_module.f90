@@ -65,8 +65,7 @@ CONTAINS
         RETURN
       ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
         ! Basal melt in the MISMIPplus experiments
-        CALL BMB_MISMIPplus( grid, ice, BMB, time)
-        RETURN
+        C%choice_BMB_shelf_model = 'MISMIPplus'
       ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
         ! The MISOMIP1 experiments use the existing basal melt parameterisations
       ELSE
@@ -89,6 +88,8 @@ CONTAINS
     IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
       CALL sync
+    ELSEIF (C%choice_BMB_shelf_model == 'MISMIPplus') THEN
+      CALL BMB_MISMIPplus( grid, ice, BMB, time)
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
       CALL run_BMB_model_ANICE_legacy(         grid, ice, climate, BMB, region_name)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin') THEN
@@ -115,6 +116,9 @@ CONTAINS
       IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_sheet_model), '" not implemented in run_BMB_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
+    
+    ! Extrapolate melt field from the regular (FCMP) mask to the (extended) PMP mask
+    IF (C%choice_BMB_subgrid == 'PMP') CALL extrapolate_melt_from_FCMP_to_PMP( grid, ice, BMB)
     
     ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)
@@ -308,31 +312,6 @@ CONTAINS
       IF (par%master) WRITE(0,*) '  ERROR: MISMIPplus_scenario "', TRIM(C%MISMIPplus_scenario), '" not implemented in BMB_MISMIPplus!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    
-    ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
-    ! (see Leguy et al. 2021 for explanations of the three schemes)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    
-      ! No sub-grid scaling for sub-sheet melt yet
-      BMB%BMB( j,i) = 0._dp
-      IF (ice%mask_sheet_a( j,i) == 1._dp) BMB%BMB( j,i) = BMB%BMB_sheet( j,i)
-      
-      ! Different sub-grid schemes for sub-shelf melt
-      IF     (C%choice_BMB_subgrid == 'FCMP') THEN
-        IF (ice%mask_shelf_a( j,i) == 1) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
-      ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
-        BMB%BMB( j,i) = BMB%BMB( j,i) + (1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i)
-      ELSEIF (C%choice_BMB_subgrid == 'NMP') THEN
-        IF (ice%f_grnd_a( j,i) == 0._dp) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_subgrid "', TRIM(C%choice_BMB_subgrid), '" not implemented in run_BMB_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
     
   END SUBROUTINE BMB_MISMIPplus
 
@@ -2335,6 +2314,156 @@ CONTAINS
     CALL run_BMB_model_Lazeroms2018_plume( grid, ice, climate, BMB)
     
   END SUBROUTINE run_BMB_model_PICOP
+  
+  ! Routine for extrapolating melt field from the regular (FCMP) mask
+  ! to the (extended) PMP mask
+  SUBROUTINE extrapolate_melt_from_FCMP_to_PMP( grid, ice, BMB)
+    ! All the BMB parameterisations are implicitly run using the FCMP sub-grid scheme
+    ! (i.e. they are only applied to grid cells whose centre is floating).
+    ! Calculating melt rates for partially-floating-but-grounded-at-the-centre cells (which
+    ! is needed in the PMP scheme) is not straightforward; instead, just extrapolate values into
+    ! the grid cells where this is the case.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,i1,i2,j1,j2,ii,jj,n,n_ext
+    INTEGER,  DIMENSION(:,:  ), POINTER                :: mask_FCMP, mask_PMP
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: BMB_shelf_extra
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: dBMBdx, dBMBdy
+    INTEGER                                            :: wmask_FCMP, wmask_PMP, wBMB_shelf_extra, wdBMBdx, wdBMBdy
+    REAL(dp)                                           :: BMB_av
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_FCMP,       wmask_FCMP      )
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_PMP,        wmask_PMP       )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB_shelf_extra, wBMB_shelf_extra)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dBMBdx,          wdBMBdx         )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dBMBdy,          wdBMBdy         )
+    
+    ! Define the two masks
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      mask_FCMP( j,i) = 0
+      mask_PMP(  j,i) = 0
+      IF (ice%mask_shelf_a( j,i) == 1) mask_FCMP( j,i) = 1
+      IF (ice%f_grnd_a( j,i) < 1._dp .AND. ice%mask_ice_a( j,i) == 1) mask_PMP(  j,i) = 1
+    END DO
+    END DO
+    CALL sync
+    
+    ! Calculate spatial derivatives of the melt field, accounting for masked grid cells
+    DO i = MAX(2,grid%i2), MIN(grid%nx-1,grid%i2)
+    DO j = 2, grid%ny-1
+    
+      ! d/dx
+      IF (mask_FCMP( j,i) == 0) THEN
+        dBMBdx( j,i) = 0._dp
+      ELSE
+        IF     (mask_FCMP( j,i-1) == 1 .AND. mask_FCMP( j,i+1) == 1) THEN
+          ! Central differencing
+          dBMBdx( j,i) = (BMB%BMB_shelf( j,i+1) - BMB%BMB_shelf( j,i-1)) / (2._dp * grid%dx)
+        ELSEIF (mask_FCMP( j,i-1) == 0 .AND. mask_FCMP( j,i+1) == 1) THEN
+          ! One-sided differencing
+          dBMBdx( j,i) = (BMB%BMB_shelf( j,i+1) - BMB%BMB_shelf( j,i  )) / grid%dx
+        ELSEIF (mask_FCMP( j,i-1) == 1 .AND. mask_FCMP( j,i+1) == 0) THEN
+          ! One-sided differencing
+          dBMBdx( j,i) = (BMB%BMB_shelf( j,i  ) - BMB%BMB_shelf( j,i-1)) / grid%dx
+        ELSE
+          dBMBdx( j,i) = 0._dp
+        END IF
+      END IF
+      
+      ! d/dy
+      IF (mask_FCMP( j,i) == 0) THEN
+        dBMBdy( j,i) = 0._dp
+      ELSE
+        IF     (mask_FCMP( j-1,i) == 1 .AND. mask_FCMP( j+1,i) == 1) THEN
+          ! Central differencing
+          dBMBdy( j,i) = (BMB%BMB_shelf( j+1,i) - BMB%BMB_shelf( j-1,i)) / (2._dp * grid%dx)
+        ELSEIF (mask_FCMP( j-1,i) == 0 .AND. mask_FCMP( j+1,i) == 1) THEN
+          ! One-sided differencing
+          dBMBdy( j,i) = (BMB%BMB_shelf( j+1,i) - BMB%BMB_shelf( j  ,i)) / grid%dx
+        ELSEIF (mask_FCMP( j-1,i) == 1 .AND. mask_FCMP( j+1,i) == 0) THEN
+          ! One-sided differencing
+          dBMBdy( j,i) = (BMB%BMB_shelf( j  ,i) - BMB%BMB_shelf( j-1,i)) / grid%dx
+        ELSE
+          dBMBdy( j,i) = 0._dp
+        END IF
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Extrapolate melt from the FCMP to the PMP mask by taking the average over all FCMP neighbours
+    n_ext = 1
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Initialise
+      BMB_shelf_extra( j,i) = 0._dp
+      
+      IF (mask_PMP( j,i) == 1) THEN
+        IF (mask_FCMP( j,i) == 1) THEN
+          ! Simply copy the FCMP value
+          
+          BMB_shelf_extra( j,i) = BMB%BMB_shelf( j,i)
+          
+        ELSE
+          ! Calculate average melt rate over all FCMP neighbours
+          
+          n      = 0
+          BMB_av = 0._dp
+          n_ext  = 0
+          
+          DO WHILE (n == 0)
+            
+            n_ext = n_ext + 1
+            
+            i1 = MAX( 1      , i - n_ext)
+            i2 = MIN( grid%nx, i + n_ext)
+            j1 = MAX( 1      , j - n_ext)
+            j2 = MIN( grid%ny, j + n_ext)
+            
+            DO ii = i1, i2
+            DO jj = j1, j2
+              IF (mask_FCMP( jj,ii) == 1) THEN
+                n = n + 1
+                BMB_av = BMB_av + BMB%BMB_shelf( jj,ii) + REAL(ii-i,dp) * grid%dx * dBMBdx( j,i) &
+                                                        + REAL(jj-j,dp) * grid%dx * dBMBdy( j,i)
+              END IF
+            END DO
+            END DO
+            
+          END DO ! DO WHILE (n == 0)
+          
+          BMB_av = BMB_av / REAL(n,dp)
+          BMB_shelf_extra( j,i) = BMB_av
+          
+        END IF ! IF (mask_FCMP( j,i) == 1) THEN
+      END IF ! IF (mask_PMP( j,i) == 1) THEN
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Copy results back to original array
+    BMB%BMB_shelf( :,grid%i1:grid%i2) = BMB_shelf_extra( :,grid%i1:grid%i2)
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wmask_FCMP      )
+    CALL deallocate_shared( wmask_PMP       )
+    CALL deallocate_shared( wBMB_shelf_extra)
+    CALL deallocate_shared( wdBMBdx         )
+    CALL deallocate_shared( wdBMBdy         )
+    
+  END SUBROUTINE extrapolate_melt_from_FCMP_to_PMP
   
   ! Administration: allocation and initialisation
   SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)

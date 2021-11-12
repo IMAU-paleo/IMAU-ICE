@@ -201,7 +201,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region),         INTENT(INOUT)     :: region
     CHARACTER(LEN=3),                INTENT(IN)        :: name
-    TYPE(type_climate_matrix),       INTENT(IN)        :: matrix
+    TYPE(type_climate_matrix),       INTENT(INOUT)     :: matrix
     
     ! Local variables:
     CHARACTER(LEN=20)                                  :: short_filename
@@ -406,7 +406,7 @@ CONTAINS
     ! ===== The ocean model =====
     ! =============================
     
-    CALL initialise_oceans_regional( region%grid, region%ice, region%climate, matrix)   
+    CALL initialise_oceans_regional( region%grid, region%ice, region%climate, matrix, region%init)   
        
     ! ===== Regular output files =====
     ! ================================

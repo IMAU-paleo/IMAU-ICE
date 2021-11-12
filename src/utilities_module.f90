@@ -11,7 +11,7 @@ MODULE utilities_module
                                              deallocate_shared
   USE configuration_module,            ONLY: dp, C
   USE parameters_module
-  USE netcdf_module,                   ONLY: debug
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE data_types_module,               ONLY: type_grid, type_sparse_matrix_CSR
   USE petsc_module,                    ONLY: solve_matrix_equation_CSR_PETSc
 
@@ -1239,8 +1239,8 @@ CONTAINS
     INTEGER,                         INTENT(IN)  :: nz
     
     ! Local variables:
-    INTEGER                                                :: i, j, il, iu, jl, ju, k
-    REAL(dp)                                               :: wil, wiu, wjl, wju
+    INTEGER                                      :: i, j, il, iu, jl, ju, k
+    REAL(dp)                                     :: wil, wiu, wjl, wju
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1689,8 +1689,12 @@ CONTAINS
       WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(f_ocean,1) = ', SIZE(f_ocean,1), ' /= nz_ocean = ', nz_ocean, '!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (z_query > MAXVAL(z_ocean)) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> MAXVAL(z_ocean) = ', MAXVAL(z_ocean), '!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      !WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> MAXVAL(z_ocean) = ', MAXVAL(z_ocean), '!'
+      !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      
+      ! Nearest-neighbour extrapolation when querying data beneath the end of the ocean data column
+      f_query = f_ocean( nz_ocean)
+      RETURN
     END IF
     
     ! Exception for when z_query = 0 (the World Ocean Atlas depth starts at 1.25...)
@@ -1744,6 +1748,170 @@ CONTAINS
     f_query = w * f_ocean( k_hi) + (1._dp - w) * f_ocean( k_lo)
     
   END SUBROUTINE interpolate_ocean_depth
+
+! == 2nd-order conservative remapping of a 1-D variable
+  SUBROUTINE remap_cons_2nd_order_1D( z_src, mask_src, d_src, z_dst, mask_dst, d_dst)
+    ! 2nd-order conservative remapping of a 1-D variable
+    ! 
+    ! Used to remap ocean data from the provided vertical grid to the IMAU-ICE ocean vertical grid
+    !
+    ! Both z_src and z_dst can be irregular.
+    ! 
+    ! Both the src and dst data have a mask, with 0 indicating grid points where no data is defined.
+    !
+    ! This subroutine is serial, as it will be applied to single grid cells when remapping 3-D data fields,
+    !   with the parallelisation being done by distributing the 2-D grid cells over the processes.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_src
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: mask_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: d_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: z_dst
+    INTEGER,  DIMENSION(:    ),          INTENT(IN)    :: mask_dst
+    REAL(dp), DIMENSION(:    ),          INTENT(OUT)   :: d_dst
+    
+    ! Local variables:
+    LOGICAL                                            :: all_are_masked
+    INTEGER                                            :: nz_src, nz_dst
+    INTEGER                                            :: k
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: ddz_src
+    INTEGER                                            :: k_src, k_dst
+    REAL(dp)                                           :: zl_src, zu_src, zl_dst, zu_dst, z_lo, z_hi, z, d
+    REAL(dp)                                           :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
+    REAL(dp)                                           :: dist_to_dst, dist_to_dst_min, max_dist
+    INTEGER                                            :: k_src_nearest_to_dst
+    
+    ! Initialise
+    d_dst = 0._dp
+    
+    ! Sizes
+    nz_src = SIZE( z_src,1)
+    nz_dst = SIZE( z_dst,1)
+    
+    ! Maximum distance on combined grids
+    max_dist = MAXVAL([ ABS( z_src( nz_src) - z_src( 1)), &
+                        ABS( z_dst( nz_dst) - z_dst( 1)), &
+                        ABS( z_src( nz_src) - z_dst( 1)), &
+                        ABS( z_dst( nz_dst) - z_src( 1))])
+    
+    ! Exception for when the entire src field is masked
+    all_are_masked = .TRUE.
+    DO k = 1, nz_src
+      IF (mask_src( k) == 1) all_are_masked = .FALSE.
+    END DO
+    IF (all_are_masked) RETURN
+    
+    ! Exception for when the entire dst field is masked
+    all_are_masked = .TRUE.
+    DO k = 1, nz_dst
+      IF (mask_dst( k) == 1) all_are_masked = .FALSE.
+    END DO
+    IF (all_are_masked) RETURN
+    
+    ! Calculate derivative d_src/dz (one-sided differencing at the boundary, central differencing everywhere else)
+    ALLOCATE( ddz_src( nz_src))
+    DO k = 2, nz_src-1
+      ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
+    END DO
+    ddz_src(  1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
+    ddz_src(  nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
+    
+    ! Perform conservative remapping by finding regions of overlap
+    ! between source and destination grid cells
+    
+    DO k_dst = 1, nz_dst
+      
+      ! Skip masked grid cells
+      IF (mask_dst( k_dst) == 0) THEN
+        d_dst( k_dst) = 0._dp
+        CYCLE
+      END IF
+      
+      ! Find z range covered by this dst grid cell
+      IF (k_dst > 1) THEN
+        zl_dst = 0.5_dp * (z_dst( k_dst - 1) + z_dst( k_dst))
+      ELSE
+        zl_dst = z_dst( 1) - 0.5_dp * (z_dst( 2) - z_dst( 1))
+      END IF
+      IF (k_dst < nz_dst) THEN
+        zu_dst = 0.5_dp * (z_dst( k_dst + 1) + z_dst( k_dst))
+      ELSE
+        zu_dst = z_dst( nz_dst) + 0.5_dp * (z_dst( nz_dst) - z_dst( nz_dst-1))
+      END IF
+      
+      ! Find all overlapping src grid cells
+      d_int_tot      = 0._dp
+      dz_overlap_tot = 0._dp
+      DO k_src = 1, nz_src
+      
+        ! Skip masked grid cells
+        IF (mask_src( k_src) == 0) CYCLE
+      
+        ! Find z range covered by this src grid cell
+        IF (k_src > 1) THEN
+          zl_src = 0.5_dp * (z_src( k_src - 1) + z_src( k_src))
+        ELSE
+          zl_src = z_src( 1) - 0.5_dp * (z_src( 2) - z_src( 1))
+        END IF
+        IF (k_src < nz_src) THEN
+          zu_src = 0.5_dp * (z_src( k_src + 1) + z_src( k_src))
+        ELSE
+          zu_src = z_src( nz_src) + 0.5_dp * (z_src( nz_src) - z_src( nz_src-1))
+        END IF
+        
+        ! Find region of overlap
+        z_lo = MAX( zl_src, zl_dst)
+        z_hi = MIN( zu_src, zu_dst)
+        dz_overlap = MAX( 0._dp, z_hi - z_lo)
+        
+        ! Calculate integral over region of overlap and add to sum
+        IF (dz_overlap > 0._dp) THEN
+          z = 0.5_dp * (z_lo + z_hi)
+          d = d_src( k_src) + ddz_src( k_src) * (z - z_src( k_src))
+          d_int = d * dz_overlap
+          
+          d_int_tot      = d_int_tot      + d_int
+          dz_overlap_tot = dz_overlap_tot + dz_overlap
+        END IF
+        
+      END DO ! DO k_src = 1, nz_src
+      
+      IF (dz_overlap_tot > 0._dp) THEN
+        ! Calculate dst value
+        d_dst( k_dst) = d_int_tot / dz_overlap_tot
+      ELSE
+        ! Exception for when no overlapping src grid cells were found; use nearest-neighbour extrapolation
+        
+        k_src_nearest_to_dst = 0._dp
+        dist_to_dst_min      = max_dist
+        DO k_src = 1, nz_src
+          IF (mask_src( k_src) == 1) THEN
+            dist_to_dst = ABS( z_src( k_src) - z_dst( k_dst))
+            IF (dist_to_dst < dist_to_dst_min) THEN
+              dist_to_dst_min      = dist_to_dst
+              k_src_nearest_to_dst = k_src
+            END IF
+          END IF
+        END DO
+        
+        ! Safety
+        IF (k_src_nearest_to_dst == 0) THEN
+          WRITE(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+        
+        d_dst( k_dst) = d_src( k_src_nearest_to_dst)
+        
+      END IF ! IF (dz_overlap_tot > 0._dp) THEN
+        
+    END DO ! DO k_dst = 1, nz_dst
+    
+    ! Clean up after yourself
+    DEALLOCATE( ddz_src)
+    
+  END SUBROUTINE remap_cons_2nd_order_1D
   
 ! == Remove Lake Vostok from Antarctic input geometry data
   SUBROUTINE remove_Lake_Vostok( x, y, Hi, Hb, Hs)
@@ -1804,8 +1972,189 @@ CONTAINS
     
   END SUBROUTINE remove_Lake_Vostok
   
+! == Gaussian extrapolation (used for ocean data)
+  SUBROUTINE extrapolate_Gaussian_floodfill( grid, mask, d, sigma, mask_filled)
+    ! Extrapolate the data field d into the area designated by the mask,
+    ! using Gaussian extrapolation of sigma
+    ! 
+    ! NOTE: not parallelised! This is done instead by dividing vertical
+    !       ocean layers over the processes.
+    ! 
+    ! Note about the mask:
+    !    2 = data provided
+    !    1 = no data provided, fill allowed
+    !    0 = no fill allowed
+    ! (so basically this routine extrapolates data from the area
+    !  where mask == 2 into the area where mask == 1)
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+    REAL(dp),                            INTENT(IN)    :: sigma
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_filled   ! 1 = successfully filled, 2 = failed to fill (region of to-be-filled pixels not connected to source data)
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,k,ii,jj,it
+    INTEGER                                            :: stackN1, stackN2
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: stack1, stack2
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: map
+    INTEGER                                            :: n_search
+    LOGICAL                                            :: has_filled_neighbours
+    INTEGER                                            :: n
+    REAL(dp)                                           :: sum_d, w, sum_w
+    
+    n_search = 1 + CEILING( 2._dp * sigma / grid%dx)
+    
+    ! Allocate map and stacks
+    ALLOCATE( map(       grid%ny,  grid%nx))
+    ALLOCATE( stack1( 2*(grid%ny + grid%nx),2))
+    ALLOCATE( stack2( 2*(grid%ny + grid%nx),2))
+      
+    map         = 0
+    stack1      = 0
+    stack2      = 0
+    stackN1     = 0
+    stackN2     = 0
+    mask_filled = 0
+  
+    ! Initialise the map from the mask
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+      IF (mask( j,i) == 2) THEN
+        map( j,i) = 2
+      END IF
+    END DO
+    END DO
+    
+    ! Initialise the stack with all empty-next-to-filled grid cells
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+        
+      IF (mask( j,i) == 1) THEN
+        ! This grid cell is empty and should be filled
+        
+        has_filled_neighbours = .FALSE.
+        DO ii = MAX(1 ,i-1), MIN(grid%nx,i+1)
+        DO jj = MAX(1 ,j-1), MIN(grid%ny,j+1)
+          IF (mask( jj,ii) == 2) THEN
+            has_filled_neighbours = .TRUE.
+            EXIT
+          END IF
+        END DO
+        IF (has_filled_neighbours) EXIT
+        END DO
+        
+        IF (has_filled_neighbours) THEN
+          ! Add this empty-with-filled-neighbours grid cell to the stack,
+          ! and mark it as stacked on the map
+          map( j,i) = 1
+          stackN2 = stackN2 + 1
+          stack2( stackN2,:) = [i,j]
+        END IF
+      
+      END IF ! IF (map( i,j) == 0) THEN
+        
+    END DO
+    END DO
+    
+    ! Perform the flood-fill
+    it = 0
+    DO WHILE (stackN2 > 0)
+      
+      it = it + 1
+      
+      ! Go over all the stacked empty-next-to-filled grid cells, perform the
+      ! Gaussian-kernel extrapolation to fill, and mark them as as such on the map
+      DO k = 1, stackN2
+        
+        ! Get grid cell indices
+        i = stack2( k,1)
+        j = stack2( k,2)
+        
+        ! Find Gaussian-weighted average value over nearby filled pixels within the basin
+        n     = 0
+        sum_d = 0._dp
+        sum_w = 0._dp
+        
+        DO ii = MAX( 1 ,i - n_search), MIN( grid%nx,i + n_search)
+        DO jj = MAX( 1 ,j - n_search), MIN( grid%ny,j + n_search)
+        
+          IF (map( jj,ii) == 2) THEN
+            n     = n + 1
+            w     = EXP( -0.5_dp * (SQRT(REAL(ii-i,dp)**2 + REAL(jj-j,dp)**2) / sigma)**2)
+            sum_w = sum_w + w
+            sum_d = sum_d + w * d( jj,ii)
+          END IF
+          
+        END DO
+        END DO
+        
+        ! Fill in averaged value
+        d( j,i) = sum_d / sum_w
+        
+        ! Mark grid cell as filled
+        map( j,i) = 2
+        mask_filled( j,i) = 1
+        
+      END DO ! DO k = 1, stackN2
+      
+      ! Cycle the stacks
+      stack1  = stack2
+      stackN1 = stackN2
+      stack2  = 0
+      stackN2 = 0
+      
+      ! List new empty-next-to-filled grid cells
+      DO k = 1, stackN1
+        
+        ! Get grid cell indices
+        i = stack1( k,1)
+        j = stack1( k,2)
+        
+        ! Find empty neighbours; if unlisted, list them and mark them on the map
+        DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+        
+          IF (map( jj,ii) == 0 .AND. mask( jj,ii) == 1) THEN
+            map( jj,ii) = 1
+            stackN2 = stackN2 + 1
+            stack2( stackN2,:) = [ii,jj]
+          END IF
+          
+        END DO
+        END DO
+        
+      END DO ! DO k = 1, stackN1
+      
+      ! Safety
+      IF (it > 2 * MAX( grid%ny, grid%nx)) THEN
+        WRITE(0,*) '  extrapolate_Gaussian_floodfill - ERROR: flood-fill got stuck!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+              
+    END DO ! DO WHILE (stackN2 > 0)
+    
+    ! Mark grid cells that could not be filled
+    DO i = 1, grid%nx
+    DO j = 1, grid%ny
+      IF (mask_filled( j,i) == 0 .AND. mask( j,i) == 1) THEN
+        mask_filled( j,i) = 2
+      END IF
+    END DO
+    END DO
+    
+    ! Clean up after yourself
+    DEALLOCATE( map   )
+    DEALLOCATE( stack1)
+    DEALLOCATE( stack2)
+  
+  END SUBROUTINE extrapolate_Gaussian_floodfill
+  
 ! == Debugging
-  SUBROUTINE check_for_NaN_dp_1D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_1D(  d, d_name, routine_name)
     ! Check if NaN values occur in the 1-D dp data field d
     ! NOTE: parallelised!
     
@@ -1856,7 +2205,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_dp_1D
-  SUBROUTINE check_for_NaN_dp_2D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_2D(  d, d_name, routine_name)
     ! Check if NaN values occur in the 2-D dp data field d
     ! NOTE: parallelised!
     
@@ -1910,7 +2259,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_dp_2D
-  SUBROUTINE check_for_NaN_dp_3D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_3D(  d, d_name, routine_name)
     ! Check if NaN values occur in the 3-D dp data field d
     ! NOTE: parallelised!
     
@@ -2129,250 +2478,5 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_int_3D
-  
-! == Smoothing operations
-  SUBROUTINE extend_Gaussian_2D( grid, d, r, truncate, ice_basin)
-    ! Apply a Gaussian smoothing filter of with sigma = n*dx to the 2D data field d
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
-    REAL(dp),                            INTENT(IN)    :: r             ! Sigma in m
-    REAL(dp),                            INTENT(IN)    :: truncate      ! Truncation in m
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: ice_basin
-    !REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: bathymetry
-    !REAL(dp),                            INTENT(IN)    :: depth    
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,ii,jj,n
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_ext,  d_ext_smooth
-    INTEGER                                            :: wd_ext, wd_ext_smooth
-    INTEGER,  DIMENSION(:,:  ), POINTER                ::  ice_basin_ext
-    INTEGER                                            :: wice_basin_ext
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f, ff
-    REAL(dp)                                           :: arg = -1.0_dp ! To generate NaN
-    
-    n = CEILING ( truncate / grid%dx )
-    
-    ! Fill in the smoothing filters
-    ALLOCATE( f( -n:n))
-    ALLOCATE( ff( -n:n))
-    f = 0._dp
-    DO i = -n, n
-      f(i) = EXP( -0.5_dp * (REAL(i,dp) * grid%dx/r)**2)
-    END DO
-    f = f / SUM(f)
-    
-        
-    ! Allocate temporary shared memory for the extended and smoothed data fields
-    CALL allocate_shared_dp_2D ( grid%ny + 2*n, grid%nx + 2*n, d_ext,         wd_ext        )
-    CALL allocate_shared_dp_2D ( grid%ny + 2*n, grid%nx + 2*n, d_ext_smooth,  wd_ext_smooth )
-    CALL allocate_shared_int_2D( grid%ny + 2*n, grid%nx + 2*n, ice_basin_ext, wice_basin_ext)
-    
-    ! Copy data to the extended array and fill in the margins
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      d_ext( j+n,i+n) = d( j,i)
-    END DO
-    END DO
-    IF (par%master) THEN
-      ! West
-      d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
-      ! East
-      d_ext( n+1:n+grid%ny, grid%nx+2*n  ) = d( :      ,grid%nx)
-      ! South
-      d_ext( 1            , n+1:n+grid%nx) = d( 1      ,:      )
-      ! North
-      d_ext( grid%ny+2*n  , n+1:n+grid%nx) = d( grid%ny,:      )
-      ! Corners
-      d_ext( 1:n,                     1:n                    ) = d( 1      ,1      )
-      d_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = d( 1      ,grid%nx)
-      d_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = d( grid%ny,1      )
-      d_ext( grid%ny+n+1:grid%ny+2*n, grid%nx+n+1:grid%nx+2*n) = d( grid%ny,grid%nx)
-    END IF
-    CALL sync
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      ice_basin_ext( j+n,i+n) = ice_basin( j,i)
-    END DO
-    END DO
-    IF (par%master) THEN
-      ! West
-      ice_basin_ext( n+1:n+grid%ny, 1            ) = ice_basin( :      ,1      )
-      ! East
-      ice_basin_ext( n+1:n+grid%ny, grid%nx+2*n  ) = ice_basin( :      ,grid%nx)
-      ! South
-      ice_basin_ext( 1            , n+1:n+grid%nx) = ice_basin( 1      ,:      )
-      ! North
-      ice_basin_ext( grid%ny+2*n  , n+1:n+grid%nx) = ice_basin( grid%ny,:      )
-      ! Corners
-      ice_basin_ext( 1:n,                     1:n                    ) = ice_basin( 1      ,1      )
-      ice_basin_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = ice_basin( 1      ,grid%nx)
-      ice_basin_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = ice_basin( grid%ny,1      )
-      ice_basin_ext( grid%ny+n+1:grid%ny+2*n, grid%nx+n+1:grid%nx+2*n) = ice_basin( grid%ny,grid%nx)
-    END IF
-    CALL sync
-    
-    ! Convolute extended data with the smoothing filter
-    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
-    CALL sync
-    
-    DO i = grid%i1, grid%i2
-    DO j = 1,       grid%ny
-      ff(-n:n) = 0._dp
-      DO jj = -n, n
-        IF (d_ext( j+n+jj,i+n) == d_ext( j+n+jj,i+n) .AND. &
-            ice_basin_ext(j+n,i+n) == ice_basin_ext(j+n+jj,i+n) ) THEN !.AND. &
-            !abs(bathymetry(j,i)) > depth) THEN
-          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n+jj,i+n) * f(jj)
-          ff(jj) = f(jj)
-        ELSE
-          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n)
-          ff(jj) = 0._dp
-        END IF
-      END DO
-      IF (SUM(ff(-n:n)) == 0._dp) THEN
-        d_ext_smooth( j+n,i+n) = sqrt(arg) ! Set to NaN
-      ELSE
-        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) / SUM(ff(-n:n))
-      END IF
-    END DO
-    END DO
-    CALL sync
-    
-    d_ext( :,grid%i1+n:grid%i2+n) = d_ext_smooth( :,grid%i1+n:grid%i2+n)
-    CALL sync
-    
-    DO j = grid%j1, grid%j2
-      d_ext( j,           1:          n) = d( j,1      )
-      d_ext( j, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
-      ice_basin_ext( j,           1:          n) = ice_basin( j,1      )
-      ice_basin_ext( j, grid%nx+n+1:grid%nx+2*n) = ice_basin( j,grid%nx)
-    END DO
-    CALL sync
-    
-    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
-    CALL sync
-    
-    DO j = grid%j1, grid%j2
-    DO i = 1,       grid%nx
-      ff(-n:n) = 0._dp
-      DO ii = -n, n
-        IF (d_ext( j+n,i+n+ii) == d_ext( j+n,i+n+ii) .AND. &
-            ice_basin_ext(j+n,i+n) == ice_basin_ext(j+n,i+n+ii) ) THEN !.AND. &
-            !abs(bathymetry(j,i)) > depth) THEN 
-          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n,i+n+ii) * f(ii)
-          ff(ii) = f(ii)
-        ELSE
-          d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n)
-          ff(ii) = 0._dp
-        END IF
-      END DO
-      IF (SUM(ff(-n:n)) == 0._dp) THEN
-        d_ext_smooth( j+n,i+n) = sqrt(arg) ! Set to NaN
-      ELSE
-        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) / SUM(ff(-n:n))
-      END IF
-    END DO
-    END DO
-    CALL sync
-    
-    ! Copy data back, only to extend
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      IF (d (j,i) == d (j,i)) THEN ! Check for NaN
-        d (j,i) = d (j,i)
-      ELSE   
-        d( j,i) = d_ext_smooth( j+n, i+n)
-      END IF  
-    END DO
-    END DO
-    CALL sync
-    
-    ! Clean up after yourself
-    DEALLOCATE( f )
-    DEALLOCATE( ff)
-    CALL deallocate_shared( wd_ext)
-    CALL deallocate_shared( wd_ext_smooth)
-    CALL deallocate_shared( wice_basin_ext)
-
-    
-  END SUBROUTINE extend_Gaussian_2D
-  SUBROUTINE extend_Gaussian_3D( grid, d, r, truncate, nz, ice_basins)
-    ! Apply a Gaussian smoothing filter of with sigma = n*dx to the 3D data field d
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
-    REAL(dp),                            INTENT(IN)    :: r             ! Sigma in km
-    REAL(dp),                            INTENT(IN)    :: truncate      ! Truncation in m
-    INTEGER,                             INTENT(IN)    :: nz
-    INTEGER, DIMENSION(:,:  ),           INTENT(IN)    :: ice_basins
-    !REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: bathymetry
-    !REAL(dp), DIMENSION(:),              INTENT(IN)    :: depth
-    
-    ! Local variables:
-    INTEGER                                            :: k ! layers
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_2D
-    INTEGER                                            :: wd_2D 
-    
-    ! Allocate temporary shared memory for the extended and smoothed data fields
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_2D, wd_2D)    
-
-    DO k = 1, nz 
-      d_2D( :,grid%i1:grid%i2) = d( k,:,grid%i1:grid%i2)
-      CALL extend_Gaussian_2D( grid, d_2D, r, truncate, ice_basins)
-      d( k,:,grid%i1:grid%i2) = d_2D( :,grid%i1:grid%i2)
-    END DO
-         
-    ! Clean up after yourself
-    CALL deallocate_shared( wd_2D)
-    
-  END SUBROUTINE extend_Gaussian_3D
-  
-  SUBROUTINE check_for_NaN_dp_2D_return( d, check)
-    ! Check if NaN values occur in the 2-D dp data field d
-    ! NOTE: parallelised!
-    
-    IMPLICIT NONE
-    
-    ! In/output variables:
-    REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
-    LOGICAL,                                 INTENT(INOUT) :: check
-    
-    ! Local variables:
-    INTEGER                                                :: nx,ny,i,j,i1,i2
-    
-    ! Initialise
-    check =.FALSE.
-    
-    ! Field size
-    nx = SIZE(d,2)
-    ny = SIZE(d,1)
-    
-    ! Parallelisation range
-    CALL partition_list( nx, par%i, par%n, i1, i2)
-    
-    ! Inspect data field
-    DO i = i1, i2
-    DO j = 1, ny
-    
-      ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
-      ! you use the property that a NaN is never equal to anything, including itself...
-      
-      IF (d( j,i) /= d( j,i)) THEN
-        check = .TRUE.
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
-    
-  END SUBROUTINE check_for_NaN_dp_2D_return
 
 END MODULE utilities_module

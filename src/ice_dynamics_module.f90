@@ -537,12 +537,17 @@ CONTAINS
       t_next = MIN( t_next, region%t_next_SMB)
       
       region%do_BMB     = .FALSE.
-      IF (region%time == region%t_next_BMB) THEN
-        region%do_BMB         = .TRUE.
-        region%t_last_BMB     = region%time
-        region%t_next_BMB     = region%t_last_BMB + C%dt_BMB
+      IF (C%do_asynchronous_BMB) THEN
+        IF (region%time == region%t_next_BMB) THEN
+          region%do_BMB         = .TRUE.
+          region%t_last_BMB     = region%time
+          region%t_next_BMB     = region%t_last_BMB + C%dt_BMB
+        END IF
+        t_next = MIN( t_next, region%t_next_BMB)
+      ELSE
+        ! Don't use separate timestepping for the BMB; just run it in every ice dynamics time step
+        region%do_BMB = .TRUE.
       END IF
-      t_next = MIN( t_next, region%t_next_BMB)
       
       region%do_ELRA    = .FALSE.
       IF (region%time == region%t_next_ELRA) THEN
