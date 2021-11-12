@@ -10,7 +10,7 @@ MODULE ocean_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_matrix, type_subclimate_global, &
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_matrix, type_subocean_global, &
                                              type_climate_model, type_subclimate_region, type_init_data_fields
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
                                              inquire_PD_obs_data_file_ocean, read_PD_obs_data_file_ocean, &
@@ -121,7 +121,7 @@ CONTAINS
       CO2 = forcing%CO2_mod
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - run_cocean_model_matrix_warm_cold must only be called with the correct forcing method, check your code!'
+      WRITE(0,*) '  ERROR - run_ocean_model_matrix_warm_cold must only be called with the correct forcing method, check your code!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSE
       CO2 = 0._dp
@@ -237,7 +237,7 @@ CONTAINS
     IMPLICIT NONE
       
     ! Input variables:
-    TYPE(type_subclimate_global),   INTENT(INOUT) :: PD_obs_ocean
+    TYPE(type_subocean_global),     INTENT(INOUT) :: PD_obs_ocean
     CHARACTER(LEN=*),               INTENT(IN)    :: name
     
     PD_obs_ocean%name            = name 
@@ -277,7 +277,7 @@ CONTAINS
     IMPLICIT NONE
       
     ! In/output variables:
-    TYPE(type_subclimate_global),   INTENT(INOUT) :: snapshot
+    TYPE(type_subocean_global),     INTENT(INOUT) :: snapshot
     CHARACTER(LEN=*),               INTENT(IN)    :: name
     CHARACTER(LEN=*),               INTENT(IN)    :: nc_filename
     REAL(dp),                       INTENT(IN)    :: CO2
@@ -417,9 +417,9 @@ CONTAINS
       CALL allocate_subclimate_regional_oceans( grid, climate%GCM_warm)
     
       ! Map ocean data from the global lon/lat-grid to the regional x/y-grid
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_PI,   climate%GCM_PI  )
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_cold, climate%GCM_cold)
-      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_warm, climate%GCM_warm)
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_PI_ocean,   climate%GCM_PI  )
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_cold_ocean, climate%GCM_cold)
+      CALL map_ocean_data_global_to_regional( grid, matrix%GCM_warm_ocean, climate%GCM_warm)
     
       ! Extend regional ocean data to cover the entire 3D domain
       CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%GCM_PI,   init%Hi, init%Hb)
@@ -427,24 +427,29 @@ CONTAINS
       CALL extend_regional_ocean_data_to_cover_domain( grid, ice, climate%GCM_warm, init%Hi, init%Hb)
     
       ! Correct regional ocean data for GCM bias
-      CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_PI)
       CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_warm)
       CALL correct_GCM_bias_ocean( grid, climate, climate%GCM_cold)
-      
+            
     ELSE  
       IF (par%master) WRITE(0,*) '  ERROR: choice_ocean_temperature_model "', TRIM(C%choice_ocean_temperature_model), '" not implemented in initialise_oceans_regional!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF !(C%choice_ocean_temperature_model == 'WOA')
-  
+
+    ! PI and PD do not have to be corrected 
     ! Initialise applied ocean forcing with present-day observations
     IF (par%master) THEN
+      climate%GCM_PI%T_ocean_corr_ext  = climate%GCM_PI%T_ocean_ext
+      climate%GCM_PI%S_ocean_corr_ext  = climate%GCM_PI%S_ocean_ext
+      climate%PD_obs%T_ocean_corr_ext  = climate%PD_obs%T_ocean_ext
+      climate%PD_obs%S_ocean_corr_ext  = climate%PD_obs%S_ocean_ext
+    
       climate%applied%mask_ocean       = climate%PD_obs%mask_ocean
       climate%applied%T_ocean          = climate%PD_obs%T_ocean
       climate%applied%T_ocean_ext      = climate%PD_obs%T_ocean_ext
-      climate%applied%T_ocean_corr_ext = climate%PD_obs%T_ocean_ext
+      climate%applied%T_ocean_corr_ext = climate%PD_obs%T_ocean_corr_ext
       climate%applied%S_ocean          = climate%PD_obs%S_ocean
       climate%applied%S_ocean_ext      = climate%PD_obs%S_ocean_ext
-      climate%applied%S_ocean_corr_ext = climate%PD_obs%S_ocean_ext
+      climate%applied%S_ocean_corr_ext = climate%PD_obs%S_ocean_corr_ext
     END IF ! IF (par%master) THEN
     CALL sync
   
@@ -478,7 +483,7 @@ CONTAINS
     
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_subclimate_global),        INTENT(IN)    :: clim_glob
+    TYPE(type_subocean_global),          INTENT(IN)    :: clim_glob
     TYPE(type_subclimate_region),        INTENT(INOUT) :: clim_reg
     
     CALL map_glob_to_grid_3D ( clim_glob%nlat, clim_glob%nlon, clim_glob%lat, clim_glob%lon, grid, clim_glob%T_ocean, clim_reg%T_ocean, clim_glob%nz_ocean)
@@ -845,7 +850,7 @@ CONTAINS
     DO j = 1, grid%ny
     DO k = 1, subclimate%nz_ocean
       subclimate%T_ocean_corr_ext( k,j,i) = subclimate%T_ocean_ext( k,j,i) - (climate%GCM_PI%T_ocean_ext( k,j,i) - climate%PD_obs%T_ocean_ext( k,j,i))
-      subclimate%T_ocean_corr_ext( k,j,i) = subclimate%S_ocean_ext( k,j,i) - (climate%GCM_PI%S_ocean_ext( k,j,i) - climate%PD_obs%S_ocean_ext( k,j,i))
+      subclimate%S_ocean_corr_ext( k,j,i) = subclimate%S_ocean_ext( k,j,i) - (climate%GCM_PI%S_ocean_ext( k,j,i) - climate%PD_obs%S_ocean_ext( k,j,i))
     END DO
     END DO
     END DO
@@ -861,7 +866,7 @@ CONTAINS
     IMPLICIT NONE
       
     ! Input variables:
-    TYPE(type_subclimate_global),   INTENT(INOUT) :: ocean_data
+    TYPE(type_subocean_global),   INTENT(INOUT)   :: ocean_data
     
     ! Local variables:
     INTEGER,                    POINTER           :: nz_new

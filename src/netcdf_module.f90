@@ -15,7 +15,7 @@ MODULE netcdf_module
                                              nf90_open, nf90_write, nf90_inq_dimid, nf90_inquire_dimension, nf90_inquire, nf90_double, &
                                              nf90_inq_varid, nf90_inquire_variable, nf90_get_var, nf90_noerr, nf90_strerror, nf90_float
   USE data_types_module,               ONLY: type_model_region, type_PD_data_fields, type_init_data_fields, type_forcing_data, &
-                                             type_subclimate_global, type_debug_fields, type_SELEN_global, &
+                                             type_subclimate_global, type_subocean_global, type_debug_fields, type_SELEN_global, &
                                              type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data
   IMPLICIT NONE
   
@@ -470,6 +470,23 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,       (/1, 1, 1, ti /))
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,       (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%T_ocean_corr_ext,      (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%S_ocean_corr_ext,      (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%T_ocean_corr_ext,      (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%S_ocean_corr_ext,      (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%T_ocean_corr_ext,        (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%S_ocean_corr_ext,        (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%T_ocean_corr_ext,        (/1, 1, 1, ti /))
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,        (/1, 1, 1, ti /))    
+      
     
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
@@ -1201,6 +1218,22 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_T_ocean_3D',          [x, y, zo, t], id_var, long_name='Warm 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_S_ocean_3D',          [x, y, zo, t], id_var, long_name='Warm 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_T_ocean_3D',          [x, y, zo, t], id_var, long_name='Cold 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_S_ocean_3D',          [x, y, zo, t], id_var, long_name='Cold 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_T_ocean_3D',        [x, y, zo, t], id_var, long_name='Ref PI 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_S_ocean_3D',        [x, y, zo, t], id_var, long_name='Ref PI 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_T_ocean_3D',       [x, y, zo, t], id_var, long_name='Base PD 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_S_ocean_3D',       [x, y, zo, t], id_var, long_name='Base PD 3-D ocean salinity', units='PSU')
       
       
     ELSE
@@ -2601,7 +2634,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
+    TYPE(type_subocean_global), INTENT(INOUT) :: PD_obs_ocean
     
     IF (.NOT. par%master) RETURN
         
@@ -2631,7 +2664,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
+    TYPE(type_subocean_global), INTENT(INOUT) :: PD_obs_ocean
     
     IF (.NOT. par%master) RETURN
     
@@ -2720,7 +2753,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: snapshot
+    TYPE(type_subocean_global), INTENT(INOUT) :: snapshot
     
     IF (.NOT. par%master) RETURN
         
@@ -2750,7 +2783,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: snapshot
+    TYPE(type_subocean_global), INTENT(INOUT) :: snapshot
     
     IF (.NOT. par%master) RETURN
     
