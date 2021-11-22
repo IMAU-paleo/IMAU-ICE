@@ -10,6 +10,7 @@ MODULE data_types_module
                                          type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
                                          type_netcdf_debug, type_netcdf_geothermal_heat_flux, type_netcdf_SELEN_output, &
                                          type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing, &
+                                         type_netcdf_ocean_data, &
                                          type_netcdf_scalars_global, type_netcdf_scalars_regional
 
   IMPLICIT NONE
@@ -428,6 +429,33 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south_north wind speed (m/s)
     INTEGER :: wHs, wT2m, wPrecip, wWind_WE, wWind_SN
     
+    ! Paralelisation
+    INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
+  
+  END TYPE type_subclimate_global
+
+  TYPE type_subocean_global
+    ! Global ocean data, either from present-day observations (WOA18) or from a GCM ocean snapshot.
+    
+    CHARACTER(LEN=256)                      :: name                          ! 'ERA40', 'HadCM3_PI', etc.
+    
+    ! NetCDF file containing the data
+    TYPE(type_netcdf_ocean_data)            :: netcdf
+    
+    ! Grid
+    INTEGER,                    POINTER     :: nlat, nlon
+    REAL(dp), DIMENSION(:    ), POINTER     :: lat
+    REAL(dp), DIMENSION(:    ), POINTER     :: lon
+    INTEGER :: wnlat, wnlon, wlat, wlon
+
+    ! General forcing info (not relevant for PD observations)
+    REAL(dp),                   POINTER     :: CO2                           ! CO2 concentration in ppm that was used to force the GCM
+    REAL(dp),                   POINTER     :: orbit_time                    ! The time (in ky ago) for the orbital forcing (Q_TOA can then be read from Laskar data)
+    REAL(dp),                   POINTER     :: orbit_ecc                     ! Orbital parameters that were used to force the GCM
+    REAL(dp),                   POINTER     :: orbit_obl
+    REAL(dp),                   POINTER     :: orbit_pre
+    INTEGER :: wCO2, worbit_time, worbit_ecc, worbit_obl, worbit_pre
+    
     ! Ocean
     REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
     INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
@@ -436,23 +464,30 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
     INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean
-
     
     ! Paralelisation
     INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
   
-  END TYPE type_subclimate_global
+  END TYPE type_subocean_global
   
   TYPE type_climate_matrix
     ! The climate matrix data structure. Contains all the different global GCM snapshots.
     
-    ! The present-day observed climate (ERA40) & ocean (WOA18)
-    TYPE(type_subclimate_global)            :: PD_obs, PD_obs_ocean
+    ! The present-day observed climate (ERA40)
+    TYPE(type_subclimate_global)            :: PD_obs
     
     ! The GCM snapshots for climate and ocean.
-    TYPE(type_subclimate_global)            :: GCM_PI, GCM_PI_ocean
-    TYPE(type_subclimate_global)            :: GCM_warm, GCM_warm_ocean
-    TYPE(type_subclimate_global)            :: GCM_cold, GCM_cold_ocean
+    TYPE(type_subclimate_global)            :: GCM_PI
+    TYPE(type_subclimate_global)            :: GCM_warm
+    TYPE(type_subclimate_global)            :: GCM_cold
+    
+    ! The present-day observed ocean (WOA18)
+    TYPE(type_subocean_global)              :: PD_obs_ocean
+    
+    ! The GCM ocean snapshots for climate and ocean.
+    TYPE(type_subocean_global)              :: GCM_PI_ocean
+    TYPE(type_subocean_global)              :: GCM_warm_ocean
+    TYPE(type_subocean_global)              :: GCM_cold_ocean
   
   END TYPE type_climate_matrix
   
