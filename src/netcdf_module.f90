@@ -2771,20 +2771,9 @@ CONTAINS
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lon,     (/ snapshot%netcdf%id_dim_lon     /),  snapshot%netcdf%id_var_lon    )
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_z_ocean, (/ snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_z_ocean)
 
-<<<<<<< Updated upstream
-<<<<<<< Updated upstream
-=======
-<<<<<<< Updated upstream
-=======
->>>>>>> Stashed changes
     !CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_mask_ocean, (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_mask_ocean)
->>>>>>> Stashed changes
-    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_T_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
-    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_S_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
-=======
     CALL inquire_double_var( snapshot%netcdf%ncid, TRIM(C%name_ocean_temperature),    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
     CALL inquire_double_var( snapshot%netcdf%ncid, TRIM(C%name_ocean_salinity)   ,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
->>>>>>> Stashed changes
    
     ! Close the netcdf file
     CALL close_netcdf_file(snapshot%netcdf%ncid)
