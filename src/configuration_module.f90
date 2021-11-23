@@ -248,7 +248,10 @@ MODULE configuration_module
   ! Present-day observed climate (ERA40) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
   ! Present-day observed ocean (WOA18) (NetCDF)  
-  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_01_NaN.nc'
+  
+  CHARACTER(LEN=256)  :: name_ocean_temperature_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
   
   ! GCM snapshots
   CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'warm_cold'                      ! 'warm_cold' uses 2 snapshots
@@ -739,6 +742,8 @@ MODULE configuration_module
     
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
+    CHARACTER(LEN=256)                  :: name_ocean_temperature
+    CHARACTER(LEN=256)                  :: name_ocean_salinity
     CHARACTER(LEN=256)                  :: choice_climate_matrix
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_warm
@@ -1383,6 +1388,8 @@ CONTAINS
                      filename_geothermal_heat_flux_config,       &
                      filename_PD_obs_climate_config,             &
                      filename_PD_obs_ocean_config,               &
+                     name_ocean_temperature_config,              &
+                     name_ocean_salinity_config,                 &
                      choice_climate_matrix_config,               &
                      filename_GCM_snapshot_PI_config,            &
                      filename_GCM_snapshot_warm_config,          &
@@ -1812,6 +1819,8 @@ CONTAINS
     
     C%filename_PD_obs_climate             = filename_PD_obs_climate_config
     C%filename_PD_obs_ocean               = filename_PD_obs_ocean_config
+    C%name_ocean_temperature              = name_ocean_temperature_config
+    C%name_ocean_salinity                 = name_ocean_salinity_config
     C%choice_climate_matrix               = choice_climate_matrix_config
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
     C%filename_GCM_snapshot_warm          = filename_GCM_snapshot_warm_config

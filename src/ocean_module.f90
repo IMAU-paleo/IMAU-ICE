@@ -438,8 +438,8 @@ CONTAINS
     ! PI and PD do not have to be corrected 
     ! Initialise applied ocean forcing with present-day observations
     IF (par%master) THEN
-      climate%GCM_PI%T_ocean_corr_ext  = climate%GCM_PI%T_ocean_ext
-      climate%GCM_PI%S_ocean_corr_ext  = climate%GCM_PI%S_ocean_ext
+      IF (C%choice_ocean_temperature_model == 'matrix_warm_cold') climate%GCM_PI%T_ocean_corr_ext  = climate%GCM_PI%T_ocean_ext
+      IF (C%choice_ocean_temperature_model == 'matrix_warm_cold') climate%GCM_PI%S_ocean_corr_ext  = climate%GCM_PI%S_ocean_ext
       climate%PD_obs%T_ocean_corr_ext  = climate%PD_obs%T_ocean_ext
       climate%PD_obs%S_ocean_corr_ext  = climate%PD_obs%S_ocean_ext
     
