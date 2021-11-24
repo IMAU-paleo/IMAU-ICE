@@ -105,12 +105,22 @@ CONTAINS
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables:
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,k
+    REAL(dp)                                           :: a
     REAL(dp)                                           :: CO2
-    REAL(dp)                                           :: w_CO2, w_ice, w_tot
-    REAL(dp)                                           :: w_cold, w_warm
+    REAL(dp)                                           :: w_CO2
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: w_ins, w_ins_smooth,  w_ice,  w_tot
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: w_tot_final
+    INTEGER                                            :: ww_ins, ww_ins_smooth, ww_ice, ww_tot, ww_tot_final
+    REAL(dp)                                           :: w_ins_av
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
 
+
+    CALL allocate_shared_dp_2D(                          grid%ny, grid%nx, w_ins,        ww_ins         )
+    CALL allocate_shared_dp_2D(                          grid%ny, grid%nx, w_ins_smooth, ww_ins_smooth  )
+    CALL allocate_shared_dp_2D(                          grid%ny, grid%nx, w_ice,        ww_ice         )
+    CALL allocate_shared_dp_2D(                          grid%ny, grid%nx, w_tot,        ww_tot         )
+    CALL allocate_shared_dp_3D(climate%applied%nz_ocean, grid%ny, grid%nx, w_tot_final,  ww_tot_final   )
       
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
@@ -135,34 +145,70 @@ CONTAINS
     ! =============================
     
     ! First calculate the total ice volume term (second term in the equation)
-    w_ice = 1._dp - MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hs_a) - SUM(climate%GCM_warm%Hs)) / (SUM(climate%GCM_cold%Hs) - SUM(climate%GCM_warm%Hs)) ))
+    !w_ice = 1._dp - MAX(-w_cutoff, MIN(1._dp + w_cutoff, (SUM(ice%Hs_a) - SUM(climate%GCM_warm%Hs)) / (SUM(climate%GCM_cold%Hs) - SUM(climate%GCM_warm%Hs)) ))
+    
+    ! Calculate weighting field
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate%applied%I_abs(  j,i) -     climate%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
+                                                           (    climate%GCM_warm%I_abs( j,i) -     climate%GCM_cold%I_abs( j,i)) ))
+    END DO
+    END DO
+    CALL sync
+    w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate%applied%I_abs )      - SUM(climate%GCM_cold%I_abs)     ) / &
+                                                           (SUM(climate%GCM_warm%I_abs)      - SUM(climate%GCM_cold%I_abs)     ) ))
+   
+    ! Smooth the weighting field
+    w_ins_smooth( :,grid%i1:grid%i2) = w_ins( :,grid%i1:grid%i2)
+    CALL smooth_Gaussian_2D( grid, w_ins_smooth, 200000._dp)
+    
+    ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
+    w_ice( :,grid%i1:grid%i2) = (1._dp * w_ins_smooth( :,grid%i1:grid%i2) + 6._dp * w_ins_av) / 7._dp
     
     ! Combine weigths CO2 and ice
     ! ===========================
     
-    w_tot = 0._dp
     IF         (region_name == 'NAM') THEN
-      w_tot  = (C%ocean_matrix_CO2vsice_NAM * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_NAM) * w_ice) 
+      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_NAM * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_NAM) * w_ice( :,grid%i1:grid%i2)) 
     ELSEIF     (region_name == 'EAS') THEN
-      w_tot  = (C%ocean_matrix_CO2vsice_EAS * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_EAS) * w_ice) 
+      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_EAS * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_EAS) * w_ice( :,grid%i1:grid%i2)) 
     ELSEIF     (region_name == 'GRL') THEN
-      w_tot  = (C%ocean_matrix_CO2vsice_GRL * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_GRL) * w_ice) 
+      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_GRL * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_GRL) * w_ice( :,grid%i1:grid%i2)) 
     ELSEIF     (region_name == 'ANT') THEN
-      w_tot  = (C%ocean_matrix_CO2vsice_ANT * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_ANT) * w_ice) 
+      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_ANT * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_ANT) * w_ice( :,grid%i1:grid%i2)) 
     END IF
-    w_warm = w_tot
-    w_cold = 1._dp - w_warm
+    
+    ! Update the history of the weighing fields
+    ! =========================================
+    
+    ! 1st entry is the current value, 2nd is 1*dt_ocean ago, 3d is 2*dt_ocean ago, etc.
+    climate%applied%w_tot_history( 2:climate%applied%nw_tot_history,:,grid%i1:grid%i2) = climate%applied%w_tot_history( 1:climate%applied%nw_tot_history-1,:,grid%i1:grid%i2)
+    climate%applied%w_tot_history( 1, :,grid%i1:grid%i2) = w_tot( :,grid%i1:grid%i2)
     
     ! Interpolate the GCM ocean snapshots
     ! =============================
     
+    DO k = 1,climate%applied%nz_ocean
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      climate%applied%T_ocean_corr_ext(:,j,i) = (w_tot * climate%GCM_warm%T_ocean_corr_ext( :,j,i)) + ((1._dp - w_tot) * climate%GCM_cold%T_ocean_corr_ext( :,j,i))
-      climate%applied%S_ocean_corr_ext(:,j,i) = (w_tot * climate%GCM_warm%S_ocean_corr_ext( :,j,i)) + ((1._dp - w_tot) * climate%GCM_cold%S_ocean_corr_ext( :,j,i))      
+      a = ( ( climate%applied%z_ocean (k) / climate%applied%z_ocean (climate%applied%nz_ocean) ) * (climate%applied%nw_tot_history-1) ) + 1
+
+      w_tot_final (k,j,i) = ( SUM(climate%applied%w_tot_history(1:FLOOR(a),j,i)) + ( (a - FLOOR(a)) * climate%applied%w_tot_history(CEILING(a),j,i) ) ) * (1._dp / a)
+      
+      climate%applied%T_ocean_corr_ext (k,j,i) = (           w_tot_final(k,j,i)  * climate%GCM_warm%T_ocean_corr_ext (k,j,i)  ) + &
+                                                 (  (1._dp - w_tot_final(k,j,i) )* climate%GCM_cold%T_ocean_corr_ext (k,j,i)  )
+      climate%applied%S_ocean_corr_ext (k,j,i) = (           w_tot_final(k,j,i)  * climate%GCM_warm%S_ocean_corr_ext (k,j,i)  ) + &
+                                                 (  (1._dp - w_tot_final(k,j,i) )* climate%GCM_cold%S_ocean_corr_ext (k,j,i)  )     
+    END DO
     END DO
     END DO
     CALL sync
+    
+    CALL deallocate_shared( ww_ins)
+    CALL deallocate_shared( ww_ins_smooth)
+    CALL deallocate_shared( ww_ice)
+    CALL deallocate_shared( ww_tot)  
+    CALL deallocate_shared( ww_tot_final)  
       
   END SUBROUTINE run_ocean_model_matrix_warm_cold
 
@@ -415,6 +461,12 @@ CONTAINS
       CALL allocate_subclimate_regional_oceans( grid, climate%GCM_PI  )
       CALL allocate_subclimate_regional_oceans( grid, climate%GCM_cold)
       CALL allocate_subclimate_regional_oceans( grid, climate%GCM_warm)
+      
+      ! Allocate memory for the weighing fields history, and initialise      
+      CALL allocate_shared_int_0D ( climate%applied%nw_tot_history, climate%applied%wnw_tot_history)
+      climate%applied%nw_tot_history = CEILING(C%w_tot_hist_averaging_window/C%dt_ocean)+1
+      CALL allocate_shared_dp_3D  ( climate%applied%nw_tot_history, grid%ny, grid%nx, climate%applied%w_tot_history, climate%applied%ww_tot_history)
+      climate%applied%w_tot_history = 0._dp ! Initiate at cold conditions
     
       ! Map ocean data from the global lon/lat-grid to the regional x/y-grid
       CALL map_ocean_data_global_to_regional( grid, matrix%GCM_PI_ocean,   climate%GCM_PI  )

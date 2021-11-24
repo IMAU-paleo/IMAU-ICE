@@ -248,7 +248,7 @@ MODULE configuration_module
   ! Present-day observed climate (ERA40) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
   ! Present-day observed ocean (WOA18) (NetCDF)  
-  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_01_NaN.nc'
+  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   
   CHARACTER(LEN=256)  :: name_ocean_temperature_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
   CHARACTER(LEN=256)  :: name_ocean_salinity_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
@@ -284,10 +284,10 @@ MODULE configuration_module
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                      ! Default values are from Berends et al, 2018
   REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                      ! 1.0_dp equals glacial index method
 
-  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 1.0_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
-  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 1.0_dp                       ! Can be set separately for different regions
-  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 1.0_dp                       
-  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 1.0_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
+  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                       ! Can be set separately for different regions
+  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp                       
 
   REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                      ! CO2 level pertaining to the warm climate (PI  level default)         
   REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                      ! CO2 level pertaining to the cold climate (LGM level default)          
@@ -306,6 +306,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                    ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                     ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                      ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
+  INTEGER             :: w_tot_hist_averaging_window_config          = 1500                         ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged 
 
   ! Forcing
   ! =======
@@ -787,6 +788,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
     REAL(dp)                            :: ocean_vertical_grid_max_depth
     REAL(dp)                            :: ocean_regular_grid_dz
+    INTEGER                             :: w_tot_hist_averaging_window
     
     ! Forcing
     ! =======
@@ -1422,6 +1424,7 @@ CONTAINS
                      choice_ocean_vertical_grid_config,          &
                      ocean_vertical_grid_max_depth_config,       &
                      ocean_regular_grid_dz_config,               &
+                     w_tot_hist_averaging_window_config,         &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1864,6 +1867,7 @@ CONTAINS
     C%choice_ocean_vertical_grid          = choice_ocean_vertical_grid_config
     C%ocean_vertical_grid_max_depth       = ocean_vertical_grid_max_depth_config
     C%ocean_regular_grid_dz               = ocean_regular_grid_dz_config
+    C%w_tot_hist_averaging_window         = w_tot_hist_averaging_window_config
     
     ! Forcing
     ! =======

@@ -407,13 +407,7 @@ CONTAINS
       w_ice( :,grid%i1:grid%i2) = (1._dp * w_ins_smooth( :,grid%i1:grid%i2) + &
                                    6._dp * w_ins_av) / 7._dp
     END IF
-     
-    ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
-    IF     (region_name == 'NAM' .OR. region_name == 'EAS') THEN
-      w_tot( :,grid%i1:grid%i2) = (        w_CO2 + w_ice( :,grid%i1:grid%i2)) / 2._dp  ! Berends et al., 2018 - Eq. 5
-    ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
-      w_tot( :,grid%i1:grid%i2) = (3._dp * w_CO2 + w_ice( :,grid%i1:grid%i2)) / 4._dp  ! Berends et al., 2018 - Eq. 9
-    END IF
+
 
     ! Combine interpolation weights from absorbed insolation and CO2 into the final weights fields
     ! Berends et al., 2018 - Eqs. 5, 9 with weights 0.5 for NAM & EAS, and 0.75 for ANT 

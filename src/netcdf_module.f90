@@ -254,6 +254,24 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%T2m,      (/1, 1, 1/))
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%Precip,   (/1, 1, 1/))
+    
+    ! Forcing ocean data  
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%T_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%S_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%T_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%S_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%T_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%S_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%T_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,   (/1, 1, 1 /)) 
       
     ! Fields with a time dimension
     ! ============================
@@ -467,27 +485,10 @@ CONTAINS
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
     ELSEIF (field_name == 'T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,       (/1, 1, 1, ti /))
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,       (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%T_ocean_corr_ext,      (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%S_ocean_corr_ext,      (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%T_ocean_corr_ext,      (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%S_ocean_corr_ext,      (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%T_ocean_corr_ext,        (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%S_ocean_corr_ext,        (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%T_ocean_corr_ext,        (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,        (/1, 1, 1, ti /))    
-      
-    
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,  (/1, 1, 1, ti /))   
+          
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1053,7 +1054,25 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_T2m',              [x, y, m], id_var, long_name='Base PD monthly mean 2-m air temperature', units='K')
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_Precip',           [x, y, m], id_var, long_name='Base PD monthly total precipitation', units='mm')
-     
+    
+    ! Forcing ocean data
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_T_ocean_3D',          [x, y, zo], id_var, long_name='Warm 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Warm_S_ocean_3D',          [x, y, zo], id_var, long_name='Warm 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_T_ocean_3D',          [x, y, zo], id_var, long_name='Cold 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Cold_S_ocean_3D',          [x, y, zo], id_var, long_name='Cold 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_T_ocean_3D',        [x, y, zo], id_var, long_name='Ref PI 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_S_ocean_3D',        [x, y, zo], id_var, long_name='Ref PI 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_T_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Base_PD_S_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean salinity', units='PSU')
+
     ! Fields with a time dimension
     ! ============================
       
@@ -1217,24 +1236,7 @@ CONTAINS
     ELSEIF (field_name == 'T_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
-    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Warm_T_ocean_3D',          [x, y, zo, t], id_var, long_name='Warm 3-D ocean temperature', units='K')
-    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Warm_S_ocean_3D',          [x, y, zo, t], id_var, long_name='Warm 3-D ocean salinity', units='PSU')
-    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Cold_T_ocean_3D',          [x, y, zo, t], id_var, long_name='Cold 3-D ocean temperature', units='K')
-    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Cold_S_ocean_3D',          [x, y, zo, t], id_var, long_name='Cold 3-D ocean salinity', units='PSU')
-    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_T_ocean_3D',        [x, y, zo, t], id_var, long_name='Ref PI 3-D ocean temperature', units='K')
-    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Ref_PI_S_ocean_3D',        [x, y, zo, t], id_var, long_name='Ref PI 3-D ocean salinity', units='PSU')
-    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Base_PD_T_ocean_3D',       [x, y, zo, t], id_var, long_name='Base PD 3-D ocean temperature', units='K')
-    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'Base_PD_S_ocean_3D',       [x, y, zo, t], id_var, long_name='Base PD 3-D ocean salinity', units='PSU')
-      
+      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')      
       
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
