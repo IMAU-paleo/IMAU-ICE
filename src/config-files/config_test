@@ -60,6 +60,8 @@ filename_GCM_snapshot_cold_config       = '/Users/berends/Documents/Models/IMAU-
 ! Ocean data
 choice_ocean_temperature_model_config   = 'WOA'
 filename_PD_obs_ocean_config            = '/Users/berends/Documents/Datasets/World_Ocean_Atlas/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+ocean_extrap_res_config                    = 5000.0
+ocean_extrap_hires_geo_filename_ANT_config = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! Forcing
 choice_forcing_method_config            = 'CO2_direct'

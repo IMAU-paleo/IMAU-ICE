@@ -10,7 +10,7 @@ MODULE data_types_module
                                          type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
                                          type_netcdf_debug, type_netcdf_geothermal_heat_flux, type_netcdf_SELEN_output, &
                                          type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing, &
-                                         type_netcdf_ocean_data, &
+                                         type_netcdf_ocean_data, type_netcdf_extrapolated_ocean_data, &
                                          type_netcdf_scalars_global, type_netcdf_scalars_regional
 
   IMPLICIT NONE
@@ -460,10 +460,9 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
     INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
     REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
-    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
-    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean
+    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wT_ocean, wS_ocean
     
     ! Paralelisation
     INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
@@ -535,16 +534,44 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
     REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
     INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
-    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_ext                   ! 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_ext                   ! 3-D annual mean ocean salinity   , extrapolated beneath ice shelves [PSU]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
-    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
+    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
   
   END TYPE type_subclimate_region
+  
+  TYPE type_highres_ocean_data
+    ! High-resolution (extrapolated) regional ocean data
+    
+    ! NetCDF files
+    TYPE( type_netcdf_PD_data)                 :: netcdf_geo
+    TYPE( type_netcdf_extrapolated_ocean_data) :: netcdf
+    
+    ! Grid
+    TYPE( type_grid)                        :: grid
+    
+    ! Geometry data
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi                            ! Ice thickness [m]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb                            ! Bedrock elevation [m]
+    INTEGER :: wHi, wHb
+    
+    ! Ice basins
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: basin_ID                      ! The drainage basin to which each grid cell belongs
+    INTEGER,                    POINTER     :: nbasins                       ! Total number of basins defined for this region
+    INTEGER :: wbasin_ID, wnbasins
+    
+    ! Raw and extrapolated ocean data
+    REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below se
+    INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
+    INTEGER :: wz_ocean, wnz_ocean, wT_ocean, wS_ocean
+    
+  END TYPE type_highres_ocean_data
   
   TYPE type_climate_model
     ! All the relevant climate data fields (PD observations, GCM snapshots, and final, applied climate) on the model region grid

@@ -303,6 +303,13 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                    ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                     ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                      ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
+  CHARACTER(LEN=256)  :: ocean_extrap_dir_config                     = 'extrapolated_ocean_files'   ! Directory where extrapolated ocean files are stored
+  REAL(dp)            :: ocean_extrap_res_config                     = 5000._dp                     ! High resolution at which the ocean data extrapolation should be performed
+  REAL(dp)            :: ocean_extrap_Gauss_sigma_config             = 8000._dp                     ! 1-sigma of the Gaussian smoothing operation used to extrapolate the ocean data
+  CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_NAM_config  = ''                           ! Path to a NetCDF file containing (present-day) geometry at high resolution, used for ocean data extrapolation
+  CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_EAS_config  = ''
+  CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_GRL_config  = ''
+  CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_ANT_config  = ''
 
   ! Forcing
   ! =======
@@ -782,6 +789,13 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
     REAL(dp)                            :: ocean_vertical_grid_max_depth
     REAL(dp)                            :: ocean_regular_grid_dz
+    CHARACTER(LEN=256)                  :: ocean_extrap_dir
+    REAL(dp)                            :: ocean_extrap_res
+    REAL(dp)                            :: ocean_extrap_Gauss_sigma
+    CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_NAM
+    CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_EAS
+    CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_GRL
+    CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
     
     ! Forcing
     ! =======
@@ -1415,6 +1429,13 @@ CONTAINS
                      choice_ocean_vertical_grid_config,          &
                      ocean_vertical_grid_max_depth_config,       &
                      ocean_regular_grid_dz_config,               &
+                     ocean_extrap_dir_config,                    &
+                     ocean_extrap_res_config,                    &
+                     ocean_extrap_Gauss_sigma_config,            &
+                     ocean_extrap_hires_geo_filename_NAM_config, &
+                     ocean_extrap_hires_geo_filename_EAS_config, &
+                     ocean_extrap_hires_geo_filename_GRL_config, &
+                     ocean_extrap_hires_geo_filename_ANT_config, &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1855,6 +1876,13 @@ CONTAINS
     C%choice_ocean_vertical_grid          = choice_ocean_vertical_grid_config
     C%ocean_vertical_grid_max_depth       = ocean_vertical_grid_max_depth_config
     C%ocean_regular_grid_dz               = ocean_regular_grid_dz_config
+    C%ocean_extrap_dir                    = ocean_extrap_dir_config
+    C%ocean_extrap_res                    = ocean_extrap_res_config
+    C%ocean_extrap_Gauss_sigma            = ocean_extrap_Gauss_sigma_config
+    C%ocean_extrap_hires_geo_filename_NAM = ocean_extrap_hires_geo_filename_NAM_config
+    C%ocean_extrap_hires_geo_filename_EAS = ocean_extrap_hires_geo_filename_EAS_config
+    C%ocean_extrap_hires_geo_filename_GRL = ocean_extrap_hires_geo_filename_GRL_config
+    C%ocean_extrap_hires_geo_filename_ANT = ocean_extrap_hires_geo_filename_ANT_config
     
     ! Forcing
     ! =======
