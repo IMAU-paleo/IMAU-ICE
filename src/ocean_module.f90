@@ -447,8 +447,6 @@ CONTAINS
       
     END IF ! IF (C%choice_ocean_temperature_model == 'schematic') THEN
     
-    IF (C%choice_ocean_temperature_model == 'WOA') THEN
-      IF (par%master) WRITE(*,*) '    Constant present-day ocean forcing used for BMB forcing!'
     
       ! Allocate memory for regional ocean data 
       CALL allocate_subclimate_regional_oceans( region%grid, region%climate%PD_obs )
@@ -458,7 +456,9 @@ CONTAINS
       ! extrapolate mapped ocean data to cover the entire 3D domain, and finally
       ! map to the actual ice model resolution
       CALL get_extrapolated_ocean_data( region, matrix%PD_obs_ocean, region%climate%PD_obs, C%filename_PD_obs_ocean)
-      
+
+    IF (C%choice_ocean_temperature_model == 'WOA') THEN
+      IF (par%master) WRITE(*,*) '    Constant present-day ocean forcing used for BMB forcing!'      
       ! PD_obs doesn't have a bias-corrected version
       region%climate%PD_obs%T_ocean_corr_ext  = region%climate%PD_obs%T_ocean_ext
       region%climate%PD_obs%S_ocean_corr_ext  = region%climate%PD_obs%S_ocean_ext
@@ -494,10 +494,10 @@ CONTAINS
       region%climate%PD_obs%S_ocean_corr_ext  = region%climate%PD_obs%S_ocean_ext
       
       ! Allocate memory for the weighing fields history, and initialise      
-      CALL allocate_shared_int_0D ( climate%applied%nw_tot_history, climate%applied%wnw_tot_history)
-      climate%applied%nw_tot_history = CEILING(C%w_tot_hist_averaging_window/C%dt_ocean)+1
-      CALL allocate_shared_dp_3D  ( climate%applied%nw_tot_history, grid%ny, grid%nx, climate%applied%w_tot_history, climate%applied%ww_tot_history)
-      climate%applied%w_tot_history = 0._dp ! Initiate at cold conditions
+      CALL allocate_shared_int_0D ( region%climate%applied%nw_tot_history, region%climate%applied%wnw_tot_history)
+      region%climate%applied%nw_tot_history = CEILING(C%w_tot_hist_averaging_window/C%dt_ocean)+1
+      CALL allocate_shared_dp_3D  ( region%climate%applied%nw_tot_history, region%grid%ny, region%grid%nx, region%climate%applied%w_tot_history, region%climate%applied%ww_tot_history)
+      region%climate%applied%w_tot_history = 0._dp ! Initiate at cold conditions
             
     ELSE  
       IF (par%master) WRITE(0,*) '  ERROR: choice_ocean_temperature_model "', TRIM(C%choice_ocean_temperature_model), '" not implemented in initialise_oceans_regional!'

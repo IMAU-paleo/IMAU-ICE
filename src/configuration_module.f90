@@ -313,7 +313,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_EAS_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_GRL_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_ANT_config  = ''
-  INTEGER             :: w_tot_hist_averaging_window_config          = 1500                         ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged 
+  REAL(dp)            :: w_tot_hist_averaging_window_config          = 1500._dp                     ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged 
 
   ! Forcing
   ! =======
@@ -802,7 +802,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_EAS
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_GRL
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
-    INTEGER                             :: w_tot_hist_averaging_window
+    REAL(dp)                            :: w_tot_hist_averaging_window
     
     ! Forcing
     ! =======
