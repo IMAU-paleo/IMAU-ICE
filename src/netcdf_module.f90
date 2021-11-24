@@ -14,9 +14,11 @@ MODULE netcdf_module
                                              nf90_enddef, nf90_put_var, nf90_sync, nf90_def_var, nf90_int, nf90_put_att, nf90_def_dim, &
                                              nf90_open, nf90_write, nf90_inq_dimid, nf90_inquire_dimension, nf90_inquire, nf90_double, &
                                              nf90_inq_varid, nf90_inquire_variable, nf90_get_var, nf90_noerr, nf90_strerror, nf90_float
+  USE data_types_netcdf_module,        ONLY: type_netcdf_extrapolated_ocean_data
   USE data_types_module,               ONLY: type_model_region, type_PD_data_fields, type_init_data_fields, type_forcing_data, &
                                              type_subclimate_global, type_subocean_global, type_debug_fields, type_SELEN_global, &
-                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data
+                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data, &
+                                             type_highres_ocean_data
   IMPLICIT NONE
   
   TYPE(type_debug_fields) :: debug_NAM, debug_EAS, debug_GRL, debug_ANT, debug
@@ -273,6 +275,24 @@ CONTAINS
     ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,   (/1, 1, 1 /)) 
       
+    ! Forcing oceans
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%T_ocean_corr_ext,      (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%S_ocean_corr_ext,      (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%T_ocean_corr_ext,      (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%S_ocean_corr_ext,      (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%T_ocean_corr_ext,        (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%S_ocean_corr_ext,        (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%T_ocean_corr_ext,        (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,        (/1, 1, 1 /)) 
+      
     ! Fields with a time dimension
     ! ============================
       
@@ -488,7 +508,6 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,  (/1, 1, 1, ti /))   
-          
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1055,7 +1074,7 @@ CONTAINS
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_Precip',           [x, y, m], id_var, long_name='Base PD monthly total precipitation', units='mm')
     
-    ! Forcing ocean data
+    ! Forcing oceans
     ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'Warm_T_ocean_3D',          [x, y, zo], id_var, long_name='Warm 3-D ocean temperature', units='K')
     ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
@@ -1072,7 +1091,7 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_T_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean temperature', units='K')
     ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_S_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean salinity', units='PSU')
-
+      
     ! Fields with a time dimension
     ! ============================
       
@@ -1236,7 +1255,7 @@ CONTAINS
     ELSEIF (field_name == 'T_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')      
+      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
       
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
@@ -2471,7 +2490,7 @@ CONTAINS
     IF (.NOT. par%master) RETURN
         
     ! Open the netcdf file
-    CALL open_netcdf_file(PD%netcdf%filename, PD%netcdf%ncid)
+    CALL open_netcdf_file( PD%netcdf%filename, PD%netcdf%ncid)
     
     ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
     CALL inquire_dim( PD%netcdf%ncid, PD%netcdf%name_dim_x, PD%nx, PD%netcdf%id_dim_x)
@@ -2485,7 +2504,7 @@ CONTAINS
     CALL inquire_double_var( PD%netcdf%ncid, PD%netcdf%name_var_Hs, (/ PD%netcdf%id_dim_x, PD%netcdf%id_dim_y /), PD%netcdf%id_var_Hs)
         
     ! Close the netcdf file
-    CALL close_netcdf_file(PD%netcdf%ncid)
+    CALL close_netcdf_file( PD%netcdf%ncid)
     
   END SUBROUTINE inquire_PD_data_file
   SUBROUTINE read_PD_data_file(    PD)
@@ -2499,7 +2518,7 @@ CONTAINS
     IF (.NOT. par%master) RETURN
     
     ! Open the netcdf file
-    CALL open_netcdf_file(PD%netcdf%filename, PD%netcdf%ncid)
+    CALL open_netcdf_file( PD%netcdf%filename, PD%netcdf%ncid)
     
     ! Read the data
     CALL handle_error(nf90_get_var( PD%netcdf%ncid, PD%netcdf%id_var_x,      PD%x,      start = (/ 1    /) ))
@@ -2509,7 +2528,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( PD%netcdf%ncid, PD%netcdf%id_var_Hs,     PD%Hs_raw, start = (/ 1, 1 /) ))
         
     ! Close the netcdf file
-    CALL close_netcdf_file(PD%netcdf%ncid)
+    CALL close_netcdf_file( PD%netcdf%ncid)
     
   END SUBROUTINE read_PD_data_file 
   
@@ -2525,7 +2544,7 @@ CONTAINS
     IF (.NOT. par%master) RETURN
         
     ! Open the netcdf file
-    CALL open_netcdf_file(init%netcdf%filename, init%netcdf%ncid)
+    CALL open_netcdf_file( init%netcdf%filename, init%netcdf%ncid)
     
     ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
     CALL inquire_dim( init%netcdf%ncid, init%netcdf%name_dim_x, init%nx, init%netcdf%id_dim_x)
@@ -2539,7 +2558,7 @@ CONTAINS
     CALL inquire_double_var( init%netcdf%ncid, init%netcdf%name_var_Hs, (/ init%netcdf%id_dim_x, init%netcdf%id_dim_y /), init%netcdf%id_var_Hs)
         
     ! Close the netcdf file
-    CALL close_netcdf_file(init%netcdf%ncid)
+    CALL close_netcdf_file( init%netcdf%ncid)
     
   END SUBROUTINE inquire_init_data_file
   SUBROUTINE read_init_data_file(    init)
@@ -2553,7 +2572,7 @@ CONTAINS
     IF (.NOT. par%master) RETURN
     
     ! Open the netcdf file
-    CALL open_netcdf_file(init%netcdf%filename, init%netcdf%ncid)
+    CALL open_netcdf_file( init%netcdf%filename, init%netcdf%ncid)
     
     ! Read the data
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_x,      init%x,      start = (/ 1    /) ))
@@ -2563,7 +2582,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( init%netcdf%ncid, init%netcdf%id_var_Hs,     init%Hs_raw, start = (/ 1, 1 /) ))
         
     ! Close the netcdf file
-    CALL close_netcdf_file(init%netcdf%ncid)
+    CALL close_netcdf_file( init%netcdf%ncid)
     
   END SUBROUTINE read_init_data_file
   
@@ -2806,6 +2825,185 @@ CONTAINS
     CALL close_netcdf_file(snapshot%netcdf%ncid)
     
   END SUBROUTINE read_GCM_ocean_snapshot  
+  
+  ! High-resolution geometry used for extrapolating ocean data
+  SUBROUTINE inquire_hires_geometry_file( hires)
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( hires%netcdf_geo%filename, hires%netcdf_geo%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( hires%netcdf_geo%ncid, hires%netcdf_geo%name_dim_x, hires%grid%nx, hires%netcdf_geo%id_dim_x)
+    CALL inquire_dim( hires%netcdf_geo%ncid, hires%netcdf_geo%name_dim_y, hires%grid%ny, hires%netcdf_geo%id_dim_y)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( hires%netcdf_geo%ncid, hires%netcdf_geo%name_var_x,  (/ hires%netcdf_geo%id_dim_x                        /), hires%netcdf_geo%id_var_x )
+    CALL inquire_double_var( hires%netcdf_geo%ncid, hires%netcdf_geo%name_var_y,  (/ hires%netcdf_geo%id_dim_y                        /), hires%netcdf_geo%id_var_y )
+    CALL inquire_double_var( hires%netcdf_geo%ncid, hires%netcdf_geo%name_var_Hi, (/ hires%netcdf_geo%id_dim_x, hires%netcdf_geo%id_dim_y /), hires%netcdf_geo%id_var_Hi)
+    CALL inquire_double_var( hires%netcdf_geo%ncid, hires%netcdf_geo%name_var_Hb, (/ hires%netcdf_geo%id_dim_x, hires%netcdf_geo%id_dim_y /), hires%netcdf_geo%id_var_Hb)
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( hires%netcdf_geo%ncid)
+    
+  END SUBROUTINE inquire_hires_geometry_file
+  SUBROUTINE read_hires_geometry_file(    hires)
+    ! Read the high-resolution geometry netcdf file
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( hires%netcdf_geo%filename, hires%netcdf_geo%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( hires%netcdf_geo%ncid, hires%netcdf_geo%id_var_x,      hires%grid%x, start = (/ 1    /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf_geo%ncid, hires%netcdf_geo%id_var_y,      hires%grid%y, start = (/ 1    /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf_geo%ncid, hires%netcdf_geo%id_var_Hi,     hires%Hi,     start = (/ 1, 1 /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf_geo%ncid, hires%netcdf_geo%id_var_Hb,     hires%Hb,     start = (/ 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( hires%netcdf_geo%ncid)
+    
+  END SUBROUTINE read_hires_geometry_file
+  
+  ! Create/read an extrapolated ocean data file
+  SUBROUTINE create_extrapolated_ocean_file(  hires, hires_ocean_filename)
+    ! Create a new folder extrapolated ocean data file
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_highres_ocean_data),       INTENT(INOUT) :: hires
+    CHARACTER(LEN=256),                  INTENT(IN)    :: hires_ocean_filename
+
+    ! Local variables:
+    LOGICAL                                            :: file_exists
+    INTEGER                                            :: x, y, z
+    
+    IF (.NOT. par%master) RETURN
+
+    ! Create a new file and, to prevent loss of data, 
+    ! stop with an error message if one already exists (not when differences are considered):
+    
+    hires%netcdf%filename = hires_ocean_filename
+    INQUIRE(EXIST=file_exists, FILE = TRIM( hires%netcdf%filename))
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM(hires%netcdf%filename), ' already exists!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Create hires%netcdf file
+    !WRITE(0,*) ' Creating new hires%netcdf file at ', TRIM( hires%netcdf%filename)
+    CALL handle_error(nf90_create( hires%netcdf%filename, IOR(nf90_clobber,nf90_share), hires%netcdf%ncid))
+        
+    ! Define dimensions:
+    CALL create_dim( hires%netcdf%ncid, hires%netcdf%name_dim_x,       hires%grid%nx,  hires%netcdf%id_dim_x      )
+    CALL create_dim( hires%netcdf%ncid, hires%netcdf%name_dim_y,       hires%grid%ny,  hires%netcdf%id_dim_y      )
+    CALL create_dim( hires%netcdf%ncid, hires%netcdf%name_dim_z_ocean, hires%nz_ocean, hires%netcdf%id_dim_z_ocean)
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    x = hires%netcdf%id_dim_x
+    y = hires%netcdf%id_dim_y
+    z = hires%netcdf%id_dim_z_ocean
+    
+    ! Define variables:
+    ! The order of the CALL statements for the different variables determines their
+    ! order of appearence in the hires%netcdf file.
+    
+    ! Dimension variables
+    CALL create_double_var( hires%netcdf%ncid, hires%netcdf%name_var_x,       [x      ], hires%netcdf%id_var_x,       long_name='X-coordinate', units='m')
+    CALL create_double_var( hires%netcdf%ncid, hires%netcdf%name_var_y,       [   y   ], hires%netcdf%id_var_y,       long_name='Y-coordinate', units='m')
+    CALL create_double_var( hires%netcdf%ncid, hires%netcdf%name_var_z_ocean, [      z], hires%netcdf%id_var_z_ocean, long_name='Depth in ocean', units='m')
+    
+    ! Extrapolated ocean data
+    CALL create_double_var( hires%netcdf%ncid, hires%netcdf%name_var_T_ocean, [x, y, z], hires%netcdf%id_var_T_ocean, long_name='3-D ocean temperature', units='K')
+    CALL create_double_var( hires%netcdf%ncid, hires%netcdf%name_var_S_ocean, [x, y, z], hires%netcdf%id_var_S_ocean, long_name='3-D ocean salinity', units='PSU')
+
+    ! Leave definition mode:
+    CALL handle_error(nf90_enddef( hires%netcdf%ncid))
+    
+    ! Write the data
+    CALL handle_error( nf90_put_var( hires%netcdf%ncid, hires%netcdf%id_var_x,        hires%grid%x ))
+    CALL handle_error( nf90_put_var( hires%netcdf%ncid, hires%netcdf%id_var_y,        hires%grid%y ))
+    CALL handle_error( nf90_put_var( hires%netcdf%ncid, hires%netcdf%id_var_z_ocean,  hires%z_ocean))
+    
+    CALL write_data_to_file_dp_3D(  hires%netcdf%ncid, hires%grid%nx, hires%grid%ny, hires%nz_ocean, hires%netcdf%id_var_T_ocean, hires%T_ocean, (/ 1,1,1 /) )
+    CALL write_data_to_file_dp_3D(  hires%netcdf%ncid, hires%grid%nx, hires%grid%ny, hires%nz_ocean, hires%netcdf%id_var_S_ocean, hires%S_ocean, (/ 1,1,1 /) )
+        
+    ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+    CALL handle_error(nf90_sync( hires%netcdf%ncid))
+    
+    ! Close the file
+    CALL close_netcdf_file( hires%netcdf%ncid)
+    
+  END SUBROUTINE create_extrapolated_ocean_file
+  SUBROUTINE inquire_extrapolated_ocean_file( hires) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( hires%netcdf%filename, hires%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
+    CALL inquire_dim( hires%netcdf%ncid, hires%netcdf%name_dim_x,       hires%grid%nx,   hires%netcdf%id_dim_x      )
+    CALL inquire_dim( hires%netcdf%ncid, hires%netcdf%name_dim_y,       hires%grid%ny,   hires%netcdf%id_dim_y      )
+    CALL inquire_dim( hires%netcdf%ncid, hires%netcdf%name_dim_z_ocean, hires%nz_ocean,  hires%netcdf%id_dim_z_ocean)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( hires%netcdf%ncid, hires%netcdf%name_var_x,       (/ hires%netcdf%id_dim_x                                                     /), hires%netcdf%id_var_x      )
+    CALL inquire_double_var( hires%netcdf%ncid, hires%netcdf%name_var_y,       (/                        hires%netcdf%id_dim_y                              /), hires%netcdf%id_var_y      )
+    CALL inquire_double_var( hires%netcdf%ncid, hires%netcdf%name_var_z_ocean, (/                                               hires%netcdf%id_dim_z_ocean /), hires%netcdf%id_var_z_ocean)
+    
+    CALL inquire_double_var( hires%netcdf%ncid, hires%netcdf%name_var_T_ocean, (/ hires%netcdf%id_dim_x, hires%netcdf%id_dim_y, hires%netcdf%id_dim_z_ocean /), hires%netcdf%id_var_T_ocean)
+    CALL inquire_double_var( hires%netcdf%ncid, hires%netcdf%name_var_S_ocean, (/ hires%netcdf%id_dim_x, hires%netcdf%id_dim_y, hires%netcdf%id_dim_z_ocean /), hires%netcdf%id_var_S_ocean)
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( hires%netcdf%ncid)
+    
+  END SUBROUTINE inquire_extrapolated_ocean_file
+  SUBROUTINE read_extrapolated_ocean_file(    hires)
+    ! Read the extrapolated ocean data netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( hires%netcdf%filename, hires%netcdf%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( hires%netcdf%ncid, hires%netcdf%id_var_x,       hires%grid%x,  start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf%ncid, hires%netcdf%id_var_y,       hires%grid%y,  start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf%ncid, hires%netcdf%id_var_z_ocean, hires%z_ocean, start = (/ 1       /) ))
+    
+    CALL handle_error(nf90_get_var( hires%netcdf%ncid, hires%netcdf%id_var_T_ocean, hires%T_ocean, start = (/ 1, 1, 1 /) ))
+    CALL handle_error(nf90_get_var( hires%netcdf%ncid, hires%netcdf%id_var_S_ocean, hires%S_ocean, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( hires%netcdf%ncid)
+    
+  END SUBROUTINE read_extrapolated_ocean_file
   
   ! Insolation solution (e.g. Laskar 2004)
   SUBROUTINE inquire_insolation_data_file( forcing)

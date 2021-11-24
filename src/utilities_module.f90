@@ -2010,8 +2010,8 @@ CONTAINS
     
     ! Allocate map and stacks
     ALLOCATE( map(       grid%ny,  grid%nx))
-    ALLOCATE( stack1( 2*(grid%ny + grid%nx),2))
-    ALLOCATE( stack2( 2*(grid%ny + grid%nx),2))
+    ALLOCATE( stack1( 4*(grid%ny + grid%nx),2))
+    ALLOCATE( stack2( 4*(grid%ny + grid%nx),2))
       
     map         = 0
     stack1      = 0
