@@ -634,8 +634,6 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_lat                   = 'lat                  '
     CHARACTER(LEN=256) :: name_var_z_ocean               = 'depth                '
     CHARACTER(LEN=256) :: name_var_mask_ocean            = '                     '
-    CHARACTER(LEN=256) :: name_var_T_ocean               = 't_an                 '
-    CHARACTER(LEN=256) :: name_var_S_ocean               = 's_an                 '
         
   END TYPE type_netcdf_ocean_data
     
