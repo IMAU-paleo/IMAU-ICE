@@ -542,6 +542,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
     INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
   
+    ! History of the weighing fields
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: w_tot_history                      
+    INTEGER,                    POINTER     :: nw_tot_history
+    INTEGER :: ww_tot_history, wnw_tot_history                 
+  
   END TYPE type_subclimate_region
   
   TYPE type_highres_ocean_data

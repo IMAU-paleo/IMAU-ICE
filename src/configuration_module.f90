@@ -250,6 +250,9 @@ MODULE configuration_module
   ! Present-day observed ocean (WOA18) (NetCDF)  
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   
+  CHARACTER(LEN=256)  :: name_ocean_temperature_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  
   ! GCM snapshots
   CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'warm_cold'                      ! 'warm_cold' uses 2 snapshots
   CHARACTER(LEN=256)  :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
@@ -281,10 +284,10 @@ MODULE configuration_module
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                      ! Default values are from Berends et al, 2018
   REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                      ! 1.0_dp equals glacial index method
 
-  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 1.0_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
-  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 1.0_dp                       ! Can be set separately for different regions
-  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 1.0_dp                       
-  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 1.0_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
+  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                       ! Can be set separately for different regions
+  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp                       
 
   REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                      ! CO2 level pertaining to the warm climate (PI  level default)         
   REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                      ! CO2 level pertaining to the cold climate (LGM level default)          
@@ -310,6 +313,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_EAS_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_GRL_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_ANT_config  = ''
+  INTEGER             :: w_tot_hist_averaging_window_config          = 1500                         ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged 
 
   ! Forcing
   ! =======
@@ -746,6 +750,8 @@ MODULE configuration_module
     
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
+    CHARACTER(LEN=256)                  :: name_ocean_temperature
+    CHARACTER(LEN=256)                  :: name_ocean_salinity
     CHARACTER(LEN=256)                  :: choice_climate_matrix
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_snapshot_warm
@@ -796,6 +802,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_EAS
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_GRL
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
+    INTEGER                             :: w_tot_hist_averaging_window
     
     ! Forcing
     ! =======
@@ -1397,6 +1404,8 @@ CONTAINS
                      filename_geothermal_heat_flux_config,       &
                      filename_PD_obs_climate_config,             &
                      filename_PD_obs_ocean_config,               &
+                     name_ocean_temperature_config,              &
+                     name_ocean_salinity_config,                 &
                      choice_climate_matrix_config,               &
                      filename_GCM_snapshot_PI_config,            &
                      filename_GCM_snapshot_warm_config,          &
@@ -1436,6 +1445,7 @@ CONTAINS
                      ocean_extrap_hires_geo_filename_EAS_config, &
                      ocean_extrap_hires_geo_filename_GRL_config, &
                      ocean_extrap_hires_geo_filename_ANT_config, &
+                     w_tot_hist_averaging_window_config,         &
                      choice_forcing_method_config,               &
                      domain_climate_forcing_config,              &                  
                      dT_deepwater_averaging_window_config,       &
@@ -1833,6 +1843,8 @@ CONTAINS
     
     C%filename_PD_obs_climate             = filename_PD_obs_climate_config
     C%filename_PD_obs_ocean               = filename_PD_obs_ocean_config
+    C%name_ocean_temperature              = name_ocean_temperature_config
+    C%name_ocean_salinity                 = name_ocean_salinity_config
     C%choice_climate_matrix               = choice_climate_matrix_config
     C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
     C%filename_GCM_snapshot_warm          = filename_GCM_snapshot_warm_config
@@ -1883,6 +1895,7 @@ CONTAINS
     C%ocean_extrap_hires_geo_filename_EAS = ocean_extrap_hires_geo_filename_EAS_config
     C%ocean_extrap_hires_geo_filename_GRL = ocean_extrap_hires_geo_filename_GRL_config
     C%ocean_extrap_hires_geo_filename_ANT = ocean_extrap_hires_geo_filename_ANT_config
+    C%w_tot_hist_averaging_window         = w_tot_hist_averaging_window_config
     
     ! Forcing
     ! =======

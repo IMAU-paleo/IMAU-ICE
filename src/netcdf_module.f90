@@ -256,6 +256,24 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%T2m,      (/1, 1, 1/))
     ELSEIF (field_name == 'PD_obs_Precip') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%climate%PD_obs%Precip,   (/1, 1, 1/))
+    
+    ! Forcing ocean data  
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%T_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Warm%S_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%T_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_Cold%S_ocean_corr_ext, (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%T_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%GCM_PI%S_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%T_ocean_corr_ext,   (/1, 1, 1 /))
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%PD_obs%S_ocean_corr_ext,   (/1, 1, 1 /)) 
       
     ! Forcing oceans
     ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
@@ -487,11 +505,9 @@ CONTAINS
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
     ELSEIF (field_name == 'T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,       (/1, 1, 1, ti /))
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,       (/1, 1, 1, ti /))   
-      
-    
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,  (/1, 1, 1, ti /))   
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1075,7 +1091,7 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_T_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean temperature', units='K')
     ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'Base_PD_S_ocean_3D',       [x, y, zo], id_var, long_name='Base PD 3-D ocean salinity', units='PSU')
-     
+      
     ! Fields with a time dimension
     ! ============================
       
@@ -1240,7 +1256,6 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
-      
       
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
@@ -2657,8 +2672,9 @@ CONTAINS
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lon,     (/ PD_obs_ocean%netcdf%id_dim_lon     /),  PD_obs_ocean%netcdf%id_var_lon    )
     CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_z_ocean, (/ PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_z_ocean)
 
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_T_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_T_ocean)
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_S_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_S_ocean)
+    !CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_mask_ocean, (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_mask_ocean)
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, TRIM(C%name_ocean_temperature),    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_T_ocean)
+    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, TRIM(C%name_ocean_salinity)   ,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_S_ocean)
         
     ! Close the netcdf file
     CALL close_netcdf_file( PD_obs_ocean%netcdf%ncid)
@@ -2776,8 +2792,9 @@ CONTAINS
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_lon,     (/ snapshot%netcdf%id_dim_lon     /),  snapshot%netcdf%id_var_lon    )
     CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_z_ocean, (/ snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_z_ocean)
 
-    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_T_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
-    CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_S_ocean,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
+    !CALL inquire_double_var( snapshot%netcdf%ncid, snapshot%netcdf%name_var_mask_ocean, (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_mask_ocean)
+    CALL inquire_double_var( snapshot%netcdf%ncid, TRIM(C%name_ocean_temperature),    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_T_ocean)
+    CALL inquire_double_var( snapshot%netcdf%ncid, TRIM(C%name_ocean_salinity)   ,    (/ snapshot%netcdf%id_dim_lon, snapshot%netcdf%id_dim_lat, snapshot%netcdf%id_dim_z_ocean /),  snapshot%netcdf%id_var_S_ocean)
    
     ! Close the netcdf file
     CALL close_netcdf_file(snapshot%netcdf%ncid)
