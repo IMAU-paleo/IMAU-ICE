@@ -11,44 +11,45 @@ MODULE IMAU_ICE_main_model
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              allocate_shared_bool_0D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_model_region, type_ice_model, type_PD_data_fields, type_init_data_fields, &
-                                             type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
+  USE data_types_module,               ONLY: type_model_region, type_ice_model, type_reference_geometry, &
+                                             type_SMB_model, type_BMB_model, type_forcing_data, type_grid, &
+                                             type_climate_matrix_global, type_ocean_matrix_global
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              inverse_oblique_sg_projection, surface_elevation
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
-  USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid, &
-                                             initialise_topo_data_fields, map_topo_data_to_model_grid
+  USE reference_fields_module,         ONLY: initialise_reference_geometries
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                              create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
                                              create_regional_scalar_output_file
-  USE forcing_module,                  ONLY: forcing
+  USE forcing_module,                  ONLY: forcing, initialise_geothermal_heat_flux_regional
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, initialise_basins
   USE ice_velocity_module,             ONLY: solve_DIVA
-  USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
-  USE calving_module,                  ONLY: apply_calving_law
-  USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
-  USE ocean_module,                    ONLY: initialise_ocean_model,     run_ocean_model
-  USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model
-  USE SMB_module,                      ONLY: initialise_SMB_model,       run_SMB_model
-  USE BMB_module,                      ONLY: initialise_BMB_model,       run_BMB_model
-  USE isotopes_module,                 ONLY: initialise_isotopes_model,  run_isotopes_model
-  USE bedrock_ELRA_module,             ONLY: initialise_ELRA_model,      run_ELRA_model
+  USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model
+  USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model
+  USE ocean_module,                    ONLY: initialise_ocean_model_regional,   run_ocean_model
+  USE climate_module,                  ONLY: initialise_climate_model_regional, run_climate_model
+  USE SMB_module,                      ONLY: initialise_SMB_model,              run_SMB_model
+  USE BMB_module,                      ONLY: initialise_BMB_model,              run_BMB_model
+  USE isotopes_module,                 ONLY: initialise_isotopes_model,         run_isotopes_model
+  USE bedrock_ELRA_module,             ONLY: initialise_ELRA_model,             run_ELRA_model
   USE SELEN_main_module,               ONLY: apply_SELEN_bed_geoid_deformation_rates
+  USE calving_module,                  ONLY: apply_calving_law
   USE scalar_data_output_module,       ONLY: write_regional_scalar_data
 
   IMPLICIT NONE
 
 CONTAINS
 
-  SUBROUTINE run_model( region, t_end)
+  SUBROUTINE run_model( region, climate_matrix_global, t_end)
     ! Run the model until t_end (usually a 100 years further)
   
     IMPLICIT NONE  
     
     ! In/output variables:
-    TYPE(type_model_region),    INTENT(INOUT)     :: region
-    REAL(dp),                   INTENT(IN)        :: t_end
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix_global
+    REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
     REAL(dp)                                      :: tstart, tstop, t1, t2
@@ -112,22 +113,22 @@ CONTAINS
             
       ! Run the climate model
       IF (region%do_climate) THEN
-        CALL run_climate_model( region%grid, region%ice, region%SMB, region%climate, region%name, region%time)
+        CALL run_climate_model( region, climate_matrix_global, region%time)
       END IF
       
       ! Run the ocean model
       IF (region%do_ocean) THEN
-        CALL run_ocean_model( region%grid, region%ice, region%climate, region%name, region%time)
+        CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate_matrix, region%name, region%time)
       END IF     
     
       ! Run the SMB model
       IF (region%do_SMB) THEN
-        CALL run_SMB_model( region%grid, region%ice, region%climate%applied, region%time, region%SMB, region%mask_noice)
+        CALL run_SMB_model( region%grid, region%ice, region%climate_matrix, region%time, region%SMB, region%mask_noice)
       END IF
     
       ! Run the BMB model
       IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%climate%applied, region%BMB, region%name, region%time)
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time)
       END IF
       
       t2 = MPI_WTIME()
@@ -137,7 +138,7 @@ CONTAINS
     ! ==============
     
       t1 = MPI_WTIME()
-      CALL run_thermo_model( region%grid, region%ice, region%climate%applied, region%SMB, do_solve_heat_equation = region%do_thermo)
+      CALL run_thermo_model( region%grid, region%ice, region%climate_matrix%applied, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
       
@@ -158,9 +159,9 @@ CONTAINS
       
       ! Update ice geometry and advance region time
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
-      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
-      CALL apply_calving_law( region%grid, region%ice, region%PD)
-      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      CALL update_general_ice_model_data( region%grid, region%ice)
+      CALL apply_calving_law( region%grid, region%ice, region%refgeo_PD)
+      CALL update_general_ice_model_data( region%grid, region%ice)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
@@ -192,23 +193,21 @@ CONTAINS
   END SUBROUTINE run_model
   
   ! Initialise the entire model region - read initial and PD data, initialise the ice dynamics, climate and SMB sub models
-  SUBROUTINE initialise_model( region, name, matrix)
+  SUBROUTINE initialise_model( region, name, climate_matrix_global, ocean_matrix_global)
   
     USE climate_module, ONLY: map_glob_to_grid_2D
   
     IMPLICIT NONE  
     
     ! In/output variables:
-    TYPE(type_model_region),         INTENT(INOUT)     :: region
-    CHARACTER(LEN=3),                INTENT(IN)        :: name
-    TYPE(type_climate_matrix),       INTENT(INOUT)     :: matrix
+    TYPE(type_model_region),          INTENT(INOUT)     :: region
+    CHARACTER(LEN=3),                 INTENT(IN)        :: name
+    TYPE(type_climate_matrix_global), INTENT(INOUT)     :: climate_matrix_global
+    TYPE(type_ocean_matrix_global),   INTENT(INOUT)     :: ocean_matrix_global
     
     ! Local variables:
-    CHARACTER(LEN=20)                                  :: short_filename
-    INTEGER                                            :: n
-              
-    ! Basic initialisation
-    ! ====================
+    CHARACTER(LEN=20)                                   :: short_filename
+    INTEGER                                             :: n
     
     ! Region name
     region%name      = name    
@@ -224,6 +223,160 @@ CONTAINS
     
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Initialising model region ', region%name, ' (', TRIM(region%long_name), ')...'
+    
+    ! ===== Allocate memory for timers and scalars =====
+    ! ==================================================
+    
+    CALL allocate_region_timers_and_scalars( region)
+    
+    ! ===== Initialise this region's grid =====
+    ! =========================================
+    
+    CALL initialise_model_grid( region)
+    IF (par%master) WRITE (0,'(A,F5.2,A,I4,A,I4,A)') '   Initialised model grid at ', region%grid%dx/1000._dp, ' km resolution: [', region%grid%nx, ' x ', region%grid%ny, '] pixels'
+    
+    ! ===== Set up debug fields and output files ======
+    ! =================================================
+    
+    ! Debug fields
+    CALL initialise_debug_fields( region)
+    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file( region)
+    CALL associate_debug_fields(  region)
+    
+    ! Restart file
+    short_filename = 'restart_NAM.nc'
+    short_filename(9:11) = region%name
+    DO n = 1, 256
+      region%restart%netcdf%filename(n:n) = ' '
+    END DO
+    region%restart%netcdf%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    
+    ! Help fields file
+    short_filename = 'help_fields_NAM.nc'
+    short_filename(13:15) = region%name
+    DO n = 1, 256
+      region%help_fields%filename(n:n) = ' '
+    END DO
+    region%help_fields%filename = TRIM(C%output_dir)//TRIM(short_filename)
+
+    ! Let the Master create the (empty) NetCDF files
+    IF (par%master) CALL create_restart_file(     region, forcing)
+    IF (par%master) CALL create_help_fields_file( region)
+    
+    ! ===== Initialise initial, present-day, and GIA equilibrium reference geometries =====
+    ! =====================================================================================
+    
+    CALL initialise_reference_geometries( region%grid, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%name)
+  
+    ! ===== The ice dynamics model
+    ! ============================
+    
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
+    
+    ! ===== Define mask where no ice is allowed to form (i.e. Greenland in NAM and EAS, Ellesmere Island in GRL)
+    ! ==========================================================================================================
+    
+    CALL initialise_mask_noice( region)
+    
+    ! ===== Define ice basins =====
+    ! =============================
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%ice%basin_ID, region%ice%wbasin_ID)
+    CALL allocate_shared_int_0D(                                 region%ice%nbasins,  region%ice%wnbasins )
+    
+    ! Define basins
+    CALL initialise_basins( region%grid, region%ice%basin_ID, region%ice%nbasins, region%name)
+        
+    ! ===== The climate model =====
+    ! =============================
+    
+    CALL initialise_climate_model_regional( region, climate_matrix_global)
+    
+    ! ===== The ocean model =====
+    ! ===========================
+    
+    CALL initialise_ocean_model_regional( region, ocean_matrix_global)
+    
+    ! ===== The SMB model =====
+    ! =========================
+    
+    CALL initialise_SMB_model( region%grid, region%ice, region%SMB, region%name)
+    
+    ! ===== The BMB model =====
+    ! =========================    
+    
+    CALL initialise_BMB_model( region%grid, region%ice, region%BMB, region%name)
+    
+    ! ===== The GIA model =====
+    ! =========================
+    
+    IF     (C%choice_GIA_model == 'none') THEN
+      ! Nothing to be done
+    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
+      CALL initialise_GIA_model_grid( region)
+      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
+      CALL initialise_GIA_model_grid( region)
+    ELSE
+      WRITE(0,*) '  ERROR - choice_GIA_model "', C%choice_GIA_model, '" not implemented in initialise_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! ===== The isotopes model =====
+    ! ==============================
+   
+    CALL initialise_isotopes_model( region)
+    
+    ! ===== Geothermal heat flux =====
+    ! ================================
+    
+    CALL initialise_geothermal_heat_flux_regional( region%grid, region%ice)
+    
+    ! ===== Initialise the ice temperature profile =====
+    ! ==================================================
+    
+    ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
+    CALL run_climate_model( region, climate_matrix_global, C%start_time_of_run)
+    CALL run_SMB_model( region%grid, region%ice, region%climate_matrix, C%start_time_of_run, region%SMB, region%mask_noice)
+    
+    ! Initialise the temperature field
+    CALL initialise_ice_temperature( region%grid, region%ice, region%climate_matrix%applied, region%ocean_matrix%applied, region%SMB, region%name)
+    
+    ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
+    ! ============================================================================
+    
+    ! Create the file
+    CALL create_regional_scalar_output_file( region)
+    
+    ! Calculate and write the first entry (ice volume and area, GMSL contribution, isotope stuff)
+    CALL calculate_PD_sealevel_contribution( region)
+    CALL calculate_icesheet_volume_and_area(region)
+    CALL write_regional_scalar_data( region, C%start_time_of_run)
+    
+    ! ===
+    ! === If we're running with choice_ice_dynamics == "none", calculate a velocity field
+    ! === once during initialisation (so that the thermodynamics are solved correctly)
+    ! ===
+    
+    IF (C%choice_ice_dynamics == 'none') THEN
+      C%choice_ice_dynamics = 'DIVA'
+      CALL solve_DIVA( region%grid, region%ice)
+      C%choice_ice_dynamics = 'none'
+    END IF
+    
+    IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
+    
+  END SUBROUTINE initialise_model
+  SUBROUTINE allocate_region_timers_and_scalars( region)
+    ! Allocate shared memory for this region's timers (used for the asynchronous coupling between the
+    ! ice dynamics and the secondary model components), and for the scalars (integrated ice volume and
+    ! area, SMB components, computation times, etc.)
+  
+    IMPLICIT NONE  
+    
+    ! In/output variables:
+    TYPE(type_model_region),         INTENT(INOUT)     :: region
     
     ! Timers and time steps
     ! =====================
@@ -322,18 +475,17 @@ CONTAINS
       region%do_output      = .TRUE.
     END IF
     
-    ! ===== Ice-sheet volume and area =====
-    ! =====================================
+    ! ===== Scalars =====
+    ! ===================
     
+    ! Ice-sheet volume and area
     CALL allocate_shared_dp_0D( region%ice_area                     , region%wice_area                     )
     CALL allocate_shared_dp_0D( region%ice_volume                   , region%wice_volume                   )
     CALL allocate_shared_dp_0D( region%ice_volume_PD                , region%wice_volume_PD                )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation   , region%wice_volume_above_flotation   )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation_PD, region%wice_volume_above_flotation_PD)
     
-    ! ===== Regionally integrated SMB components =====
-    ! ================================================
-    
+    ! Regionally integrated SMB components
     CALL allocate_shared_dp_0D( region%int_T2m                      , region%wint_T2m                      )
     CALL allocate_shared_dp_0D( region%int_snowfall                 , region%wint_snowfall                 )
     CALL allocate_shared_dp_0D( region%int_rainfall                 , region%wint_rainfall                 )
@@ -344,184 +496,23 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%int_BMB                      , region%wint_BMB                      )
     CALL allocate_shared_dp_0D( region%int_MB                       , region%wint_MB                       )
     
-    ! ===== Englacial isotope content =====
-    ! =====================================
-    
+    ! Englacial isotope content
     CALL allocate_shared_dp_0D( region%GMSL_contribution            , region%wGMSL_contribution            )
     CALL allocate_shared_dp_0D( region%mean_isotope_content         , region%wmean_isotope_content         )
     CALL allocate_shared_dp_0D( region%mean_isotope_content_PD      , region%wmean_isotope_content_PD      )
     CALL allocate_shared_dp_0D( region%d18O_contribution            , region%wd18O_contribution            )
     CALL allocate_shared_dp_0D( region%d18O_contribution_PD         , region%wd18O_contribution_PD         )
     
-    ! ===== PD, topo, and init reference data fields =====
-    ! ====================================================
-    
-    CALL initialise_PD_data_fields(   region%PD,   region%name)
-    CALL initialise_topo_data_fields( region%topo, region%PD, region%name)
-    CALL initialise_init_data_fields( region%init, region%name)
-    
-    ! ===== Initialise this region's grid =====
-    ! =========================================
-    
-    CALL initialise_model_grid( region)
-    IF (par%master) WRITE (0,'(A,F5.2,A,I4,A,I4,A)') '   Initialised model grid at ', region%grid%dx/1000._dp, ' km resolution: [', region%grid%nx, ' x ', region%grid%ny, '] pixels'
-    
-    ! ===== Initialise dummy fields for debugging
-    ! ===========================================
-    
-    CALL initialise_debug_fields( region)
-    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file(       region)
-    CALL associate_debug_fields(  region)
-
-    ! ===== Map PD, topo, and init data to the model grid =====
-    ! =========================================================
-    
-    CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
-    CALL map_topo_data_to_model_grid( region%grid, region%topo)
-    CALL map_init_data_to_model_grid( region%grid, region%init)
-    
-    ! Smooth input geometry (bed and ice)
-    IF (C%do_smooth_geometry) THEN
-      CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb  )
-      CALL smooth_model_geometry( region%grid, region%init%Hi, region%init%Hb)
-    END IF
-    
-    CALL calculate_PD_sealevel_contribution( region)
-    
-    ! ===== Define mask where no ice is allowed to form (i.e. Greenland in NAM and EAS, Ellesmere Island in GRL)
-    ! ==========================================================================================================
-    
-    CALL initialise_mask_noice( region)
-    
-    ! ===== Define ice basins =====
-    ! =============================
-    
-    ! Allocate shared memory
-    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%ice%basin_ID, region%ice%wbasin_ID)
-    CALL allocate_shared_int_0D(                                 region%ice%nbasins,  region%ice%wnbasins )
-    
-    ! Define basins
-    CALL initialise_basins( region%grid, region%ice%basin_ID, region%ice%nbasins, region%name)
-        
-    ! ===== The climate model =====
-    ! =============================
-    
-    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)
-    
-    ! ===== The ocean model =====
-    ! =============================
-    
-    CALL initialise_ocean_model( region, matrix)   
-       
-    ! ===== Regular output files =====
-    ! ================================
-
-    ! Set output filenames for this region
-    short_filename = 'restart_NAM.nc'
-    short_filename(9:11) = region%name
-    DO n = 1, 256
-      region%restart%filename(n:n) = ' '
-    END DO
-    region%restart%filename = TRIM(C%output_dir)//TRIM(short_filename)
-
-    short_filename = 'help_fields_NAM.nc'
-    short_filename(13:15) = region%name
-    DO n = 1, 256
-      region%help_fields%filename(n:n) = ' '
-    END DO
-    region%help_fields%filename = TRIM(C%output_dir)//TRIM(short_filename)
-
-    ! Let the Master create the (empty) NetCDF files
-    IF (par%master) CALL create_restart_file(     region, forcing)
-    IF (par%master) CALL create_help_fields_file( region)
-    
-    ! ===== The SMB model =====
-    ! =========================    
-    
-    CALL initialise_SMB_model( region%grid, region%init, region%SMB, region%name)     
-    
-    ! ===== The BMB model =====
-    ! =========================    
-    
-    CALL initialise_BMB_model( region%grid, region%ice, region%BMB, region%name)       
-  
-    ! ===== The ice dynamics model
-    ! ============================
-    
-    CALL initialise_ice_model( region%grid, region%ice, region%PD, region%init)
-    
-    ! Geothermal heat flux
-    IF     (C%choice_geothermal_heat_flux == 'constant') THEN
-      region%ice%GHF_a( :,region%grid%i1:region%grid%i2) = C%constant_geothermal_heat_flux
-    ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
-      CALL map_glob_to_grid_2D( forcing%ghf_nlat, forcing%ghf_nlon, forcing%ghf_lat, forcing%ghf_lon, region%grid, forcing%ghf_ghf, region%ice%GHF_a)
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_geothermal_heat_flux "', TRIM(C%choice_geothermal_heat_flux), '" not implemented in initialise_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
-    CALL update_general_ice_model_data( region%grid, region%ice, region%time)
-    CALL run_climate_model(             region%grid, region%ice, region%SMB, region%climate, region%name, C%start_time_of_run)
-    CALL run_SMB_model(                 region%grid, region%ice, region%climate%applied, C%start_time_of_run, region%SMB, region%mask_noice)
-    
-    ! Initialise the ice temperature profile
-    CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init, region%SMB)
-    
-    ! Calculate physical properties again, now with the initialised temperature profile, determine the masks and slopes
-    CALL update_general_ice_model_data( region%grid, region%ice, C%start_time_of_run)
-    
-    ! Calculate ice sheet metadata (volume, area, GMSL contribution) for writing to the first line of the output file
-    CALL calculate_icesheet_volume_and_area(region)
-    
-    ! If we're running with choice_ice_dynamics == "none", calculate a velocity field
-    ! once during initialisation (so that the thermodynamics are solved correctly)
-    IF (C%choice_ice_dynamics == 'none') THEN
-      C%choice_ice_dynamics = 'DIVA'
-      CALL solve_DIVA( region%grid, region%ice)
-      C%choice_ice_dynamics = 'none'
-    END IF
-    
-    ! ===== The isotopes model =====
-    ! ==============================
-   
-    CALL initialise_isotopes_model( region)
-    
-    ! ===== The GIA model =====
-    ! =========================
-    
-    IF     (C%choice_GIA_model == 'none') THEN
-      ! Nothing to be done
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL initialise_GIA_model_grid( region)
-      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%topo)
-    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL initialise_GIA_model_grid( region)
-    ELSE
-      WRITE(0,*) '  ERROR - choice_GIA_model "', C%choice_GIA_model, '" not implemented in initialise_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! ===== Computation times =====
-    ! =============================
-    
+    ! Computation times
     CALL allocate_shared_dp_0D( region%tcomp_total   , region%wtcomp_total   )
     CALL allocate_shared_dp_0D( region%tcomp_ice     , region%wtcomp_ice     )
     CALL allocate_shared_dp_0D( region%tcomp_thermo  , region%wtcomp_thermo  )
     CALL allocate_shared_dp_0D( region%tcomp_climate , region%wtcomp_climate )
     CALL allocate_shared_dp_0D( region%tcomp_GIA     , region%wtcomp_GIA     )
     
-    ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
-    ! ============================================================================
-    
-    CALL create_regional_scalar_output_file( region)
-    CALL write_regional_scalar_data(         region, C%start_time_of_run)
-    CALL sync
-    
-    IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
-    
-  END SUBROUTINE initialise_model
+  END SUBROUTINE allocate_region_timers_and_scalars
   SUBROUTINE initialise_model_grid( region)
+    ! Initialise the square grid for this model region
   
     IMPLICIT NONE  
     
@@ -530,9 +521,17 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: nsx, nsy, i, j
+    REAL(dp)                                           :: xmin, xmax, ymin, ymax, xmid, ymid
     
-    nsx = 0
-    nsy = 0
+    ! Assign dummy values to suppress compiler warnings
+    xmin = 0._dp
+    xmax = 0._dp
+    ymin = 0._dp
+    ymax = 0._dp
+    xmid = 0._dp
+    ymid = 0._dp
+    nsx  = 0
+    nsy  = 0
     
     ! Allocate shared memory
     CALL allocate_shared_int_0D( region%grid%nx,           region%grid%wnx          )
@@ -549,54 +548,55 @@ CONTAINS
     ! Let the Master do the work
     IF (par%master) THEN
   
-      ! Resolution and projection parameters for this region are determined from the config
+      ! Resolution, domain size, and projection parameters for this region are determined from the config
       IF     (region%name == 'NAM') THEN
+        xmin                     = C%xmin_NAM
+        xmax                     = C%xmax_NAM
+        ymin                     = C%ymin_NAM
+        ymax                     = C%ymax_NAM
         region%grid%dx           = C%dx_NAM
         region%grid%lambda_M     = C%lambda_M_NAM
         region%grid%phi_M        = C%phi_M_NAM
         region%grid%alpha_stereo = C%alpha_stereo_NAM
       ELSEIF (region%name == 'EAS') THEN
+        xmin                     = C%xmin_EAS
+        xmax                     = C%xmax_EAS
+        ymin                     = C%ymin_EAS
+        ymax                     = C%ymax_EAS
         region%grid%dx           = C%dx_EAS
         region%grid%lambda_M     = C%lambda_M_EAS
         region%grid%phi_M        = C%phi_M_EAS
         region%grid%alpha_stereo = C%alpha_stereo_EAS
       ELSEIF (region%name == 'GRL') THEN
+        xmin                     = C%xmin_GRL
+        xmax                     = C%xmax_GRL
+        ymin                     = C%ymin_GRL
+        ymax                     = C%ymax_GRL
         region%grid%dx           = C%dx_GRL
         region%grid%lambda_M     = C%lambda_M_GRL
         region%grid%phi_M        = C%phi_M_GRL
         region%grid%alpha_stereo = C%alpha_stereo_GRL
       ELSEIF (region%name == 'ANT') THEN
+        xmin                     = C%xmin_ANT
+        xmax                     = C%xmax_ANT
+        ymin                     = C%ymin_ANT
+        ymax                     = C%ymax_ANT
         region%grid%dx           = C%dx_ANT
         region%grid%lambda_M     = C%lambda_M_ANT
         region%grid%phi_M        = C%phi_M_ANT
         region%grid%alpha_stereo = C%alpha_stereo_ANT
       END IF
       
-      ! Determine the number of grid cells we can fit in this domain (based on specified resolution, and the domain covered by the initial file)
-      nsx = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
-      nsy = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
+      ! Determine the number of grid cells we can fit in this domain
+      xmid = (xmax + xmin) / 2._dp
+      ymid = (ymax + ymin) / 2._dp
+      nsx = FLOOR( (xmax - xmid) / region%grid%dx) - 1
+      nsy = FLOOR( (ymax - ymid) / region%grid%dx) - 1
       
       IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') nsx = 3
       
       region%grid%nx = 1 + 2*nsx
       region%grid%ny = 1 + 2*nsy
-    
-      ! If doing a restart from a previous run with the same resolution, just take that grid
-      ! (due to rounding, off-by-one errors are nasty here)
-      IF (C%is_restart) THEN
-        IF (ABS( 1._dp - region%grid%dx / ABS(region%init%x(2) - region%init%x(1))) < 1E-4_dp) THEN
-          region%grid%nx = region%init%nx
-          region%grid%ny = region%init%ny
-          nsx = INT((REAL(region%grid%nx,dp) - 1._dp) / 2._dp)
-          nsy = INT((REAL(region%grid%ny,dp) - 1._dp) / 2._dp)
-        END IF
-      END IF
-      
-      ! If prescribed model resolution is the same as the initial file resolution, just use the initial file frid
-      IF (ABS(1._dp - (region%grid%dx / (region%init%x(2) - region%init%x(1)))) < 1E-4_dp) THEN
-        region%grid%nx = region%init%nx
-        region%grid%ny = region%init%ny
-      END IF
     
     END IF ! IF (par%master) THEN
     CALL sync
@@ -646,9 +646,20 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: nsx, nsy, i, j
+    REAL(dp)                                           :: xmin, xmax, ymin, ymax, xmid, ymid
     
-    nsx = 0
-    nsy = 0
+    ! If no GIA is used, no need to even create a grid for it
+    IF (C%choice_GIA_model == 'none') RETURN
+    
+    ! Assign dummy values to suppress compiler warnings
+    xmin = 0._dp
+    xmax = 0._dp
+    ymin = 0._dp
+    ymax = 0._dp
+    xmid = 0._dp
+    ymid = 0._dp
+    nsx  = 0
+    nsy  = 0
     
     ! Allocate shared memory
     CALL allocate_shared_int_0D( region%grid_GIA%nx,           region%grid_GIA%wnx          )
@@ -664,39 +675,54 @@ CONTAINS
     
     ! Let the Master do the work
     IF (par%master) THEN
-  
-      ! Resolution and projection parameters for this region are determined from the config
-      region%grid_GIA%dx           = C%dx_GIA
+    
+      ! Resolution, domain size, and projection parameters for this region are determined from the config
       IF     (region%name == 'NAM') THEN
+        xmin                         = C%xmin_NAM
+        xmax                         = C%xmax_NAM
+        ymin                         = C%ymin_NAM
+        ymax                         = C%ymax_NAM
+        region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_NAM
         region%grid_GIA%phi_M        = C%phi_M_NAM
         region%grid_GIA%alpha_stereo = C%alpha_stereo_NAM
       ELSEIF (region%name == 'EAS') THEN
+        xmin                         = C%xmin_EAS
+        xmax                         = C%xmax_EAS
+        ymin                         = C%ymin_EAS
+        ymax                         = C%ymax_EAS
+        region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_EAS
         region%grid_GIA%phi_M        = C%phi_M_EAS
         region%grid_GIA%alpha_stereo = C%alpha_stereo_EAS
       ELSEIF (region%name == 'GRL') THEN
+        xmin                         = C%xmin_GRL
+        xmax                         = C%xmax_GRL
+        ymin                         = C%ymin_GRL
+        ymax                         = C%ymax_GRL
+        region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_GRL
         region%grid_GIA%phi_M        = C%phi_M_GRL
         region%grid_GIA%alpha_stereo = C%alpha_stereo_GRL
       ELSEIF (region%name == 'ANT') THEN
+        xmin                         = C%xmin_ANT
+        xmax                         = C%xmax_ANT
+        ymin                         = C%ymin_ANT
+        ymax                         = C%ymax_ANT
+        region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_ANT
         region%grid_GIA%phi_M        = C%phi_M_ANT
         region%grid_GIA%alpha_stereo = C%alpha_stereo_ANT
       END IF
       
-      ! Determine the number of grid cells we can fit in this domain (based on specified resolution, and the domain covered by the initial file)
-      nsx = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) + 1)
-      nsy = FLOOR( (1 / region%grid_GIA%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) + 1)
+      ! Determine the number of grid cells we can fit in this domain
+      xmid = (xmax + xmin) / 2._dp
+      ymid = (ymax + ymin) / 2._dp
+      nsx = FLOOR( (xmax - xmid) / region%grid_GIA%dx) - 1
+      nsy = FLOOR( (ymax - ymid) / region%grid_GIA%dx) - 1
       
       region%grid_GIA%nx = 1 + 2*nsx
       region%grid_GIA%ny = 1 + 2*nsy
-      
-      ! If prescribed model resolution is the same as the initial file resolution, just use the initial file frid
-      IF (ABS(1._dp - (region%grid_GIA%dx / (region%init%x(2) - region%init%x(1)))) < 1E-4_dp) THEN
-        region%grid_GIA%nx = region%init%nx
-        region%grid_GIA%ny = region%init%ny
-      END IF
     
     END IF ! IF (par%master) THEN
     CALL sync
@@ -856,74 +882,6 @@ CONTAINS
     END IF ! IF (region%name == 'NAM') THEN
     
   END SUBROUTINE initialise_mask_noice
-  SUBROUTINE smooth_model_geometry( grid, Hi, Hb)
-    ! Apply some light smoothing to the initial geometry to improve numerical stability
-    
-    USE utilities_module, ONLY: smooth_Gaussian_2D, is_floating
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi, Hb
-    
-    ! Local variables:
-    INTEGER                                            :: i,j
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hs,  Hb_old,  dHb
-    INTEGER                                            :: wHs, wHb_old, wdHb
-    REAL(dp)                                           :: r_smooth
-    
-    ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
-    r_smooth = grid%dx * C%r_smooth_geometry
-    
-    ! Allocate shared memory
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hs,     wHs    )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hb_old, wHb_old)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb,    wdHb   )
-    
-    ! Calculate original surface elevation
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      Hs( j,i) = surface_elevation( Hi( j,i), Hb( j,i), 0._dp)
-    END DO
-    END DO
-    CALL sync
-    
-    ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
-    Hb_old( :,grid%i1:grid%i2) = Hb( :,grid%i1:grid%i2)
-    CALL sync
-    
-    ! Apply smoothing to the bed topography
-    CALL smooth_Gaussian_2D( grid, Hb, r_smooth)
-    
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      
-      ! Calculate the smoothing anomaly
-      dHb( j,i) = Hb( j,i) - Hb_old( j,i)
-      
-      IF (.NOT. is_floating( Hi( j,i), Hb( j,i), 0._dp) .AND. Hi( j,i) > 0._dp) THEN
-      
-        ! Correct the ice thickness so the ice surface remains unchanged (only relevant for floating ice)
-        Hi( j,i) = Hi( j,i) - dHb( j,i)
-      
-        ! Don't allow negative ice thickness
-        Hi( j,i) = MAX(0._dp, Hi( j,i))
-      
-        ! Correct the surface elevation for this if necessary
-        Hs( j,i) = Hi( j,i) + MAX( 0._dp - ice_density / seawater_density * Hi( j,i), Hb( j,i))
-        
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wHb_old)
-    CALL deallocate_shared( wdHb   )
-    
-  END SUBROUTINE smooth_model_geometry
   
   ! Calculate this region's ice sheet's volume and area
   SUBROUTINE calculate_icesheet_volume_and_area( region)
@@ -986,14 +944,14 @@ CONTAINS
     DO j = 1, region%grid%ny
     
       ! Thickness above flotation
-      IF (region%PD%Hi( j,i) > 0._dp) THEN
-        thickness_above_flotation = MAX(0._dp, region%PD%Hi( j,i) - MAX(0._dp, (0._dp - region%PD%Hb( j,i)) * (seawater_density / ice_density)))
+      IF (region%refgeo_PD%Hi( j,i) > 0._dp) THEN
+        thickness_above_flotation = MAX(0._dp, region%refgeo_PD%Hi( j,i) - MAX(0._dp, (0._dp - region%refgeo_PD%Hb( j,i)) * (seawater_density / ice_density)))
       ELSE
         thickness_above_flotation = 0._dp
       END IF
       
       ! Ice volume (above flotation) in m.s.l.e
-      ice_volume                 = ice_volume                 + region%PD%Hi( j,i)        * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)
+      ice_volume                 = ice_volume                 + region%refgeo_PD%Hi( j,i) * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)
       ice_volume_above_flotation = ice_volume_above_flotation + thickness_above_flotation * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)
       
     END DO

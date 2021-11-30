@@ -63,25 +63,28 @@ filename_PD_obs_ocean_config            = '/Users/berends/Documents/Datasets/Wor
 ocean_extrap_res_config                    = 5000.0
 ocean_extrap_hires_geo_filename_ANT_config = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
+! Basal mass balance
+choice_BMB_shelf_model_config           = 'Favier2019_quad'
+choice_BMB_subgrid_config               = 'FCMP'
+
 ! Forcing
 choice_forcing_method_config            = 'CO2_direct'
 filename_CO2_record_config              = '/Users/berends/Documents/Models/IMAU-ICE/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
 
-! Initial and PD reference data
-is_restart_config                       = .TRUE.
-filename_init_ANT_config                = 'results_ANT_thermo_240kyr_40km/restart_ANT.nc'
-time_to_restart_from_config             = 0.0
+! Initial, present-day, and GIA equilibrium reference geometries
+!choice_refgeo_init_ANT_config           = 'restart'
+!filename_refgeo_init_ANT_config         = 'results_ANT_thermo_240kyr_40km/restart_ANT.nc'
+!time_to_restart_from_ANT_config         = 0.0
+choice_refgeo_init_ANT_config           = 'realistic'
+filename_refgeo_init_ANT_config         = '/Users/berends/Documents/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+choice_refgeo_PD_ANT_config             = 'realistic'
+filename_refgeo_PD_ANT_config           = '/Users/berends/Documents/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+choice_refgeo_GIAeq_ANT_config          = 'realistic'
+filename_refgeo_GIAeq_ANT_config        = '/Users/berends/Documents/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! Ice basins
 choice_basin_scheme_ANT_config          = 'file'
 filename_basins_ANT_config              = '/Users/berends/Documents/Datasets/basins_Antarctica/ant_full_drainagesystem_polygons.txt'
-
-! Basal mass balance
-choice_BMB_shelf_model_config           = 'Favier2019_quad'
-choice_BMB_subgrid_config               = 'FCMP'
-  
-! PD reference data (NetCDF)
-filename_PD_ANT_config                  = '/Users/berends/Documents/Models/IMAU-ICE/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
 ! Which data fields should be written to the help_fields output file
 help_field_01_config    = 'lat'

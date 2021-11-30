@@ -11,7 +11,7 @@ MODULE bedrock_ELRA_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_PD_data_fields
+  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -63,20 +63,20 @@ CONTAINS
     
     ! If needed, update the bedrock deformation rate
     IF (region%do_ELRA) THEN
-      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%topo)
+      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
     END IF
     
     ! Update bedrock with last calculated deformation rate
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
       region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
-      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%topo%Hb( j,i)
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_GIAeq%Hb( j,i)
     END DO
     END DO
     CALL sync
     
   END SUBROUTINE run_ELRA_model
-  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, grid_GIA, ice, topo)
+  SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, grid_GIA, ice, refgeo_GIAeq)
     ! Use the ELRA model to update bedrock deformation rates.
   
     IMPLICIT NONE  
@@ -85,7 +85,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  surface_load_icemodel_grid,  dHb_eq_GIA_grid
@@ -181,13 +181,13 @@ CONTAINS
     ! Calculate the bedrock deformation rate on the ice model grid
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%dHb_dt_a( j,i) = (topo%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
+      ice%dHb_dt_a( j,i) = (refgeo_GIAeq%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
     END DO
     END DO
     CALL sync
     
   END SUBROUTINE calculate_ELRA_bedrock_deformation_rate
-  SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, topo)
+  SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, refgeo_GIAeq)
     ! Allocate and initialise the ELRA GIA model
       
     IMPLICIT NONE
@@ -196,7 +196,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_topo_grid_GIA,  Hb_topo_grid_GIA
@@ -266,13 +266,13 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    ! Map topo data from the ice model grid to the GIA grid
+    ! Map refgeo_GIAeq data from the ice model grid to the GIA grid
     CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hi_topo_grid_GIA, wHi_topo_grid_GIA)
     CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, Hb_topo_grid_GIA, wHb_topo_grid_GIA)
-    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, topo%Hi, Hi_topo_grid_GIA)
-    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, topo%Hb, Hb_topo_grid_GIA)
+    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, refgeo_GIAeq%Hi, Hi_topo_grid_GIA)
+    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, refgeo_GIAeq%Hb, Hb_topo_grid_GIA)
     
-    ! Calculate topo reference load
+    ! Calculate refgeo_GIAeq reference load
     DO i = grid_GIA%i1, grid_GIA%i2
     DO j = 1, grid_GIA%ny
       IF (is_floating( Hi_topo_grid_GIA( j,i), Hb_topo_grid_GIA( j,i), 0._dp)) THEN

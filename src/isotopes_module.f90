@@ -10,7 +10,7 @@ MODULE isotopes_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, type_BMB_model, type_model_region
+  USE data_types_module,               ONLY: type_grid, type_model_region
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              surface_elevation
@@ -20,8 +20,33 @@ MODULE isotopes_module
     
 CONTAINS
 
-  ! Run the isotopes model
+! == Run the isotopes model (the main routine called from run_model_region)
   SUBROUTINE run_isotopes_model( region)
+    ! Run the isotopes model (the main routine called from run_model_region)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    
+    ! Local variables
+    
+    IF     (C%choice_ice_isotopes_model == 'none') THEN
+      ! Do nothing
+    ELSEIF (C%choice_ice_isotopes_model == 'uniform') THEN
+      ! Assign a uniform d18O value to all glacial ice
+      region%ice%IsoIce( :,region%grid%i1:region%grid%i2) = C%uniform_ice_d18O
+      CALL sync
+    ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
+      ! The ANICE_legacy englacial isotopes model
+      CALL run_isotopes_model_ANICE_legacy( region)
+    ELSE
+      IF (par%master) WRITE(0,*) 'run_isotopes_model - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE run_isotopes_model
+  SUBROUTINE run_isotopes_model_ANICE_legacy( region)
   
     ! Based on the ANICE routines by Bas de Boer (November 2010).
     !
@@ -47,33 +72,6 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER                  ::  dIso_dt,  IsoIce_new
     INTEGER                                            :: wdIso_dt, wIsoIce_new
     
-    ! Not needed for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        RETURN
-      ELSE 
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_isotopes_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
     ! Initialise
     region%ice%IsoSurf( :,region%grid%i1:region%grid%i2) = 0._dp
     
@@ -90,10 +88,10 @@ CONTAINS
     
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
       
-        Ts     = SUM( region%climate%applied%T2m( :,j,i)) / 12._dp
-        Ts_ref = SUM( region%climate%PD_obs%T2m(  :,j,i)) / 12._dp
+        Ts     = SUM( region%climate_matrix%applied%T2m( :,j,i)) / 12._dp
+        Ts_ref = SUM( region%climate_matrix%PD_obs%T2m(  :,j,i)) / 12._dp
         Hs     = region%ice%Hs_a( j,i)
-        Hs_ref = region%climate%PD_obs%Hs( j,i)
+        Hs_ref = region%climate_matrix%PD_obs%Hs( j,i)
         
         region%ice%IsoSurf( j,i) = region%ice%IsoRef( j,i)                &
                                  + 0.35_dp              * (Ts - Ts_ref    &
@@ -197,7 +195,9 @@ CONTAINS
     CALL check_for_NaN_dp_2D( region%ice%MB_iso , 'region%ice%MB_iso' , 'run_isotopes_model')
     CALL check_for_NaN_dp_2D( region%ice%IsoIce , 'region%ice%IsoIce' , 'run_isotopes_model')
     
-  END SUBROUTINE run_isotopes_model
+  END SUBROUTINE run_isotopes_model_ANICE_legacy
+  
+! == Calculate the mean isotope content and benthic d18O contribution of this region's glacial ice
   SUBROUTINE calculate_isotope_content( grid, Hi, IsoIce, mean_isotope_content, d18O_contribution)
     ! Calculate mean isotope content of the whole ice sheet
     
@@ -255,8 +255,41 @@ CONTAINS
     
   END SUBROUTINE calculate_isotope_content
   
-  ! Initialise the isotopes model (allocating shared memory)
+! == Initialise the isotopes model (allocating shared memory)
   SUBROUTINE initialise_isotopes_model( region)
+    ! Allocate memory for the data fields of the isotopes model.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    
+    ! Local variables
+    
+    IF     (C%choice_ice_isotopes_model == 'none') THEN
+      ! Do nothing
+    ELSEIF (C%choice_ice_isotopes_model == 'uniform') THEN
+      ! Assign a uniform d18O value to all glacial ice
+      
+      ! Allocate shared memory
+      CALL allocate_shared_dp_2D( region%grid%ny, region%grid%nx, region%ice%IsoIce, region%ice%wIsoIce)
+      
+      ! Assign value
+      region%ice%IsoIce( :,region%grid%i1:region%grid%i2) = C%uniform_ice_d18O
+      CALL sync
+      
+    ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
+      ! The ANICE_legacy englacial isotopes model
+      
+      CALL initialise_isotopes_model_ANICE_legacy( region)
+      
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_isotopes_model - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+  
+  END SUBROUTINE initialise_isotopes_model
+  SUBROUTINE initialise_isotopes_model_ANICE_legacy( region)
     ! Allocate memory for the data fields of the isotopes model.
     
     IMPLICIT NONE
@@ -268,34 +301,7 @@ CONTAINS
     INTEGER                                            :: i,j
     REAL(dp)                                           :: Ts, Ts_ref, Hs, Hs_ref
     
-    ! Not needed for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        RETURN
-      ELSE 
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_isotopes_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    IF (par%master) WRITE (0,*) '  Initialising isotopes model...'
+    IF (par%master) WRITE (0,*) '  Initialising ANICE_legacy isotopes model ...'
     
     ! Allocate memory
     CALL allocate_shared_dp_2D( region%grid%ny, region%grid%nx, region%ice%IsoRef    , region%ice%wIsoRef    )
@@ -307,7 +313,7 @@ CONTAINS
     ! (Zwally, H. J. and Giovinetto, M. B.: Areal distribution of the oxygen-isotope ratio in Greenland, Annals of Glaciology 25, 208-213, 1997)
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-      region%ice%IsoRef( j,i) = 0.691_dp * SUM(region%climate%PD_obs%T2m( :,j,i) / 12._dp) - 202.172_dp
+      region%ice%IsoRef( j,i) = 0.691_dp * SUM(region%climate_matrix%PD_obs%T2m( :,j,i) / 12._dp) - 202.172_dp
     END DO
     END DO
     CALL sync
@@ -319,12 +325,12 @@ CONTAINS
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
     
-      IF (region%PD%Hi( j,i) > 0._dp) THEN
+      IF (region%refgeo_PD%Hi( j,i) > 0._dp) THEN
       
-        Ts     = SUM( region%climate%PD_obs%T2m( :,j,i)) / 12._dp
-        Ts_ref = SUM( region%climate%PD_obs%T2m( :,j,i)) / 12._dp
-        Hs     = surface_elevation( region%PD%Hi( j,i), region%PD%Hb( j,i), 0._dp)
-        Hs_ref = region%climate%PD_obs%Hs( j,i)
+        Ts     = SUM( region%climate_matrix%PD_obs%T2m( :,j,i)) / 12._dp
+        Ts_ref = SUM( region%climate_matrix%PD_obs%T2m( :,j,i)) / 12._dp
+        Hs     = surface_elevation( region%refgeo_PD%Hi( j,i), region%refgeo_PD%Hb( j,i), 0._dp)
+        Hs_ref = region%climate_matrix%PD_obs%Hs( j,i)
         
         region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                 + 0.35_dp              * (Ts - Ts_ref    &
@@ -340,7 +346,7 @@ CONTAINS
     CALL sync
     
     ! Calculate mean isotope content of the whole ice sheet at present-day
-    CALL calculate_isotope_content( region%grid, region%PD%Hi, region%ice%IsoIce, region%mean_isotope_content_PD, region%d18O_contribution_PD)
+    CALL calculate_isotope_content( region%grid, region%refgeo_PD%Hi, region%ice%IsoIce, region%mean_isotope_content_PD, region%d18O_contribution_PD)
     
     ! ===== Initial =====
     ! ===================
@@ -351,10 +357,10 @@ CONTAINS
     
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
       
-        Ts     = SUM( region%climate%applied%T2m( :,j,i)) / 12._dp
-        Ts_ref = SUM( region%climate%PD_obs%T2m(  :,j,i)) / 12._dp
+        Ts     = SUM( region%climate_matrix%applied%T2m( :,j,i)) / 12._dp
+        Ts_ref = SUM( region%climate_matrix%PD_obs%T2m(  :,j,i)) / 12._dp
         Hs     = region%ice%Hs_a( j,i)
-        Hs_ref = region%climate%PD_obs%Hs( j,i)
+        Hs_ref = region%climate_matrix%PD_obs%Hs( j,i)
         
         region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                 + 0.35_dp              * (Ts - Ts_ref    &
@@ -372,6 +378,6 @@ CONTAINS
     ! Calculate mean isotope content of the whole ice sheet at the start of the simulation
     CALL calculate_isotope_content( region%grid, region%ice%Hi_a, region%ice%IsoIce, region%mean_isotope_content, region%d18O_contribution)
   
-  END SUBROUTINE initialise_isotopes_model
+  END SUBROUTINE initialise_isotopes_model_ANICE_legacy
 
 END MODULE isotopes_module

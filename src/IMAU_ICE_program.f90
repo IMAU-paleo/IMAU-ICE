@@ -21,14 +21,13 @@ PROGRAM IMAU_ICE_program
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
   USE configuration_module,            ONLY: dp, C, initialise_model_configuration, write_total_model_time_to_screen
-  USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global, type_global_scalar_data
+  USE data_types_module,               ONLY: type_model_region, type_climate_matrix_global, type_ocean_matrix_global, type_SELEN_global, type_global_scalar_data
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
-  USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
-                                             initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
-                                             calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
-                                             initialise_geothermal_heat_flux, initialise_climate_SMB_forcing_data, update_climate_SMB_forcing_data
-  USE climate_module,                  ONLY: initialise_climate_matrix
-  USE ocean_module,                    ONLY: initialise_ocean_matrix
+  USE forcing_module,                  ONLY: forcing, initialise_global_forcing, update_global_forcing, &
+                                             update_global_mean_temperature_change_history, &
+                                             calculate_modelled_d18O, inverse_routine_global_temperature_offset, inverse_routine_CO2
+  USE climate_module,                  ONLY: initialise_climate_model_global
+  USE ocean_module,                    ONLY: initialise_ocean_model_global, initialise_ocean_vertical_grid
   USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
@@ -44,8 +43,9 @@ PROGRAM IMAU_ICE_program
   ! The four model regions
   TYPE(type_model_region)                :: NAM, EAS, GRL, ANT
   
-  ! The global climate matrix
-  TYPE(type_climate_matrix)              :: matrix
+  ! The global climate and ocean matrices
+  TYPE(type_climate_matrix_global)       :: climate_matrix_global
+  TYPE(type_ocean_matrix_global)         :: ocean_matrix_global
   
   ! SELEN
   TYPE(type_SELEN_global)                :: SELEN
@@ -104,15 +104,10 @@ PROGRAM IMAU_ICE_program
   
   CALL initialise_zeta_discretisation
   
-  ! ===== Initialise forcing data =====
-  ! ===================================
+  ! ===== Initialise global forcing data (d18O, CO2, insolation, geothermal heat flux) =====
+  ! ========================================================================================
   
-  CALL initialise_d18O_data
-  CALL initialise_insolation_data
-  CALL initialise_CO2_record
-  CALL initialise_d18O_record
-  CALL initialise_inverse_routine_data
-  CALL initialise_geothermal_heat_flux
+  CALL initialise_global_forcing
     
   ! ===== Create the global scalar output file =====
   ! ================================================
@@ -122,24 +117,21 @@ PROGRAM IMAU_ICE_program
   ! ===== Initialise the climate matrix =====
   ! =========================================
   
-  IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
-    CALL initialise_climate_SMB_forcing_data
-  ELSE
-    CALL initialise_climate_matrix( matrix)
-  END IF
+  CALL initialise_climate_model_global( climate_matrix_global)
   
   ! ===== Initialise the ocean matrix =====
   ! =======================================
   
-  CALL initialise_ocean_matrix ( matrix)  
+  CALL initialise_ocean_vertical_grid
+  CALL initialise_ocean_model_global( ocean_matrix_global)  
     
   ! ===== Initialise the model regions ======
   ! =========================================
   
-  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', matrix)
-  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', matrix)
-  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', matrix)
-  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', matrix)
+  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', climate_matrix_global, ocean_matrix_global)
+  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', climate_matrix_global, ocean_matrix_global)
+  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', climate_matrix_global, ocean_matrix_global)
+  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', climate_matrix_global, ocean_matrix_global)
     
   ! Set GMSL contributions of all simulated ice sheets
   IF (par%master) THEN
@@ -206,12 +198,6 @@ PROGRAM IMAU_ICE_program
       SELEN%t0_SLE = t_coupling
       SELEN%t1_SLE = t_coupling + C%dt_SELEN
     END IF
-  
-    ! Update global insolation forcing, CO2, and d18O at the current model time
-    CALL update_insolation_data(    t_coupling)
-    CALL update_CO2_at_model_time(  t_coupling)
-    CALL update_d18O_at_model_time( t_coupling)
-    IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) CALL update_climate_SMB_forcing_data (t_coupling)
     
     ! Update regional sea level
     IF (C%choice_sealevel_model == 'fixed' .OR. C%choice_sealevel_model == 'eustatic') THEN
@@ -231,10 +217,10 @@ PROGRAM IMAU_ICE_program
     ! Run all four model regions for 100 years
     t_end_models = MIN(C%end_time_of_run, t_coupling + C%dt_coupling)
     
-    IF (C%do_NAM) CALL run_model( NAM, t_end_models)
-    IF (C%do_EAS) CALL run_model( EAS, t_end_models)
-    IF (C%do_GRL) CALL run_model( GRL, t_end_models)
-    IF (C%do_ANT) CALL run_model( ANT, t_end_models)
+    IF (C%do_NAM) CALL run_model( NAM, climate_matrix_global, t_end_models)
+    IF (C%do_EAS) CALL run_model( EAS, climate_matrix_global, t_end_models)
+    IF (C%do_GRL) CALL run_model( GRL, climate_matrix_global, t_end_models)
+    IF (C%do_ANT) CALL run_model( ANT, climate_matrix_global, t_end_models)
     
     ! Advance coupling time
     t_coupling = t_end_models

@@ -24,6 +24,7 @@ MODULE ice_velocity_module
                                              map_cx_to_cy_2D, map_cy_to_cx_2D, map_a_to_cx_2D, map_a_to_cy_2D, &
                                              ddx_cx_to_cx_2D, ddy_cy_to_cx_2D, ddx_cx_to_cy_2D, ddy_cy_to_cy_2D, &
                                              ddx_cx_to_a_2D, ddy_cx_to_a_2D, ddx_cy_to_a_2D, ddy_cy_to_a_2D
+  USE basal_conditions_module,         ONLY: calc_basal_conditions
 
   IMPLICIT NONE
   
@@ -150,6 +151,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Calculate the basal yield stress tau_c
+    CALL calc_basal_conditions( grid, ice)
+    
     ! Find analytical solution for the SSA icestream experiment (used only to print numerical error to screen)
     CALL SSA_Schoof2006_analytical_solution( 0.001_dp, 2000._dp, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
             
@@ -266,6 +270,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Calculate the basal yield stress tau_c
+    CALL calc_basal_conditions( grid, ice)
             
     ! Initially set error very high 
     ice%DIVA_err_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1E5_dp

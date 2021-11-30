@@ -109,7 +109,7 @@ CONTAINS
         
       END IF
 
-      T2m_mean = T2m_mean + SUM(region%climate%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+      T2m_mean = T2m_mean + SUM(region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
       
     END DO
     END DO

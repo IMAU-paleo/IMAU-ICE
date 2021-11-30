@@ -32,75 +32,88 @@ MODULE configuration_module
   ! Time steps and range
   ! ====================
   
-  REAL(dp)            :: start_time_of_run_config                = 0.0_dp                           ! Start time (in years) of the simulations
-  REAL(dp)            :: end_time_of_run_config                  = 50000.0_dp                       ! End   time (in years) of the simulations
-  REAL(dp)            :: dt_coupling_config                      = 100._dp                          ! Interval of coupling (in years) between the four ice-sheets  
-  REAL(dp)            :: dt_max_config                           = 10.0_dp                          ! Maximum time step (in years) of the ice model
-  REAL(dp)            :: dt_thermo_config                        = 10.0_dp                          ! Time step (in years) for updating thermodynamics
-  REAL(dp)            :: dt_climate_config                       = 10._dp                           ! Time step (in years) for updating the climate
-  REAL(dp)            :: dt_ocean_config                         = 10._dp                           ! Time step (in years) for updating the ocean
-  REAL(dp)            :: dt_SMB_config                           = 10._dp                           ! Time step (in years) for updating the SMB
-  REAL(dp)            :: dt_BMB_config                           = 10._dp                           ! Time step (in years) for updating the BMB
-  REAL(dp)            :: dt_bedrock_ELRA_config                  = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
-  REAL(dp)            :: dt_SELEN_config                         = 1000._dp                         ! Time step (in years) for calling SELEN
-  REAL(dp)            :: dt_output_config                        = 5000.0_dp                        ! Time step (in years) for writing output
+  REAL(dp)            :: start_time_of_run_config                    = 0.0_dp                           ! Start time (in years) of the simulations
+  REAL(dp)            :: end_time_of_run_config                      = 50000.0_dp                       ! End   time (in years) of the simulations
+  REAL(dp)            :: dt_coupling_config                          = 100._dp                          ! Interval of coupling (in years) between the four ice-sheets  
+  REAL(dp)            :: dt_max_config                               = 10.0_dp                          ! Maximum time step (in years) of the ice model
+  REAL(dp)            :: dt_thermo_config                            = 10.0_dp                          ! Time step (in years) for updating thermodynamics
+  REAL(dp)            :: dt_climate_config                           = 10._dp                           ! Time step (in years) for updating the climate
+  REAL(dp)            :: dt_ocean_config                             = 10._dp                           ! Time step (in years) for updating the ocean
+  REAL(dp)            :: dt_SMB_config                               = 10._dp                           ! Time step (in years) for updating the SMB
+  REAL(dp)            :: dt_BMB_config                               = 10._dp                           ! Time step (in years) for updating the BMB
+  REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
+  REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
+  REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing output
   
   ! Which ice sheets do we simulate?
   ! ================================
   
-  LOGICAL             :: do_NAM_config                           = .FALSE.                          ! North America
-  LOGICAL             :: do_EAS_config                           = .FALSE.                          ! Eurasia
-  LOGICAL             :: do_GRL_config                           = .FALSE.                          ! Greenland
-  LOGICAL             :: do_ANT_config                           = .TRUE.                           ! Antarctica
+  LOGICAL             :: do_NAM_config                               = .FALSE.                          ! North America
+  LOGICAL             :: do_EAS_config                               = .FALSE.                          ! Eurasia
+  LOGICAL             :: do_GRL_config                               = .FALSE.                          ! Greenland
+  LOGICAL             :: do_ANT_config                               = .TRUE.                           ! Antarctica
   
   ! Benchmark experiments
   ! =====================
   
-  LOGICAL             :: do_benchmark_experiment_config          = .TRUE.
-  CHARACTER(LEN=256)  :: choice_benchmark_experiment_config      = 'EISMINT_I'
-  REAL(dp)            :: SSA_icestream_m_config                  = 1                                ! Values tested by Schoof are 1, 10, and 20
-  REAL(dp)            :: ISMIP_HOM_L_config                      = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
-  CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config      = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
-  INTEGER             :: MISMIPplus_sliding_law_config           = 1                                ! Choice of sliding law in the MISMIPplus setup (see Asay-Davis et al., 2016)
-  LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config      = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
-  REAL(dp)            :: MISMIPplus_xGL_target_config            = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
-  REAL(dp)            :: MISMIPplus_A_flow_initial_config        = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
-  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config              = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
-  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config                = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
+  LOGICAL             :: do_benchmark_experiment_config              = .TRUE.
+  CHARACTER(LEN=256)  :: choice_benchmark_experiment_config          = 'EISMINT_I'
+  REAL(dp)            :: SSA_icestream_m_config                      = 1                                ! Values tested by Schoof are 1, 10, and 20
+  REAL(dp)            :: ISMIP_HOM_L_config                          = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
+  CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config          = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
+  INTEGER             :: MISMIPplus_sliding_law_config               = 1                                ! Choice of sliding law in the MISMIPplus setup (see Asay-Davis et al., 2016)
+  LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config          = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
+  REAL(dp)            :: MISMIPplus_xGL_target_config                = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
+  REAL(dp)            :: MISMIPplus_A_flow_initial_config            = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
+  CHARACTER(LEN=256)  :: MISMIPplus_scenario_config                  = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
+  CHARACTER(LEN=256)  :: MISOMIP1_scenario_config                    = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
   
-  LOGICAL             :: create_procedural_output_dir_config     = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  CHARACTER(LEN=256)  :: fixed_output_dir_config                 = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
-  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config          = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  LOGICAL             :: create_procedural_output_dir_config         = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  CHARACTER(LEN=256)  :: fixed_output_dir_config                     = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   
   ! Debugging
   ! ======================
   
-  LOGICAL             :: do_write_debug_data_config              = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
-  LOGICAL             :: do_check_for_NaN_config                 = .FALSE.                          ! Whether or not fields should be checked for NaN values
-  
-  ! Whether or not the simulation is a restart of a previous simulation
-  ! ===================================================================
-  
-  LOGICAL             :: is_restart_config                       = .FALSE.                          ! Whether or not the current run is a restart of a previous run
-  REAL(dp)            :: time_to_restart_from_config             = 0._dp                            ! Can be different from C%start_time_of_run, though this will issue a warning
+  LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
+  LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values                           
   
   ! Horizontal grid spacing and size for the four regions
   ! =====================================================
   
-  REAL(dp)            :: dx_NAM_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of North America [m]
-  REAL(dp)            :: dx_EAS_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of Eurasia       [m]
-  REAL(dp)            :: dx_GRL_config                           = 20000._dp                        ! Horizontal resolution (both X and Y) of Greenland     [m]
-  REAL(dp)            :: dx_ANT_config                           = 40000._dp                        ! Horizontal resolution (both X and Y) of Antarctica    [m]
+  REAL(dp)            :: xmin_NAM_config                             = -3600000._dp                     ! Western  boundary     of the North America domain [m]
+  REAL(dp)            :: xmax_NAM_config                             =  3600000._dp                     ! Eastern  boundary     of the North America domain [m]
+  REAL(dp)            :: ymin_NAM_config                             = -2400000._dp                     ! Southern boundary     of the North America domain [m]
+  REAL(dp)            :: ymax_NAM_config                             =  2400000._dp                     ! Northern boundary     of the North America domain [m]
+  REAL(dp)            :: dx_NAM_config                               = 40000._dp                        ! Horizontal resolution of the North America domain [m]
+  
+  REAL(dp)            :: xmin_EAS_config                             = -3400000._dp                     ! Western  boundary     of the Eurasia domain [m]
+  REAL(dp)            :: xmax_EAS_config                             =  3400000._dp                     ! Eastern  boundary     of the Eurasia domain [m]
+  REAL(dp)            :: ymin_EAS_config                             = -2080000._dp                     ! Southern boundary     of the Eurasia domain [m]
+  REAL(dp)            :: ymax_EAS_config                             =  2080000._dp                     ! Northern boundary     of the Eurasia domain [m]
+  REAL(dp)            :: dx_EAS_config                               = 40000._dp                        ! Horizontal resolution of the Eurasia domain [m]
+  
+  REAL(dp)            :: xmin_GRL_config                             =  -830000._dp                     ! Western  boundary     of the Greenland domain [m]
+  REAL(dp)            :: xmax_GRL_config                             =   830000._dp                     ! Eastern  boundary     of the Greenland domain [m]
+  REAL(dp)            :: ymin_GRL_config                             = -1430000._dp                     ! Southern boundary     of the Greenland domain [m]
+  REAL(dp)            :: ymax_GRL_config                             =  1430000._dp                     ! Northern boundary     of the Greenland domain [m]
+  REAL(dp)            :: dx_GRL_config                               = 20000._dp                        ! Horizontal resolution of the Greenland domain [m]
+  
+  REAL(dp)            :: xmin_ANT_config                             = -3300000._dp                     ! Western  boundary     of the Antarctica domain [m]
+  REAL(dp)            :: xmax_ANT_config                             =  3300000._dp                     ! Eastern  boundary     of the Antarctica domain [m]
+  REAL(dp)            :: ymin_ANT_config                             = -3300000._dp                     ! Southern boundary     of the Antarctica domain [m]
+  REAL(dp)            :: ymax_ANT_config                             =  3300000._dp                     ! Northern boundary     of the Antarctica domain [m]
+  REAL(dp)            :: dx_ANT_config                               = 40000._dp                        ! Horizontal resolution of the Antarctica domain [m]
 
   ! The scaled vertical coordinate zeta, used mainly in thermodynamics
   ! ==================================================================
   
-  INTEGER                        :: nz_config                    = 15
-  REAL(dp), DIMENSION(210), SAVE :: zeta_config                  = &
+  INTEGER                        :: nz_config                        = 15
+  REAL(dp), DIMENSION(210), SAVE :: zeta_config                      = &
    (/0.00_dp, 0.10_dp, 0.20_dp, 0.30_dp, 0.40_dp, 0.50_dp, 0.60_dp, 0.70_dp, 0.80_dp, 0.90_dp, 0.925_dp, 0.95_dp, 0.975_dp, 0.99_dp, 1.00_dp, &
      0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp, &
      0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp, &
@@ -116,181 +129,225 @@ MODULE configuration_module
      0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp, &
      0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp,  0.00_dp, 0.00_dp  /)
 
-  ! Input data file paths
-  ! =====================
+  ! Reference geometries (initial, present-day, and GIA equilibrium)
+  ! ================================================================
   
-  ! Initial model state (NetCDF)
-  CHARACTER(LEN=256)  :: filename_init_NAM_config                = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_init_EAS_config                = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_init_GRL_config                = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km_noEllesmere.nc'
-  CHARACTER(LEN=256)  :: filename_init_ANT_config                = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  ! Initial geometry
+  CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config               = 'realistic'           ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config               = 'realistic'           ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_GRL_config               = 'realistic'           ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_ANT_config               = 'realistic'           ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  REAL(dp)            :: time_to_restart_from_NAM_config             = 0._dp                 ! Can be different from C%start_time_of_run, though this will issue a warning
+  REAL(dp)            :: time_to_restart_from_EAS_config             = 0._dp
+  REAL(dp)            :: time_to_restart_from_GRL_config             = 0._dp
+  REAL(dp)            :: time_to_restart_from_ANT_config             = 0._dp
+  CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config         = 'EISMINT1'            ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
-  ! PD reference data (NetCDF)
-  CHARACTER(LEN=256)  :: filename_PD_NAM_config                  = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_PD_EAS_config                  = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_PD_GRL_config                  = 'Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km_noEllesmere.nc'
-  CHARACTER(LEN=256)  :: filename_PD_ANT_config                  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  ! Present-day geometry
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_NAM_config                 = 'realistic'           ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_EAS_config                 = 'realistic'           ! Choice of present-day geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_GRL_config                 = 'realistic'           ! Choice of present-day geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_ANT_config                 = 'realistic'           ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config           = 'EISMINT1'            ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: filename_refgeo_PD_NAM_config               = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  
+  ! GIA equilibrium geometry
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config              = 'realistic'           ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_GRL_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_ANT_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config        = 'EISMINT1'            ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_NAM_config            = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_EAS_config            = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_ANT_config            = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
-  ! (Paleo-)topographies (NetCDF)
-  LOGICAL            :: switch_remove_Lake_Vostok_config         = .TRUE.
-  LOGICAL            :: switch_paleotopography_config            = .FALSE.
-  CHARACTER(LEN=256) :: filename_topo_NAM_config                 = 'dummy.nc'
-  CHARACTER(LEN=256) :: filename_topo_EAS_config                 = 'dummy.nc'
-  CHARACTER(LEN=256) :: filename_topo_GRL_config                 = 'dummy.nc'
-  CHARACTER(LEN=256) :: filename_topo_ANT_config                 = 'dummy.nc' 
+  LOGICAL             :: remove_Lake_Vostok_config                   = .TRUE.
+  
+  ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
+  ! ============================================================
+  
+  ! Possible choice_forcing_method options:
+  ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
+  ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
+  ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
+  ! 'SMB_direct'           : Obtain SMB directly from a forcing file
+  ! 'climate direct'       : Obtain temperature and precipitation (to be used in the ITM SMB model) directly from a forcing file
+  CHARACTER(LEN=256)  :: choice_forcing_method_config                = 'd18O_inverse_dT_glob' 
    
-  ! Insolation forcing (NetCDF) (Laskar et al., 2004)
-  CHARACTER(LEN=256)  :: filename_insolation_config              = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
+  ! Insolation forcing (NetCDF)
+  CHARACTER(LEN=256)  :: choice_insolation_forcing_config            = 'realistic'                      ! Choice of insolation forcing: "none", "static", "realistic"
+  REAL(dp)            :: static_insolation_time_config               = 0._dp                            ! Keep insolation values fixed to this time when choice_insolation_forcing = 'static'
+  CHARACTER(LEN=256)  :: filename_insolation_config                  = 'Datasets/Insolation/Laskar_etal_2004_insolation.nc'
   
   ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-  CHARACTER(LEN=256)  :: filename_CO2_record_config              = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
-  INTEGER             :: CO2_record_length_config                = 8001
+  CHARACTER(LEN=256)  :: filename_CO2_record_config                  = 'Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+  INTEGER             :: CO2_record_length_config                    = 8001
   
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
-  CHARACTER(LEN=256)  :: filename_d18O_record_config             = 'Datasets/d18O/Ahn2017_d18O.dat'
-  INTEGER             :: d18O_record_length_config               = 2051
+  CHARACTER(LEN=256)  :: filename_d18O_record_config                 = 'Datasets/d18O/Ahn2017_d18O.dat'
+  INTEGER             :: d18O_record_length_config                   = 2051
   
-  ! Ice5G ice-sheet geometry
-  CHARACTER(LEN=256)  :: filename_ICE5G_PD_config                = 'Datasets/ICE5G/ice5g_v1.2_00.0k_1deg.nc'
-  CHARACTER(LEN=256)  :: filename_ICE5G_LGM_config               = 'Datasets/ICE5G/ice5g_v1.2_21.0k_1deg.nc'
+  ! Geothermal heat flux
+  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
+  REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
+  CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config        = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+
+  ! Parameters for calculating modelled benthic d18O
+  LOGICAL             :: do_calculate_benthic_d18O_config            = .TRUE.                           ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
+  REAL(dp)            :: dT_deepwater_averaging_window_config        = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
+  REAL(dp)            :: dT_deepwater_dT_surf_ratio_config           = 0.25_dp                          ! Ratio between global mean surface temperature change and deep-water temperature change
+  REAL(dp)            :: d18O_dT_deepwater_ratio_config              = -0.28_dp                         ! Ratio between deep-water temperature change and benthic d18O change
+  
+  ! Parameters for the inverse routine
+  REAL(dp)            :: dT_glob_inverse_averaging_window_config     = 2000._dp                         ! Time window (in yr) over which global mean temperature anomaly is averaged before changing it with the inverse routine
+  REAL(dp)            :: inverse_d18O_to_dT_glob_scaling_config      = 20._dp                           ! Scaling factor between modelled d18O anomaly and prescribed temperature anomaly change (value from de Boer et al., 2013)
+  REAL(dp)            :: CO2_inverse_averaging_window_config         = 2000._dp                         ! Time window (in yr) over which CO2                             is averaged before changing it with the inverse routine
+  REAL(dp)            :: inverse_d18O_to_CO2_scaling_config          = 68._dp                           ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
+  REAL(dp)            :: inverse_d18O_to_CO2_initial_CO2_config      = 280._dp                          ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
 
   ! Ice dynamics - velocity
   ! =======================
   
-  CHARACTER(LEN=256)  :: choice_ice_dynamics_config              = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
-  REAL(dp)            :: n_flow_config                           = 3.0_dp                           ! Exponent in Glen's flow law
-  REAL(dp)            :: m_enh_sheet_config                      = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
-  REAL(dp)            :: m_enh_shelf_config                      = 1.0_dp                           ! Ice flow enhancement factor for floating ice
-  CHARACTER(LEN=256)  :: choice_ice_margin_config                = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
-  LOGICAL             :: include_SSADIVA_crossterms_config       = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
-  LOGICAL             :: do_GL_subgrid_friction_config           = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
-  LOGICAL             :: do_smooth_geometry_config               = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
-  REAL(dp)            :: r_smooth_geometry_config                = 0.5_dp                           ! Geometry smoothing radius (in number of grid cells)
+  CHARACTER(LEN=256)  :: choice_ice_dynamics_config                  = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  REAL(dp)            :: n_flow_config                               = 3.0_dp                           ! Exponent in Glen's flow law
+  REAL(dp)            :: m_enh_sheet_config                          = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
+  REAL(dp)            :: m_enh_shelf_config                          = 1.0_dp                           ! Ice flow enhancement factor for floating ice
+  CHARACTER(LEN=256)  :: choice_ice_margin_config                    = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
+  LOGICAL             :: include_SSADIVA_crossterms_config           = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
+  LOGICAL             :: do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
+  LOGICAL             :: do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
+  REAL(dp)            :: r_smooth_geometry_config                    = 0.5_dp                           ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
-  REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config        = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
-  INTEGER             :: DIVA_visc_it_nit_config                 = 50                               ! Maximum number of effective viscosity iterations
-  REAL(dp)            :: DIVA_visc_it_relax_config               = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-  REAL(dp)            :: DIVA_beta_max_config                    = 1E20_dp                          ! The DIVA is not solved (i.e. velocities are assumed to be zero) for beta values larger than this
-  REAL(dp)            :: DIVA_err_lim_config                     = 1E-5_dp                          ! The DIVA is not refined (i.e. velocities are no longer updated with SOR) wherever successive velocity iterations change the velocity by less than this amount
-  REAL(dp)            :: DIVA_vel_max_config                     = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
-  REAL(dp)            :: DIVA_vel_min_config                     = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config          = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config          = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config         = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_north_config         = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_west_config          = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_east_config          = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_south_config         = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_north_config         = 'infinite'
-  CHARACTER(LEN=256)  :: DIVA_choice_matrix_solver_config        = 'PETSc'                          ! Choice of matrix solver for the ice velocity equations: "SOR", "PETSc"
-  INTEGER             :: DIVA_SOR_nit_config                     = 10000                            ! DIVA SOR   solver - maximum number of iterations
-  REAL(dp)            :: DIVA_SOR_tol_config                     = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
-  REAL(dp)            :: DIVA_SOR_omega_config                   = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
-  REAL(dp)            :: DIVA_PETSc_rtol_config                  = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  REAL(dp)            :: DIVA_PETSc_abstol_config                = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
+  REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
+  REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! The DIVA is not solved (i.e. velocities are assumed to be zero) for beta values larger than this
+  REAL(dp)            :: DIVA_err_lim_config                         = 1E-5_dp                          ! The DIVA is not refined (i.e. velocities are no longer updated with SOR) wherever successive velocity iterations change the velocity by less than this amount
+  REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
+  REAL(dp)            :: DIVA_vel_min_config                         = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config             = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_north_config             = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_east_config              = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_south_config             = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_boundary_BC_v_north_config             = 'infinite'
+  CHARACTER(LEN=256)  :: DIVA_choice_matrix_solver_config            = 'PETSc'                          ! Choice of matrix solver for the ice velocity equations: "SOR", "PETSc"
+  INTEGER             :: DIVA_SOR_nit_config                         = 10000                            ! DIVA SOR   solver - maximum number of iterations
+  REAL(dp)            :: DIVA_SOR_tol_config                         = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
+  REAL(dp)            :: DIVA_SOR_omega_config                       = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
+  REAL(dp)            :: DIVA_PETSc_rtol_config                      = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  REAL(dp)            :: DIVA_PETSc_abstol_config                    = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
   
-  CHARACTER(LEN=256)  :: choice_timestepping_config              = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
-  CHARACTER(LEN=256)  :: choice_ice_integration_method_config    = 'explicit'                       ! Choice of ice thickness integration scheme: "explicit", "semi-implicit"
-  CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config         = 'SOR'                            ! Choice of matrix solver for the semi-implicit ice thickness equation: "SOR", "PETSc"
-  INTEGER             :: dHi_SOR_nit_config                      = 3000                             ! dHi SOR   solver - maximum number of iterations
-  REAL(dp)            :: dHi_SOR_tol_config                      = 2.5_dp                           ! dHi SOR   solver - stop criterion, absolute difference
-  REAL(dp)            :: dHi_SOR_omega_config                    = 1.3_dp                           ! dHi SOR   solver - over-relaxation parameter
-  REAL(dp)            :: dHi_PETSc_rtol_config                   = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  REAL(dp)            :: dHi_PETSc_abstol_config                 = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
+  CHARACTER(LEN=256)  :: choice_timestepping_config                  = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
+  CHARACTER(LEN=256)  :: choice_ice_integration_method_config        = 'explicit'                       ! Choice of ice thickness integration scheme: "explicit", "semi-implicit"
+  CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config             = 'SOR'                            ! Choice of matrix solver for the semi-implicit ice thickness equation: "SOR", "PETSc"
+  INTEGER             :: dHi_SOR_nit_config                          = 3000                             ! dHi SOR   solver - maximum number of iterations
+  REAL(dp)            :: dHi_SOR_tol_config                          = 2.5_dp                           ! dHi SOR   solver - stop criterion, absolute difference
+  REAL(dp)            :: dHi_SOR_omega_config                        = 1.3_dp                           ! dHi SOR   solver - over-relaxation parameter
+  REAL(dp)            :: dHi_PETSc_rtol_config                       = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  REAL(dp)            :: dHi_PETSc_abstol_config                     = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
-  REAL(dp)            :: pc_epsilon_config                       = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
-  REAL(dp)            :: pc_k_I_config                           = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
-  REAL(dp)            :: pc_k_p_config                           = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
-  REAL(dp)            :: pc_eta_min_config                       = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
-  INTEGER             :: pc_max_timestep_iterations_config       = 5                                ! Maximum number of iterations of each time step
-  REAL(dp)            :: pc_redo_tol_config                      = 10._dp                           ! Maximum allowed truncation error (any higher and the timestep is decreased)
-  REAL(dp)            :: dt_min_config                           = 0.01_dp                          ! Smallest allowed time step [yr]
+  REAL(dp)            :: pc_epsilon_config                           = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+  REAL(dp)            :: pc_k_I_config                               = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
+  REAL(dp)            :: pc_k_p_config                               = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
+  REAL(dp)            :: pc_eta_min_config                           = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
+  INTEGER             :: pc_max_timestep_iterations_config           = 5                                ! Maximum number of iterations of each time step
+  REAL(dp)            :: pc_redo_tol_config                          = 10._dp                           ! Maximum allowed truncation error (any higher and the timestep is decreased)
+  REAL(dp)            :: dt_min_config                               = 0.01_dp                          ! Smallest allowed time step [yr]
 
   ! Ice dynamics - sliding
   ! ======================
   
-  LOGICAL             :: no_sliding_config                       = .FALSE.                          ! If set to TRUE, no sliding is allowed anywhere (used for some schematic experiments)
-  CHARACTER(LEN=256)  :: choice_sliding_law_config               = 'Coulomb_regularised'            ! Choice of sliding law: "Coulomb", "Coulomb_regularised", "Weertman"
-  REAL(dp)            :: slid_Weertman_m_config                  = 3._dp                            ! Exponent in Weertman sliding law
-  REAL(dp)            :: slid_Coulomb_delta_v_config             = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
-  REAL(dp)            :: slid_Coulomb_reg_q_plastic_config       = 0.3_dp                           ! Scaling exponent   in regularised Coulomb sliding law
-  REAL(dp)            :: slid_Coulomb_reg_u_threshold_config     = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
-  REAL(dp)            :: Martin2011till_pwp_Hb_min_config        = 0._dp                            ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_pwp_Hb_max_config        = 1000._dp                         ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_phi_Hb_min_config        = -1000._dp                        ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_Hb_max_config        = 0._dp                            ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_min_config           = 5._dp                            ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_max_config           = 20._dp                           ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
+  LOGICAL             :: no_sliding_config                           = .FALSE.                          ! If set to TRUE, no sliding is allowed anywhere (used for some schematic experiments)
+  CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "Coulomb", "Coulomb_regularised", "Weertman"
+  REAL(dp)            :: slid_Weertman_m_config                      = 3._dp                            ! Exponent in Weertman sliding law
+  REAL(dp)            :: slid_Coulomb_delta_v_config                 = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
+  REAL(dp)            :: slid_Coulomb_reg_q_plastic_config           = 0.3_dp                           ! Scaling exponent   in regularised Coulomb sliding law
+  REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
+  REAL(dp)            :: Martin2011till_pwp_Hb_min_config            = 0._dp                            ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011till_pwp_Hb_max_config            = 1000._dp                         ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
 
   ! Ice dynamics - calving
   ! ======================
   
-  CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
-  REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
-  LOGICAL             :: do_remove_shelves_config                = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
-  LOGICAL             :: remove_shelves_larger_than_PD_config    = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
+  CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  REAL(dp)            :: calving_threshold_thickness_config          = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  LOGICAL             :: do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
+  LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
 
-  ! Thermodynamics
-  ! ==============
+  ! Thermodynamics and rheology
+  ! ===========================
   
-  CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config      = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
-  REAL(dp)            :: constant_geothermal_heat_flux_config    = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
-  CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config    = 'Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  REAL(dp)            :: uniform_ice_temperature_config              = 270._dp                          ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
+  CHARACTER(LEN=256)  :: choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
+  CHARACTER(LEN=256)  :: choice_ice_rheology_config                  = 'thermo'                         ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
+  REAL(dp)            :: uniform_flow_factor_config                  = 1E-16_dp                         ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  CHARACTER(LEN=256)  :: choice_ice_heat_capacity_config             = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
+  REAL(dp)            :: uniform_ice_heat_capacity_config            = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
+  CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config      = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
+  REAL(dp)            :: uniform_ice_thermal_conductivity_config     = 6.626958E-7_dp                   ! Uniform ice thermal conductivity (applied when choice_ice_thermal_conductivity_config = "uniform")
   
-  ! Climate matrix
-  ! ==============
+  ! Climate
+  ! =======
   
-  ! Present-day observed climate (ERA40) (NetCDF)
-  CHARACTER(LEN=256)  :: filename_PD_obs_climate_config          = 'Datasets/ERA40/ERA40_climate_global.nc'
-  ! Present-day observed ocean (WOA18) (NetCDF)  
-  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+  CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
+  CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
   
-  CHARACTER(LEN=256)  :: name_ocean_temperature_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  CHARACTER(LEN=256)  :: name_ocean_salinity_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  ! NetCDF file containing direct global/regional climate/SMB forcing
+  CHARACTER(LEN=256)  :: filename_direct_global_climate_config       = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_climate_NAM_config = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_climate_EAS_config = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_climate_GRL_config = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_climate_ANT_config = ''
+  CHARACTER(LEN=256)  :: filename_direct_global_SMB_config           = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_NAM_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
   
-  ! GCM snapshots
-  CHARACTER(LEN=256)  :: choice_climate_matrix_config            = 'warm_cold'                      ! 'warm_cold' uses 2 snapshots
-  CHARACTER(LEN=256)  :: filename_GCM_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
-
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config   = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'  
-
-  ! GCM forcing file
-  CHARACTER(LEN=256)  :: filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+  CHARACTER(LEN=256)  :: filename_PD_obs_climate_config              = 'Datasets/ERA40/ERA40_climate_global.nc'
   
-  ! Ocean temperature (used for both thermodynamics and basal melt)
-  CHARACTER(LEN=256)  :: choice_ocean_temperature_model_config   = 'scaled'                         ! Can be "fixed" (use PD value) 
-                                                                                                    ! or "scaled" (scale between "PD", "warm", and "cold" values based on forcing (prescribed or inverse-modelled))
-                                                                                                    ! or "matrix_warm_cold" (scale between the 3D fields yielded by the matrix snapshots)
-                                                                                                    ! or 'schematic' (schemtic ocean temperatures)
-  CHARACTER(LEN=256)  :: choice_schematic_ocean_config           = 'MISMIPplus_WARM'                ! Can be 'MISMIPplus_WARM' or 'MISMIPplus_COLD'
-  REAL(dp)            :: ocean_temperature_PD_config             = 271.46_dp                        ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
-  REAL(dp)            :: ocean_temperature_cold_config           = 268.16_dp                        ! cold period temperature of the ocean beneath the shelves [K; -5.0 Celcius]
-  REAL(dp)            :: ocean_temperature_warm_config           = 275.16_dp                        ! warm period temperature of the ocean beneath the shelves [K;  2.0 Celcius]
+  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+  CHARACTER(LEN=256)  :: name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
   
-  REAL(dp)            :: constant_lapserate_config               = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
+  ! GCM snapshots in the matrix_warm_cold option
+  CHARACTER(LEN=256)  :: filename_climate_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  CHARACTER(LEN=256)  :: filename_climate_snapshot_warm_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  
+  REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                     ! Constant atmospheric lapse rate [K m^-1]
   
   ! Scaling factor for CO2 vs ice weights
   REAL(dp)            :: climate_matrix_CO2vsice_NAM_config          = 0.5_dp                       ! Weight factor for the influence of CO2 vs ice cover on temperature 
   REAL(dp)            :: climate_matrix_CO2vsice_EAS_config          = 0.5_dp                       ! Can be set separately for different regions
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                      ! Default values are from Berends et al, 2018
-  REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                      ! 1.0_dp equals glacial index method
+  REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                      ! 1.0_dp equals glacial index method                       
 
-  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
-  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                       ! Can be set separately for different regions
-  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
-  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp                       
-
-  REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                      ! CO2 level pertaining to the warm climate (PI  level default)         
-  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                      ! CO2 level pertaining to the cold climate (LGM level default)          
+  REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                      ! CO2 level  pertaining to the warm climate (PI  level default)         
+  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                      ! CO2 level  pertaining to the cold climate (LGM level default)          
 
   REAL(dp)            :: matrix_warm_orbit_time_config               = 0._dp                        ! Orbit time pertaining to the warm climate (PI default)
   REAL(dp)            :: matrix_cold_orbit_time_config               = -21000._dp                   ! Orbit time pertaining to the cold climate (LGM default)
@@ -300,9 +357,18 @@ MODULE configuration_module
  
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                      ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
   
-  ! Ocean matrix
-  ! ============
+  ! Ocean
+  ! =====
   
+  CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'           ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'               ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
+  
+  ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
+  REAL(dp)            :: ocean_temperature_PD_config                 = 271.46_dp                    ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
+  REAL(dp)            :: ocean_temperature_cold_config               = 268.16_dp                    ! cold period temperature of the ocean beneath the shelves [K; -5.0 Celcius]
+  REAL(dp)            :: ocean_temperature_warm_config               = 275.16_dp                    ! warm period temperature of the ocean beneath the shelves [K;  2.0 Celcius]
+  
+  ! Parameters used when choice_ocean_model = "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                    ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                     ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                      ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
@@ -313,237 +379,230 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_EAS_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_GRL_config  = ''
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_ANT_config  = ''
-  REAL(dp)            :: w_tot_hist_averaging_window_config          = 1500._dp                     ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged 
+  REAL(dp)            :: ocean_w_tot_hist_averaging_window_config    = 1500._dp                     ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged
 
-  ! Forcing
-  ! =======
-  
-  ! The choice of forcing:
-  ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
-  ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
-  ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
-  ! 'SMB_direct'           : Obtain SMB directly from a forcing file
-  ! 'climate direct'       : Obtain temperature and precipitation (to be used in the ITM SMB model) directly from a forcing file
-  CHARACTER(LEN=256)  :: choice_forcing_method_config            = 'd18O_inverse_dT_glob'
-  CHARACTER(LEN=256)  :: domain_climate_forcing_config           = 'global'                         ! The climate forcing file either covers the entire globe on a regular lon-lat grid, or only a region on an x-y grid.
-                                                                                                    ! Only used if choice_forcing_method_config = 'SMB_direct' or 'climate_direct' 
-  
-  REAL(dp)            :: dT_deepwater_averaging_window_config    = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
-  REAL(dp)            :: dT_deepwater_dT_surf_ratio_config       = 0.25_dp                          ! Ratio between global mean surface temperature change and deep-water temperature change
-  REAL(dp)            :: d18O_dT_deepwater_ratio_config          = -0.28_dp                         ! Ratio between deep-water temperature change and benthic d18O change
-  
-  REAL(dp)            :: dT_glob_inverse_averaging_window_config = 2000._dp                         ! Time window (in yr) over which global mean temperature anomaly is averaged before changing it with the inverse routine
-  REAL(dp)            :: inverse_d18O_to_dT_glob_scaling_config  = 20._dp                           ! Scaling factor between modelled d18O anomaly and prescribed temperature anomaly change (value from de Boer et al., 2013)
-  REAL(dp)            :: CO2_inverse_averaging_window_config     = 2000._dp                         ! Time window (in yr) over which CO2                             is averaged before changing it with the inverse routine
-  REAL(dp)            :: inverse_d18O_to_CO2_scaling_config      = 68._dp                           ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
-  REAL(dp)            :: inverse_d18O_to_CO2_initial_CO2_config  = 280._dp                          ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
+  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                       ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
+  REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                       ! Can be set separately for different regions
+  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp
+
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config       = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
   
   ! Surface mass balance
   ! ====================
   
-  CHARACTER(LEN=256)  :: choice_SMB_model_config                 = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "IMAU-ITM"
-  REAL(dp)            :: SMB_uniform_config                      = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
-  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config   = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
-  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config   = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
-  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config   = -49._dp                          !            they used to in ANICE.)
-  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config   = -49._dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config         = 10._dp                           ! 10._dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config         = 10._dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config         = 10._dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config         = 10._dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config          = 0.0227_dp                        ! 0.513_dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config          = 0.0227_dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config          = 0.0227_dp
-  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config          = 0.0227_dp
-  REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config           = 0.051_dp                         ! 0.012_dp
-  REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config           = 0.051_dp 
-  REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config           = 0.051_dp 
-  REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config           = 0.051_dp
+  CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  CHARACTER(LEN=256)  :: choice_idealised_SMB_config                 = 'EISMINT1_A'
+  REAL(dp)            :: SMB_uniform_config                          = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
+  REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config       = -49._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config             = 10._dp                           ! 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config             = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config             = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config             = 10._dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227_dp                        ! 0.513_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
+  REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
+  REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp 
+  REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp 
+  REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
   
   ! Basal mass balance
   ! ==================
   
-  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config           = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
-  CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config           = 'uniform'                        ! Choice of sheet BMB: "none"
-  REAL(dp)            :: BMB_shelf_uniform_config                = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
-  REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
-  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
-  LOGICAL             :: do_asynchronous_BMB_config              = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config               = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+  CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "none"
+  REAL(dp)            :: BMB_shelf_uniform_config                    = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
+  REAL(dp)            :: BMB_sheet_uniform_config                    = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
+  CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  LOGICAL             :: do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
   
-  CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config          = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
-  CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config          = 'none'
-  CHARACTER(LEN=256)  :: choice_basin_scheme_GRL_config          = 'none'
-  CHARACTER(LEN=256)  :: choice_basin_scheme_ANT_config          = 'none'
-  CHARACTER(LEN=256)  :: filename_basins_NAM_config              = 'dummy.txt'                      ! Path to a text file containing polygons of drainage basins
-  CHARACTER(LEN=256)  :: filename_basins_EAS_config              = 'dummy.txt'
-  CHARACTER(LEN=256)  :: filename_basins_GRL_config              = 'dummy.txt'
-  CHARACTER(LEN=256)  :: filename_basins_ANT_config              = 'dummy.txt'
-  LOGICAL             :: do_merge_basins_ANT_config              = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
-  LOGICAL             :: do_merge_basins_GRL_config              = .TRUE.                           ! Whether or not to merge some of the Greenland basins
+  CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config              = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_GRL_config              = 'none'
+  CHARACTER(LEN=256)  :: choice_basin_scheme_ANT_config              = 'none'
+  CHARACTER(LEN=256)  :: filename_basins_NAM_config                  = ''                               ! Path to a text file containing polygons of drainage basins
+  CHARACTER(LEN=256)  :: filename_basins_EAS_config                  = ''
+  CHARACTER(LEN=256)  :: filename_basins_GRL_config                  = ''
+  CHARACTER(LEN=256)  :: filename_basins_ANT_config                  = ''
+  LOGICAL             :: do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
+  LOGICAL             :: do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
   
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config        = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
-  REAL(dp)            :: BMB_Favier2019_quad_GammaT_config       = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
-  REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config      = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config            = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
+  REAL(dp)            :: BMB_Favier2019_quad_GammaT_config           = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
+  REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config          = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
   
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
-  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config          = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
-  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config  = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
+  REAL(dp)            :: BMB_Lazeroms2018_GammaT_config              = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
+  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config      = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
   
   ! Parameters for the PICO BMB model
-  INTEGER             :: BMB_PICO_nboxes_config                  = 5                                ! Number of sub-shelf ocean boxes used by PICO
-  REAL(dp)            :: BMB_PICO_GammaTstar_config              = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
+  INTEGER             :: BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
+  REAL(dp)            :: BMB_PICO_GammaTstar_config                  = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
-  REAL(dp)            :: T_ocean_mean_PD_NAM_config              = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
-  REAL(dp)            :: T_ocean_mean_PD_EAS_config              = -1.7_dp
-  REAL(dp)            :: T_ocean_mean_PD_GRL_config              =  2.0_dp
-  REAL(dp)            :: T_ocean_mean_PD_ANT_config              = -1.7_dp
-  REAL(dp)            :: T_ocean_mean_cold_NAM_config            = -5.0_dp                          ! Cold period temperature of the ocean beneath the shelves [Celcius]
-  REAL(dp)            :: T_ocean_mean_cold_EAS_config            = -5.0_dp
-  REAL(dp)            :: T_ocean_mean_cold_GRL_config            =  0.0_dp
-  REAL(dp)            :: T_ocean_mean_cold_ANT_config            = -5.0_dp
-  REAL(dp)            :: T_ocean_mean_warm_NAM_config            =  2.0_dp                          ! Warm period temperature of the ocean beneath the shelves [Celcius]
-  REAL(dp)            :: T_ocean_mean_warm_EAS_config            =  2.0_dp
-  REAL(dp)            :: T_ocean_mean_warm_GRL_config            =  4.0_dp
-  REAL(dp)            :: T_ocean_mean_warm_ANT_config            =  2.0_dp
+  REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
+  REAL(dp)            :: T_ocean_mean_PD_EAS_config                  = -1.7_dp
+  REAL(dp)            :: T_ocean_mean_PD_GRL_config                  =  2.0_dp
+  REAL(dp)            :: T_ocean_mean_PD_ANT_config                  = -1.7_dp
+  REAL(dp)            :: T_ocean_mean_cold_NAM_config                = -5.0_dp                          ! Cold period temperature of the ocean beneath the shelves [Celcius]
+  REAL(dp)            :: T_ocean_mean_cold_EAS_config                = -5.0_dp
+  REAL(dp)            :: T_ocean_mean_cold_GRL_config                =  0.0_dp
+  REAL(dp)            :: T_ocean_mean_cold_ANT_config                = -5.0_dp
+  REAL(dp)            :: T_ocean_mean_warm_NAM_config                =  2.0_dp                          ! Warm period temperature of the ocean beneath the shelves [Celcius]
+  REAL(dp)            :: T_ocean_mean_warm_EAS_config                =  2.0_dp
+  REAL(dp)            :: T_ocean_mean_warm_GRL_config                =  4.0_dp
+  REAL(dp)            :: T_ocean_mean_warm_ANT_config                =  2.0_dp
             
-  REAL(dp)            :: BMB_deepocean_PD_NAM_config             =  -5._dp                          ! Present-day sub-shelf melt rate for deep-ocean areas [m/year]
-  REAL(dp)            :: BMB_deepocean_PD_EAS_config             =  -5._dp
-  REAL(dp)            :: BMB_deepocean_PD_GRL_config             =  -5._dp
-  REAL(dp)            :: BMB_deepocean_PD_ANT_config             =  -5._dp
-  REAL(dp)            :: BMB_deepocean_cold_NAM_config           =  -2._dp                          ! Cold period sub-shelf melt rate for deep-ocean areas [m/year]
-  REAL(dp)            :: BMB_deepocean_cold_EAS_config           =  -2._dp
-  REAL(dp)            :: BMB_deepocean_cold_GRL_config           =  -2._dp
-  REAL(dp)            :: BMB_deepocean_cold_ANT_config           =  -2._dp
-  REAL(dp)            :: BMB_deepocean_warm_NAM_config           = -10._dp                          ! Warm period sub-shelf melt rate for deep-ocean areas [m/year]    
-  REAL(dp)            :: BMB_deepocean_warm_EAS_config           = -10._dp
-  REAL(dp)            :: BMB_deepocean_warm_GRL_config           = -10._dp
-  REAL(dp)            :: BMB_deepocean_warm_ANT_config           = -10._dp
+  REAL(dp)            :: BMB_deepocean_PD_NAM_config                 =  -5._dp                          ! Present-day sub-shelf melt rate for deep-ocean areas [m/year]
+  REAL(dp)            :: BMB_deepocean_PD_EAS_config                 =  -5._dp
+  REAL(dp)            :: BMB_deepocean_PD_GRL_config                 =  -5._dp
+  REAL(dp)            :: BMB_deepocean_PD_ANT_config                 =  -5._dp
+  REAL(dp)            :: BMB_deepocean_cold_NAM_config               =  -2._dp                          ! Cold period sub-shelf melt rate for deep-ocean areas [m/year]
+  REAL(dp)            :: BMB_deepocean_cold_EAS_config               =  -2._dp
+  REAL(dp)            :: BMB_deepocean_cold_GRL_config               =  -2._dp
+  REAL(dp)            :: BMB_deepocean_cold_ANT_config               =  -2._dp
+  REAL(dp)            :: BMB_deepocean_warm_NAM_config               = -10._dp                          ! Warm period sub-shelf melt rate for deep-ocean areas [m/year]    
+  REAL(dp)            :: BMB_deepocean_warm_EAS_config               = -10._dp
+  REAL(dp)            :: BMB_deepocean_warm_GRL_config               = -10._dp
+  REAL(dp)            :: BMB_deepocean_warm_ANT_config               = -10._dp
 
-  REAL(dp)            :: BMB_shelf_exposed_PD_NAM_config         =  -3._dp                          ! Present-day sub-shelf melt rate for exposed areas    [m/year]
-  REAL(dp)            :: BMB_shelf_exposed_PD_EAS_config         =  -3._dp
-  REAL(dp)            :: BMB_shelf_exposed_PD_GRL_config         =  -3._dp
-  REAL(dp)            :: BMB_shelf_exposed_PD_ANT_config         =  -3._dp
-  REAL(dp)            :: BMB_shelf_exposed_cold_NAM_config       =  -0._dp                          ! Cold period sub-shelf melt rate for exposed areas    [m/year]
-  REAL(dp)            :: BMB_shelf_exposed_cold_EAS_config       =  -0._dp
-  REAL(dp)            :: BMB_shelf_exposed_cold_GRL_config       =  -0._dp
-  REAL(dp)            :: BMB_shelf_exposed_cold_ANT_config       =  -0._dp
-  REAL(dp)            :: BMB_shelf_exposed_warm_NAM_config       =  -6._dp                          ! Warm period sub-shelf melt rate for exposed areas    [m/year]
-  REAL(dp)            :: BMB_shelf_exposed_warm_EAS_config       =  -6._dp
-  REAL(dp)            :: BMB_shelf_exposed_warm_GRL_config       =  -6._dp
-  REAL(dp)            :: BMB_shelf_exposed_warm_ANT_config       =  -6._dp
+  REAL(dp)            :: BMB_shelf_exposed_PD_NAM_config             =  -3._dp                          ! Present-day sub-shelf melt rate for exposed areas    [m/year]
+  REAL(dp)            :: BMB_shelf_exposed_PD_EAS_config             =  -3._dp
+  REAL(dp)            :: BMB_shelf_exposed_PD_GRL_config             =  -3._dp
+  REAL(dp)            :: BMB_shelf_exposed_PD_ANT_config             =  -3._dp
+  REAL(dp)            :: BMB_shelf_exposed_cold_NAM_config           =  -0._dp                          ! Cold period sub-shelf melt rate for exposed areas    [m/year]
+  REAL(dp)            :: BMB_shelf_exposed_cold_EAS_config           =  -0._dp
+  REAL(dp)            :: BMB_shelf_exposed_cold_GRL_config           =  -0._dp
+  REAL(dp)            :: BMB_shelf_exposed_cold_ANT_config           =  -0._dp
+  REAL(dp)            :: BMB_shelf_exposed_warm_NAM_config           =  -6._dp                          ! Warm period sub-shelf melt rate for exposed areas    [m/year]
+  REAL(dp)            :: BMB_shelf_exposed_warm_EAS_config           =  -6._dp
+  REAL(dp)            :: BMB_shelf_exposed_warm_GRL_config           =  -6._dp
+  REAL(dp)            :: BMB_shelf_exposed_warm_ANT_config           =  -6._dp
     
-  REAL(dp)            :: subshelf_melt_factor_NAM_config         = 0.005_dp                         ! Overall tuning factor for sub-shelf melt rate
-  REAL(dp)            :: subshelf_melt_factor_EAS_config         = 0.005_dp
-  REAL(dp)            :: subshelf_melt_factor_GRL_config         = 0.005_dp
-  REAL(dp)            :: subshelf_melt_factor_ANT_config         = 0.005_dp
+  REAL(dp)            :: subshelf_melt_factor_NAM_config             = 0.005_dp                         ! Overall tuning factor for sub-shelf melt rate
+  REAL(dp)            :: subshelf_melt_factor_EAS_config             = 0.005_dp
+  REAL(dp)            :: subshelf_melt_factor_GRL_config             = 0.005_dp
+  REAL(dp)            :: subshelf_melt_factor_ANT_config             = 0.005_dp
   
-  REAL(dp)            :: deep_ocean_threshold_depth_NAM_config   = 1200._dp                         ! Threshold water depth for "deep ocean" (as opposed to continental shelf);
-  REAL(dp)            :: deep_ocean_threshold_depth_EAS_config   = 800._dp                          ! this mostly prevents ice shelves from growing beyond the continental shelf
-  REAL(dp)            :: deep_ocean_threshold_depth_GRL_config   = 800._dp                          ! Different depths for different regions is a bit ad hoc, but in reality
-  REAL(dp)            :: deep_ocean_threshold_depth_ANT_config   = 1800._dp                         ! the different surface ocean temperatures probably result in the same effect...
+  REAL(dp)            :: deep_ocean_threshold_depth_NAM_config       = 1200._dp                         ! Threshold water depth for "deep ocean" (as opposed to continental shelf);
+  REAL(dp)            :: deep_ocean_threshold_depth_EAS_config       = 800._dp                          ! this mostly prevents ice shelves from growing beyond the continental shelf
+  REAL(dp)            :: deep_ocean_threshold_depth_GRL_config       = 800._dp                          ! Different depths for different regions is a bit ad hoc, but in reality
+  REAL(dp)            :: deep_ocean_threshold_depth_ANT_config       = 1800._dp                         ! the different surface ocean temperatures probably result in the same effect...
+  
+  ! Englacial isotope tracing
+  ! =========================
+  
+  CHARACTER(LEN=256)  :: choice_ice_isotopes_model_config             = 'ANICE_legacy'                  ! Choice of englacial isotopes model: "none", "uniform", "ANICE_legacy"
+  REAL(dp)            :: uniform_ice_d18O_config                      = 0._dp                           ! Uniform englacial d18O-value (used when choice_ice_isotope_model_config = "uniform")
     
   ! Sea level and GIA
   ! =================
   
-  LOGICAL             :: do_ocean_floodfill_config               = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  CHARACTER(LEN=256)  :: choice_sealevel_model_config            = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
-  REAL(dp)            :: fixed_sealevel_config                   = 0._dp                            ! Height of fixed sealevel w.r.t. PD
-  CHARACTER(LEN=256)  :: filename_sealevel_record_config         = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
-  INTEGER             :: sealevel_record_length_config           = 1
+  LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
+  CHARACTER(LEN=256)  :: choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
+  CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
+  INTEGER             :: sealevel_record_length_config               = 1
   
-  CHARACTER(LEN=256)  :: choice_GIA_model_config                 = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
-  REAL(dp)            :: dx_GIA_config                           = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
-  REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config   = 1.0E+25_dp                       ! Lithospheric flexural rigidity [kg m^2 s^-2]
-  REAL(dp)            :: ELRA_bedrock_relaxation_time_config     = 3000.0_dp                        ! Relaxation time for bedrock adjustment [yr]
-  REAL(dp)            :: ELRA_mantle_density_config              = 3300.0_dp                        ! Mantle density [kg m^-3]
+  CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
+  REAL(dp)            :: dx_GIA_config                               = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
+  REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config       = 1.0E+25_dp                       ! Lithospheric flexural rigidity [kg m^2 s^-2]
+  REAL(dp)            :: ELRA_bedrock_relaxation_time_config         = 3000.0_dp                        ! Relaxation time for bedrock adjustment [yr]
+  REAL(dp)            :: ELRA_mantle_density_config                  = 3300.0_dp                        ! Mantle density [kg m^-3]
 
   ! SELEN
   ! =====
   
-  LOGICAL             :: SELEN_run_at_t_start_config              = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
-  INTEGER             :: SELEN_n_TDOF_iterations_config           = 1                               ! Number of Time-Dependent Ocean Function iterations
-  INTEGER             :: SELEN_n_recursion_iterations_config      = 1                               ! Number of recursion iterations
-  LOGICAL             :: SELEN_use_rotational_feedback_config     = .FALSE.                         ! If TRUE, rotational feedback is included
-  INTEGER             :: SELEN_n_harmonics_config                 = 128                             ! Maximum number of harmonic degrees
-  LOGICAL             :: SELEN_display_progress_config            = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
+  LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
+  INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                               ! Number of Time-Dependent Ocean Function iterations
+  INTEGER             :: SELEN_n_recursion_iterations_config          = 1                               ! Number of recursion iterations
+  LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                         ! If TRUE, rotational feedback is included
+  INTEGER             :: SELEN_n_harmonics_config                     = 128                             ! Maximum number of harmonic degrees
+  LOGICAL             :: SELEN_display_progress_config                = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
   
-  CHARACTER(LEN=256)  :: SELEN_dir_config                         = 'SELEN_files'                   ! Directory where SELEN initial files and spherical harmonics are stored
-  CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config        = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
-  CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config         = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
-  CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config         = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
+  CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'SELEN_files'                   ! Directory where SELEN initial files and spherical harmonics are stored
+  CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
+  CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
+  CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
   
-  INTEGER                  :: SELEN_irreg_time_n_config           = 15                              ! Number of entries in the irregular moving time window
-  REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config      = &                               ! Values of entries in the irregular moving time window
+  INTEGER                  :: SELEN_irreg_time_n_config               = 15                              ! Number of entries in the irregular moving time window
+  REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                               ! Values of entries in the irregular moving time window
    (/20._dp, 20._dp, 20._dp, 5._dp, 5._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp  /)
       
-  REAL(dp)            :: SELEN_lith_thickness_config              = 100._dp                         ! Thickness of the elastic lithosphere [km]
-  INTEGER             :: SELEN_visc_n_config                      = 3                               ! Number      of viscous asthenosphere layers
-  REAL(dp), DIMENSION(3) :: SELEN_visc_prof_config                = (/ 3._dp, 0.6_dp, 0.3_dp /)     ! Viscosities of viscous asthenosphere layers [?]
+  REAL(dp)            :: SELEN_lith_thickness_config                  = 100._dp                         ! Thickness of the elastic lithosphere [km]
+  INTEGER             :: SELEN_visc_n_config                          = 3                               ! Number      of viscous asthenosphere layers
+  REAL(dp), DIMENSION(3) :: SELEN_visc_prof_config                    = (/ 3._dp, 0.6_dp, 0.3_dp /)     ! Viscosities of viscous asthenosphere layers [?]
     
   ! Settings for the TABOO Earth deformation model
-  INTEGER             :: SELEN_TABOO_CDE_config                   = 0                               ! code of the model (see taboo for explanation)
-  INTEGER             :: SELEN_TABOO_TLOVE_config                 = 1                               ! Tidal love numbers yes/no
-  INTEGER             :: SELEN_TABOO_DEG1_config                  = 1                               ! Tidal love numbers degree
-  REAL(dp)            :: SELEN_TABOO_RCMB_config                  = 3480._dp                        ! Radius of CMB (km)
+  INTEGER             :: SELEN_TABOO_CDE_config                       = 0                               ! code of the model (see taboo for explanation)
+  INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               ! Tidal love numbers yes/no
+  INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               ! Tidal love numbers degree
+  REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! Radius of CMB (km)
   
   ! Which data fields will be written to the help_fields output file
   ! ================================================================
   
-  CHARACTER(LEN=256)  :: help_field_01_config                     = 'lat'
-  CHARACTER(LEN=256)  :: help_field_02_config                     = 'lon'
-  CHARACTER(LEN=256)  :: help_field_03_config                     = 'Hi'
-  CHARACTER(LEN=256)  :: help_field_04_config                     = 'Hb'
-  CHARACTER(LEN=256)  :: help_field_05_config                     = 'Hs'
-  CHARACTER(LEN=256)  :: help_field_06_config                     = 'dHs_dx'
-  CHARACTER(LEN=256)  :: help_field_07_config                     = 'dHs_dy'
-  CHARACTER(LEN=256)  :: help_field_08_config                     = 'mask'
-  CHARACTER(LEN=256)  :: help_field_09_config                     = 'uabs_surf'
-  CHARACTER(LEN=256)  :: help_field_10_config                     = 'uabs_base'
-  CHARACTER(LEN=256)  :: help_field_11_config                     = 'uabs_vav'
-  CHARACTER(LEN=256)  :: help_field_12_config                     = 'u_3D'
-  CHARACTER(LEN=256)  :: help_field_13_config                     = 'v_3D'
-  CHARACTER(LEN=256)  :: help_field_14_config                     = 'w_3D'
-  CHARACTER(LEN=256)  :: help_field_15_config                     = 'T2m_year'
-  CHARACTER(LEN=256)  :: help_field_16_config                     = 'Precip_year'
-  CHARACTER(LEN=256)  :: help_field_17_config                     = 'Albedo_year'
-  CHARACTER(LEN=256)  :: help_field_18_config                     = 'SMB_year'
-  CHARACTER(LEN=256)  :: help_field_19_config                     = 'BMB'
-  CHARACTER(LEN=256)  :: help_field_20_config                     = 'T2m'
-  CHARACTER(LEN=256)  :: help_field_21_config                     = 'Precip'
-  CHARACTER(LEN=256)  :: help_field_22_config                     = 'Albedo'
-  CHARACTER(LEN=256)  :: help_field_23_config                     = 'SMB'
-  CHARACTER(LEN=256)  :: help_field_24_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_25_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_26_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_27_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_28_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_29_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_30_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_31_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_32_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_33_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_34_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_35_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_36_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_37_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_38_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_39_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_40_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_41_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_42_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_43_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_44_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_45_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_46_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_47_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_48_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_49_config                     = 'none'
-  CHARACTER(LEN=256)  :: help_field_50_config                     = 'none'
+  CHARACTER(LEN=256)  :: help_field_01_config                         = 'lat'
+  CHARACTER(LEN=256)  :: help_field_02_config                         = 'lon'
+  CHARACTER(LEN=256)  :: help_field_03_config                         = 'Hi'
+  CHARACTER(LEN=256)  :: help_field_04_config                         = 'Hb'
+  CHARACTER(LEN=256)  :: help_field_05_config                         = 'Hs'
+  CHARACTER(LEN=256)  :: help_field_06_config                         = 'dHs_dx'
+  CHARACTER(LEN=256)  :: help_field_07_config                         = 'dHs_dy'
+  CHARACTER(LEN=256)  :: help_field_08_config                         = 'mask'
+  CHARACTER(LEN=256)  :: help_field_09_config                         = 'uabs_surf'
+  CHARACTER(LEN=256)  :: help_field_10_config                         = 'uabs_base'
+  CHARACTER(LEN=256)  :: help_field_11_config                         = 'uabs_vav'
+  CHARACTER(LEN=256)  :: help_field_12_config                         = 'u_3D'
+  CHARACTER(LEN=256)  :: help_field_13_config                         = 'v_3D'
+  CHARACTER(LEN=256)  :: help_field_14_config                         = 'w_3D'
+  CHARACTER(LEN=256)  :: help_field_15_config                         = 'T2m_year'
+  CHARACTER(LEN=256)  :: help_field_16_config                         = 'Precip_year'
+  CHARACTER(LEN=256)  :: help_field_17_config                         = 'Albedo_year'
+  CHARACTER(LEN=256)  :: help_field_18_config                         = 'SMB_year'
+  CHARACTER(LEN=256)  :: help_field_19_config                         = 'BMB'
+  CHARACTER(LEN=256)  :: help_field_20_config                         = 'T2m'
+  CHARACTER(LEN=256)  :: help_field_21_config                         = 'Precip'
+  CHARACTER(LEN=256)  :: help_field_22_config                         = 'Albedo'
+  CHARACTER(LEN=256)  :: help_field_23_config                         = 'SMB'
+  CHARACTER(LEN=256)  :: help_field_24_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_25_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_26_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_27_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_28_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_29_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_30_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_31_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_32_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_33_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_34_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_35_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_36_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_37_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_38_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_39_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_40_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_41_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_42_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_43_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_44_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_45_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_46_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_47_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_48_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_49_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_50_config                         = 'none'
 
 
   ! ==========================================================================
@@ -607,18 +666,31 @@ MODULE configuration_module
     LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
   
-    ! Whether or not the simulation is a restart of a previous simulation
-    ! ===================================================================
-   
-    LOGICAL                             :: is_restart
-    REAL(dp)                            :: time_to_restart_from
-  
     ! Horizontal grid spacing and size for the four regions
     ! =====================================================
     
+    REAL(dp)                            :: xmin_NAM
+    REAL(dp)                            :: xmax_NAM
+    REAL(dp)                            :: ymin_NAM
+    REAL(dp)                            :: ymax_NAM
     REAL(dp)                            :: dx_NAM
+    
+    REAL(dp)                            :: xmin_EAS
+    REAL(dp)                            :: xmax_EAS
+    REAL(dp)                            :: ymin_EAS
+    REAL(dp)                            :: ymax_EAS
     REAL(dp)                            :: dx_EAS
+    
+    REAL(dp)                            :: xmin_GRL
+    REAL(dp)                            :: xmax_GRL
+    REAL(dp)                            :: ymin_GRL
+    REAL(dp)                            :: ymax_GRL
     REAL(dp)                            :: dx_GRL
+    
+    REAL(dp)                            :: xmin_ANT
+    REAL(dp)                            :: xmax_ANT
+    REAL(dp)                            :: ymin_ANT
+    REAL(dp)                            :: ymax_ANT
     REAL(dp)                            :: dx_ANT
 
     ! Scaled vertical coordinate zeta  
@@ -627,35 +699,83 @@ MODULE configuration_module
     INTEGER                             :: nz
     REAL(dp), DIMENSION(:), ALLOCATABLE :: zeta
 
-    ! Input data file paths
-    ! =====================
-                            
-    CHARACTER(LEN=256)                  :: filename_init_NAM
-    CHARACTER(LEN=256)                  :: filename_init_EAS
-    CHARACTER(LEN=256)                  :: filename_init_GRL
-    CHARACTER(LEN=256)                  :: filename_init_ANT
+    ! Reference geometries (initial, present-day, and GIA equilibrium)
+    ! ================================================================
     
-    CHARACTER(LEN=256)                  :: filename_PD_NAM
-    CHARACTER(LEN=256)                  :: filename_PD_EAS
-    CHARACTER(LEN=256)                  :: filename_PD_GRL
-    CHARACTER(LEN=256)                  :: filename_PD_ANT
-
-    LOGICAL                             :: switch_remove_Lake_Vostok
-    LOGICAL                             :: switch_paleotopography
-    CHARACTER(LEN=256)                  :: filename_topo_NAM
-    CHARACTER(LEN=256)                  :: filename_topo_EAS
-    CHARACTER(LEN=256)                  :: filename_topo_GRL
-    CHARACTER(LEN=256)                  :: filename_topo_ANT
+    ! Initial geometry
+    CHARACTER(LEN=256)                  :: choice_refgeo_init_NAM
+    CHARACTER(LEN=256)                  :: choice_refgeo_init_EAS
+    CHARACTER(LEN=256)                  :: choice_refgeo_init_GRL
+    CHARACTER(LEN=256)                  :: choice_refgeo_init_ANT
+    REAL(dp)                            :: time_to_restart_from_NAM
+    REAL(dp)                            :: time_to_restart_from_EAS
+    REAL(dp)                            :: time_to_restart_from_GRL
+    REAL(dp)                            :: time_to_restart_from_ANT
+    CHARACTER(LEN=256)                  :: choice_refgeo_init_idealised
+    CHARACTER(LEN=256)                  :: filename_refgeo_init_NAM
+    CHARACTER(LEN=256)                  :: filename_refgeo_init_EAS
+    CHARACTER(LEN=256)                  :: filename_refgeo_init_GRL
+    CHARACTER(LEN=256)                  :: filename_refgeo_init_ANT
     
+    ! Present-day geometry
+    CHARACTER(LEN=256)                  :: choice_refgeo_PD_NAM
+    CHARACTER(LEN=256)                  :: choice_refgeo_PD_EAS
+    CHARACTER(LEN=256)                  :: choice_refgeo_PD_GRL
+    CHARACTER(LEN=256)                  :: choice_refgeo_PD_ANT
+    CHARACTER(LEN=256)                  :: choice_refgeo_PD_idealised
+    CHARACTER(LEN=256)                  :: filename_refgeo_PD_NAM
+    CHARACTER(LEN=256)                  :: filename_refgeo_PD_EAS
+    CHARACTER(LEN=256)                  :: filename_refgeo_PD_GRL
+    CHARACTER(LEN=256)                  :: filename_refgeo_PD_ANT
+    
+    ! GIA equilibrium geometry
+    CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_NAM
+    CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_EAS
+    CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_GRL
+    CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_ANT
+    CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_idealised
+    CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_NAM
+    CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_EAS
+    CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_GRL
+    CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_ANT
+  
+    LOGICAL                             :: remove_Lake_Vostok
+  
+    ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
+    ! ============================================================
+    
+    CHARACTER(LEN=256)                  :: choice_forcing_method
+     
+    ! Insolation forcing (NetCDF)
+    CHARACTER(LEN=256)                  :: choice_insolation_forcing
+    REAL(dp)                            :: static_insolation_time
     CHARACTER(LEN=256)                  :: filename_insolation
     
+    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)                  :: filename_CO2_record
     INTEGER                             :: CO2_record_length
+    
+    ! d18O record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)                  :: filename_d18O_record
     INTEGER                             :: d18O_record_length
+    
+    ! Geothermal heat flux
+    CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
+    REAL(dp)                            :: constant_geothermal_heat_flux
+    CHARACTER(LEN=256)                  :: filename_geothermal_heat_flux
   
-    CHARACTER(LEN=256)                  :: filename_ICE5G_PD
-    CHARACTER(LEN=256)                  :: filename_ICE5G_LGM
+    ! Parameters for calculating modelled benthic d18O
+    LOGICAL                             :: do_calculate_benthic_d18O
+    REAL(dp)                            :: dT_deepwater_averaging_window
+    REAL(dp)                            :: dT_deepwater_dT_surf_ratio
+    REAL(dp)                            :: d18O_dT_deepwater_ratio
+    
+    ! Parameters for the inverse routine
+    REAL(dp)                            :: dT_glob_inverse_averaging_window
+    REAL(dp)                            :: inverse_d18O_to_dT_glob_scaling
+    REAL(dp)                            :: CO2_inverse_averaging_window
+    REAL(dp)                            :: inverse_d18O_to_CO2_scaling
+    REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
 
     ! Ice dynamics - velocity
     ! =======================
@@ -737,64 +857,78 @@ MODULE configuration_module
     REAL(dp)                            :: calving_threshold_thickness
     LOGICAL                             :: do_remove_shelves
     LOGICAL                             :: remove_shelves_larger_than_PD
+
+    ! Thermodynamics and rheology
+    ! ===========================
+    
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature
+    REAL(dp)                            :: uniform_ice_temperature
+    CHARACTER(LEN=256)                  :: choice_thermo_model
+    CHARACTER(LEN=256)                  :: choice_ice_rheology
+    REAL(dp)                            :: uniform_flow_factor
+    CHARACTER(LEN=256)                  :: choice_ice_heat_capacity
+    REAL(dp)                            :: uniform_ice_heat_capacity
+    CHARACTER(LEN=256)                  :: choice_ice_thermal_conductivity
+    REAL(dp)                            :: uniform_ice_thermal_conductivity
   
-    ! Thermodynamics
-    ! ==============
+    ! Climate
+    ! =======
     
-    CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
-    REAL(dp)                            :: constant_geothermal_heat_flux
-    CHARACTER(LEN=256)                  :: filename_geothermal_heat_flux
-    
-    ! Climate matrix
-    ! ==============
-    
+    CHARACTER(LEN=256)                  :: choice_climate_model
+    CHARACTER(LEN=256)                  :: choice_idealised_climate
+    CHARACTER(LEN=256)                  :: filename_direct_global_climate
+    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_NAM
+    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_EAS
+    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_GRL
+    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_ANT
+    CHARACTER(LEN=256)                  :: filename_direct_global_SMB
+    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_NAM
+    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_EAS
+    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_GRL
+    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_ANT
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
     CHARACTER(LEN=256)                  :: name_ocean_temperature
     CHARACTER(LEN=256)                  :: name_ocean_salinity
-    CHARACTER(LEN=256)                  :: choice_climate_matrix
-    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_PI
-    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_warm
-    CHARACTER(LEN=256)                  :: filename_GCM_snapshot_cold
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
-    CHARACTER(LEN=256)                  :: filename_GCM_climate
-    
-    CHARACTER(LEN=256)                  :: choice_ocean_temperature_model
-    CHARACTER(LEN=256)                  :: choice_schematic_ocean
-    REAL(dp)                            :: ocean_temperature_PD
-    REAL(dp)                            :: ocean_temperature_cold
-    REAL(dp)                            :: ocean_temperature_warm
+    CHARACTER(LEN=256)                  :: filename_climate_snapshot_PI
+    CHARACTER(LEN=256)                  :: filename_climate_snapshot_warm
+    CHARACTER(LEN=256)                  :: filename_climate_snapshot_cold
     
     REAL(dp)                            :: constant_lapserate
-
+    
     REAL(dp)                            :: climate_matrix_CO2vsice_NAM
     REAL(dp)                            :: climate_matrix_CO2vsice_EAS
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
-
-    REAL(dp)                            :: ocean_matrix_CO2vsice_NAM
-    REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
-    REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
-    REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
-
+    
     REAL(dp)                            :: matrix_high_CO2_level
     REAL(dp)                            :: matrix_low_CO2_level
+    
     REAL(dp)                            :: matrix_warm_orbit_time
     REAL(dp)                            :: matrix_cold_orbit_time
     
     LOGICAL                             :: climate_matrix_biascorrect_warm
     LOGICAL                             :: climate_matrix_biascorrect_cold
-
-    LOGICAL                             :: switch_glacial_index_precip
-  
-    ! Ocean matrix
-    ! ============
     
+    LOGICAL                             :: switch_glacial_index_precip
+    
+    ! Ocean
+    ! =====
+    
+    CHARACTER(LEN=256)                  :: choice_ocean_model
+    CHARACTER(LEN=256)                  :: choice_idealised_ocean
+    
+    ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
+    REAL(dp)                            :: ocean_temperature_PD
+    REAL(dp)                            :: ocean_temperature_cold
+    REAL(dp)                            :: ocean_temperature_warm
+    
+    ! Parameters used when choice_ocean_model = "matrix_warm_cold"
     CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
     REAL(dp)                            :: ocean_vertical_grid_max_depth
     REAL(dp)                            :: ocean_regular_grid_dz
+    INTEGER                             :: nz_ocean
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: z_ocean
     CHARACTER(LEN=256)                  :: ocean_extrap_dir
     REAL(dp)                            :: ocean_extrap_res
     REAL(dp)                            :: ocean_extrap_Gauss_sigma
@@ -802,28 +936,22 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_EAS
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_GRL
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
-    REAL(dp)                            :: w_tot_hist_averaging_window
+    REAL(dp)                            :: ocean_w_tot_hist_averaging_window
     
-    ! Forcing
-    ! =======
+    REAL(dp)                            :: ocean_matrix_CO2vsice_NAM
+    REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
+    REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
+    REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
     
-    CHARACTER(LEN=256)                  :: choice_forcing_method
-    CHARACTER(LEN=256)                  :: domain_climate_forcing
-    
-    REAL(dp)                            :: dT_deepwater_averaging_window
-    REAL(dp)                            :: dT_deepwater_dT_surf_ratio
-    REAL(dp)                            :: d18O_dT_deepwater_ratio
-    
-    REAL(dp)                            :: dT_glob_inverse_averaging_window
-    REAL(dp)                            :: inverse_d18O_to_dT_glob_scaling
-    REAL(dp)                            :: CO2_inverse_averaging_window
-    REAL(dp)                            :: inverse_d18O_to_CO2_scaling
-    REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
     
     ! Surface mass balance
     ! ====================
     
     CHARACTER(LEN=256)                  :: choice_SMB_model
+    CHARACTER(LEN=256)                  :: choice_idealised_SMB
     REAL(dp)                            :: SMB_uniform
     REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_NAM
     REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_EAS
@@ -926,6 +1054,12 @@ MODULE configuration_module
     REAL(dp)                            :: deep_ocean_threshold_depth_GRL
     REAL(dp)                            :: deep_ocean_threshold_depth_ANT
   
+    ! Englacial isotope tracing
+    ! ========================
+    
+    CHARACTER(LEN=256)                  :: choice_ice_isotopes_model
+    REAL(dp)                            :: uniform_ice_d18O
+  
     ! Sea level and GIA
     ! =================
     
@@ -974,7 +1108,7 @@ MODULE configuration_module
     REAL(dp)                            :: SELEN_alfa
     INTEGER                             :: SELEN_jmax
     INTEGER                             :: SELEN_reg_time_n
-  
+    
     ! Which data fields will be written to the help_fields output file
     ! ================================================================
     
@@ -1277,348 +1411,402 @@ CONTAINS
     INTEGER            :: ios
     
     ! The NAMELIST that's used to read the external config file.
-    NAMELIST /CONFIG/start_time_of_run_config,                   &                
-                     end_time_of_run_config,                     &
-                     dt_coupling_config,                         &
-                     dt_max_config,                              &
-                     dt_thermo_config,                           &
-                     dt_climate_config,                          &
-                     dt_ocean_config,                            &
-                     dt_SMB_config,                              &
-                     dt_BMB_config,                              &
-                     dt_bedrock_ELRA_config,                     &
-                     dt_SELEN_config,                            &
-                     dt_output_config,                           &
-                     do_NAM_config,                              &
-                     do_EAS_config,                              &
-                     do_GRL_config,                              &
-                     do_ANT_config,                              &
-                     do_benchmark_experiment_config,             &
-                     choice_benchmark_experiment_config,         &
-                     SSA_icestream_m_config,                     &
-                     ISMIP_HOM_L_config,                         &
-                     ISMIP_HOM_E_Arolla_filename_config,         &
-                     MISMIPplus_sliding_law_config,              &
-                     MISMIPplus_do_tune_A_for_GL_config,         &
-                     MISMIPplus_xGL_target_config,               &
-                     MISMIPplus_A_flow_initial_config,           &
-                     MISMIPplus_scenario_config,                 &
-                     MISOMIP1_scenario_config,                   &
-                     create_procedural_output_dir_config,        &
-                     fixed_output_dir_config,                    &
-                     fixed_output_dir_suffix_config,             &
-                     do_write_debug_data_config,                 &
-                     do_check_for_NaN_config,                    &
-                     is_restart_config,                          &
-                     time_to_restart_from_config,                &
-                     dx_NAM_config,                              &
-                     dx_EAS_config,                              &
-                     dx_GRL_config,                              &
-                     dx_ANT_config,                              &
-                     nz_config,                                  &
-                     zeta_config,                                &
-                     filename_init_NAM_config,                   &
-                     filename_init_EAS_config,                   &
-                     filename_init_GRL_config,                   &
-                     filename_init_ANT_config,                   &
-                     filename_PD_NAM_config,                     &
-                     filename_PD_EAS_config,                     &
-                     filename_PD_GRL_config,                     &
-                     filename_PD_ANT_config,                     &
-                     switch_remove_Lake_Vostok_config,           &
-                     switch_paleotopography_config,              &
-                     filename_topo_NAM_config,                   &
-                     filename_topo_EAS_config,                   &
-                     filename_topo_GRL_config,                   &
-                     filename_topo_ANT_config,                   &
-                     filename_insolation_config,                 &
-                     filename_CO2_record_config,                 &
-                     CO2_record_length_config,                   &
-                     filename_d18O_record_config,                &
-                     d18O_record_length_config,                  &
-                     filename_ICE5G_PD_config,                   &
-                     filename_ICE5G_LGM_config,                  &
-                     choice_ice_dynamics_config,                 &
-                     n_flow_config,                              &
-                     m_enh_sheet_config,                         &
-                     m_enh_shelf_config,                         &
-                     choice_ice_margin_config,                   &
-                     include_SSADIVA_crossterms_config,          &
-                     do_GL_subgrid_friction_config,              &
-                     do_smooth_geometry_config,                  &
-                     r_smooth_geometry_config,                   &
-                     DIVA_visc_it_norm_dUV_tol_config,           &
-                     DIVA_visc_it_nit_config,                    &
-                     DIVA_visc_it_relax_config,                  &
-                     DIVA_beta_max_config,                       &
-                     DIVA_err_lim_config,                        &
-                     DIVA_vel_max_config,                        &
-                     DIVA_vel_min_config,                        &
-                     DIVA_boundary_BC_u_west_config,             &
-                     DIVA_boundary_BC_u_east_config,             &
-                     DIVA_boundary_BC_u_south_config,            &
-                     DIVA_boundary_BC_u_north_config,            &
-                     DIVA_boundary_BC_v_west_config,             &
-                     DIVA_boundary_BC_v_east_config,             &
-                     DIVA_boundary_BC_v_south_config,            &
-                     DIVA_boundary_BC_v_north_config,            &
-                     DIVA_choice_matrix_solver_config,           &
-                     DIVA_SOR_nit_config,                        &
-                     DIVA_SOR_tol_config,                        &
-                     DIVA_SOR_omega_config,                      &
-                     DIVA_PETSc_rtol_config,                     &
-                     DIVA_PETSc_abstol_config,                   &
-                     choice_timestepping_config,                 &
-                     choice_ice_integration_method_config,       &
-                     dHi_choice_matrix_solver_config,            &
-                     dHi_SOR_nit_config,                         &
-                     dHi_SOR_tol_config,                         &
-                     dHi_SOR_omega_config,                       &
-                     dHi_PETSc_rtol_config,                      &
-                     dHi_PETSc_abstol_config,                    &
-                     pc_epsilon_config,                          &
-                     pc_k_I_config,                              &
-                     pc_k_p_config,                              &
-                     pc_eta_min_config,                          &
-                     pc_max_timestep_iterations_config,          &
-                     pc_redo_tol_config,                         &
-                     dt_min_config,                              &
-                     no_sliding_config,                          &
-                     choice_sliding_law_config,                  &
-                     slid_Weertman_m_config,                     &
-                     slid_Coulomb_delta_v_config,                &
-                     slid_Coulomb_reg_q_plastic_config,          &
-                     slid_Coulomb_reg_u_threshold_config,        &
-                     Martin2011till_pwp_Hb_min_config,           &
-                     Martin2011till_pwp_Hb_max_config,           &
-                     Martin2011till_phi_Hb_min_config,           &
-                     Martin2011till_phi_Hb_max_config,           &
-                     Martin2011till_phi_min_config,              &
-                     Martin2011till_phi_max_config,              &
-                     choice_calving_law_config,                  &
-                     calving_threshold_thickness_config,         &
-                     do_remove_shelves_config,                   &
-                     remove_shelves_larger_than_PD_config,       &
-                     choice_geothermal_heat_flux_config,         &
-                     constant_geothermal_heat_flux_config,       &
-                     filename_geothermal_heat_flux_config,       &
-                     filename_PD_obs_climate_config,             &
-                     filename_PD_obs_ocean_config,               &
-                     name_ocean_temperature_config,              &
-                     name_ocean_salinity_config,                 &
-                     choice_climate_matrix_config,               &
-                     filename_GCM_snapshot_PI_config,            &
-                     filename_GCM_snapshot_warm_config,          &
-                     filename_GCM_snapshot_cold_config,          &
-                     filename_GCM_ocean_snapshot_PI_config,      &
-                     filename_GCM_ocean_snapshot_warm_config,    &
-                     filename_GCM_ocean_snapshot_cold_config,    &
-                     filename_GCM_climate_config,                &
-                     choice_ocean_temperature_model_config,      &
-                     choice_schematic_ocean_config,              &
-                     ocean_temperature_PD_config,                &
-                     ocean_temperature_cold_config,              &
-                     ocean_temperature_warm_config,              &
-                     constant_lapserate_config,                  &
-                     climate_matrix_CO2vsice_NAM_config,         &
-                     climate_matrix_CO2vsice_EAS_config,         &
-                     climate_matrix_CO2vsice_GRL_config,         &
-                     climate_matrix_CO2vsice_ANT_config,         &
-                     ocean_matrix_CO2vsice_NAM_config,           &
-                     ocean_matrix_CO2vsice_EAS_config,           &
-                     ocean_matrix_CO2vsice_GRL_config,           &
-                     ocean_matrix_CO2vsice_ANT_config,           &
-                     matrix_high_CO2_level_config,               &
-                     matrix_low_CO2_level_config,                &
-                     matrix_warm_orbit_time_config,              &
-                     matrix_cold_orbit_time_config,              &
-                     climate_matrix_biascorrect_warm_config,     &
-                     climate_matrix_biascorrect_cold_config,     &
-                     switch_glacial_index_precip_config,         &
-                     choice_ocean_vertical_grid_config,          &
-                     ocean_vertical_grid_max_depth_config,       &
-                     ocean_regular_grid_dz_config,               &
-                     ocean_extrap_dir_config,                    &
-                     ocean_extrap_res_config,                    &
-                     ocean_extrap_Gauss_sigma_config,            &
-                     ocean_extrap_hires_geo_filename_NAM_config, &
-                     ocean_extrap_hires_geo_filename_EAS_config, &
-                     ocean_extrap_hires_geo_filename_GRL_config, &
-                     ocean_extrap_hires_geo_filename_ANT_config, &
-                     w_tot_hist_averaging_window_config,         &
-                     choice_forcing_method_config,               &
-                     domain_climate_forcing_config,              &                  
-                     dT_deepwater_averaging_window_config,       &
-                     dT_deepwater_dT_surf_ratio_config,          &
-                     d18O_dT_deepwater_ratio_config,             &
-                     dT_glob_inverse_averaging_window_config,    &
-                     inverse_d18O_to_dT_glob_scaling_config,     &
-                     CO2_inverse_averaging_window_config,        &
-                     inverse_d18O_to_CO2_scaling_config,         &
-                     inverse_d18O_to_CO2_initial_CO2_config,     &
-                     choice_SMB_model_config,                    &
-                     SMB_uniform_config,                         &
-                     SMB_IMAUITM_C_abl_constant_NAM_config,      &
-                     SMB_IMAUITM_C_abl_constant_EAS_config,      &
-                     SMB_IMAUITM_C_abl_constant_GRL_config,      &
-                     SMB_IMAUITM_C_abl_constant_ANT_config,      &
-                     SMB_IMAUITM_C_abl_Ts_NAM_config,            &
-                     SMB_IMAUITM_C_abl_Ts_EAS_config,            &
-                     SMB_IMAUITM_C_abl_Ts_GRL_config,            &
-                     SMB_IMAUITM_C_abl_Ts_ANT_config,            &
-                     SMB_IMAUITM_C_abl_Q_NAM_config,             &
-                     SMB_IMAUITM_C_abl_Q_EAS_config,             &
-                     SMB_IMAUITM_C_abl_Q_GRL_config,             &
-                     SMB_IMAUITM_C_abl_Q_ANT_config,             &
-                     SMB_IMAUITM_C_refr_NAM_config,              &
-                     SMB_IMAUITM_C_refr_EAS_config,              &
-                     SMB_IMAUITM_C_refr_GRL_config,              &
-                     SMB_IMAUITM_C_refr_ANT_config,              &
-                     choice_BMB_shelf_model_config,              &
-                     choice_BMB_sheet_model_config,              &
-                     BMB_shelf_uniform_config,                   &
-                     BMB_sheet_uniform_config,                   &
-                     choice_BMB_subgrid_config,                  &
-                     do_asynchronous_BMB_config,                 &
-                     choice_basin_scheme_NAM_config,             &
-                     choice_basin_scheme_EAS_config,             &
-                     choice_basin_scheme_GRL_config,             &
-                     choice_basin_scheme_ANT_config,             &
-                     filename_basins_NAM_config,                 &
-                     filename_basins_EAS_config,                 &
-                     filename_basins_GRL_config,                 &
-                     filename_basins_ANT_config,                 &
-                     do_merge_basins_ANT_config,                 &
-                     do_merge_basins_GRL_config,                 &
-                     BMB_Favier2019_lin_GammaT_config,           &
-                     BMB_Favier2019_quad_GammaT_config,          &
-                     BMB_Favier2019_Mplus_GammaT_config,         &
-                     BMB_Lazeroms2018_GammaT_config,             &
-                     BMB_Lazeroms2018_find_GL_scheme_config,     &
-                     BMB_PICO_nboxes_config,                     &
-                     BMB_PICO_GammaTstar_config,                 &
-                     T_ocean_mean_PD_NAM_config,                 &
-                     T_ocean_mean_PD_EAS_config,                 &
-                     T_ocean_mean_PD_GRL_config,                 &
-                     T_ocean_mean_PD_ANT_config,                 &
-                     T_ocean_mean_cold_NAM_config,               &
-                     T_ocean_mean_cold_EAS_config,               &
-                     T_ocean_mean_cold_GRL_config,               &
-                     T_ocean_mean_cold_ANT_config,               &
-                     T_ocean_mean_warm_NAM_config,               &
-                     T_ocean_mean_warm_EAS_config,               &
-                     T_ocean_mean_warm_GRL_config,               &
-                     T_ocean_mean_warm_ANT_config,               &
-                     BMB_deepocean_PD_NAM_config,                &
-                     BMB_deepocean_PD_EAS_config,                &
-                     BMB_deepocean_PD_GRL_config,                &
-                     BMB_deepocean_PD_ANT_config,                &
-                     BMB_deepocean_cold_NAM_config,              &
-                     BMB_deepocean_cold_EAS_config,              &
-                     BMB_deepocean_cold_GRL_config,              &
-                     BMB_deepocean_cold_ANT_config,              &
-                     BMB_deepocean_warm_NAM_config,              &
-                     BMB_deepocean_warm_EAS_config,              &
-                     BMB_deepocean_warm_GRL_config,              &
-                     BMB_deepocean_warm_ANT_config,              &
-                     BMB_shelf_exposed_PD_NAM_config,            &
-                     BMB_shelf_exposed_PD_EAS_config,            &
-                     BMB_shelf_exposed_PD_GRL_config,            &
-                     BMB_shelf_exposed_PD_ANT_config,            &
-                     BMB_shelf_exposed_cold_NAM_config,          &
-                     BMB_shelf_exposed_cold_EAS_config,          &
-                     BMB_shelf_exposed_cold_GRL_config,          &
-                     BMB_shelf_exposed_cold_ANT_config,          &
-                     BMB_shelf_exposed_warm_NAM_config,          &
-                     BMB_shelf_exposed_warm_EAS_config,          &
-                     BMB_shelf_exposed_warm_GRL_config,          &
-                     BMB_shelf_exposed_warm_ANT_config,          &
-                     subshelf_melt_factor_NAM_config,            &
-                     subshelf_melt_factor_EAS_config,            &
-                     subshelf_melt_factor_GRL_config,            &
-                     subshelf_melt_factor_ANT_config,            &
-                     deep_ocean_threshold_depth_NAM_config,      &
-                     deep_ocean_threshold_depth_EAS_config,      &
-                     deep_ocean_threshold_depth_GRL_config,      &
-                     deep_ocean_threshold_depth_ANT_config,      &
-                     do_ocean_floodfill_config,                  &
-                     choice_sealevel_model_config,               &
-                     fixed_sealevel_config,                      &
-                     filename_sealevel_record_config,            &
-                     sealevel_record_length_config,              &
-                     choice_GIA_model_config,                    &
-                     dx_GIA_config,                              &
-                     ELRA_lithosphere_flex_rigidity_config,      &
-                     ELRA_bedrock_relaxation_time_config,        &
-                     ELRA_mantle_density_config,                 &
-                     SELEN_run_at_t_start_config,                &
-                     SELEN_n_TDOF_iterations_config,             &
-                     SELEN_n_recursion_iterations_config,        &
-                     SELEN_use_rotational_feedback_config,       &
-                     SELEN_n_harmonics_config,                   &
-                     SELEN_display_progress_config,              &
-                     SELEN_dir_config,                           &
-                     SELEN_global_topo_filename_config,          &
-                     SELEN_TABOO_init_filename_config,           &
-                     SELEN_LMJ_VALUES_filename_config,           &
-                     SELEN_irreg_time_n_config,                  &
-                     SELEN_irreg_time_window_config,             &
-                     SELEN_lith_thickness_config,                &
-                     SELEN_visc_n_config,                        &
-                     SELEN_visc_prof_config,                     &
-                     SELEN_TABOO_CDE_config,                     & 
-                     SELEN_TABOO_TLOVE_config,                   & 
-                     SELEN_TABOO_DEG1_config,                    & 
-                     SELEN_TABOO_RCMB_config,                    &
-                     help_field_01_config,                       &
-                     help_field_02_config,                       &
-                     help_field_03_config,                       &
-                     help_field_04_config,                       &
-                     help_field_05_config,                       &
-                     help_field_06_config,                       &
-                     help_field_07_config,                       &
-                     help_field_08_config,                       &
-                     help_field_09_config,                       &
-                     help_field_10_config,                       &
-                     help_field_11_config,                       &
-                     help_field_12_config,                       &
-                     help_field_13_config,                       &
-                     help_field_14_config,                       &
-                     help_field_15_config,                       &
-                     help_field_16_config,                       &
-                     help_field_17_config,                       &
-                     help_field_18_config,                       &
-                     help_field_19_config,                       &
-                     help_field_20_config,                       &
-                     help_field_21_config,                       &
-                     help_field_22_config,                       &
-                     help_field_23_config,                       &
-                     help_field_24_config,                       &
-                     help_field_25_config,                       &
-                     help_field_26_config,                       &
-                     help_field_27_config,                       &
-                     help_field_28_config,                       &
-                     help_field_29_config,                       &
-                     help_field_30_config,                       &
-                     help_field_31_config,                       &
-                     help_field_32_config,                       &
-                     help_field_33_config,                       &
-                     help_field_34_config,                       &
-                     help_field_35_config,                       &
-                     help_field_36_config,                       &
-                     help_field_37_config,                       &
-                     help_field_38_config,                       &
-                     help_field_39_config,                       &
-                     help_field_40_config,                       &
-                     help_field_41_config,                       &
-                     help_field_42_config,                       &
-                     help_field_43_config,                       &
-                     help_field_44_config,                       &
-                     help_field_45_config,                       &
-                     help_field_46_config,                       &
-                     help_field_47_config,                       &
-                     help_field_48_config,                       &
-                     help_field_49_config,                       &
+    NAMELIST /CONFIG/start_time_of_run_config,                        &                
+                     end_time_of_run_config,                          &
+                     dt_coupling_config,                              &
+                     dt_max_config,                                   &
+                     dt_thermo_config,                                &
+                     dt_climate_config,                               &
+                     dt_ocean_config,                                 &
+                     dt_SMB_config,                                   &
+                     dt_BMB_config,                                   &
+                     dt_bedrock_ELRA_config,                          &
+                     dt_SELEN_config,                                 &
+                     dt_output_config,                                &
+                     do_NAM_config,                                   &
+                     do_EAS_config,                                   &
+                     do_GRL_config,                                   &
+                     do_ANT_config,                                   &
+                     do_benchmark_experiment_config,                  &
+                     choice_benchmark_experiment_config,              &
+                     SSA_icestream_m_config,                          &
+                     ISMIP_HOM_L_config,                              &
+                     ISMIP_HOM_E_Arolla_filename_config,              &
+                     MISMIPplus_sliding_law_config,                   &
+                     MISMIPplus_do_tune_A_for_GL_config,              &
+                     MISMIPplus_xGL_target_config,                    &
+                     MISMIPplus_A_flow_initial_config,                &
+                     MISMIPplus_scenario_config,                      &
+                     MISOMIP1_scenario_config,                        &
+                     create_procedural_output_dir_config,             &
+                     fixed_output_dir_config,                         &
+                     fixed_output_dir_suffix_config,                  &
+                     do_write_debug_data_config,                      &
+                     do_check_for_NaN_config,                         &
+                     xmin_NAM_config,                                 &
+                     xmax_NAM_config,                                 &
+                     ymin_NAM_config,                                 &
+                     ymax_NAM_config,                                 &
+                     dx_NAM_config,                                   &
+                     xmin_EAS_config,                                 &
+                     xmax_EAS_config,                                 &
+                     ymin_EAS_config,                                 &
+                     ymax_EAS_config,                                 &
+                     dx_EAS_config,                                   &
+                     xmin_GRL_config,                                 &
+                     xmax_GRL_config,                                 &
+                     ymin_GRL_config,                                 &
+                     ymax_GRL_config,                                 &
+                     dx_GRL_config,                                   &
+                     xmin_ANT_config,                                 &
+                     xmax_ANT_config,                                 &
+                     ymin_ANT_config,                                 &
+                     ymax_ANT_config,                                 &
+                     dx_ANT_config,                                   &
+                     nz_config,                                       &
+                     zeta_config,                                     &
+                     choice_refgeo_init_NAM_config,                   &
+                     choice_refgeo_init_EAS_config,                   &
+                     choice_refgeo_init_GRL_config,                   &
+                     choice_refgeo_init_ANT_config,                   &
+                     time_to_restart_from_NAM_config,                 &
+                     time_to_restart_from_EAS_config,                 &
+                     time_to_restart_from_GRL_config,                 &
+                     time_to_restart_from_ANT_config,                 &
+                     choice_refgeo_init_idealised_config,             &
+                     filename_refgeo_init_NAM_config,                 &
+                     filename_refgeo_init_EAS_config,                 &
+                     filename_refgeo_init_GRL_config,                 &
+                     filename_refgeo_init_ANT_config,                 &
+                     choice_refgeo_PD_NAM_config,                     &
+                     choice_refgeo_PD_EAS_config,                     &
+                     choice_refgeo_PD_GRL_config,                     &
+                     choice_refgeo_PD_ANT_config,                     &
+                     choice_refgeo_PD_idealised_config,               &
+                     filename_refgeo_PD_NAM_config,                   &
+                     filename_refgeo_PD_EAS_config,                   &
+                     filename_refgeo_PD_GRL_config,                   &
+                     filename_refgeo_PD_ANT_config,                   &
+                     choice_refgeo_GIAeq_NAM_config,                  &
+                     choice_refgeo_GIAeq_EAS_config,                  &
+                     choice_refgeo_GIAeq_GRL_config,                  &
+                     choice_refgeo_GIAeq_ANT_config,                  &
+                     choice_refgeo_GIAeq_idealised_config,            &
+                     filename_refgeo_GIAeq_NAM_config,                &
+                     filename_refgeo_GIAeq_EAS_config,                &
+                     filename_refgeo_GIAeq_GRL_config,                &
+                     filename_refgeo_GIAeq_ANT_config,                &
+                     remove_Lake_Vostok_config,                       &
+                     choice_forcing_method_config,                    &
+                     choice_insolation_forcing_config,                &
+                     static_insolation_time_config,                   &
+                     filename_insolation_config,                      &
+                     filename_CO2_record_config,                      &
+                     CO2_record_length_config,                        &
+                     filename_d18O_record_config,                     &
+                     d18O_record_length_config,                       &
+                     choice_geothermal_heat_flux_config,              &
+                     constant_geothermal_heat_flux_config,            &
+                     filename_geothermal_heat_flux_config,            &
+                     do_calculate_benthic_d18O_config,                &
+                     dT_deepwater_averaging_window_config,            &
+                     dT_deepwater_dT_surf_ratio_config,               &
+                     d18O_dT_deepwater_ratio_config,                  &
+                     dT_glob_inverse_averaging_window_config,         &
+                     inverse_d18O_to_dT_glob_scaling_config,          &
+                     CO2_inverse_averaging_window_config,             &
+                     inverse_d18O_to_CO2_scaling_config,              &
+                     inverse_d18O_to_CO2_initial_CO2_config,          &
+                     choice_ice_dynamics_config,                      &
+                     n_flow_config,                                   &
+                     m_enh_sheet_config,                              &
+                     m_enh_shelf_config,                              &
+                     choice_ice_margin_config,                        &
+                     include_SSADIVA_crossterms_config,               &
+                     do_GL_subgrid_friction_config,                   &
+                     do_smooth_geometry_config,                       &
+                     r_smooth_geometry_config,                        &
+                     DIVA_visc_it_norm_dUV_tol_config,                &
+                     DIVA_visc_it_nit_config,                         &
+                     DIVA_visc_it_relax_config,                       &
+                     DIVA_beta_max_config,                            &
+                     DIVA_err_lim_config,                             &
+                     DIVA_vel_max_config,                             &
+                     DIVA_vel_min_config,                             &
+                     DIVA_boundary_BC_u_west_config,                  &
+                     DIVA_boundary_BC_u_east_config,                  &
+                     DIVA_boundary_BC_u_south_config,                 &
+                     DIVA_boundary_BC_u_north_config,                 &
+                     DIVA_boundary_BC_v_west_config,                  &
+                     DIVA_boundary_BC_v_east_config,                  &
+                     DIVA_boundary_BC_v_south_config,                 &
+                     DIVA_boundary_BC_v_north_config,                 &
+                     DIVA_choice_matrix_solver_config,                &
+                     DIVA_SOR_nit_config,                             &
+                     DIVA_SOR_tol_config,                             &
+                     DIVA_SOR_omega_config,                           &
+                     DIVA_PETSc_rtol_config,                          &
+                     DIVA_PETSc_abstol_config,                        &
+                     choice_timestepping_config,                      &
+                     choice_ice_integration_method_config,            &
+                     dHi_choice_matrix_solver_config,                 &
+                     dHi_SOR_nit_config,                              &
+                     dHi_SOR_tol_config,                              &
+                     dHi_SOR_omega_config,                            &
+                     dHi_PETSc_rtol_config,                           &
+                     dHi_PETSc_abstol_config,                         &
+                     pc_epsilon_config,                               &
+                     pc_k_I_config,                                   &
+                     pc_k_p_config,                                   &
+                     pc_eta_min_config,                               &
+                     pc_max_timestep_iterations_config,               &
+                     pc_redo_tol_config,                              &
+                     dt_min_config,                                   &
+                     no_sliding_config,                               &
+                     choice_sliding_law_config,                       &
+                     slid_Weertman_m_config,                          &
+                     slid_Coulomb_delta_v_config,                     &
+                     slid_Coulomb_reg_q_plastic_config,               &
+                     slid_Coulomb_reg_u_threshold_config,             &
+                     Martin2011till_pwp_Hb_min_config,                &
+                     Martin2011till_pwp_Hb_max_config,                &
+                     Martin2011till_phi_Hb_min_config,                &
+                     Martin2011till_phi_Hb_max_config,                &
+                     Martin2011till_phi_min_config,                   &
+                     Martin2011till_phi_max_config,                   &
+                     choice_calving_law_config,                       &
+                     calving_threshold_thickness_config,              &
+                     do_remove_shelves_config,                        &
+                     remove_shelves_larger_than_PD_config,            &
+                     choice_initial_ice_temperature_config,           &
+                     uniform_ice_temperature_config,                  &
+                     choice_thermo_model_config,                      &
+                     choice_ice_rheology_config,                      &
+                     uniform_flow_factor_config,                      &
+                     choice_ice_heat_capacity_config,                 &
+                     uniform_ice_heat_capacity_config,                &
+                     choice_ice_thermal_conductivity_config,          &
+                     uniform_ice_thermal_conductivity_config,         &
+                     choice_climate_model_config,                     &
+                     choice_idealised_climate_config,                 &
+                     filename_direct_global_climate_config,           &
+                     filename_direct_regional_climate_NAM_config,     &
+                     filename_direct_regional_climate_EAS_config,     &
+                     filename_direct_regional_climate_GRL_config,     &
+                     filename_direct_regional_climate_ANT_config,     &
+                     filename_direct_global_SMB_config,               &
+                     filename_direct_regional_SMB_NAM_config,         &
+                     filename_direct_regional_SMB_EAS_config,         &
+                     filename_direct_regional_SMB_GRL_config,         &
+                     filename_direct_regional_SMB_ANT_config,         &
+                     filename_PD_obs_climate_config,                  &
+                     filename_PD_obs_ocean_config,                    &
+                     name_ocean_temperature_config,                   &
+                     name_ocean_salinity_config,                      &
+                     filename_climate_snapshot_PI_config,             &
+                     filename_climate_snapshot_warm_config,           &
+                     filename_climate_snapshot_cold_config,           &
+                     constant_lapserate_config,                       &
+                     climate_matrix_CO2vsice_NAM_config,              &
+                     climate_matrix_CO2vsice_EAS_config,              &
+                     climate_matrix_CO2vsice_GRL_config,              &
+                     climate_matrix_CO2vsice_ANT_config,              &
+                     matrix_high_CO2_level_config,                    &
+                     matrix_low_CO2_level_config,                     &
+                     matrix_warm_orbit_time_config,                   &
+                     matrix_cold_orbit_time_config,                   &
+                     climate_matrix_biascorrect_warm_config,          &
+                     climate_matrix_biascorrect_cold_config,          &
+                     switch_glacial_index_precip_config,              &
+                     choice_ocean_model_config,                       &
+                     choice_idealised_ocean_config,                   &
+                     ocean_temperature_PD_config,                     &
+                     ocean_temperature_cold_config,                   &
+                     ocean_temperature_warm_config,                   &
+                     choice_ocean_vertical_grid_config,               &
+                     ocean_vertical_grid_max_depth_config,            &
+                     ocean_regular_grid_dz_config,                    &
+                     ocean_extrap_dir_config,                         &
+                     ocean_extrap_res_config,                         &
+                     ocean_extrap_Gauss_sigma_config,                 &
+                     ocean_extrap_hires_geo_filename_NAM_config,      &
+                     ocean_extrap_hires_geo_filename_EAS_config,      &
+                     ocean_extrap_hires_geo_filename_GRL_config,      &
+                     ocean_extrap_hires_geo_filename_ANT_config,      &
+                     ocean_w_tot_hist_averaging_window_config,        &
+                     ocean_matrix_CO2vsice_NAM_config,                &
+                     ocean_matrix_CO2vsice_EAS_config,                &
+                     ocean_matrix_CO2vsice_GRL_config,                &
+                     ocean_matrix_CO2vsice_ANT_config,                &
+                     filename_GCM_ocean_snapshot_PI_config,           &
+                     filename_GCM_ocean_snapshot_warm_config,         &
+                     filename_GCM_ocean_snapshot_cold_config,         &
+                     choice_SMB_model_config,                         &
+                     choice_idealised_SMB_config,                     &
+                     SMB_uniform_config,                              &
+                     SMB_IMAUITM_C_abl_constant_NAM_config,           &
+                     SMB_IMAUITM_C_abl_constant_EAS_config,           &
+                     SMB_IMAUITM_C_abl_constant_GRL_config,           &
+                     SMB_IMAUITM_C_abl_constant_ANT_config,           &
+                     SMB_IMAUITM_C_abl_Ts_NAM_config,                 &
+                     SMB_IMAUITM_C_abl_Ts_EAS_config,                 &
+                     SMB_IMAUITM_C_abl_Ts_GRL_config,                 &
+                     SMB_IMAUITM_C_abl_Ts_ANT_config,                 &
+                     SMB_IMAUITM_C_abl_Q_NAM_config,                  &
+                     SMB_IMAUITM_C_abl_Q_EAS_config,                  &
+                     SMB_IMAUITM_C_abl_Q_GRL_config,                  &
+                     SMB_IMAUITM_C_abl_Q_ANT_config,                  &
+                     SMB_IMAUITM_C_refr_NAM_config,                   &
+                     SMB_IMAUITM_C_refr_EAS_config,                   &
+                     SMB_IMAUITM_C_refr_GRL_config,                   &
+                     SMB_IMAUITM_C_refr_ANT_config,                   &
+                     choice_BMB_shelf_model_config,                   &
+                     choice_BMB_sheet_model_config,                   &
+                     BMB_shelf_uniform_config,                        &
+                     BMB_sheet_uniform_config,                        &
+                     choice_BMB_subgrid_config,                       &
+                     do_asynchronous_BMB_config,                      &
+                     choice_basin_scheme_NAM_config,                  &
+                     choice_basin_scheme_EAS_config,                  &
+                     choice_basin_scheme_GRL_config,                  &
+                     choice_basin_scheme_ANT_config,                  &
+                     filename_basins_NAM_config,                      &
+                     filename_basins_EAS_config,                      &
+                     filename_basins_GRL_config,                      &
+                     filename_basins_ANT_config,                      &
+                     do_merge_basins_ANT_config,                      &
+                     do_merge_basins_GRL_config,                      &
+                     BMB_Favier2019_lin_GammaT_config,                &
+                     BMB_Favier2019_quad_GammaT_config,               &
+                     BMB_Favier2019_Mplus_GammaT_config,              &
+                     BMB_Lazeroms2018_GammaT_config,                  &
+                     BMB_Lazeroms2018_find_GL_scheme_config,          &
+                     BMB_PICO_nboxes_config,                          &
+                     BMB_PICO_GammaTstar_config,                      &
+                     T_ocean_mean_PD_NAM_config,                      &
+                     T_ocean_mean_PD_EAS_config,                      &
+                     T_ocean_mean_PD_GRL_config,                      &
+                     T_ocean_mean_PD_ANT_config,                      &
+                     T_ocean_mean_cold_NAM_config,                    &
+                     T_ocean_mean_cold_EAS_config,                    &
+                     T_ocean_mean_cold_GRL_config,                    &
+                     T_ocean_mean_cold_ANT_config,                    &
+                     T_ocean_mean_warm_NAM_config,                    &
+                     T_ocean_mean_warm_EAS_config,                    &
+                     T_ocean_mean_warm_GRL_config,                    &
+                     T_ocean_mean_warm_ANT_config,                    &
+                     BMB_deepocean_PD_NAM_config,                     &
+                     BMB_deepocean_PD_EAS_config,                     &
+                     BMB_deepocean_PD_GRL_config,                     &
+                     BMB_deepocean_PD_ANT_config,                     &
+                     BMB_deepocean_cold_NAM_config,                   &
+                     BMB_deepocean_cold_EAS_config,                   &
+                     BMB_deepocean_cold_GRL_config,                   &
+                     BMB_deepocean_cold_ANT_config,                   &
+                     BMB_deepocean_warm_NAM_config,                   &
+                     BMB_deepocean_warm_EAS_config,                   &
+                     BMB_deepocean_warm_GRL_config,                   &
+                     BMB_deepocean_warm_ANT_config,                   &
+                     BMB_shelf_exposed_PD_NAM_config,                 &
+                     BMB_shelf_exposed_PD_EAS_config,                 &
+                     BMB_shelf_exposed_PD_GRL_config,                 &
+                     BMB_shelf_exposed_PD_ANT_config,                 &
+                     BMB_shelf_exposed_cold_NAM_config,               &
+                     BMB_shelf_exposed_cold_EAS_config,               &
+                     BMB_shelf_exposed_cold_GRL_config,               &
+                     BMB_shelf_exposed_cold_ANT_config,               &
+                     BMB_shelf_exposed_warm_NAM_config,               &
+                     BMB_shelf_exposed_warm_EAS_config,               &
+                     BMB_shelf_exposed_warm_GRL_config,               &
+                     BMB_shelf_exposed_warm_ANT_config,               &
+                     subshelf_melt_factor_NAM_config,                 &
+                     subshelf_melt_factor_EAS_config,                 &
+                     subshelf_melt_factor_GRL_config,                 &
+                     subshelf_melt_factor_ANT_config,                 &
+                     deep_ocean_threshold_depth_NAM_config,           &
+                     deep_ocean_threshold_depth_EAS_config,           &
+                     deep_ocean_threshold_depth_GRL_config,           &
+                     deep_ocean_threshold_depth_ANT_config,           &
+                     choice_ice_isotopes_model_config,                &
+                     uniform_ice_d18O_config,                         &
+                     do_ocean_floodfill_config,                       &
+                     choice_sealevel_model_config,                    &
+                     fixed_sealevel_config,                           &
+                     filename_sealevel_record_config,                 &
+                     sealevel_record_length_config,                   &
+                     choice_GIA_model_config,                         &
+                     dx_GIA_config,                                   &
+                     ELRA_lithosphere_flex_rigidity_config,           &
+                     ELRA_bedrock_relaxation_time_config,             &
+                     ELRA_mantle_density_config,                      &
+                     SELEN_run_at_t_start_config,                     &
+                     SELEN_n_TDOF_iterations_config,                  &
+                     SELEN_n_recursion_iterations_config,             &
+                     SELEN_use_rotational_feedback_config,            &
+                     SELEN_n_harmonics_config,                        &
+                     SELEN_display_progress_config,                   &
+                     SELEN_dir_config,                                &
+                     SELEN_global_topo_filename_config,               &
+                     SELEN_TABOO_init_filename_config,                &
+                     SELEN_LMJ_VALUES_filename_config,                &
+                     SELEN_irreg_time_n_config,                       &
+                     SELEN_irreg_time_window_config,                  &
+                     SELEN_lith_thickness_config,                     &
+                     SELEN_visc_n_config,                             &
+                     SELEN_visc_prof_config,                          &
+                     SELEN_TABOO_CDE_config,                          & 
+                     SELEN_TABOO_TLOVE_config,                        & 
+                     SELEN_TABOO_DEG1_config,                         & 
+                     SELEN_TABOO_RCMB_config,                         &
+                     help_field_01_config,                            &
+                     help_field_02_config,                            &
+                     help_field_03_config,                            &
+                     help_field_04_config,                            &
+                     help_field_05_config,                            &
+                     help_field_06_config,                            &
+                     help_field_07_config,                            &
+                     help_field_08_config,                            &
+                     help_field_09_config,                            &
+                     help_field_10_config,                            &
+                     help_field_11_config,                            &
+                     help_field_12_config,                            &
+                     help_field_13_config,                            &
+                     help_field_14_config,                            &
+                     help_field_15_config,                            &
+                     help_field_16_config,                            &
+                     help_field_17_config,                            &
+                     help_field_18_config,                            &
+                     help_field_19_config,                            &
+                     help_field_20_config,                            &
+                     help_field_21_config,                            &
+                     help_field_22_config,                            &
+                     help_field_23_config,                            &
+                     help_field_24_config,                            &
+                     help_field_25_config,                            &
+                     help_field_26_config,                            &
+                     help_field_27_config,                            &
+                     help_field_28_config,                            &
+                     help_field_29_config,                            &
+                     help_field_30_config,                            &
+                     help_field_31_config,                            &
+                     help_field_32_config,                            &
+                     help_field_33_config,                            &
+                     help_field_34_config,                            &
+                     help_field_35_config,                            &
+                     help_field_36_config,                            &
+                     help_field_37_config,                            &
+                     help_field_38_config,                            &
+                     help_field_39_config,                            &
+                     help_field_40_config,                            &
+                     help_field_41_config,                            &
+                     help_field_42_config,                            &
+                     help_field_43_config,                            &
+                     help_field_44_config,                            &
+                     help_field_45_config,                            &
+                     help_field_46_config,                            &
+                     help_field_47_config,                            &
+                     help_field_48_config,                            &
+                     help_field_49_config,                            &
                      help_field_50_config
                       
      IF (config_filename == '') RETURN
@@ -1650,508 +1838,578 @@ CONTAINS
    ! Time steps and range
    !=====================
    
-    C%start_time_of_run                   = start_time_of_run_config
-    C%end_time_of_run                     = end_time_of_run_config
-    C%dt_coupling                         = dt_coupling_config
-    C%dt_max                              = dt_max_config
-    C%dt_thermo                           = dt_thermo_config
-    C%dt_climate                          = dt_climate_config
-    C%dt_ocean                            = dt_ocean_config
-    C%dt_SMB                              = dt_SMB_config
-    C%dt_BMB                              = dt_BMB_config
-    C%dt_bedrock_ELRA                     = dt_bedrock_ELRA_config
-    C%dt_SELEN                            = dt_SELEN_config
-    C%dt_output                           = dt_output_config
+    C%start_time_of_run                        = start_time_of_run_config
+    C%end_time_of_run                          = end_time_of_run_config
+    C%dt_coupling                              = dt_coupling_config
+    C%dt_max                                   = dt_max_config
+    C%dt_thermo                                = dt_thermo_config
+    C%dt_climate                               = dt_climate_config
+    C%dt_ocean                                 = dt_ocean_config
+    C%dt_SMB                                   = dt_SMB_config
+    C%dt_BMB                                   = dt_BMB_config
+    C%dt_bedrock_ELRA                          = dt_bedrock_ELRA_config
+    C%dt_SELEN                                 = dt_SELEN_config
+    C%dt_output                                = dt_output_config
     
     ! Which ice sheets do we simulate?
     ! ================================
     
-    C%do_NAM                              = do_NAM_config
-    C%do_EAS                              = do_EAS_config
-    C%do_GRL                              = do_GRL_config
-    C%do_ANT                              = do_ANT_config
+    C%do_NAM                                   = do_NAM_config
+    C%do_EAS                                   = do_EAS_config
+    C%do_GRL                                   = do_GRL_config
+    C%do_ANT                                   = do_ANT_config
     
     ! Benchmark experiments
     ! =====================
     
-    C%do_benchmark_experiment             = do_benchmark_experiment_config
-    C%choice_benchmark_experiment         = choice_benchmark_experiment_config
-    C%SSA_icestream_m                     = SSA_icestream_m_config
-    C%ISMIP_HOM_L                         = ISMIP_HOM_L_config
-    C%ISMIP_HOM_E_Arolla_filename         = ISMIP_HOM_E_Arolla_filename_config
-    C%MISMIPplus_sliding_law              = MISMIPplus_sliding_law_config
-    C%MISMIPplus_do_tune_A_for_GL         = MISMIPplus_do_tune_A_for_GL_config
-    C%MISMIPplus_xGL_target               = MISMIPplus_xGL_target_config
-    C%MISMIPplus_A_flow_initial           = MISMIPplus_A_flow_initial_config
-    C%MISMIPplus_scenario                 = MISMIPplus_scenario_config
-    C%MISOMIP1_scenario                   = MISOMIP1_scenario_config
+    C%do_benchmark_experiment                  = do_benchmark_experiment_config
+    C%choice_benchmark_experiment              = choice_benchmark_experiment_config
+    C%SSA_icestream_m                          = SSA_icestream_m_config
+    C%ISMIP_HOM_L                              = ISMIP_HOM_L_config
+    C%ISMIP_HOM_E_Arolla_filename              = ISMIP_HOM_E_Arolla_filename_config
+    C%MISMIPplus_sliding_law                   = MISMIPplus_sliding_law_config
+    C%MISMIPplus_do_tune_A_for_GL              = MISMIPplus_do_tune_A_for_GL_config
+    C%MISMIPplus_xGL_target                    = MISMIPplus_xGL_target_config
+    C%MISMIPplus_A_flow_initial                = MISMIPplus_A_flow_initial_config
+    C%MISMIPplus_scenario                      = MISMIPplus_scenario_config
+    C%MISOMIP1_scenario                        = MISOMIP1_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
    
-    C%create_procedural_output_dir        = create_procedural_output_dir_config
-    C%fixed_output_dir                    = fixed_output_dir_config
-    C%fixed_output_dir_suffix             = fixed_output_dir_suffix_config
+    C%create_procedural_output_dir             = create_procedural_output_dir_config
+    C%fixed_output_dir                         = fixed_output_dir_config
+    C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     
     ! Debugging
     ! =========
     
-    C%do_write_debug_data                 = do_write_debug_data_config
-    C%do_check_for_NaN                    = do_check_for_NaN_config
-    
-    ! Whether or not the simulation is a restart of a previous simulation
-    ! ===================================================================
-    
-    C%is_restart                          = is_restart_config
-    C%time_to_restart_from                = time_to_restart_from_config
+    C%do_write_debug_data                      = do_write_debug_data_config
+    C%do_check_for_NaN                         = do_check_for_NaN_config
   
     ! Horizontal grid spacing and size for the four regions
     ! =====================================================
     
-    C%dx_NAM                              = dx_NAM_config
-    C%dx_EAS                              = dx_EAS_config
-    C%dx_GRL                              = dx_GRL_config
-    C%dx_ANT                              = dx_ANT_config
+    C%xmin_NAM                                 = xmin_NAM_config
+    C%xmax_NAM                                 = xmax_NAM_config
+    C%ymin_NAM                                 = ymin_NAM_config
+    C%ymax_NAM                                 = ymax_NAM_config
+    C%dx_NAM                                   = dx_NAM_config
+    
+    C%xmin_EAS                                 = xmin_EAS_config
+    C%xmax_EAS                                 = xmax_EAS_config
+    C%ymin_EAS                                 = ymin_EAS_config
+    C%ymax_EAS                                 = ymax_EAS_config
+    C%dx_EAS                                   = dx_EAS_config
+    
+    C%xmin_GRL                                 = xmin_GRL_config
+    C%xmax_GRL                                 = xmax_GRL_config
+    C%ymin_GRL                                 = ymin_GRL_config
+    C%ymax_GRL                                 = ymax_GRL_config
+    C%dx_GRL                                   = dx_GRL_config
+    
+    C%xmin_ANT                                 = xmin_ANT_config
+    C%xmax_ANT                                 = xmax_ANT_config
+    C%ymin_ANT                                 = ymin_ANT_config
+    C%ymax_ANT                                 = ymax_ANT_config
+    C%dx_ANT                                   = dx_ANT_config
 
     ! Scaled vertical coordinate zeta  
     ! ===============================
     
-    C%nz                                  = nz_config
+    C%nz                                       = nz_config
     ALLOCATE( C%zeta( C%nz))
-    C%zeta                                = zeta_config( 1:C%nz)
+    C%zeta                                     = zeta_config( 1:C%nz)
 
-    ! Input data file paths
-    ! =====================
-    
-    C%filename_init_NAM                   = filename_init_NAM_config
-    C%filename_init_EAS                   = filename_init_EAS_config
-    C%filename_init_GRL                   = filename_init_GRL_config
-    C%filename_init_ANT                   = filename_init_ANT_config
-    
-    C%filename_PD_NAM                     = filename_PD_NAM_config
-    C%filename_PD_EAS                     = filename_PD_EAS_config
-    C%filename_PD_GRL                     = filename_PD_GRL_config
-    C%filename_PD_ANT                     = filename_PD_ANT_config
+    ! Reference geometries (initial, present-day, and GIA equilibrium)
+    ! ================================================================
+  
+    ! Initial geometry
+    C%choice_refgeo_init_NAM                   = choice_refgeo_init_NAM_config
+    C%choice_refgeo_init_EAS                   = choice_refgeo_init_EAS_config
+    C%choice_refgeo_init_GRL                   = choice_refgeo_init_GRL_config
+    C%choice_refgeo_init_ANT                   = choice_refgeo_init_ANT_config
+    C%time_to_restart_from_NAM                 = time_to_restart_from_NAM_config
+    C%time_to_restart_from_EAS                 = time_to_restart_from_EAS_config
+    C%time_to_restart_from_GRL                 = time_to_restart_from_GRL_config
+    C%time_to_restart_from_ANT                 = time_to_restart_from_ANT_config
+    C%choice_refgeo_init_idealised             = choice_refgeo_init_idealised_config
+    C%filename_refgeo_init_NAM                 = filename_refgeo_init_NAM_config
+    C%filename_refgeo_init_EAS                 = filename_refgeo_init_EAS_config
+    C%filename_refgeo_init_GRL                 = filename_refgeo_init_GRL_config
+    C%filename_refgeo_init_ANT                 = filename_refgeo_init_ANT_config
+  
+    ! Present-day geometry
+    C%choice_refgeo_PD_NAM                     = choice_refgeo_PD_NAM_config
+    C%choice_refgeo_PD_EAS                     = choice_refgeo_PD_EAS_config
+    C%choice_refgeo_PD_GRL                     = choice_refgeo_PD_GRL_config
+    C%choice_refgeo_PD_ANT                     = choice_refgeo_PD_ANT_config
+    C%choice_refgeo_PD_idealised               = choice_refgeo_PD_idealised_config
+    C%filename_refgeo_PD_NAM                   = filename_refgeo_PD_NAM_config
+    C%filename_refgeo_PD_EAS                   = filename_refgeo_PD_EAS_config
+    C%filename_refgeo_PD_GRL                   = filename_refgeo_PD_GRL_config
+    C%filename_refgeo_PD_ANT                   = filename_refgeo_PD_ANT_config
+  
+    ! GIA equilibrium geometry
+    C%choice_refgeo_GIAeq_NAM                  = choice_refgeo_GIAeq_NAM_config
+    C%choice_refgeo_GIAeq_EAS                  = choice_refgeo_GIAeq_EAS_config
+    C%choice_refgeo_GIAeq_GRL                  = choice_refgeo_GIAeq_GRL_config
+    C%choice_refgeo_GIAeq_ANT                  = choice_refgeo_GIAeq_ANT_config
+    C%choice_refgeo_GIAeq_idealised            = choice_refgeo_GIAeq_idealised_config
+    C%filename_refgeo_GIAeq_NAM                = filename_refgeo_GIAeq_NAM_config
+    C%filename_refgeo_GIAeq_EAS                = filename_refgeo_GIAeq_EAS_config
+    C%filename_refgeo_GIAeq_GRL                = filename_refgeo_GIAeq_GRL_config
+    C%filename_refgeo_GIAeq_ANT                = filename_refgeo_GIAeq_ANT_config
 
-    C%switch_remove_Lake_Vostok           = switch_remove_Lake_Vostok_config
-    C%switch_paleotopography              = switch_paleotopography_config
-    C%filename_topo_NAM                   = filename_topo_NAM_config
-    C%filename_topo_EAS                   = filename_topo_EAS_config
-    C%filename_topo_GRL                   = filename_topo_GRL_config
-    C%filename_topo_ANT                   = filename_topo_ANT_config
+    C%remove_Lake_Vostok                       = remove_Lake_Vostok_config
+  
+    ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
+    ! ============================================================
     
-    C%filename_insolation                 = filename_insolation_config
+    C%choice_forcing_method                    = choice_forcing_method_config
+     
+    ! Insolation forcing (NetCDF)
+    C%choice_insolation_forcing                = choice_insolation_forcing_config
+    C%static_insolation_time                   = static_insolation_time_config
+    C%filename_insolation                      = filename_insolation_config
     
-    C%filename_CO2_record                 = filename_CO2_record_config
-    C%CO2_record_length                   = CO2_record_length_config
-    C%filename_d18O_record                = filename_d18O_record_config
-    C%d18O_record_length                  = d18O_record_length_config
+    ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+    C%filename_CO2_record                      = filename_CO2_record_config
+    C%CO2_record_length                        = CO2_record_length_config
     
-    C%filename_ICE5G_PD                   = filename_ICE5G_PD_config
-    C%filename_ICE5G_LGM                  = filename_ICE5G_LGM_config
+    ! d18O record (ASCII text file, so the number of rows needs to be specified)
+    C%filename_d18O_record                     = filename_d18O_record_config
+    C%d18O_record_length                       = d18O_record_length_config
+    
+    ! Geothermal heat flux
+    C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
+    C%constant_geothermal_heat_flux            = constant_geothermal_heat_flux_config
+    C%filename_geothermal_heat_flux            = filename_geothermal_heat_flux_config
+  
+    ! Parameters for calculating modelled benthic d18O
+    C%do_calculate_benthic_d18O                = do_calculate_benthic_d18O_config
+    C%dT_deepwater_averaging_window            = dT_deepwater_averaging_window_config
+    C%dT_deepwater_dT_surf_ratio               = dT_deepwater_dT_surf_ratio_config
+    C%d18O_dT_deepwater_ratio                  = d18O_dT_deepwater_ratio_config
+    
+    ! Parameters for the inverse routine
+    C%dT_glob_inverse_averaging_window         = dT_glob_inverse_averaging_window_config
+    C%inverse_d18O_to_dT_glob_scaling          = inverse_d18O_to_dT_glob_scaling_config
+    C%CO2_inverse_averaging_window             = CO2_inverse_averaging_window_config
+    C%inverse_d18O_to_CO2_scaling              = inverse_d18O_to_CO2_scaling_config
+    C%inverse_d18O_to_CO2_initial_CO2          = inverse_d18O_to_CO2_initial_CO2_config
 
     ! Ice dynamics - velocity
     ! =======================
     
-    C%choice_ice_dynamics                 = choice_ice_dynamics_config
-    C%n_flow                              = n_flow_config
-    C%m_enh_sheet                         = m_enh_sheet_config
-    C%m_enh_shelf                         = m_enh_shelf_config
-    C%choice_ice_margin                   = choice_ice_margin_config
-    C%include_SSADIVA_crossterms          = include_SSADIVA_crossterms_config
-    C%do_GL_subgrid_friction              = do_GL_subgrid_friction_config
-    C%do_smooth_geometry                  = do_smooth_geometry_config
-    C%r_smooth_geometry                   = r_smooth_geometry_config
+    C%choice_ice_dynamics                      = choice_ice_dynamics_config
+    C%n_flow                                   = n_flow_config
+    C%m_enh_sheet                              = m_enh_sheet_config
+    C%m_enh_shelf                              = m_enh_shelf_config
+    C%choice_ice_margin                        = choice_ice_margin_config
+    C%include_SSADIVA_crossterms               = include_SSADIVA_crossterms_config
+    C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
+    C%do_smooth_geometry                       = do_smooth_geometry_config
+    C%r_smooth_geometry                        = r_smooth_geometry_config
     
     ! Some parameters for numerically solving the SSA/DIVA
-    C%DIVA_visc_it_norm_dUV_tol           = DIVA_visc_it_norm_dUV_tol_config
-    C%DIVA_visc_it_nit                    = DIVA_visc_it_nit_config
-    C%DIVA_visc_it_relax                  = DIVA_visc_it_relax_config
-    C%DIVA_beta_max                       = DIVA_beta_max_config
-    C%DIVA_err_lim                        = DIVA_err_lim_config
-    C%DIVA_vel_max                        = DIVA_vel_max_config
-    C%DIVA_vel_min                        = DIVA_vel_min_config
-    C%DIVA_boundary_BC_u_west             = DIVA_boundary_BC_u_west_config
-    C%DIVA_boundary_BC_u_east             = DIVA_boundary_BC_u_east_config
-    C%DIVA_boundary_BC_u_south            = DIVA_boundary_BC_u_south_config
-    C%DIVA_boundary_BC_u_north            = DIVA_boundary_BC_u_north_config
-    C%DIVA_boundary_BC_v_west             = DIVA_boundary_BC_v_west_config
-    C%DIVA_boundary_BC_v_east             = DIVA_boundary_BC_v_east_config
-    C%DIVA_boundary_BC_v_south            = DIVA_boundary_BC_v_south_config
-    C%DIVA_boundary_BC_v_north            = DIVA_boundary_BC_v_north_config
-    C%DIVA_choice_matrix_solver           = DIVA_choice_matrix_solver_config
-    C%DIVA_SOR_nit                        = DIVA_SOR_nit_config
-    C%DIVA_SOR_tol                        = DIVA_SOR_tol_config
-    C%DIVA_SOR_omega                      = DIVA_SOR_omega_config
-    C%DIVA_PETSc_rtol                     = DIVA_PETSc_rtol_config
-    C%DIVA_PETSc_abstol                   = DIVA_PETSc_abstol_config
+    C%DIVA_visc_it_norm_dUV_tol                = DIVA_visc_it_norm_dUV_tol_config
+    C%DIVA_visc_it_nit                         = DIVA_visc_it_nit_config
+    C%DIVA_visc_it_relax                       = DIVA_visc_it_relax_config
+    C%DIVA_beta_max                            = DIVA_beta_max_config
+    C%DIVA_err_lim                             = DIVA_err_lim_config
+    C%DIVA_vel_max                             = DIVA_vel_max_config
+    C%DIVA_vel_min                             = DIVA_vel_min_config
+    C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
+    C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
+    C%DIVA_boundary_BC_u_south                 = DIVA_boundary_BC_u_south_config
+    C%DIVA_boundary_BC_u_north                 = DIVA_boundary_BC_u_north_config
+    C%DIVA_boundary_BC_v_west                  = DIVA_boundary_BC_v_west_config
+    C%DIVA_boundary_BC_v_east                  = DIVA_boundary_BC_v_east_config
+    C%DIVA_boundary_BC_v_south                 = DIVA_boundary_BC_v_south_config
+    C%DIVA_boundary_BC_v_north                 = DIVA_boundary_BC_v_north_config
+    C%DIVA_choice_matrix_solver                = DIVA_choice_matrix_solver_config
+    C%DIVA_SOR_nit                             = DIVA_SOR_nit_config
+    C%DIVA_SOR_tol                             = DIVA_SOR_tol_config
+    C%DIVA_SOR_omega                           = DIVA_SOR_omega_config
+    C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
+    C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
   
     ! Ice dynamics - time integration
     ! ===============================
     
-    C%choice_timestepping                 = choice_timestepping_config
-    C%choice_ice_integration_method       = choice_ice_integration_method_config
-    C%dHi_choice_matrix_solver            = dHi_choice_matrix_solver_config
-    C%dHi_SOR_nit                         = dHi_SOR_nit_config
-    C%dHi_SOR_tol                         = dHi_SOR_tol_config
-    C%dHi_SOR_omega                       = dHi_SOR_omega_config
-    C%dHi_PETSc_rtol                      = dHi_PETSc_rtol_config
-    C%dHi_PETSc_abstol                    = dHi_PETSc_abstol_config
+    C%choice_timestepping                      = choice_timestepping_config
+    C%choice_ice_integration_method            = choice_ice_integration_method_config
+    C%dHi_choice_matrix_solver                 = dHi_choice_matrix_solver_config
+    C%dHi_SOR_nit                              = dHi_SOR_nit_config
+    C%dHi_SOR_tol                              = dHi_SOR_tol_config
+    C%dHi_SOR_omega                            = dHi_SOR_omega_config
+    C%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
+    C%dHi_PETSc_abstol                         = dHi_PETSc_abstol_config
     
     ! Predictor-corrector ice-thickness update
-    C%pc_epsilon                          = pc_epsilon_config
-    C%pc_k_I                              = pc_k_I_config
-    C%pc_k_p                              = pc_k_p_config
-    C%pc_eta_min                          = pc_eta_min_config
-    C%pc_max_timestep_iterations          = pc_max_timestep_iterations_config
-    C%pc_redo_tol                         = pc_redo_tol_config
-    C%dt_min                              = dt_min_config
+    C%pc_epsilon                               = pc_epsilon_config
+    C%pc_k_I                                   = pc_k_I_config
+    C%pc_k_p                                   = pc_k_p_config
+    C%pc_eta_min                               = pc_eta_min_config
+    C%pc_max_timestep_iterations               = pc_max_timestep_iterations_config
+    C%pc_redo_tol                              = pc_redo_tol_config
+    C%dt_min                                   = dt_min_config
   
     ! Ice dynamics - sliding
     ! ======================
     
-    C%no_sliding                          = no_sliding_config
-    C%choice_sliding_law                  = choice_sliding_law_config
-    C%slid_Weertman_m                     = slid_Weertman_m_config
-    C%slid_Coulomb_delta_v                = slid_Coulomb_delta_v_config
-    C%slid_Coulomb_reg_q_plastic          = slid_Coulomb_reg_q_plastic_config
-    C%slid_Coulomb_reg_u_threshold        = slid_Coulomb_reg_u_threshold_config
-    C%Martin2011till_pwp_Hb_min           = Martin2011till_pwp_Hb_min_config
-    C%Martin2011till_pwp_Hb_max           = Martin2011till_pwp_Hb_max_config
-    C%Martin2011till_phi_Hb_min           = Martin2011till_phi_Hb_min_config
-    C%Martin2011till_phi_Hb_max           = Martin2011till_phi_Hb_max_config
-    C%Martin2011till_phi_min              = Martin2011till_phi_min_config
-    C%Martin2011till_phi_max              = Martin2011till_phi_max_config
+    C%no_sliding                               = no_sliding_config
+    C%choice_sliding_law                       = choice_sliding_law_config
+    C%slid_Weertman_m                          = slid_Weertman_m_config
+    C%slid_Coulomb_delta_v                     = slid_Coulomb_delta_v_config
+    C%slid_Coulomb_reg_q_plastic               = slid_Coulomb_reg_q_plastic_config
+    C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
+    C%Martin2011till_pwp_Hb_min                = Martin2011till_pwp_Hb_min_config
+    C%Martin2011till_pwp_Hb_max                = Martin2011till_pwp_Hb_max_config
+    C%Martin2011till_phi_Hb_min                = Martin2011till_phi_Hb_min_config
+    C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
+    C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
+    C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
   
     ! Ice dynamics - calving
     ! ======================
     
-    C%choice_calving_law                  = choice_calving_law_config
-    C%calving_threshold_thickness         = calving_threshold_thickness_config
-    C%do_remove_shelves                   = do_remove_shelves_config
-    C%remove_shelves_larger_than_PD       = remove_shelves_larger_than_PD_config
+    C%choice_calving_law                       = choice_calving_law_config
+    C%calving_threshold_thickness              = calving_threshold_thickness_config
+    C%do_remove_shelves                        = do_remove_shelves_config
+    C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
   
-    ! Thermodynamics
-    ! ==============
+    ! Thermodynamics and rheology
+    ! ===========================
     
-    C%choice_geothermal_heat_flux         = choice_geothermal_heat_flux_config
-    C%constant_geothermal_heat_flux       = constant_geothermal_heat_flux_config
-    C%filename_geothermal_heat_flux       = filename_geothermal_heat_flux_config
-    
-    ! Climate matrix
-    ! ==============
-    
-    C%filename_PD_obs_climate             = filename_PD_obs_climate_config
-    C%filename_PD_obs_ocean               = filename_PD_obs_ocean_config
-    C%name_ocean_temperature              = name_ocean_temperature_config
-    C%name_ocean_salinity                 = name_ocean_salinity_config
-    C%choice_climate_matrix               = choice_climate_matrix_config
-    C%filename_GCM_snapshot_PI            = filename_GCM_snapshot_PI_config
-    C%filename_GCM_snapshot_warm          = filename_GCM_snapshot_warm_config
-    C%filename_GCM_snapshot_cold          = filename_GCM_snapshot_cold_config
-    C%filename_GCM_ocean_snapshot_PI      = filename_GCM_ocean_snapshot_PI_config
-    C%filename_GCM_ocean_snapshot_warm    = filename_GCM_ocean_snapshot_warm_config
-    C%filename_GCM_ocean_snapshot_cold    = filename_GCM_ocean_snapshot_cold_config
-    C%filename_GCM_climate                = filename_GCM_climate_config
-    
-    C%choice_ocean_temperature_model      = choice_ocean_temperature_model_config
-    C%choice_schematic_ocean              = choice_schematic_ocean_config
-    C%ocean_temperature_PD                = ocean_temperature_PD_config
-    C%ocean_temperature_cold              = ocean_temperature_cold_config
-    C%ocean_temperature_warm              = ocean_temperature_warm_config
-    
-    C%constant_lapserate                  = constant_lapserate_config
-
-    C%climate_matrix_CO2vsice_NAM         = climate_matrix_CO2vsice_NAM_config
-    C%climate_matrix_CO2vsice_EAS         = climate_matrix_CO2vsice_EAS_config
-    C%climate_matrix_CO2vsice_GRL         = climate_matrix_CO2vsice_GRL_config
-    C%climate_matrix_CO2vsice_ANT         = climate_matrix_CO2vsice_ANT_config
-
-    C%ocean_matrix_CO2vsice_NAM           = ocean_matrix_CO2vsice_NAM_config
-    C%ocean_matrix_CO2vsice_EAS           = ocean_matrix_CO2vsice_EAS_config
-    C%ocean_matrix_CO2vsice_GRL           = ocean_matrix_CO2vsice_GRL_config
-    C%ocean_matrix_CO2vsice_ANT           = ocean_matrix_CO2vsice_ANT_config
-
-    C%matrix_high_CO2_level               = matrix_high_CO2_level_config
-    C%matrix_low_CO2_level                = matrix_low_CO2_level_config
-    C%matrix_warm_orbit_time              = matrix_warm_orbit_time_config
-    C%matrix_cold_orbit_time              = matrix_cold_orbit_time_config
-    
-    C%climate_matrix_biascorrect_warm     = climate_matrix_biascorrect_warm_config
-    C%climate_matrix_biascorrect_cold     = climate_matrix_biascorrect_cold_config
-
-    C%switch_glacial_index_precip         = switch_glacial_index_precip_config
-    
-    ! Ocean matrix
-    ! ============
-    
-    C%choice_ocean_vertical_grid          = choice_ocean_vertical_grid_config
-    C%ocean_vertical_grid_max_depth       = ocean_vertical_grid_max_depth_config
-    C%ocean_regular_grid_dz               = ocean_regular_grid_dz_config
-    C%ocean_extrap_dir                    = ocean_extrap_dir_config
-    C%ocean_extrap_res                    = ocean_extrap_res_config
-    C%ocean_extrap_Gauss_sigma            = ocean_extrap_Gauss_sigma_config
-    C%ocean_extrap_hires_geo_filename_NAM = ocean_extrap_hires_geo_filename_NAM_config
-    C%ocean_extrap_hires_geo_filename_EAS = ocean_extrap_hires_geo_filename_EAS_config
-    C%ocean_extrap_hires_geo_filename_GRL = ocean_extrap_hires_geo_filename_GRL_config
-    C%ocean_extrap_hires_geo_filename_ANT = ocean_extrap_hires_geo_filename_ANT_config
-    C%w_tot_hist_averaging_window         = w_tot_hist_averaging_window_config
-    
-    ! Forcing
+    C%choice_initial_ice_temperature           = choice_initial_ice_temperature_config
+    C%uniform_ice_temperature                  = uniform_ice_temperature_config
+    C%choice_thermo_model                      = choice_thermo_model_config
+    C%choice_ice_rheology                      = choice_ice_rheology_config
+    C%uniform_flow_factor                      = uniform_flow_factor_config
+    C%choice_ice_heat_capacity                 = choice_ice_heat_capacity_config
+    C%uniform_ice_heat_capacity                = uniform_ice_heat_capacity_config
+    C%choice_ice_thermal_conductivity          = choice_ice_thermal_conductivity_config
+    C%uniform_ice_thermal_conductivity         = uniform_ice_thermal_conductivity_config
+  
+    ! Climate
     ! =======
     
-    C%choice_forcing_method               = choice_forcing_method_config
-    C%domain_climate_forcing              = domain_climate_forcing_config
+    C%choice_climate_model                     = choice_climate_model_config
+    C%choice_idealised_climate                 = choice_idealised_climate_config
     
-    C%dT_deepwater_averaging_window       = dT_deepwater_averaging_window_config
-    C%dT_deepwater_dT_surf_ratio          = dT_deepwater_dT_surf_ratio_config
-    C%d18O_dT_deepwater_ratio             = d18O_dT_deepwater_ratio_config
+    C%filename_direct_global_SMB               = filename_direct_global_SMB_config
+    C%filename_direct_regional_SMB_NAM         = filename_direct_regional_SMB_NAM_config
+    C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
+    C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
+    C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
+    C%filename_PD_obs_climate                  = filename_PD_obs_climate_config
+    C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
+    C%name_ocean_temperature                   = name_ocean_temperature_config
+    C%name_ocean_salinity                      = name_ocean_salinity_config
+    C%filename_climate_snapshot_PI             = filename_climate_snapshot_PI_config
+    C%filename_climate_snapshot_warm           = filename_climate_snapshot_warm_config
+    C%filename_climate_snapshot_cold           = filename_climate_snapshot_cold_config
     
-    C%dT_glob_inverse_averaging_window    = dT_glob_inverse_averaging_window_config
-    C%inverse_d18O_to_dT_glob_scaling     = inverse_d18O_to_dT_glob_scaling_config
-    C%CO2_inverse_averaging_window        = CO2_inverse_averaging_window_config
-    C%inverse_d18O_to_CO2_scaling         = inverse_d18O_to_CO2_scaling_config
-    C%inverse_d18O_to_CO2_initial_CO2     = inverse_d18O_to_CO2_initial_CO2_config
+    C%constant_lapserate                       = constant_lapserate_config
+    
+    C%climate_matrix_CO2vsice_NAM              = climate_matrix_CO2vsice_NAM_config
+    C%climate_matrix_CO2vsice_EAS              = climate_matrix_CO2vsice_EAS_config
+    C%climate_matrix_CO2vsice_GRL              = climate_matrix_CO2vsice_GRL_config
+    C%climate_matrix_CO2vsice_ANT              = climate_matrix_CO2vsice_ANT_config
+    
+    C%matrix_high_CO2_level                    = matrix_high_CO2_level_config
+    C%matrix_low_CO2_level                     = matrix_low_CO2_level_config
+    
+    C%matrix_warm_orbit_time                   = matrix_warm_orbit_time_config
+    C%matrix_cold_orbit_time                   = matrix_cold_orbit_time_config
+    
+    C%climate_matrix_biascorrect_warm          = climate_matrix_biascorrect_warm_config
+    C%climate_matrix_biascorrect_cold          = climate_matrix_biascorrect_cold_config
+    
+    C%switch_glacial_index_precip              = switch_glacial_index_precip_config
+    
+    ! Ocean
+    ! =====
+    
+    C%choice_ocean_model                       = choice_ocean_model_config
+    C%choice_idealised_ocean                   = choice_idealised_ocean_config
+    
+    ! Uniform ocean temperature values used when choice_ocean_model      = "uniform_warm_cold"
+    C%ocean_temperature_PD                     = ocean_temperature_PD_config
+    C%ocean_temperature_cold                   = ocean_temperature_cold_config
+    C%ocean_temperature_warm                   = ocean_temperature_warm_config
+    
+    ! Parameters used when choice_ocean_model      = "matrix_warm_cold"
+    C%choice_ocean_vertical_grid               = choice_ocean_vertical_grid_config
+    C%ocean_vertical_grid_max_depth            = ocean_vertical_grid_max_depth_config
+    C%ocean_regular_grid_dz                    = ocean_regular_grid_dz_config
+    ! NOTE: nz_ocean and z_ocean are set in the initialise_ocean_vertical_grid routine of the ocean_module!
+    C%ocean_extrap_dir                         = ocean_extrap_dir_config
+    C%ocean_extrap_res                         = ocean_extrap_res_config
+    C%ocean_extrap_Gauss_sigma                 = ocean_extrap_Gauss_sigma_config
+    C%ocean_extrap_hires_geo_filename_NAM      = ocean_extrap_hires_geo_filename_NAM_config
+    C%ocean_extrap_hires_geo_filename_EAS      = ocean_extrap_hires_geo_filename_EAS_config
+    C%ocean_extrap_hires_geo_filename_GRL      = ocean_extrap_hires_geo_filename_GRL_config
+    C%ocean_extrap_hires_geo_filename_ANT      = ocean_extrap_hires_geo_filename_ANT_config
+    C%ocean_w_tot_hist_averaging_window        = ocean_w_tot_hist_averaging_window_config
+    
+    C%ocean_matrix_CO2vsice_NAM                = ocean_matrix_CO2vsice_NAM_config
+    C%ocean_matrix_CO2vsice_EAS                = ocean_matrix_CO2vsice_EAS_config
+    C%ocean_matrix_CO2vsice_GRL                = ocean_matrix_CO2vsice_GRL_config
+    C%ocean_matrix_CO2vsice_ANT                = ocean_matrix_CO2vsice_GRL_config
+    
+    C%filename_GCM_ocean_snapshot_PI           = filename_GCM_ocean_snapshot_PI_config
+    C%filename_GCM_ocean_snapshot_warm         = filename_GCM_ocean_snapshot_warm_config
+    C%filename_GCM_ocean_snapshot_cold         = filename_GCM_ocean_snapshot_cold_config
     
     ! Surface mass balance
     ! ====================
     
-    C%choice_SMB_model                    = choice_SMB_model_config
-    C%SMB_uniform                         = SMB_uniform_config
-    C%SMB_IMAUITM_C_abl_constant_NAM      = SMB_IMAUITM_C_abl_constant_NAM_config
-    C%SMB_IMAUITM_C_abl_constant_EAS      = SMB_IMAUITM_C_abl_constant_EAS_config
-    C%SMB_IMAUITM_C_abl_constant_GRL      = SMB_IMAUITM_C_abl_constant_GRL_config
-    C%SMB_IMAUITM_C_abl_constant_ANT      = SMB_IMAUITM_C_abl_constant_ANT_config
-    C%SMB_IMAUITM_C_abl_Ts_NAM            = SMB_IMAUITM_C_abl_Ts_NAM_config
-    C%SMB_IMAUITM_C_abl_Ts_EAS            = SMB_IMAUITM_C_abl_Ts_EAS_config
-    C%SMB_IMAUITM_C_abl_Ts_GRL            = SMB_IMAUITM_C_abl_Ts_GRL_config
-    C%SMB_IMAUITM_C_abl_Ts_ANT            = SMB_IMAUITM_C_abl_Ts_ANT_config
-    C%SMB_IMAUITM_C_abl_Q_NAM             = SMB_IMAUITM_C_abl_Q_NAM_config
-    C%SMB_IMAUITM_C_abl_Q_EAS             = SMB_IMAUITM_C_abl_Q_EAS_config
-    C%SMB_IMAUITM_C_abl_Q_GRL             = SMB_IMAUITM_C_abl_Q_GRL_config
-    C%SMB_IMAUITM_C_abl_Q_ANT             = SMB_IMAUITM_C_abl_Q_ANT_config
-    C%SMB_IMAUITM_C_refr_NAM              = SMB_IMAUITM_C_refr_NAM_config
-    C%SMB_IMAUITM_C_refr_EAS              = SMB_IMAUITM_C_refr_EAS_config
-    C%SMB_IMAUITM_C_refr_GRL              = SMB_IMAUITM_C_refr_GRL_config
-    C%SMB_IMAUITM_C_refr_ANT              = SMB_IMAUITM_C_refr_ANT_config
+    C%choice_SMB_model                         = choice_SMB_model_config
+    C%choice_idealised_SMB                     = choice_idealised_SMB_config
+    C%SMB_uniform                              = SMB_uniform_config
+    C%SMB_IMAUITM_C_abl_constant_NAM           = SMB_IMAUITM_C_abl_constant_NAM_config
+    C%SMB_IMAUITM_C_abl_constant_EAS           = SMB_IMAUITM_C_abl_constant_EAS_config
+    C%SMB_IMAUITM_C_abl_constant_GRL           = SMB_IMAUITM_C_abl_constant_GRL_config
+    C%SMB_IMAUITM_C_abl_constant_ANT           = SMB_IMAUITM_C_abl_constant_ANT_config
+    C%SMB_IMAUITM_C_abl_Ts_NAM                 = SMB_IMAUITM_C_abl_Ts_NAM_config
+    C%SMB_IMAUITM_C_abl_Ts_EAS                 = SMB_IMAUITM_C_abl_Ts_EAS_config
+    C%SMB_IMAUITM_C_abl_Ts_GRL                 = SMB_IMAUITM_C_abl_Ts_GRL_config
+    C%SMB_IMAUITM_C_abl_Ts_ANT                 = SMB_IMAUITM_C_abl_Ts_ANT_config
+    C%SMB_IMAUITM_C_abl_Q_NAM                  = SMB_IMAUITM_C_abl_Q_NAM_config
+    C%SMB_IMAUITM_C_abl_Q_EAS                  = SMB_IMAUITM_C_abl_Q_EAS_config
+    C%SMB_IMAUITM_C_abl_Q_GRL                  = SMB_IMAUITM_C_abl_Q_GRL_config
+    C%SMB_IMAUITM_C_abl_Q_ANT                  = SMB_IMAUITM_C_abl_Q_ANT_config
+    C%SMB_IMAUITM_C_refr_NAM                   = SMB_IMAUITM_C_refr_NAM_config
+    C%SMB_IMAUITM_C_refr_EAS                   = SMB_IMAUITM_C_refr_EAS_config
+    C%SMB_IMAUITM_C_refr_GRL                   = SMB_IMAUITM_C_refr_GRL_config
+    C%SMB_IMAUITM_C_refr_ANT                   = SMB_IMAUITM_C_refr_ANT_config
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================
     
-    C%choice_BMB_shelf_model              = choice_BMB_shelf_model_config
-    C%choice_BMB_sheet_model              = choice_BMB_sheet_model_config
-    C%BMB_shelf_uniform                   = BMB_shelf_uniform_config
-    C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
-    C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
-    C%do_asynchronous_BMB                 = do_asynchronous_BMB_config
+    C%choice_BMB_shelf_model                   = choice_BMB_shelf_model_config
+    C%choice_BMB_sheet_model                   = choice_BMB_sheet_model_config
+    C%BMB_shelf_uniform                        = BMB_shelf_uniform_config
+    C%BMB_sheet_uniform                        = BMB_sheet_uniform_config
+    C%choice_BMB_subgrid                       = choice_BMB_subgrid_config
+    C%do_asynchronous_BMB                      = do_asynchronous_BMB_config
     
-    C%choice_basin_scheme_NAM             = choice_basin_scheme_NAM_config
-    C%choice_basin_scheme_EAS             = choice_basin_scheme_EAS_config
-    C%choice_basin_scheme_GRL             = choice_basin_scheme_GRL_config
-    C%choice_basin_scheme_ANT             = choice_basin_scheme_ANT_config
-    C%filename_basins_NAM                 = filename_basins_NAM_config
-    C%filename_basins_EAS                 = filename_basins_EAS_config
-    C%filename_basins_GRL                 = filename_basins_GRL_config
-    C%filename_basins_ANT                 = filename_basins_ANT_config
-    C%do_merge_basins_ANT                 = do_merge_basins_ANT_config
-    C%do_merge_basins_GRL                 = do_merge_basins_GRL_config
+    C%choice_basin_scheme_NAM                  = choice_basin_scheme_NAM_config
+    C%choice_basin_scheme_EAS                  = choice_basin_scheme_EAS_config
+    C%choice_basin_scheme_GRL                  = choice_basin_scheme_GRL_config
+    C%choice_basin_scheme_ANT                  = choice_basin_scheme_ANT_config
+    C%filename_basins_NAM                      = filename_basins_NAM_config
+    C%filename_basins_EAS                      = filename_basins_EAS_config
+    C%filename_basins_GRL                      = filename_basins_GRL_config
+    C%filename_basins_ANT                      = filename_basins_ANT_config
+    C%do_merge_basins_ANT                      = do_merge_basins_ANT_config
+    C%do_merge_basins_GRL                      = do_merge_basins_GRL_config
     
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-    C%BMB_Favier2019_lin_GammaT           = BMB_Favier2019_lin_GammaT_config
-    C%BMB_Favier2019_quad_GammaT          = BMB_Favier2019_quad_GammaT_config
-    C%BMB_Favier2019_Mplus_GammaT         = BMB_Favier2019_Mplus_GammaT_config
+    C%BMB_Favier2019_lin_GammaT                = BMB_Favier2019_lin_GammaT_config
+    C%BMB_Favier2019_quad_GammaT               = BMB_Favier2019_quad_GammaT_config
+    C%BMB_Favier2019_Mplus_GammaT              = BMB_Favier2019_Mplus_GammaT_config
     
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
-    C%BMB_Lazeroms2018_GammaT             = BMB_Lazeroms2018_GammaT_config
-    C%BMB_Lazeroms2018_find_GL_scheme     = BMB_Lazeroms2018_find_GL_scheme_config
+    C%BMB_Lazeroms2018_GammaT                  = BMB_Lazeroms2018_GammaT_config
+    C%BMB_Lazeroms2018_find_GL_scheme          = BMB_Lazeroms2018_find_GL_scheme_config
   
     ! Parameters for the PICO BMB model
-    C%BMB_PICO_nboxes                     = BMB_PICO_nboxes_config
-    C%BMB_PICO_GammaTstar                 = BMB_PICO_GammaTstar_config
+    C%BMB_PICO_nboxes                          = BMB_PICO_nboxes_config
+    C%BMB_PICO_GammaTstar                      = BMB_PICO_GammaTstar_config
     
     ! Parameters for the ANICE_legacy sub-shelf melt model
-    C%T_ocean_mean_PD_NAM                 = T_ocean_mean_PD_NAM_config
-    C%T_ocean_mean_PD_EAS                 = T_ocean_mean_PD_EAS_config
-    C%T_ocean_mean_PD_GRL                 = T_ocean_mean_PD_GRL_config
-    C%T_ocean_mean_PD_ANT                 = T_ocean_mean_PD_ANT_config
-    C%T_ocean_mean_cold_NAM               = T_ocean_mean_cold_NAM_config
-    C%T_ocean_mean_cold_EAS               = T_ocean_mean_cold_EAS_config
-    C%T_ocean_mean_cold_GRL               = T_ocean_mean_cold_GRL_config
-    C%T_ocean_mean_cold_ANT               = T_ocean_mean_cold_ANT_config
-    C%T_ocean_mean_warm_NAM               = T_ocean_mean_warm_NAM_config
-    C%T_ocean_mean_warm_EAS               = T_ocean_mean_warm_EAS_config
-    C%T_ocean_mean_warm_GRL               = T_ocean_mean_warm_GRL_config
-    C%T_ocean_mean_warm_ANT               = T_ocean_mean_warm_ANT_config
+    C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
+    C%T_ocean_mean_PD_EAS                      = T_ocean_mean_PD_EAS_config
+    C%T_ocean_mean_PD_GRL                      = T_ocean_mean_PD_GRL_config
+    C%T_ocean_mean_PD_ANT                      = T_ocean_mean_PD_ANT_config
+    C%T_ocean_mean_cold_NAM                    = T_ocean_mean_cold_NAM_config
+    C%T_ocean_mean_cold_EAS                    = T_ocean_mean_cold_EAS_config
+    C%T_ocean_mean_cold_GRL                    = T_ocean_mean_cold_GRL_config
+    C%T_ocean_mean_cold_ANT                    = T_ocean_mean_cold_ANT_config
+    C%T_ocean_mean_warm_NAM                    = T_ocean_mean_warm_NAM_config
+    C%T_ocean_mean_warm_EAS                    = T_ocean_mean_warm_EAS_config
+    C%T_ocean_mean_warm_GRL                    = T_ocean_mean_warm_GRL_config
+    C%T_ocean_mean_warm_ANT                    = T_ocean_mean_warm_ANT_config
     
-    C%BMB_deepocean_PD_NAM                = BMB_deepocean_PD_NAM_config
-    C%BMB_deepocean_PD_EAS                = BMB_deepocean_PD_EAS_config
-    C%BMB_deepocean_PD_GRL                = BMB_deepocean_PD_GRL_config
-    C%BMB_deepocean_PD_ANT                = BMB_deepocean_PD_ANT_config
-    C%BMB_deepocean_cold_NAM              = BMB_deepocean_cold_NAM_config
-    C%BMB_deepocean_cold_EAS              = BMB_deepocean_cold_EAS_config
-    C%BMB_deepocean_cold_GRL              = BMB_deepocean_cold_GRL_config
-    C%BMB_deepocean_cold_ANT              = BMB_deepocean_cold_ANT_config
-    C%BMB_deepocean_warm_NAM              = BMB_deepocean_warm_NAM_config
-    C%BMB_deepocean_warm_EAS              = BMB_deepocean_warm_EAS_config
-    C%BMB_deepocean_warm_GRL              = BMB_deepocean_warm_GRL_config
-    C%BMB_deepocean_warm_ANT              = BMB_deepocean_warm_ANT_config
+    C%BMB_deepocean_PD_NAM                     = BMB_deepocean_PD_NAM_config
+    C%BMB_deepocean_PD_EAS                     = BMB_deepocean_PD_EAS_config
+    C%BMB_deepocean_PD_GRL                     = BMB_deepocean_PD_GRL_config
+    C%BMB_deepocean_PD_ANT                     = BMB_deepocean_PD_ANT_config
+    C%BMB_deepocean_cold_NAM                   = BMB_deepocean_cold_NAM_config
+    C%BMB_deepocean_cold_EAS                   = BMB_deepocean_cold_EAS_config
+    C%BMB_deepocean_cold_GRL                   = BMB_deepocean_cold_GRL_config
+    C%BMB_deepocean_cold_ANT                   = BMB_deepocean_cold_ANT_config
+    C%BMB_deepocean_warm_NAM                   = BMB_deepocean_warm_NAM_config
+    C%BMB_deepocean_warm_EAS                   = BMB_deepocean_warm_EAS_config
+    C%BMB_deepocean_warm_GRL                   = BMB_deepocean_warm_GRL_config
+    C%BMB_deepocean_warm_ANT                   = BMB_deepocean_warm_ANT_config
     
-    C%BMB_shelf_exposed_PD_NAM            = BMB_shelf_exposed_PD_NAM_config
-    C%BMB_shelf_exposed_PD_EAS            = BMB_shelf_exposed_PD_EAS_config
-    C%BMB_shelf_exposed_PD_GRL            = BMB_shelf_exposed_PD_GRL_config
-    C%BMB_shelf_exposed_PD_ANT            = BMB_shelf_exposed_PD_ANT_config
-    C%BMB_shelf_exposed_cold_NAM          = BMB_shelf_exposed_cold_NAM_config
-    C%BMB_shelf_exposed_cold_EAS          = BMB_shelf_exposed_cold_EAS_config
-    C%BMB_shelf_exposed_cold_GRL          = BMB_shelf_exposed_cold_GRL_config
-    C%BMB_shelf_exposed_warm_NAM          = BMB_shelf_exposed_warm_NAM_config
-    C%BMB_shelf_exposed_cold_ANT          = BMB_shelf_exposed_cold_ANT_config
-    C%BMB_shelf_exposed_warm_EAS          = BMB_shelf_exposed_warm_EAS_config
-    C%BMB_shelf_exposed_warm_GRL          = BMB_shelf_exposed_warm_GRL_config
-    C%BMB_shelf_exposed_warm_ANT          = BMB_shelf_exposed_warm_ANT_config
+    C%BMB_shelf_exposed_PD_NAM                 = BMB_shelf_exposed_PD_NAM_config
+    C%BMB_shelf_exposed_PD_EAS                 = BMB_shelf_exposed_PD_EAS_config
+    C%BMB_shelf_exposed_PD_GRL                 = BMB_shelf_exposed_PD_GRL_config
+    C%BMB_shelf_exposed_PD_ANT                 = BMB_shelf_exposed_PD_ANT_config
+    C%BMB_shelf_exposed_cold_NAM               = BMB_shelf_exposed_cold_NAM_config
+    C%BMB_shelf_exposed_cold_EAS               = BMB_shelf_exposed_cold_EAS_config
+    C%BMB_shelf_exposed_cold_GRL               = BMB_shelf_exposed_cold_GRL_config
+    C%BMB_shelf_exposed_warm_NAM               = BMB_shelf_exposed_warm_NAM_config
+    C%BMB_shelf_exposed_cold_ANT               = BMB_shelf_exposed_cold_ANT_config
+    C%BMB_shelf_exposed_warm_EAS               = BMB_shelf_exposed_warm_EAS_config
+    C%BMB_shelf_exposed_warm_GRL               = BMB_shelf_exposed_warm_GRL_config
+    C%BMB_shelf_exposed_warm_ANT               = BMB_shelf_exposed_warm_ANT_config
     
-    C%subshelf_melt_factor_NAM            = subshelf_melt_factor_NAM_config
-    C%subshelf_melt_factor_EAS            = subshelf_melt_factor_EAS_config
-    C%subshelf_melt_factor_GRL            = subshelf_melt_factor_GRL_config
-    C%subshelf_melt_factor_ANT            = subshelf_melt_factor_ANT_config
+    C%subshelf_melt_factor_NAM                 = subshelf_melt_factor_NAM_config
+    C%subshelf_melt_factor_EAS                 = subshelf_melt_factor_EAS_config
+    C%subshelf_melt_factor_GRL                 = subshelf_melt_factor_GRL_config
+    C%subshelf_melt_factor_ANT                 = subshelf_melt_factor_ANT_config
     
-    C%deep_ocean_threshold_depth_NAM      = deep_ocean_threshold_depth_NAM_config
-    C%deep_ocean_threshold_depth_EAS      = deep_ocean_threshold_depth_EAS_config
-    C%deep_ocean_threshold_depth_GRL      = deep_ocean_threshold_depth_GRL_config
-    C%deep_ocean_threshold_depth_ANT      = deep_ocean_threshold_depth_ANT_config
+    C%deep_ocean_threshold_depth_NAM           = deep_ocean_threshold_depth_NAM_config
+    C%deep_ocean_threshold_depth_EAS           = deep_ocean_threshold_depth_EAS_config
+    C%deep_ocean_threshold_depth_GRL           = deep_ocean_threshold_depth_GRL_config
+    C%deep_ocean_threshold_depth_ANT           = deep_ocean_threshold_depth_ANT_config
+  
+    ! Englacial isotope tracing
+    ! ========================
+    
+    C%choice_ice_isotopes_model                = choice_ice_isotopes_model_config
+    C%uniform_ice_d18O                         = uniform_ice_d18O_config
   
     ! Sea level and GIA
     ! =================
     
-    C%do_ocean_floodfill                  = do_ocean_floodfill_config
-    C%choice_sealevel_model               = choice_sealevel_model_config
-    C%fixed_sealevel                      = fixed_sealevel_config
-    C%filename_sealevel_record            = filename_sealevel_record_config
-    C%sealevel_record_length              = sealevel_record_length_config
+    C%do_ocean_floodfill                       = do_ocean_floodfill_config
+    C%choice_sealevel_model                    = choice_sealevel_model_config
+    C%fixed_sealevel                           = fixed_sealevel_config
+    C%filename_sealevel_record                 = filename_sealevel_record_config
+    C%sealevel_record_length                   = sealevel_record_length_config
   
-    C%choice_GIA_model                    = choice_GIA_model_config
-    C%dx_GIA                              = dx_GIA_config
-    C%ELRA_lithosphere_flex_rigidity      = ELRA_lithosphere_flex_rigidity_config
-    C%ELRA_bedrock_relaxation_time        = ELRA_bedrock_relaxation_time_config
-    C%ELRA_mantle_density                 = ELRA_mantle_density_config
+    C%choice_GIA_model                         = choice_GIA_model_config
+    C%dx_GIA                                   = dx_GIA_config
+    C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config
+    C%ELRA_bedrock_relaxation_time             = ELRA_bedrock_relaxation_time_config
+    C%ELRA_mantle_density                      = ELRA_mantle_density_config
 
     ! SELEN
     ! =====
     
-    C%SELEN_run_at_t_start                = SELEN_run_at_t_start_config
-    C%SELEN_n_TDOF_iterations             = SELEN_n_TDOF_iterations_config
-    C%SELEN_n_recursion_iterations        = SELEN_n_recursion_iterations_config
-    C%SELEN_use_rotational_feedback       = SELEN_use_rotational_feedback_config
-    C%SELEN_n_harmonics                   = SELEN_n_harmonics_config
-    C%SELEN_display_progress              = SELEN_display_progress_config
+    C%SELEN_run_at_t_start                     = SELEN_run_at_t_start_config
+    C%SELEN_n_TDOF_iterations                  = SELEN_n_TDOF_iterations_config
+    C%SELEN_n_recursion_iterations             = SELEN_n_recursion_iterations_config
+    C%SELEN_use_rotational_feedback            = SELEN_use_rotational_feedback_config
+    C%SELEN_n_harmonics                        = SELEN_n_harmonics_config
+    C%SELEN_display_progress                   = SELEN_display_progress_config
     
-    C%SELEN_dir                           = SELEN_dir_config
-    C%SELEN_global_topo_filename          = SELEN_global_topo_filename_config
-    C%SELEN_TABOO_init_filename           = SELEN_TABOO_init_filename_config
-    C%SELEN_LMJ_VALUES_filename           = SELEN_LMJ_VALUES_filename_config
+    C%SELEN_dir                                = SELEN_dir_config
+    C%SELEN_global_topo_filename               = SELEN_global_topo_filename_config
+    C%SELEN_TABOO_init_filename                = SELEN_TABOO_init_filename_config
+    C%SELEN_LMJ_VALUES_filename                = SELEN_LMJ_VALUES_filename_config
     
-    C%SELEN_irreg_time_n                  = SELEN_irreg_time_n_config
+    C%SELEN_irreg_time_n                       = SELEN_irreg_time_n_config
     ALLOCATE( C%SELEN_irreg_time_window( C%SELEN_irreg_time_n))
-    C%SELEN_irreg_time_window             = SELEN_irreg_time_window_config( 1:C%SELEN_irreg_time_n)
+    C%SELEN_irreg_time_window                  = SELEN_irreg_time_window_config( 1:C%SELEN_irreg_time_n)
     
-    C%SELEN_lith_thickness                = SELEN_lith_thickness_config
-    C%SELEN_visc_n                        = SELEN_visc_n_config
+    C%SELEN_lith_thickness                     = SELEN_lith_thickness_config
+    C%SELEN_visc_n                             = SELEN_visc_n_config
     ALLOCATE( C%SELEN_visc_prof( C%SELEN_visc_n))
-    C%SELEN_visc_prof = SELEN_visc_prof_config( 1:C%SELEN_visc_n)
+    C%SELEN_visc_prof      = SELEN_visc_prof_config( 1:C%SELEN_visc_n)
     
-    C%SELEN_TABOO_CDE                     = SELEN_TABOO_CDE_config
-    C%SELEN_TABOO_TLOVE                   = SELEN_TABOO_TLOVE_config
-    C%SELEN_TABOO_DEG1                    = SELEN_TABOO_DEG1_config
-    C%SELEN_TABOO_RCMB                    = SELEN_TABOO_RCMB_config
+    C%SELEN_TABOO_CDE                          = SELEN_TABOO_CDE_config
+    C%SELEN_TABOO_TLOVE                        = SELEN_TABOO_TLOVE_config
+    C%SELEN_TABOO_DEG1                         = SELEN_TABOO_DEG1_config
+    C%SELEN_TABOO_RCMB                         = SELEN_TABOO_RCMB_config
     
     ! Fill in some derived values
-    C%SELEN_jmax        = (C%SELEN_n_harmonics + 1) * (C%SELEN_n_harmonics + 2) / 2
-    C%SELEN_reg_time_n  = MAX(1, INT(SUM(C%SELEN_irreg_time_window( 1:C%SELEN_irreg_time_n)))) * INT(1000. / C%dt_SELEN)
+    C%SELEN_jmax       = (C%SELEN_n_harmonics + 1) * (C%SELEN_n_harmonics + 2) / 2
+    C%SELEN_reg_time_n = MAX(1, INT(SUM(C%SELEN_irreg_time_window( 1:C%SELEN_irreg_time_n)))) * INT(1000. / C%dt_SELEN)
     
     CALL initialize_TABOO_config
   
     ! Which data fields will be written to the help_fields output file
     ! ================================================================
     
-    C%help_field_01                       = help_field_01_config
-    C%help_field_02                       = help_field_02_config
-    C%help_field_03                       = help_field_03_config
-    C%help_field_04                       = help_field_04_config
-    C%help_field_05                       = help_field_05_config
-    C%help_field_06                       = help_field_06_config
-    C%help_field_07                       = help_field_07_config
-    C%help_field_08                       = help_field_08_config
-    C%help_field_09                       = help_field_09_config
-    C%help_field_10                       = help_field_10_config
-    C%help_field_11                       = help_field_11_config
-    C%help_field_12                       = help_field_12_config
-    C%help_field_13                       = help_field_13_config
-    C%help_field_14                       = help_field_14_config
-    C%help_field_15                       = help_field_15_config
-    C%help_field_16                       = help_field_16_config
-    C%help_field_17                       = help_field_17_config
-    C%help_field_18                       = help_field_18_config
-    C%help_field_19                       = help_field_19_config
-    C%help_field_20                       = help_field_20_config
-    C%help_field_21                       = help_field_21_config
-    C%help_field_22                       = help_field_22_config
-    C%help_field_23                       = help_field_23_config
-    C%help_field_24                       = help_field_24_config
-    C%help_field_25                       = help_field_25_config
-    C%help_field_26                       = help_field_26_config
-    C%help_field_27                       = help_field_27_config
-    C%help_field_28                       = help_field_28_config
-    C%help_field_29                       = help_field_29_config
-    C%help_field_30                       = help_field_30_config
-    C%help_field_31                       = help_field_31_config
-    C%help_field_32                       = help_field_32_config
-    C%help_field_33                       = help_field_33_config
-    C%help_field_34                       = help_field_34_config
-    C%help_field_35                       = help_field_35_config
-    C%help_field_36                       = help_field_36_config
-    C%help_field_37                       = help_field_37_config
-    C%help_field_38                       = help_field_38_config
-    C%help_field_39                       = help_field_39_config
-    C%help_field_40                       = help_field_40_config
-    C%help_field_41                       = help_field_41_config
-    C%help_field_42                       = help_field_42_config
-    C%help_field_43                       = help_field_43_config
-    C%help_field_44                       = help_field_44_config
-    C%help_field_45                       = help_field_45_config
-    C%help_field_46                       = help_field_46_config
-    C%help_field_47                       = help_field_47_config
-    C%help_field_48                       = help_field_48_config
-    C%help_field_49                       = help_field_49_config
-    C%help_field_50                       = help_field_50_config
+    C%help_field_01                            = help_field_01_config
+    C%help_field_02                            = help_field_02_config
+    C%help_field_03                            = help_field_03_config
+    C%help_field_04                            = help_field_04_config
+    C%help_field_05                            = help_field_05_config
+    C%help_field_06                            = help_field_06_config
+    C%help_field_07                            = help_field_07_config
+    C%help_field_08                            = help_field_08_config
+    C%help_field_09                            = help_field_09_config
+    C%help_field_10                            = help_field_10_config
+    C%help_field_11                            = help_field_11_config
+    C%help_field_12                            = help_field_12_config
+    C%help_field_13                            = help_field_13_config
+    C%help_field_14                            = help_field_14_config
+    C%help_field_15                            = help_field_15_config
+    C%help_field_16                            = help_field_16_config
+    C%help_field_17                            = help_field_17_config
+    C%help_field_18                            = help_field_18_config
+    C%help_field_19                            = help_field_19_config
+    C%help_field_20                            = help_field_20_config
+    C%help_field_21                            = help_field_21_config
+    C%help_field_22                            = help_field_22_config
+    C%help_field_23                            = help_field_23_config
+    C%help_field_24                            = help_field_24_config
+    C%help_field_25                            = help_field_25_config
+    C%help_field_26                            = help_field_26_config
+    C%help_field_27                            = help_field_27_config
+    C%help_field_28                            = help_field_28_config
+    C%help_field_29                            = help_field_29_config
+    C%help_field_30                            = help_field_30_config
+    C%help_field_31                            = help_field_31_config
+    C%help_field_32                            = help_field_32_config
+    C%help_field_33                            = help_field_33_config
+    C%help_field_34                            = help_field_34_config
+    C%help_field_35                            = help_field_35_config
+    C%help_field_36                            = help_field_36_config
+    C%help_field_37                            = help_field_37_config
+    C%help_field_38                            = help_field_38_config
+    C%help_field_39                            = help_field_39_config
+    C%help_field_40                            = help_field_40_config
+    C%help_field_41                            = help_field_41_config
+    C%help_field_42                            = help_field_42_config
+    C%help_field_43                            = help_field_43_config
+    C%help_field_44                            = help_field_44_config
+    C%help_field_45                            = help_field_45_config
+    C%help_field_46                            = help_field_46_config
+    C%help_field_47                            = help_field_47_config
+    C%help_field_48                            = help_field_48_config
+    C%help_field_49                            = help_field_49_config
+    C%help_field_50                            = help_field_50_config
     
     ! Values to be filled into the total mask (used only for diagnostic output)
     ! ==========================================================================
 
-    C%type_land                           = 0
-    C%type_ocean                          = 1
-    C%type_lake                           = 2
-    C%type_sheet                          = 3
-    C%type_shelf                          = 4
-    C%type_coast                          = 5
-    C%type_margin                         = 6
-    C%type_groundingline                  = 7
-    C%type_calvingfront                   = 8
+    C%type_land                                = 0
+    C%type_ocean                               = 1
+    C%type_lake                                = 2
+    C%type_sheet                               = 3
+    C%type_shelf                               = 4
+    C%type_coast                               = 5
+    C%type_margin                              = 6
+    C%type_groundingline                       = 7
+    C%type_calvingfront                        = 8
     
     ! Parameters of the polar stereographic projections of the four model regions
     ! (These have to match the values used to create the input files!)
     ! ===========================================================================  
   
-    C%lambda_M_NAM                        = 265._dp
-    C%lambda_M_EAS                        = 40._dp
-    C%lambda_M_GRL                        = 320._dp
-    C%lambda_M_ANT                        = 0._dp
-    C%phi_M_NAM                           = 62._dp
-    C%phi_M_EAS                           = 70._dp
-    C%phi_M_GRL                           = 72._dp
-    C%phi_M_ANT                           = -90._dp
-    C%alpha_stereo_NAM                    = 165.0923_dp
-    C%alpha_stereo_EAS                    = 165.04_dp
-    C%alpha_stereo_GRL                    = 164.85_dp
-    C%alpha_stereo_ANT                    = 165.0263_dp
+    C%lambda_M_NAM                             = 265._dp
+    C%lambda_M_EAS                             = 40._dp
+    C%lambda_M_GRL                             = 320._dp
+    C%lambda_M_ANT                             = 0._dp
+    C%phi_M_NAM                                = 62._dp
+    C%phi_M_EAS                                = 70._dp
+    C%phi_M_GRL                                = 72._dp
+    C%phi_M_ANT                                = -90._dp
+    C%alpha_stereo_NAM                         = 165.0923_dp
+    C%alpha_stereo_EAS                         = 165.04_dp
+    C%alpha_stereo_GRL                         = 164.85_dp
+    C%alpha_stereo_ANT                         = 165.0263_dp
 
   END SUBROUTINE copy_variables_to_struct
   

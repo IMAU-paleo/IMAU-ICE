@@ -14,7 +14,7 @@ MODULE ice_dynamics_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_PD_data_fields, type_init_data_fields
+  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -236,7 +236,7 @@ CONTAINS
       ! Calculate velocities for predicted geometry
       region%ice%Hi_old( :,i1:i2) = region%ice%Hi_a(    :,i1:i2)
       region%ice%Hi_a(   :,i1:i2) = region%ice%Hi_pred( :,i1:i2)
-      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      CALL update_general_ice_model_data( region%grid, region%ice)
       
       IF     (C%choice_ice_dynamics == 'SIA') THEN
       
@@ -574,7 +574,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
   
   ! Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, PD, init)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
       
@@ -583,91 +583,32 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
-    TYPE(type_init_data_fields),         INTENT(IN)    :: init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     
     ! Local variables:
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: Hs, tauc_analytical, Hs_max_float
+    REAL(dp)                                           :: tauc_analytical
     
     IF (par%master) WRITE(0,*) '  Initialising ice dynamics model...'
     
     ! Allocate shared memory
     CALL allocate_ice_model( grid, ice)
         
-    ! Initialise with data from initial file or restart file
-    IF (.NOT. C%is_restart) THEN
-      ! Directly use the prescribed, mapped geometry
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        ice%Hi_a( j,i) = init%Hi( j,i)
-        ice%Hb_a( j,i) = init%Hb( j,i)
-        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE ! IF (.NOT. C%is_restart) THEN
-    
-      IF (C%do_benchmark_experiment) THEN
-        ! Exception for restarting benchmark experiments
-      
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%Hi_a( j,i) = init%Hi( j,i)
-          ice%Hb_a( j,i) = init%Hb( j,i)
-          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
-        END DO
-        END DO
-        CALL sync
-        
-      ELSE ! IF (C%do_benchmark_experiment) THEN
-        ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
-        ! Also, the current model resolution might be higher than that which was used to generate
-        ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
-      
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-        
-          ! Assume the mapped surface elevation is correct
-          Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
-          
-          ! Define bedrock as PD bedrock + restarted deformation
-          ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
-          
-          ! Take geoid from restart file
-          ice%SL_a( j,i) = init%SL( j,i)
-          
-          ! Surface elevation cannot be below bedrock
-          Hs = MAX( Hs, ice%Hb_a( j,i))
-          
-          ! Define ice thickness
-          Hs_max_float = ice%Hb_a( j,i) + MAX( 0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density / ice_density)
-          IF (Hs > Hs_max_float) THEN
-            ! Ice here must be grounded
-            ice%Hi_a( j,i) = Hs - ice%Hb_a( j,i)
-          ELSE
-            ! Ice here must be floating
-            ice%Hi_a( j,i) = MIN( Hs - ice%Hb_a( j,i), MAX( 0._dp, (Hs - ice%SL_a( j,i))) / (1._dp - ice_density / seawater_density))
-          END IF
-          
-          ! Recalculate surface elevation
-          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
-          
-        END DO
-        END DO
-        CALL sync
-      
-      END IF ! IF (C%do_benchmark_experiment) THEN
-      
-    END IF ! IF (.NOT. C%is_restart) THEN
+    ! Initialise the ice-sheet geometry
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%Hi_a( j,i) = refgeo_init%Hi( j,i)
+      ice%Hb_a( j,i) = refgeo_init%Hb( j,i)
+      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
     
     ! Make sure we already start with correct boundary conditions
     CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
-    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
+    CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
-    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
+    CALL update_general_ice_model_data( grid, ice)
     
     ! Initialise some numbers for the predictor/corrector ice thickness update method
     IF (par%master) THEN

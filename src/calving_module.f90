@@ -11,7 +11,7 @@ MODULE calving_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_PD_data_fields
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -22,7 +22,7 @@ MODULE calving_module
 CONTAINS
 
   ! The main routine that's called from the IMAU_ICE_main_model
-  SUBROUTINE apply_calving_law( grid, ice, PD)
+  SUBROUTINE apply_calving_law( grid, ice, refgeo_PD)
     ! Calculate the calving flux
 
     IMPLICIT NONE
@@ -30,7 +30,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -105,7 +105,7 @@ CONTAINS
     IF (C%remove_shelves_larger_than_PD) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (PD%Hi( j,i) == 0._dp .AND. PD%Hb( j,i) < 0._dp) THEN
+        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO

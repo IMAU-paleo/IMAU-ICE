@@ -11,33 +11,33 @@ MODULE BMB_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_subclimate_region, type_BMB_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, type_BMB_model
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              interpolate_ocean_depth, interp_bilin_2D
-  USE forcing_module,                  ONLY: forcing
+  USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
 
   IMPLICIT NONE
     
 CONTAINS
 
   ! The main routine that is called from the IMAU_ICE_main_model
-  SUBROUTINE run_BMB_model( grid, ice, climate, BMB, region_name, time)
+  SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time)
     ! Run the selected BMB model
     
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_grid),                      INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional),   INTENT(INOUT) :: ocean
+    TYPE(type_BMB_model),                 INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
+    REAL(dp),                             INTENT(IN)    :: time
     
     ! Local variables:
-    INTEGER                                            :: i,j
+    INTEGER                                             :: i,j
     
   ! ================================================
   ! ===== Exceptions for benchmark experiments =====
@@ -91,19 +91,19 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'MISMIPplus') THEN
       CALL BMB_MISMIPplus( grid, ice, BMB, time)
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
-      CALL run_BMB_model_ANICE_legacy(         grid, ice, climate, BMB, region_name)
+      CALL run_BMB_model_ANICE_legacy(         grid, ice, BMB, region_name, time)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin') THEN
-      CALL run_BMB_model_Favier2019_linear(    grid, ice, climate, BMB)
+      CALL run_BMB_model_Favier2019_linear(    grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_quad') THEN
-      CALL run_BMB_model_Favier2019_quadratic( grid, ice, climate, BMB)
+      CALL run_BMB_model_Favier2019_quadratic( grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
-      CALL run_BMB_model_Favier2019_Mplus(     grid, ice, climate, BMB)
+      CALL run_BMB_model_Favier2019_Mplus(     grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
-      CALL run_BMB_model_Lazeroms2018_plume(   grid, ice, climate, BMB)
+      CALL run_BMB_model_Lazeroms2018_plume(   grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
-      CALL run_BMB_model_PICO(                 grid, ice, climate, BMB)
+      CALL run_BMB_model_PICO(                 grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
-      CALL run_BMB_model_PICOP(                grid, ice, climate, BMB)
+      CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in run_BMB_model!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -316,7 +316,7 @@ CONTAINS
   END SUBROUTINE BMB_MISMIPplus
 
   ! The ANICE_legacy sub-shelf melt model
-  SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, climate, BMB, region_name)
+  SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, BMB, region_name, time)
     ! Calculate sub-shelf melt with the ANICE_legacy model, which is based on the glacial-interglacial
     ! parameterisation by Pollard & DeConto (2012), the distance-to-open-ocean + subtended-angle parameterisation
     ! by Pollard & DeConto (2012), and the linear temperature-melt relation by Martin et al. (2011).
@@ -326,12 +326,13 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(INOUT) :: climate
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables
     INTEGER                                            :: i,j
+    REAL(dp)                                           :: T_ocean_mean, Q_TOA_jun_65N, Q_TOA_jan_80S
     REAL(dp)                                           :: BMB_shelf                             ! Sub-shelf melt rate for non-exposed shelf  [m/year]
     REAL(dp)                                           :: BMB_shelf_exposed                     ! Sub-shelf melt rate for exposed shelf      [m/year]
     REAL(dp)                                           :: BMB_deepocean                         ! Sub-shelf melt rate for deep-ocean areas   [m/year]
@@ -368,89 +369,78 @@ CONTAINS
     
     ! Find the weight from insolation
     IF (region_name == 'NAM' .OR. region_name == 'EAS' .OR. region_name == 'GRL') THEN
-      w_ins = MAX(0._dp, (climate%Q_TOA_jun_65N - 462.29_dp) / 40._dp)
+      CALL get_insolation_at_time_month_and_lat( time, 6, 65._dp, Q_TOA_jun_65N)
+      w_ins = MAX(0._dp, (Q_TOA_jun_65N - 462.29_dp) / 40._dp)
     ELSEIF (region_name == 'ANT') THEN
-      w_ins = MAX(0._dp, (climate%Q_TOA_jan_80S - 532.19_dp) / 40._dp)
+      CALL get_insolation_at_time_month_and_lat( time, 1, -80._dp, Q_TOA_jan_80S)
+      w_ins = MAX(0._dp, (Q_TOA_jan_80S - 532.19_dp) / 40._dp)
     END IF
     
-    ! Determine mean ocean temperature and basal melt rates for deep ocean and exposed shelves
-    IF (C%choice_ocean_temperature_model == 'fixed') THEN
-      ! Use present-day values
-      
-      climate%T_ocean_mean = BMB%T_ocean_mean_PD
-      BMB_deepocean        = BMB%BMB_deepocean_PD
-      BMB_shelf_exposed    = BMB%BMB_shelf_exposed_PD
-      
-    ELSEIF (C%choice_ocean_temperature_model == 'scaled') THEN
-      ! Scale between config values of mean ocean temperature and basal melt rates for PD, cold, and warm climates.
+    ! Initialise to prevent compiler warnings
+    T_ocean_mean = 0._dp
     
-      ! Determine weight for scaling between different ocean temperatures
-      IF (C%choice_forcing_method == 'CO2_direct') THEN
-      
-        ! Use the prescribed CO2 record as a glacial index
-        IF (forcing%CO2_obs > 280._dp) THEN
-          ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
-          w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (400._dp - forcing%CO2_obs) / (400._dp - 280._dp) )) - w_ins
-          w_warm = 1._dp - w_PD
-          w_cold = 0._dp
-        ELSE
-          ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
-          w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (forcing%CO2_obs - 190._dp) / (280._dp - 190._dp) )) + w_ins
-          w_cold = 1._dp - w_PD
-          w_warm = 0._dp
-        END IF
-        
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-      
-        ! Use modelled CO2 as a glacial index
-        IF (forcing%CO2_mod > 280._dp) THEN
-          ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
-          w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (400._dp - forcing%CO2_mod) / (400._dp - 280._dp) )) - w_ins
-          w_warm = 1._dp - w_PD
-          w_cold = 0._dp
-        ELSE
-          ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
-          w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (forcing%CO2_mod - 190._dp) / (280._dp - 190._dp) )) + w_ins
-          w_cold = 1._dp - w_PD
-          w_warm = 0._dp
-        END IF
-        
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
-      
-        ! Use modelled global mean annual temperature change as a glacial index
-        IF (forcing%dT_glob_inverse > 0._dp) THEN
-          ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 405 ppmv
-          w_warm = MIN(1.25_dp, MAX(-0.25_dp, forcing%dT_glob_inverse / 12._dp )) - w_ins
-          w_PD   = 1._dp - w_warm
-          w_cold = 0._dp
-        ELSE
-          ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
-          w_cold = MIN(1.25_dp, MAX(-0.25_dp, -forcing%dT_glob_inverse / 12._dp )) + w_ins
-          w_PD   = 1._dp - w_cold
-          w_warm = 0._dp
-        END IF
-        
-      ELSEIF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
-        ! In this case, no CO2/d18O forcing is used; just assume PD weights
-        
-        w_warm = 0._dp
+    ! Determine mean ocean temperature and basal melt rates for deep ocean and exposed shelves
+    IF (C%choice_forcing_method == 'CO2_direct') THEN
+    
+      ! Use the prescribed CO2 record as a glacial index
+      IF (forcing%CO2_obs > 280._dp) THEN
+        ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
+        w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (400._dp - forcing%CO2_obs) / (400._dp - 280._dp) )) - w_ins
+        w_warm = 1._dp - w_PD
         w_cold = 0._dp
-        w_PD   = 1._dp
-        
-      ELSE ! IF (C%choice_forcing_method == 'CO2_direct') THEN
-        WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model_ANICE_legacy!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF ! IF (C%choice_forcing_method == 'CO2_direct') THEN
+      ELSE
+        ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
+        w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (forcing%CO2_obs - 190._dp) / (280._dp - 190._dp) )) + w_ins
+        w_cold = 1._dp - w_PD
+        w_warm = 0._dp
+      END IF
       
-      climate%T_ocean_mean = w_PD * BMB%T_ocean_mean_PD      + w_warm * BMB%T_ocean_mean_warm      + w_cold * BMB%T_ocean_mean_cold
-      BMB_deepocean        = w_PD * BMB%BMB_deepocean_PD     + w_warm * BMB%BMB_deepocean_warm     + w_cold * BMB%BMB_deepocean_cold
-      BMB_shelf_exposed    = w_PD * BMB%BMB_shelf_exposed_PD + w_warm * BMB%BMB_shelf_exposed_warm + w_cold * BMB%BMB_shelf_exposed_cold
-      CALL sync
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+    
+      ! Use modelled CO2 as a glacial index
+      IF (forcing%CO2_mod > 280._dp) THEN
+        ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 400 ppmv
+        w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (400._dp - forcing%CO2_mod) / (400._dp - 280._dp) )) - w_ins
+        w_warm = 1._dp - w_PD
+        w_cold = 0._dp
+      ELSE
+        ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
+        w_PD   = MIN(1.25_dp, MAX(-0.25_dp, (forcing%CO2_mod - 190._dp) / (280._dp - 190._dp) )) + w_ins
+        w_cold = 1._dp - w_PD
+        w_warm = 0._dp
+      END IF
       
-    ELSE ! IF (C%choice_ocean_temperature_model == 'fixed') THEN
-      WRITE(0,*) '  ERROR: choice_ocean_temperature_model "', TRIM(C%choice_ocean_temperature_model), '" not implemented in run_BMB_model_ANICE_legacy!'
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    
+      ! Use modelled global mean annual temperature change as a glacial index
+      IF (forcing%dT_glob_inverse > 0._dp) THEN
+        ! Warmer than present, interpolate between "PD" and "warm", assuming "warm" means 405 ppmv
+        w_warm = MIN(1.25_dp, MAX(-0.25_dp, forcing%dT_glob_inverse / 12._dp )) - w_ins
+        w_PD   = 1._dp - w_warm
+        w_cold = 0._dp
+      ELSE
+        ! Colder than present, interpolate between "PD" and "cold", assuming "cold" means 190 ppmv
+        w_cold = MIN(1.25_dp, MAX(-0.25_dp, -forcing%dT_glob_inverse / 12._dp )) + w_ins
+        w_PD   = 1._dp - w_cold
+        w_warm = 0._dp
+      END IF
+      
+    ELSEIF (C%choice_forcing_method == 'climate_direct' .OR. C%choice_forcing_method == 'SMB_direct') THEN
+      ! In this case, no CO2/d18O forcing is used; just assume PD weights
+      
+      w_warm = 0._dp
+      w_cold = 0._dp
+      w_PD   = 1._dp
+      
+    ELSE ! IF (C%choice_forcing_method == 'CO2_direct') THEN
+      WRITE(0,*) '  ERROR: forcing method "', TRIM(C%choice_forcing_method), '" not implemented in run_BMB_model_ANICE_legacy!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF ! IF (C%choice_ocean_temperature_model == 'fixed') THEN
+    END IF ! IF (C%choice_forcing_method == 'CO2_direct') THEN
+    
+    T_ocean_mean      = w_PD * BMB%T_ocean_mean_PD      + w_warm * BMB%T_ocean_mean_warm      + w_cold * BMB%T_ocean_mean_cold
+    BMB_deepocean     = w_PD * BMB%BMB_deepocean_PD     + w_warm * BMB%BMB_deepocean_warm     + w_cold * BMB%BMB_deepocean_cold
+    BMB_shelf_exposed = w_PD * BMB%BMB_shelf_exposed_PD + w_warm * BMB%BMB_shelf_exposed_warm + w_cold * BMB%BMB_shelf_exposed_cold
+    CALL sync
     
     ! Use the (interpolated, spatially uniform) ocean temperature and the subtended angle + distance-to-open-ocean
     ! to calculate sub-shelf melt rates using the parametrisation from Martin et al., 2011
@@ -465,7 +455,7 @@ CONTAINS
 
         ! Sub-shelf melt rate for non-exposed shelves (Martin, TC, 2011) - melt values, when T_ocean > T_freeze.
         BMB_shelf   = seawater_density * cp0 * sec_per_year * gamma_T * BMB%subshelf_melt_factor * &
-                   (climate%T_ocean_mean - T_freeze) / (L_fusion * ice_density)
+                   (T_ocean_mean - T_freeze) / (L_fusion * ice_density)
 
       ELSE
         BMB_shelf = 0._dp
@@ -1111,7 +1101,7 @@ CONTAINS
   END FUNCTION subtended_angle
   
   ! The Favier et al. (2019) sub-shelf melt parameterisations
-  SUBROUTINE run_BMB_model_Favier2019_linear(         grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_Favier2019_linear(         grid, ice, ocean, BMB)
     ! Calculate sub-shelf melt with Favier et al. (2019) linear parameterisation
     
     IMPLICIT NONE
@@ -1119,7 +1109,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
@@ -1127,8 +1117,8 @@ CONTAINS
     REAL(dp)                                           :: dT
     
     ! Calculate ocean temperature and freezing point at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
-    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
+    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1151,7 +1141,7 @@ CONTAINS
     CALL sync
           
   END SUBROUTINE run_BMB_model_Favier2019_linear
-  SUBROUTINE run_BMB_model_Favier2019_quadratic(      grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_Favier2019_quadratic(      grid, ice, ocean, BMB)
     ! Calculate sub-shelf melt with Favier et al. (2019) quadratic parameterisation
     
     IMPLICIT NONE
@@ -1159,7 +1149,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
@@ -1167,8 +1157,8 @@ CONTAINS
     REAL(dp)                                           :: dT
     
     ! Calculate ocean temperature and freezing point at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
-    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
+    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1191,7 +1181,7 @@ CONTAINS
     CALL sync
           
   END SUBROUTINE run_BMB_model_Favier2019_quadratic
-  SUBROUTINE run_BMB_model_Favier2019_Mplus(          grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_Favier2019_Mplus(          grid, ice, ocean, BMB)
     ! Calculate sub-shelf melt with Favier et al. (2019) M+ parameterisation
     
     IMPLICIT NONE
@@ -1199,7 +1189,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
@@ -1207,8 +1197,8 @@ CONTAINS
     REAL(dp)                                           :: dT,dT_av
     
     ! Calculate ocean temperature and freezing point at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
-    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
+    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+    CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1269,7 +1259,7 @@ CONTAINS
     END DO ! DO basin_i = 1, ice%nbasins
           
   END SUBROUTINE run_BMB_model_Favier2019_Mplus
-  SUBROUTINE calc_ocean_temperature_at_shelf_base(    grid, ice, climate, BMB)
+  SUBROUTINE calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
     ! Calculate ocean temperature at the base of the shelf by interpolating
     ! the 3-D ocean temperature field in the vertical column
     
@@ -1278,7 +1268,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
@@ -1297,7 +1287,7 @@ CONTAINS
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
         
         ! Find ocean temperature at this depth
-        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, BMB%T_ocean_base( j,i))
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, BMB%T_ocean_base( j,i))
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
       
@@ -1306,7 +1296,7 @@ CONTAINS
     CALL sync
           
   END SUBROUTINE calc_ocean_temperature_at_shelf_base
-  SUBROUTINE calc_ocean_freezing_point_at_shelf_base( grid, ice, climate, BMB)
+  SUBROUTINE calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)
     ! Calculate the ocean freezing point at the base of the shelf, needed to calculate
     ! basal melt in the different parameterisations from Favier et al. (2019)
     
@@ -1315,7 +1305,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables
@@ -1338,7 +1328,7 @@ CONTAINS
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
         
         ! Find salinity at this depth
-        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, S0)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, S0)
         
         ! Calculate ocean freezing temperature (Favier et al. (2019), Eq. 3) in degrees Celsius
         BMB%T_ocean_freeze_base( j,i) = lambda1 * S0 + lambda2 - lambda3 * depth
@@ -1352,7 +1342,7 @@ CONTAINS
   END SUBROUTINE calc_ocean_freezing_point_at_shelf_base
   
   ! The Lazeroms et al. (2018) quasi-2-D plume parameterisation
-  SUBROUTINE run_BMB_model_Lazeroms2018_plume( grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_Lazeroms2018_plume( grid, ice, ocean, BMB)
     ! Calculate basal melt using the quasi-2-D plume parameterisation by Lazeroms et al. (2018), following the equations in Appendix A
     
     IMPLICIT NONE
@@ -1360,7 +1350,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables:
@@ -1392,7 +1382,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: x0              =  0.56_dp          ! Empirically derived dimensionless scaling factor
     
     ! Calculate ocean temperature at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base( grid, ice, climate, BMB)
+    CALL calc_ocean_temperature_at_shelf_base( grid, ice, ocean, BMB)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1409,8 +1399,8 @@ CONTAINS
           ! Use the extrapolated ocean temperature+salinity fields
         
           depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, Ta)
-          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, Sa)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, Ta)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, Sa)
           
         ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
           ! Use the results from the PICO ocean box model
@@ -1773,7 +1763,7 @@ CONTAINS
   END FUNCTION Lazeroms2018_dimensionless_melt_curve
   
   ! The PICO ocean box model
-  SUBROUTINE run_BMB_model_PICO( grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_PICO( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICO ocean box model
     
     IMPLICIT NONE
@@ -1781,7 +1771,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! Local variables:
@@ -1792,7 +1782,7 @@ CONTAINS
     
     ! Run PICO for all basins
     DO basin_i = 1, ice%nbasins
-      CALL run_BMB_model_PICO_basin( grid, ice, climate, BMB, basin_i)
+      CALL run_BMB_model_PICO_basin( grid, ice, ocean, BMB, basin_i)
     END DO
     
   END SUBROUTINE run_BMB_model_PICO
@@ -1918,7 +1908,7 @@ CONTAINS
     CALL deallocate_shared( wd_GL_D)
     
   END SUBROUTINE PICO_assign_ocean_boxes
-  SUBROUTINE run_BMB_model_PICO_basin( grid, ice, climate, BMB, basin_i)
+  SUBROUTINE run_BMB_model_PICO_basin( grid, ice, ocean, BMB, basin_i)
     ! Calculate basal melt for ice basin i using the PICO ocean box model
     
     IMPLICIT NONE
@@ -1926,7 +1916,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     INTEGER,                             INTENT(IN)    :: basin_i
     
@@ -1963,7 +1953,7 @@ CONTAINS
     lambda = L_fusion / cp_ocean
     
     ! Calculate temperature and salinity in box B0 for this basin
-    CALL PICO_calc_T0_S0( grid, ice, climate, basin_i, Tk0, Sk0)
+    CALL PICO_calc_T0_S0( grid, ice, ocean, basin_i, Tk0, Sk0)
     
     ! Calculate 2-D + box-averaged basal pressures
     BMB%PICO_p( :,grid%i1:grid%i2) = ice_density * grav * ice%Hi_a( :,grid%i1:grid%i2)
@@ -2156,7 +2146,7 @@ CONTAINS
     r = d_GL / (d_GL + d_IF)                         
     
   END SUBROUTINE calc_dGL_dIF_r
-  SUBROUTINE PICO_calc_T0_S0( grid, ice, climate, basin_i, Tk0, Sk0)
+  SUBROUTINE PICO_calc_T0_S0( grid, ice, ocean, basin_i, Tk0, Sk0)
     ! Find temperature and salinity in box B0 (defined as mean ocean-floor value at the calving front)
     
     IMPLICIT NONE
@@ -2164,7 +2154,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     INTEGER,                             INTENT(IN)    :: basin_i
     REAL(dp),                            INTENT(OUT)   :: Tk0,Sk0
     
@@ -2194,8 +2184,8 @@ CONTAINS
           
           ! Find ocean-floor temperature and salinity
           depth = MAX( 0.1_dp, -ice%Hb_a( j,i))
-          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,j,i), depth, T_floor)
-          CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,j,i), depth, S_floor)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_floor)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, S_floor)
           
           ! Add to sum
           n   = n   + 1
@@ -2247,8 +2237,8 @@ CONTAINS
         END IF
         
         ! Find ocean-floor temperature and salinity
-        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
-        CALL interpolate_ocean_depth( climate%nz_ocean, climate%z_ocean, climate%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)
         
       END IF ! IF (par%master) THEN
       
@@ -2296,7 +2286,7 @@ CONTAINS
   END SUBROUTINE PICO_calc_box_average
   
   ! The PICOP ocean box + plume model
-  SUBROUTINE run_BMB_model_PICOP( grid, ice, climate, BMB)
+  SUBROUTINE run_BMB_model_PICOP( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICOP ocean box + plume model
     
     IMPLICIT NONE
@@ -2304,14 +2294,14 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
     ! First run the PICO ocean box model to determine the temperature and salinity in the cavity
-    CALL run_BMB_model_PICO( grid, ice, climate, BMB)
+    CALL run_BMB_model_PICO( grid, ice, ocean, BMB)
     
     ! Then run the Lazeroms (2018) plume parameterisation to calculate melt rates
-    CALL run_BMB_model_Lazeroms2018_plume( grid, ice, climate, BMB)
+    CALL run_BMB_model_Lazeroms2018_plume( grid, ice, ocean, BMB)
     
   END SUBROUTINE run_BMB_model_PICOP
   
