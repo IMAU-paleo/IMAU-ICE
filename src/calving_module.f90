@@ -22,7 +22,7 @@ MODULE calving_module
 CONTAINS
 
   ! The main routine that's called from the IMAU_ICE_main_model
-  SUBROUTINE apply_calving_law( grid, ice, PD)
+  SUBROUTINE apply_calving_law( grid, ice, PD, topo)
     ! Calculate the calving flux
 
     IMPLICIT NONE
@@ -31,6 +31,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
+    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -112,6 +113,18 @@ CONTAINS
       END DO
       CALL sync
     END IF ! IF (C%remove_shelves_larger_than_PD) THEN
+    
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (topo%Hi( j,i) == 0._dp .AND. topo%Hb( j,i) < C%continental_shelf_max_height) THEN
+          ice%Hi_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%continental_shelf_calving) THEN
     
   END SUBROUTINE apply_calving_law
   

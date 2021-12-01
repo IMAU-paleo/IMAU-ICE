@@ -234,7 +234,9 @@ MODULE configuration_module
   REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   LOGICAL             :: do_remove_shelves_config                = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   LOGICAL             :: remove_shelves_larger_than_PD_config    = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
-
+  LOGICAL             :: continental_shelf_calving_config        = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
+  REAL(dp)            :: continental_shelf_max_height_config     = -2000._dp                        ! Maximum depth of the continental shelf
+ 
   ! Thermodynamics
   ! ==============
   
@@ -737,7 +739,8 @@ MODULE configuration_module
     REAL(dp)                            :: calving_threshold_thickness
     LOGICAL                             :: do_remove_shelves
     LOGICAL                             :: remove_shelves_larger_than_PD
-  
+    LOGICAL                             :: continental_shelf_calving
+    REAL(dp)                            :: continental_shelf_max_height
     ! Thermodynamics
     ! ==============
     
@@ -1399,6 +1402,8 @@ CONTAINS
                      calving_threshold_thickness_config,         &
                      do_remove_shelves_config,                   &
                      remove_shelves_larger_than_PD_config,       &
+                     continental_shelf_calving_config,           &
+                     continental_shelf_max_height_config,        &
                      choice_geothermal_heat_flux_config,         &
                      constant_geothermal_heat_flux_config,       &
                      filename_geothermal_heat_flux_config,       &
@@ -1830,6 +1835,8 @@ CONTAINS
     C%calving_threshold_thickness         = calving_threshold_thickness_config
     C%do_remove_shelves                   = do_remove_shelves_config
     C%remove_shelves_larger_than_PD       = remove_shelves_larger_than_PD_config
+    C%continental_shelf_calving           = continental_shelf_calving_config
+    C%continental_shelf_max_height        = continental_shelf_max_height_config
   
     ! Thermodynamics
     ! ==============

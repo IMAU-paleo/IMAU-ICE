@@ -159,7 +159,7 @@ CONTAINS
       ! Update ice geometry and advance region time
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
-      CALL apply_calving_law( region%grid, region%ice, region%PD)
+      CALL apply_calving_law( region%grid, region%ice, region%PD, region%topo)
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
