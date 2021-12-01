@@ -118,7 +118,7 @@ CONTAINS
     IF (C%continental_shelf_calving) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (topo%Hi( j,i) == 0._dp .AND. topo%Hb( j,i) < C%continental_shelf_max_height) THEN
+        IF (topo%Hi( j,i) == 0._dp .AND. topo%Hb( j,i) < C%continental_shelf_min_height) THEN
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO
