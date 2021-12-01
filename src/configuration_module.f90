@@ -371,6 +371,15 @@ MODULE configuration_module
   REAL(dp)            :: BMB_sheet_uniform_config                = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config               = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   LOGICAL             :: do_asynchronous_BMB_config              = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
+  CHARACTER(LEN=256)  :: choice_BMB_shelf_amplification_config   = 'uniform'                        ! Choice of shelf BMB tuning, can be 'uniform' or 'basin'
+  
+  INTEGER                  ::  basin_BMB_amplification_n_ANT_config         = 17                    ! Number of basins used for ANT
+  REAL(dp), DIMENSION(17)  ::  basin_BMB_amplification_factor_ANT_config    = &                     ! BMB amplification factor for each basin for ANT
+    (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
+       1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
+  INTEGER                  ::  basin_BMB_amplification_n_GRL_config         = 8                     ! Number of basins used for GRL
+  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                     ! BMB amplification factor for each basin for GRL 
+    (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
   
   CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config          = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config          = 'none'
@@ -741,6 +750,7 @@ MODULE configuration_module
     LOGICAL                             :: remove_shelves_larger_than_PD
     LOGICAL                             :: continental_shelf_calving
     REAL(dp)                            :: continental_shelf_min_height
+    
     ! Thermodynamics
     ! ==============
     
@@ -854,6 +864,12 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     LOGICAL                             :: do_asynchronous_BMB
+    CHARACTER(LEN=256)                  :: choice_BMB_shelf_amplification
+    
+    INTEGER                             :: basin_BMB_amplification_n_ANT
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_ANT
+    INTEGER                             :: basin_BMB_amplification_n_GRL
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_GRL
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1485,6 +1501,11 @@ CONTAINS
                      BMB_sheet_uniform_config,                   &
                      choice_BMB_subgrid_config,                  &
                      do_asynchronous_BMB_config,                 &
+                     choice_BMB_shelf_amplification_config,      &
+                     basin_BMB_amplification_n_ANT_config,       &
+                     basin_BMB_amplification_factor_ANT_config,  &
+                     basin_BMB_amplification_n_GRL_config,       &
+                     basin_BMB_amplification_factor_GRL_config,  &
                      choice_basin_scheme_NAM_config,             &
                      choice_basin_scheme_EAS_config,             &
                      choice_basin_scheme_GRL_config,             &
@@ -1951,6 +1972,14 @@ CONTAINS
     C%BMB_sheet_uniform                   = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                  = choice_BMB_subgrid_config
     C%do_asynchronous_BMB                 = do_asynchronous_BMB_config
+    C%choice_BMB_shelf_amplification      = choice_BMB_shelf_amplification_config
+    
+    C%basin_BMB_amplification_n_ANT       = basin_BMB_amplification_n_ANT_config
+    ALLOCATE( C%basin_BMB_amplification_factor_ANT( C%basin_BMB_amplification_n_ANT))
+    C%basin_BMB_amplification_factor_ANT  = basin_BMB_amplification_factor_ANT_config( 1:C%basin_BMB_amplification_n_ANT)
+    C%basin_BMB_amplification_n_GRL       = basin_BMB_amplification_n_GRL_config
+    ALLOCATE( C%basin_BMB_amplification_factor_GRL( C%basin_BMB_amplification_n_GRL)) 
+    C%basin_BMB_amplification_factor_GRL  = basin_BMB_amplification_factor_GRL_config( 1:C%basin_BMB_amplification_n_GRL)
     
     C%choice_basin_scheme_NAM             = choice_basin_scheme_NAM_config
     C%choice_basin_scheme_EAS             = choice_basin_scheme_EAS_config
