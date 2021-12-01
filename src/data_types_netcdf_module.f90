@@ -33,9 +33,6 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_dim_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
-    
-  ! Restart file data - everything that's needed to restart a new run
-  ! =================================================================
   
     INTEGER :: id_var_x
     INTEGER :: id_var_y
@@ -43,33 +40,46 @@ MODULE data_types_netcdf_module
     INTEGER :: id_var_zeta
     INTEGER :: id_var_month
     
-    INTEGER :: id_var_Hi
-    INTEGER :: id_var_Hb
-    INTEGER :: id_var_Hs
-    INTEGER :: id_var_SL
-    INTEGER :: id_var_dHb
-    INTEGER :: id_var_Ti
-    INTEGER :: id_var_FirnDepth
-    INTEGER :: id_var_MeltPreviousYear
-    
     CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_var_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_var_month                 = 'month                '
-  
+    
+  ! Restart file data - everything that's needed to restart a new run
+  ! =================================================================
+    
+    ! Ice dynamics
+    INTEGER :: id_var_Hi
+    INTEGER :: id_var_Hb
+    INTEGER :: id_var_Hs
+    INTEGER :: id_var_Ti
+    
     CHARACTER(LEN=256) :: name_var_Hi                    = 'Hi                   '
     CHARACTER(LEN=256) :: name_var_Hb                    = 'Hb                   '
     CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
+    CHARACTER(LEN=256) :: name_var_Ti                    = 'Ti                   '
+    
+    ! GIA
+    INTEGER :: id_var_SL
+    INTEGER :: id_var_dHb
+  
     CHARACTER(LEN=256) :: name_var_SL                    = 'SL                   '
     CHARACTER(LEN=256) :: name_var_dHb                   = 'dHb                  '
-    CHARACTER(LEN=256) :: name_var_Ti                    = 'Ti                   '
+    
+    ! SMB
+    INTEGER :: id_var_FirnDepth
+    INTEGER :: id_var_MeltPreviousYear
+    
     CHARACTER(LEN=256) :: name_var_FirnDepth             = 'FirnDepth            '
     CHARACTER(LEN=256) :: name_var_MeltPreviousYear      = 'MeltPreviousYear     '
     
-  ! Restart data for the inverse routine
-  ! ====================================
-  
+    ! Isotopes
+    INTEGER :: id_var_IsoIce
+    
+    CHARACTER(LEN=256) :: name_var_IsoIce                = 'IsoIce               '
+    
+    ! Inverse routine
     INTEGER :: id_dim_ndT_glob_history
     INTEGER :: id_dim_ndT_glob_inverse_history
     INTEGER :: id_dim_nCO2_inverse_history

@@ -451,30 +451,21 @@ CONTAINS
 
     ! Local variables
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: beta
     
-    REAL(dp), PARAMETER                                :: delta_v = 1E-4_dp
-    REAL(dp), PARAMETER                                :: q_plastic            = 0.30_dp       ! Parameter used for basal stress (inverse of m_flow)
-    REAL(dp), PARAMETER                                :: u_threshold          = 100._dp       ! scaling of tau_yield to get the correct unit (function of q_plastic)
-    
-    ! Exception for when no sliding can pccur
-    IF (C%choice_ice_dynamics == 'SIA' .OR. C%no_sliding) THEN
+    ! Exception for when no sliding can occur
+    IF (C%choice_ice_dynamics == 'SIA' .OR. C%choice_sliding_law == 'no_sliding') THEN
       ice%frictional_heating_a( :,grid%i1:grid%i2) = 0._dp
+      CALL sync
       RETURN
     END IF
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
-    
-      ice%frictional_heating_a( j,i) = 0._dp
-    
       IF (ice%mask_sheet_a( j,i) == 1) THEN
-      
-        beta = ice%tauc_a( j,i) * ( (delta_v**2 + ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)**(0.5_dp * (q_plastic-1._dp)) ) / (u_threshold**q_plastic)
-        ice%frictional_heating_a( j,i) = beta * (ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)
-        
+        ice%frictional_heating_a( j,i) = ice%beta_a( j,i) * (ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)
+      ELSE
+        ice%frictional_heating_a( j,i) = 0._dp
       END IF 
-           
     END DO
     END DO
     CALL sync
@@ -863,24 +854,16 @@ CONTAINS
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
+    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
     IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
     CALL sync
-    
-    ! Only use the geometry fields here
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
     
     ! Safety
     CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti', 'initialise_ice_temperature')
@@ -892,15 +875,23 @@ CONTAINS
     CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Ti, ice%Ti_a)
     
     ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx  )
-    CALL deallocate_shared( restart%wny  )
-    CALL deallocate_shared( restart%wnz  )
-    CALL deallocate_shared( restart%wnt  )
-    CALL deallocate_shared( restart%wx   )
-    CALL deallocate_shared( restart%wy   )
-    CALL deallocate_shared( restart%wzeta)
-    CALL deallocate_shared( restart%wtime)
-    CALL deallocate_shared( restart%wTi  )
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnz              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wzeta            )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wHi              )
+    CALL deallocate_shared( restart%wHb              )
+    CALL deallocate_shared( restart%wHs              )
+    CALL deallocate_shared( restart%wTi              )
+    CALL deallocate_shared( restart%wSL              )
+    CALL deallocate_shared( restart%wdHb             )
+    CALL deallocate_shared( restart%wFirnDepth       )
+    CALL deallocate_shared( restart%wMeltPreviousYear)
+    CALL deallocate_shared( restart%wIsoIce          )
     
   END SUBROUTINE initialise_ice_temperature_restart
   

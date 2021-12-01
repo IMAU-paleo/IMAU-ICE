@@ -23,7 +23,7 @@ MODULE IMAU_ICE_main_model
                                              create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
                                              create_regional_scalar_output_file
   USE forcing_module,                  ONLY: forcing, initialise_geothermal_heat_flux_regional
-  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, initialise_basins
+  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, initialise_basins, initialise_mask_noice
   USE ice_velocity_module,             ONLY: solve_DIVA
   USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model
   USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model
@@ -158,12 +158,22 @@ CONTAINS
       END IF
       
       ! Update ice geometry and advance region time
+      t1 = MPI_WTIME()
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
+      CALL sync
+      
+      ! Save the previous ice mask, for use in thermodynamics
+      region%ice%mask_ice_a_prev( :,region%grid%i1:region%grid%i2) = region%ice%mask_ice_a( :,region%grid%i1:region%grid%i2)
+      CALL sync
+      
+      ! Update masks, apply calving
       CALL update_general_ice_model_data( region%grid, region%ice)
       CALL apply_calving_law( region%grid, region%ice, region%refgeo_PD)
       CALL update_general_ice_model_data( region%grid, region%ice)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
+      t2 = MPI_WTIME()
+      IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
       
       ! DENK DROM
       !region%time = t_end
@@ -267,16 +277,16 @@ CONTAINS
     ! =====================================================================================
     
     CALL initialise_reference_geometries( region%grid, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%name)
-  
-    ! ===== The ice dynamics model
-    ! ============================
-    
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
     
     ! ===== Define mask where no ice is allowed to form (i.e. Greenland in NAM and EAS, Ellesmere Island in GRL)
     ! ==========================================================================================================
     
     CALL initialise_mask_noice( region)
+  
+    ! ===== The ice dynamics model
+    ! ============================
+    
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%mask_noice)
     
     ! ===== Define ice basins =====
     ! =============================
@@ -590,10 +600,10 @@ CONTAINS
       ! Determine the number of grid cells we can fit in this domain
       xmid = (xmax + xmin) / 2._dp
       ymid = (ymax + ymin) / 2._dp
-      nsx = FLOOR( (xmax - xmid) / region%grid%dx) - 1
-      nsy = FLOOR( (ymax - ymid) / region%grid%dx) - 1
+      nsx = FLOOR( (xmax - xmid) / region%grid%dx)
+      nsy = FLOOR( (ymax - ymid) / region%grid%dx)
       
-      IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') nsx = 3
+      IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') nsx = 3
       
       region%grid%nx = 1 + 2*nsx
       region%grid%ny = 1 + 2*nsy
@@ -763,125 +773,6 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE initialise_GIA_model_grid
-  SUBROUTINE initialise_mask_noice( region)
-    ! Mask a certain area where no ice is allowed to grow. This is used to "remove"
-    ! Greenland from NAM and EAS, and Ellesmere Island from GRL.
-  
-    IMPLICIT NONE  
-    
-    ! In/output variables:
-    TYPE(type_model_region),         INTENT(INOUT)     :: region
-    
-    ! Local variables:
-    INTEGER                                            :: i,j
-    REAL(dp), DIMENSION(2)                             :: pa, pb, pc, pd
-    REAL(dp)                                           :: yl_ab, yl_bc, yl_cd
-    
-    ! Allocate shared memory
-    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
-    
-    ! Initialise
-    region%mask_noice(    :,region%grid%i1:region%grid%i2) = 0
-    
-    ! Exceptions for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-        ! No-ice mask not needed in these benchmark experiments
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Don't allow ice for x > 640 km
-        
-        DO i = region%grid%i1, region%grid%i2
-        DO j = 1, region%grid%ny
-          IF (region%grid%x( i) > 240000._dp) region%mask_noice( j,i) = 1
-        END DO
-        END DO
-        CALL sync
-        RETURN
-
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_mask_noice!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    IF (region%name == 'NAM') THEN
-      ! North America: remove Greenland
-      
-      pa = [ 490000._dp, 1530000._dp]
-      pb = [2030000._dp,  570000._dp]
-      
-      DO i = region%grid%i1, region%grid%i2
-        yl_ab = pa(2) + (region%grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
-        DO j = 1, region%grid%ny
-          IF (region%grid%y(j) > yl_ab .AND. region%grid%x(i) > pa(1) .AND. region%grid%y(j) > pb(2)) THEN
-            region%mask_noice( j,i) = 1
-          END IF
-        END DO
-      END DO
-      CALL sync
-    
-    ELSEIF (region%name == 'EAS') THEN
-      ! Eurasia: remove Greenland
-    
-      pa = [-2900000._dp, 1300000._dp]
-      pb = [-1895000._dp,  900000._dp]
-      pc = [ -835000._dp, 1135000._dp]
-      pd = [ -400000._dp, 1855000._dp]
-      
-      DO i = region%grid%i1, region%grid%i2
-        yl_ab = pa(2) + (region%grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
-        yl_bc = pb(2) + (region%grid%x(i) - pb(1))*(pc(2)-pb(2))/(pc(1)-pb(1))
-        yl_cd = pc(2) + (region%grid%x(i) - pc(1))*(pd(2)-pc(2))/(pd(1)-pc(1))
-        DO j = 1, region%grid%ny
-          IF ((region%grid%x(i) <  pa(1) .AND. region%grid%y(j) > pa(2)) .OR. &
-              (region%grid%x(i) >= pa(1) .AND. region%grid%x(i) < pb(1) .AND. region%grid%y(j) > yl_ab) .OR. &
-              (region%grid%x(i) >= pb(1) .AND. region%grid%x(i) < pc(1) .AND. region%grid%y(j) > yl_bc) .OR. &
-              (region%grid%x(i) >= pc(1) .AND. region%grid%x(i) < pd(1) .AND. region%grid%y(j) > yl_cd)) THEN
-            region%mask_noice( j,i) = 1
-          END IF
-        END DO
-      END DO
-      CALL sync
-      
-    ELSEIF (region%name == 'GRL') THEN
-      ! Greenland: remove Ellesmere island
-      
-      pa = [-750000._dp,  900000._dp]
-      pb = [-250000._dp, 1250000._dp]
-      
-      DO i = region%grid%i1, region%grid%i2
-        yl_ab = pa(2) + (region%grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
-        DO j = 1, region%grid%ny
-          IF (region%grid%y(j) > pa(2) .AND. region%grid%y(j) > yl_ab .AND. region%grid%x(i) < pb(1)) THEN
-            region%mask_noice( j,i) = 1
-          END IF
-        END DO
-      END DO
-      CALL sync
-      
-    ELSEIF (region%name == 'ANT') THEN
-      ! Antarctica: no changes needed
-      
-    END IF ! IF (region%name == 'NAM') THEN
-    
-  END SUBROUTINE initialise_mask_noice
   
   ! Calculate this region's ice sheet's volume and area
   SUBROUTINE calculate_icesheet_volume_and_area( region)

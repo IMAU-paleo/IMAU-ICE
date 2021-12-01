@@ -44,7 +44,7 @@ IMAU_ICE_program_objects = \
         derivatives_and_grids_module.o \
         forcing_module.o \
         reference_fields_module.o \
-        basal_conditions_module.o \
+        basal_conditions_and_sliding_module.o \
         general_ice_model_data_module.o \
         calving_module.o \
         ice_velocity_module.o \

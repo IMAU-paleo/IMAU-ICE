@@ -22,7 +22,9 @@ MODULE BMB_module
     
 CONTAINS
 
-  ! The main routine that is called from the IMAU_ICE_main_model
+! == The main routines that should be called from the main ice model/program
+! ==========================================================================
+
   SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time)
     ! Run the selected BMB model
     
@@ -38,45 +40,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                             :: i,j
-    
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
-  
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-          C%choice_benchmark_experiment == 'Bueler' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-        BMB%BMB( :,grid%i1:grid%i2) = 0._dp
-        CALL sync
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        ! Basal melt in the MISMIPplus experiments
-        C%choice_BMB_shelf_model = 'MISMIPplus'
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! The MISOMIP1 experiments use the existing basal melt parameterisations
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_BMB_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
   
     ! Initialise at zero
     BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
@@ -88,8 +51,8 @@ CONTAINS
     IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
       CALL sync
-    ELSEIF (C%choice_BMB_shelf_model == 'MISMIPplus') THEN
-      CALL BMB_MISMIPplus( grid, ice, BMB, time)
+    ELSEIF (C%choice_BMB_shelf_model == 'idealised') THEN
+      CALL run_BMB_model_idealised(            grid, ice, BMB, time)
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
       CALL run_BMB_model_ANICE_legacy(         grid, ice, BMB, region_name, time)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin') THEN
@@ -151,9 +114,81 @@ CONTAINS
     CALL check_for_NaN_dp_2D( BMB%BMB,       'BMB%BMB',       'run_BMB_model')
     
   END SUBROUTINE run_BMB_model
+  SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)
+    ! Allocate memory for the data fields of the SMB model.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    IF (par%master) WRITE (0,*) '  Initialising BMB model: sheet = "', TRIM(C%choice_BMB_sheet_model), '", shelf = "', TRIM(C%choice_BMB_shelf_model), '"...'
+    
+    ! General
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB      , BMB%wBMB      )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_sheet, BMB%wBMB_sheet)
+    
+    ! Shelf
+    IF     (C%choice_BMB_shelf_model == 'uniform' .OR. &
+            C%choice_BMB_shelf_model == 'idealised') THEN
+      ! Nothing else needs to be done
+    ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
+      CALL initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
+    ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin' .OR. &
+            C%choice_BMB_shelf_model == 'Favier2019_quad' .OR. &
+            C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
+      CALL initialise_BMB_model_Favier2019( grid, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
+      CALL initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
+      CALL initialise_BMB_model_PICO(  grid, ice, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
+      CALL initialise_BMB_model_PICOP( grid, ice, BMB)
+    ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Sheet
+    IF     (C%choice_BMB_sheet_model == 'uniform') THEN
+      ! Nothing else needs to be done
+    ELSE ! IF     (C%choice_BMB_sheet_model == 'uniform') THEN
+      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_sheet_model), '" not implemented in initialise_BMB_model!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+      
+  END SUBROUTINE initialise_BMB_model
   
-  ! The schematic basal melt used in the MISMIPplus experiments
-  SUBROUTINE BMB_MISMIPplus( grid, ice, BMB, time)
+! == Idealised BMB schemes
+! ========================
+
+  SUBROUTINE run_BMB_model_idealised( grid, ice, BMB, time)
+    ! Idealised BMB schemes
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    REAL(dp),                            INTENT(IN)    :: time
+    
+    IF     (C%choice_idealised_BMB_shelf == 'MISMIP+') THEN
+      ! The schematic basal melt used in the MISMIPplus experiments
+      
+      CALL run_BMB_model_MISMIPplus( grid, ice, BMB, time)
+      
+    ELSE
+      IF (par%master) WRITE(0,*) 'run_BMB_model_idealised - ERROR: unknown choice_idealised_BMB_shelf "', TRIM(C%choice_idealised_BMB_shelf), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE run_BMB_model_idealised
+  SUBROUTINE run_BMB_model_MISMIPplus( grid, ice, BMB, time)
     ! The schematic basal melt used in the MISMIPplus experiments
     
     IMPLICIT NONE
@@ -313,9 +348,11 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-  END SUBROUTINE BMB_MISMIPplus
+  END SUBROUTINE run_BMB_model_MISMIPplus
 
-  ! The ANICE_legacy sub-shelf melt model
+! == The ANICE_legacy sub-shelf melt model
+! ========================================
+
   SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, BMB, region_name, time)
     ! Calculate sub-shelf melt with the ANICE_legacy model, which is based on the glacial-interglacial
     ! parameterisation by Pollard & DeConto (2012), the distance-to-open-ocean + subtended-angle parameterisation
@@ -1099,8 +1136,89 @@ CONTAINS
     angle_sub = SUM(angle(1:16)) * 360._dp / 16._dp
 
   END FUNCTION subtended_angle
+  SUBROUTINE initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
+    ! Allocate memory for the data fields of the ANICE_legacy shelf BMB model.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Variables
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%sub_angle, BMB%wsub_angle)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%dist_open, BMB%wdist_open)
+    
+    ! Tuning parameters
+    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_PD,            BMB%wT_ocean_mean_PD           )
+    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_cold,          BMB%wT_ocean_mean_cold         )
+    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_warm,          BMB%wT_ocean_mean_warm         )
+    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_PD,           BMB%wBMB_deepocean_PD          )
+    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_cold,         BMB%wBMB_deepocean_cold        )
+    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_warm,         BMB%wBMB_deepocean_warm        )
+    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_PD,       BMB%wBMB_shelf_exposed_PD      )
+    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_cold,     BMB%wBMB_shelf_exposed_cold    )
+    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_warm,     BMB%wBMB_shelf_exposed_warm    )
+    CALL allocate_shared_dp_0D( BMB%subshelf_melt_factor,       BMB%wsubshelf_melt_factor      )
+    CALL allocate_shared_dp_0D( BMB%deep_ocean_threshold_depth, BMB%wdeep_ocean_threshold_depth)
+    
+    IF (region_name == 'NAM') THEN
+      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_NAM
+      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_NAM
+      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_NAM
+      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_NAM
+      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_NAM
+      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_NAM
+      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_NAM
+      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_NAM
+      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_NAM
+      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_NAM
+      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_EAS
+      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_EAS
+      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_EAS
+      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_EAS
+      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_EAS
+      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_EAS
+      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_EAS
+      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_EAS
+      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_EAS
+      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_EAS
+      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_GRL
+      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_GRL
+      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_GRL
+      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_GRL
+      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_GRL
+      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_GRL
+      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_GRL
+      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_GRL
+      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_GRL
+      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_GRL
+      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_ANT
+      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_ANT
+      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_ANT
+      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_ANT
+      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_ANT
+      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_ANT
+      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_ANT
+      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_ANT
+      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_ANT
+      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_ANT
+      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_ANT
+    END IF
+      
+  END SUBROUTINE initialise_BMB_model_ANICE_legacy
   
   ! The Favier et al. (2019) sub-shelf melt parameterisations
+! ========================================
+
   SUBROUTINE run_BMB_model_Favier2019_linear(         grid, ice, ocean, BMB)
     ! Calculate sub-shelf melt with Favier et al. (2019) linear parameterisation
     
@@ -1340,8 +1458,24 @@ CONTAINS
     CALL sync
           
   END SUBROUTINE calc_ocean_freezing_point_at_shelf_base
+  SUBROUTINE initialise_BMB_model_Favier2019( grid, BMB)
+    ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_base,        BMB%wT_ocean_base       )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_freeze_base, BMB%wT_ocean_freeze_base)
+      
+  END SUBROUTINE initialise_BMB_model_Favier2019
   
   ! The Lazeroms et al. (2018) quasi-2-D plume parameterisation
+! ========================================
+
   SUBROUTINE run_BMB_model_Lazeroms2018_plume( grid, ice, ocean, BMB)
     ! Calculate basal melt using the quasi-2-D plume parameterisation by Lazeroms et al. (2018), following the equations in Appendix A
     
@@ -1761,8 +1895,47 @@ CONTAINS
            p1  * xhat + p0
     
   END FUNCTION Lazeroms2018_dimensionless_melt_curve
+  SUBROUTINE initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
+    ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%T_ocean_base,           BMB%wT_ocean_base          )
+    CALL allocate_shared_int_2D( 16,      2,       BMB%search_directions,      BMB%wsearch_directions     )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_basal_slope,        BMB%weff_basal_slope       )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_Lazeroms2018_plume
   
   ! The PICO ocean box model
+! ========================================
+
   SUBROUTINE run_BMB_model_PICO( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICO ocean box model
     
@@ -2284,8 +2457,60 @@ CONTAINS
     d_av = d_sum / REAL(n,dp)
     
   END SUBROUTINE PICO_calc_box_average
+  SUBROUTINE initialise_BMB_model_PICO( grid, ice, BMB)
+    ! Allocate memory for the data fields of the PICO ocean box model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
+    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
+    
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_PICO
   
   ! The PICOP ocean box + plume model
+! ========================================
+
   SUBROUTINE run_BMB_model_PICOP( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICOP ocean box + plume model
     
@@ -2304,6 +2529,64 @@ CONTAINS
     CALL run_BMB_model_Lazeroms2018_plume( grid, ice, ocean, BMB)
     
   END SUBROUTINE run_BMB_model_PICOP
+  SUBROUTINE initialise_BMB_model_PICOP( grid, ice, BMB)
+    ! Allocate memory for the data fields of the PICOP ocean box + plume model
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    
+    ! Variables
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%T_ocean_base,           BMB%wT_ocean_base          )
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,      BMB%wsearch_directions     )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_basal_slope,        BMB%weff_basal_slope       )
+    
+    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
+    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
+    
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
+    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
+    
+    ! Define the 16 search directions
+    IF (par%master) THEN
+      BMB%search_directions(  1,:) = (/  1,  0 /)
+      BMB%search_directions(  2,:) = (/  2, -1 /)
+      BMB%search_directions(  3,:) = (/  1, -1 /)
+      BMB%search_directions(  4,:) = (/  1, -2 /)
+      BMB%search_directions(  5,:) = (/  0, -1 /)
+      BMB%search_directions(  6,:) = (/ -1, -2 /)
+      BMB%search_directions(  7,:) = (/ -1, -1 /)
+      BMB%search_directions(  8,:) = (/ -2, -1 /)
+      BMB%search_directions(  9,:) = (/ -1,  0 /)
+      BMB%search_directions( 10,:) = (/ -2,  1 /)
+      BMB%search_directions( 11,:) = (/ -1,  1 /)
+      BMB%search_directions( 12,:) = (/ -1,  2 /)
+      BMB%search_directions( 13,:) = (/  0,  1 /)
+      BMB%search_directions( 14,:) = (/  1,  2 /)
+      BMB%search_directions( 15,:) = (/  1,  1 /)
+      BMB%search_directions( 16,:) = (/  2,  1 /)
+    END IF
+    CALL sync
+      
+  END SUBROUTINE initialise_BMB_model_PICOP
+  
+! == Some generally useful tools
+! ==============================
   
   ! Routine for extrapolating melt field from the regular (FCMP) mask
   ! to the (extended) PMP mask
@@ -2455,288 +2738,5 @@ CONTAINS
     
   END SUBROUTINE extrapolate_melt_from_FCMP_to_PMP
   
-  ! Administration: allocation and initialisation
-  SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)
-    ! Allocate memory for the data fields of the SMB model.
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    
-    IF (par%master) WRITE (0,*) '  Initialising BMB model: sheet = "', TRIM(C%choice_BMB_sheet_model), '", shelf = "', TRIM(C%choice_BMB_shelf_model), '"...'
-    
-    ! General
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB      , BMB%wBMB      )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_sheet, BMB%wBMB_sheet)
-    
-    ! Shelf
-    IF     (C%choice_BMB_shelf_model == 'uniform') THEN
-      ! Nothing else needs to be done
-    ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
-      CALL initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
-    ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin' .OR. &
-            C%choice_BMB_shelf_model == 'Favier2019_quad' .OR. &
-            C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
-      CALL initialise_BMB_model_Favier2019( grid, BMB)
-    ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
-      CALL initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
-    ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
-      CALL initialise_BMB_model_PICO(  grid, ice, BMB)
-    ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
-      CALL initialise_BMB_model_PICOP( grid, ice, BMB)
-    ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
-      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! Sheet
-    IF     (C%choice_BMB_sheet_model == 'uniform') THEN
-      ! Nothing else needs to be done
-    ELSE ! IF     (C%choice_BMB_sheet_model == 'uniform') THEN
-      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_sheet_model), '" not implemented in initialise_BMB_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-      
-  END SUBROUTINE initialise_BMB_model
-  SUBROUTINE initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
-    ! Allocate memory for the data fields of the ANICE_legacy shelf BMB model.
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    
-    ! Variables
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%BMB_shelf, BMB%wBMB_shelf)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%sub_angle, BMB%wsub_angle)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%dist_open, BMB%wdist_open)
-    
-    ! Tuning parameters
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_PD,            BMB%wT_ocean_mean_PD           )
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_cold,          BMB%wT_ocean_mean_cold         )
-    CALL allocate_shared_dp_0D( BMB%T_ocean_mean_warm,          BMB%wT_ocean_mean_warm         )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_PD,           BMB%wBMB_deepocean_PD          )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_cold,         BMB%wBMB_deepocean_cold        )
-    CALL allocate_shared_dp_0D( BMB%BMB_deepocean_warm,         BMB%wBMB_deepocean_warm        )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_PD,       BMB%wBMB_shelf_exposed_PD      )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_cold,     BMB%wBMB_shelf_exposed_cold    )
-    CALL allocate_shared_dp_0D( BMB%BMB_shelf_exposed_warm,     BMB%wBMB_shelf_exposed_warm    )
-    CALL allocate_shared_dp_0D( BMB%subshelf_melt_factor,       BMB%wsubshelf_melt_factor      )
-    CALL allocate_shared_dp_0D( BMB%deep_ocean_threshold_depth, BMB%wdeep_ocean_threshold_depth)
-    
-    IF (region_name == 'NAM') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_NAM
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_NAM
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_NAM
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_NAM
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_NAM
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_NAM
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_NAM
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_NAM
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_NAM
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_NAM
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_NAM
-    ELSEIF (region_name == 'EAS') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_EAS
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_EAS
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_EAS
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_EAS
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_EAS
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_EAS
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_EAS
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_EAS
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_EAS
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_EAS
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_EAS
-    ELSEIF (region_name == 'GRL') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_GRL
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_GRL
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_GRL
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_GRL
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_GRL
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_GRL
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_GRL
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_GRL
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_GRL
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_GRL
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_GRL
-    ELSEIF (region_name == 'ANT') THEN
-      BMB%T_ocean_mean_PD            = C%T_ocean_mean_PD_ANT
-      BMB%T_ocean_mean_cold          = C%T_ocean_mean_cold_ANT
-      BMB%T_ocean_mean_warm          = C%T_ocean_mean_warm_ANT
-      BMB%BMB_deepocean_PD           = C%BMB_deepocean_PD_ANT
-      BMB%BMB_deepocean_cold         = C%BMB_deepocean_cold_ANT
-      BMB%BMB_deepocean_warm         = C%BMB_deepocean_warm_ANT
-      BMB%BMB_shelf_exposed_PD       = C%BMB_shelf_exposed_PD_ANT
-      BMB%BMB_shelf_exposed_cold     = C%BMB_shelf_exposed_cold_ANT
-      BMB%BMB_shelf_exposed_warm     = C%BMB_shelf_exposed_warm_ANT
-      BMB%subshelf_melt_factor       = C%subshelf_melt_factor_ANT
-      BMB%deep_ocean_threshold_depth = C%deep_ocean_threshold_depth_ANT
-    END IF
-      
-  END SUBROUTINE initialise_BMB_model_ANICE_legacy
-  SUBROUTINE initialise_BMB_model_Favier2019( grid, BMB)
-    ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    
-    ! Variables
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_base,        BMB%wT_ocean_base       )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_freeze_base, BMB%wT_ocean_freeze_base)
-      
-  END SUBROUTINE initialise_BMB_model_Favier2019
-  SUBROUTINE initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
-    ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    
-    ! Variables
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%T_ocean_base,           BMB%wT_ocean_base          )
-    CALL allocate_shared_int_2D( 16,      2,       BMB%search_directions,      BMB%wsearch_directions     )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, BMB%eff_basal_slope,        BMB%weff_basal_slope       )
-    
-    ! Define the 16 search directions
-    IF (par%master) THEN
-      BMB%search_directions(  1,:) = (/  1,  0 /)
-      BMB%search_directions(  2,:) = (/  2, -1 /)
-      BMB%search_directions(  3,:) = (/  1, -1 /)
-      BMB%search_directions(  4,:) = (/  1, -2 /)
-      BMB%search_directions(  5,:) = (/  0, -1 /)
-      BMB%search_directions(  6,:) = (/ -1, -2 /)
-      BMB%search_directions(  7,:) = (/ -1, -1 /)
-      BMB%search_directions(  8,:) = (/ -2, -1 /)
-      BMB%search_directions(  9,:) = (/ -1,  0 /)
-      BMB%search_directions( 10,:) = (/ -2,  1 /)
-      BMB%search_directions( 11,:) = (/ -1,  1 /)
-      BMB%search_directions( 12,:) = (/ -1,  2 /)
-      BMB%search_directions( 13,:) = (/  0,  1 /)
-      BMB%search_directions( 14,:) = (/  1,  2 /)
-      BMB%search_directions( 15,:) = (/  1,  1 /)
-      BMB%search_directions( 16,:) = (/  2,  1 /)
-    END IF
-    CALL sync
-      
-  END SUBROUTINE initialise_BMB_model_Lazeroms2018_plume
-  SUBROUTINE initialise_BMB_model_PICO( grid, ice, BMB)
-    ! Allocate memory for the data fields of the PICO ocean box model
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    
-    ! Variables
-    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
-    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
-    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
-    
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
-    
-    ! Define the 16 search directions
-    IF (par%master) THEN
-      BMB%search_directions(  1,:) = (/  1,  0 /)
-      BMB%search_directions(  2,:) = (/  2, -1 /)
-      BMB%search_directions(  3,:) = (/  1, -1 /)
-      BMB%search_directions(  4,:) = (/  1, -2 /)
-      BMB%search_directions(  5,:) = (/  0, -1 /)
-      BMB%search_directions(  6,:) = (/ -1, -2 /)
-      BMB%search_directions(  7,:) = (/ -1, -1 /)
-      BMB%search_directions(  8,:) = (/ -2, -1 /)
-      BMB%search_directions(  9,:) = (/ -1,  0 /)
-      BMB%search_directions( 10,:) = (/ -2,  1 /)
-      BMB%search_directions( 11,:) = (/ -1,  1 /)
-      BMB%search_directions( 12,:) = (/ -1,  2 /)
-      BMB%search_directions( 13,:) = (/  0,  1 /)
-      BMB%search_directions( 14,:) = (/  1,  2 /)
-      BMB%search_directions( 15,:) = (/  1,  1 /)
-      BMB%search_directions( 16,:) = (/  2,  1 /)
-    END IF
-    CALL sync
-      
-  END SUBROUTINE initialise_BMB_model_PICO
-  SUBROUTINE initialise_BMB_model_PICOP( grid, ice, BMB)
-    ! Allocate memory for the data fields of the PICOP ocean box + plume model
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
-    
-    ! Variables
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%T_ocean_base,           BMB%wT_ocean_base          )
-    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,      BMB%wsearch_directions     )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_plume_source_depth, BMB%weff_plume_source_depth)
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%eff_basal_slope,        BMB%weff_basal_slope       )
-    
-    CALL allocate_shared_int_2D( 16,      2,        BMB%search_directions,   BMB%wsearch_directions  )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_GL,           BMB%wPICO_d_GL          )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_d_IF,           BMB%wPICO_d_IF          )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_r,              BMB%wPICO_r             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_A, BMB%wPICO_A             )
-    CALL allocate_shared_int_1D( ice%nbasins,       BMB%PICO_n_D,            BMB%wPICO_n_D           )
-    CALL allocate_shared_int_2D( grid%ny, grid%nx,  BMB%PICO_k,              BMB%wPICO_k             )
-    
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_T,              BMB%wPICO_T             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Tk, BMB%wPICO_Tk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_S,              BMB%wPICO_S             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_Sk, BMB%wPICO_Sk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_p,              BMB%wPICO_p             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_pk, BMB%wPICO_pk           )
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB%PICO_m,              BMB%wPICO_m             )
-    CALL allocate_shared_dp_2D(  ice%nbasins, C%BMB_PICO_nboxes, BMB%PICO_mk, BMB%wPICO_mk           )
-    
-    ! Define the 16 search directions
-    IF (par%master) THEN
-      BMB%search_directions(  1,:) = (/  1,  0 /)
-      BMB%search_directions(  2,:) = (/  2, -1 /)
-      BMB%search_directions(  3,:) = (/  1, -1 /)
-      BMB%search_directions(  4,:) = (/  1, -2 /)
-      BMB%search_directions(  5,:) = (/  0, -1 /)
-      BMB%search_directions(  6,:) = (/ -1, -2 /)
-      BMB%search_directions(  7,:) = (/ -1, -1 /)
-      BMB%search_directions(  8,:) = (/ -2, -1 /)
-      BMB%search_directions(  9,:) = (/ -1,  0 /)
-      BMB%search_directions( 10,:) = (/ -2,  1 /)
-      BMB%search_directions( 11,:) = (/ -1,  1 /)
-      BMB%search_directions( 12,:) = (/ -1,  2 /)
-      BMB%search_directions( 13,:) = (/  0,  1 /)
-      BMB%search_directions( 14,:) = (/  1,  2 /)
-      BMB%search_directions( 15,:) = (/  1,  1 /)
-      BMB%search_directions( 16,:) = (/  2,  1 /)
-    END IF
-    CALL sync
-      
-  END SUBROUTINE initialise_BMB_model_PICOP
   
 END MODULE BMB_module

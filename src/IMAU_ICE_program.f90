@@ -158,8 +158,10 @@ PROGRAM IMAU_ICE_program
   CALL sync
   
   ! Determine d18O contributions of all simulated ice sheets
-  CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
-  CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
+  IF (C%do_calculate_benthic_d18O) THEN
+    CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
+    CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
+  END IF
   
   ! ===== Initialise SELEN =====
   ! ============================
@@ -246,15 +248,17 @@ PROGRAM IMAU_ICE_program
     END IF
   
     ! Calculate contributions to global mean sea level and benthic d18O from the different ice sheets
-    CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
-    CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
+    IF (C%do_calculate_benthic_d18O) THEN
+      CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
+      CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
+    END IF
     
     ! If applicable, call the inverse routine to update the climate forcing parameter
     IF     (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       CALL inverse_routine_global_temperature_offset
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL inverse_routine_CO2
-    ELSEIF ((C%choice_forcing_method == 'CO2_direct') .OR. (C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'none') THEN
       ! No inverse routine is used in these forcing methods
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in IMAU_ICE_program!'
@@ -265,7 +269,7 @@ PROGRAM IMAU_ICE_program
     CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, t_coupling)
     
     ! MISMIP+ flow factor tuning for GL position
-    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'MISMIPplus' .AND. C%MISMIPplus_do_tune_A_for_GL) THEN
+    IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'MISMIP+' .AND. C%MISMIPplus_do_tune_A_for_GL) THEN
       Hprev = Hcur
       Hcur  = ANT%ice%Hs_a( CEILING( REAL(ANT%grid%ny,dp)/2._dp), 1)
       IF (par%master) WRITE(0,*) 'Hprev = ', Hprev, ', Hcur = ', Hcur

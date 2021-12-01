@@ -252,9 +252,9 @@ CONTAINS
     climate%Precip( :,:,grid%i1:grid%i2) = 0._dp
     
     ! Surface temperature for fixed or moving margin experiments
-    IF     (C%choice_benchmark_experiment == 'EISMINT1_A' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_B' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_C') THEN
+    IF     (C%choice_idealised_climate == 'EISMINT1_A' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_B' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_C') THEN
       ! Moving margin
           
       DO i = grid%i1, grid%i2
@@ -269,9 +269,9 @@ CONTAINS
       END DO
       END DO
       
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT1_D' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_E' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_F') THEN
+    ELSEIF (C%choice_idealised_climate == 'EISMINT1_D' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_E' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_F') THEN
       ! Fixed margin
     
       DO i = grid%i1, grid%i2
@@ -287,20 +287,20 @@ CONTAINS
       END DO
       
     ELSE
-      IF (par%master) WRITE(0,*) 'run_climate_model_idealised_EISMINT1 - ERROR: unknown choice_benchmark_experiment "', TRIM(C%choice_benchmark_experiment), '"!'
+      IF (par%master) WRITE(0,*) 'run_climate_model_idealised_EISMINT1 - ERROR: unknown choice_idealised_climate "', TRIM(C%choice_idealised_climate), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     CALL sync
     
     ! Glacial cycles
-    IF     (C%choice_benchmark_experiment == 'EISMINT1_B' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_E') THEN
+    IF     (C%choice_idealised_climate == 'EISMINT1_B' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_E') THEN
       IF (time > 0._dp) THEN
         dT = 10._dp * SIN(2._dp * pi * time / 20000._dp)
         climate%T2m( :,:,grid%i1:grid%i2) = climate%T2m( :,:,grid%i1:grid%i2) + dT
       END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT1_C' .OR. &
-            C%choice_benchmark_experiment == 'EISMINT1_F') THEN
+    ELSEIF (C%choice_idealised_climate == 'EISMINT1_C' .OR. &
+            C%choice_idealised_climate == 'EISMINT1_F') THEN
       IF (time > 0._dp) THEN
         dT = 10._dp * SIN(2._dp * pi * time / 40000._dp)
         climate%T2m( :,:,grid%i1:grid%i2) = climate%T2m( :,:,grid%i1:grid%i2) + dT

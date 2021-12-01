@@ -198,9 +198,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taudx_cx              ! Driving stress taud in the x-direction (on the cx-grid)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taudy_cy              !      "    "      "     "   y-direction ( "  "  cy-grid)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric_a            ! Till friction angle (degrees)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: tauc_a                ! Till yield stress tauc   (used when choice_sliding_law = 'Coloumb' or 'Coulomb_regularised')
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: A_slid_a              ! Sliding factor           (used when choice_sliding_law = 'Weertman')
-    INTEGER :: wtaudx_cx, wtaudy_cy, wphi_fric_a, wtauc_a, wA_slid_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: tauc_a                ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: alpha_sq_a            ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_sq_a             ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
+    INTEGER :: wtaudx_cx, wtaudy_cy, wphi_fric_a, wtauc_a, walpha_sq_a, wbeta_sq_a
     
     ! Ice dynamics - physical terms in the SSA/DIVA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: du_dx_b
@@ -902,15 +903,27 @@ MODULE data_types_module
     INTEGER :: wnx, wny, wnz, wnt, wx, wy, wzeta, wtime
     
     ! Data
+    
+    ! Ice dynamics
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti
+    INTEGER :: wHi, wHb, wHs, wTi
+    
+    ! GIA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: SL
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti
+    INTEGER :: wSL, wdHb
+    
+    ! SMB
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear
-    INTEGER :: wHi, wHb, wHs, wSL, wdHb, wTi, wFirnDepth, wMeltPreviousYear
+    INTEGER :: wFirnDepth, wMeltPreviousYear
+    
+    ! Isotopes
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: IsoIce
+    INTEGER :: wIsoIce
   
   END TYPE type_restart_data
   

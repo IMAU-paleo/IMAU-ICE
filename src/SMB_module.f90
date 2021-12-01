@@ -173,24 +173,24 @@ CONTAINS
     S_b       = 0.01_dp / 1000._dp 
     M_max     = 0.5_dp
     
-    IF     (C%choice_benchmark_experiment == 'EISMINT_1') THEN ! Moving margin, steady state
+    IF     (C%choice_idealised_SMB == 'EISMINT1_A') THEN ! Moving margin, steady state
       ! No changes
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_2') THEN ! Moving margin, 20 kyr
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_B') THEN ! Moving margin, 20 kyr
       IF (time < 0._dp) THEN
         ! No changes; first 120 kyr are initialised with EISMINT_1
       ELSE
         E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 20000._dp)
       END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_3') THEN ! Moving margin, 40 kyr
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_C') THEN ! Moving margin, 40 kyr
       IF (time < 0._dp) THEN
         ! No changes; first 120 kyr are initialised with EISMINT_1
       ELSE
         E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 40000._dp)
       END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_4') THEN ! Fixed margin, steady state
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_D') THEN ! Fixed margin, steady state
       M_max       = 0.3_dp       
       E           = 999000._dp
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_5') THEN ! Fixed margin, 20 kyr
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_E') THEN ! Fixed margin, 20 kyr
       IF (time < 0._dp) THEN
         M_max     = 0.3_dp
         E         = 999000._dp 
@@ -198,7 +198,7 @@ CONTAINS
         M_max     = 0.3_dp + 0.2_dp * SIN( 2._dp * pi * time / 20000._dp)
         E         = 999000._dp 
       END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_6') THEN ! Fixed margin, 40 kyr
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_F') THEN ! Fixed margin, 40 kyr
       IF (time < 0._dp) THEN
         M_max     = 0.3_dp
         E         = 999000._dp 
@@ -628,23 +628,16 @@ CONTAINS
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
+    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
     IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
     CALL sync
-    
-    ! Only use the geometry fields here
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
-    CALL deallocate_shared( restart%wTi              )
     
     ! Safety
     CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth',        'initialise_ice_temperature')
@@ -659,16 +652,23 @@ CONTAINS
     CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%MeltPreviousYear, SMB%MeltPreviousYear)
     
     ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx  )
-    CALL deallocate_shared( restart%wny  )
-    CALL deallocate_shared( restart%wnz  )
-    CALL deallocate_shared( restart%wnt  )
-    CALL deallocate_shared( restart%wx   )
-    CALL deallocate_shared( restart%wy   )
-    CALL deallocate_shared( restart%wzeta)
-    CALL deallocate_shared( restart%wtime)
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnz              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wzeta            )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wHi              )
+    CALL deallocate_shared( restart%wHb              )
+    CALL deallocate_shared( restart%wHs              )
+    CALL deallocate_shared( restart%wTi              )
+    CALL deallocate_shared( restart%wSL              )
+    CALL deallocate_shared( restart%wdHb             )
     CALL deallocate_shared( restart%wFirnDepth       )
     CALL deallocate_shared( restart%wMeltPreviousYear)
+    CALL deallocate_shared( restart%wIsoIce          )
   
   END SUBROUTINE initialise_SMB_model_IMAU_ITM_restart
 

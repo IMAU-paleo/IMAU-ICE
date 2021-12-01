@@ -11,7 +11,7 @@ MODULE general_ice_model_data_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_model_region
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE parameters_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
@@ -84,10 +84,6 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
     INTEGER                                            :: i,j
-    
-    ! Save the previous ice mask, for use in thermodynamics
-    ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
-    CALL sync
     
     ! Start out with land everywhere, fill in the rest based on input.
     IF (par%master) THEN
@@ -1418,6 +1414,221 @@ CONTAINS
     
   END SUBROUTINE merge_basins_GRL
   
+! == The no-ice mask, to prevent ice growth in certain areas
+  SUBROUTINE initialise_mask_noice( region)
+    ! Mask a certain area where no ice is allowed to grow. This is used to "remove"
+    ! Greenland from NAM and EAS, and Ellesmere Island from GRL.
+    ! 
+    ! Also used to define calving fronts in certain idealised-geometry experiments
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
+    
+    ! Initialise
+    region%mask_noice( :,region%grid%i1:region%grid%i2) = 0
+    CALL sync
+    
+    IF     (region%name == 'NAM') THEN
+      ! Define a no-ice mask for North America
+    
+      IF     (C%choice_mask_noice_NAM == 'none') THEN
+        ! No no-ice mask is defined for North America
+      ELSEIF (C%choice_mask_noice_NAM == 'NAM_remove_GRL') THEN
+        ! Prevent ice growth in the Greenlandic part of the North America domain
+        CALL initialise_mask_noice_NAM_remove_GRL( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_NAM "', TRIM(C%choice_mask_noice_NAM), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'EAS') THEN
+      ! Define a no-ice mask for Eurasia
+    
+      IF     (C%choice_mask_noice_EAS == 'none') THEN
+        ! No no-ice mask is defined for Eurasia
+      ELSEIF (C%choice_mask_noice_EAS == 'EAS_remove_GRL') THEN
+        ! Prevent ice growth in the Greenlandic part of the Eurasia domain
+        CALL initialise_mask_noice_EAS_remove_GRL( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_EAS "', TRIM(C%choice_mask_noice_EAS), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'GRL') THEN
+      ! Define a no-ice mask for Greenland
+    
+      IF     (C%choice_mask_noice_GRL == 'none') THEN
+        ! No no-ice mask is defined for Greenland
+      ELSEIF (C%choice_mask_noice_GRL == 'GRL_remove_Ellesmere') THEN
+        ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+        CALL initialise_mask_noice_GRL_remove_Ellesmere( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_GRL "', TRIM(C%choice_mask_noice_GRL), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'ANT') THEN
+      ! Define a no-ice mask for Antarctica, or for an idealised-geometry experiment
+    
+      IF     (C%choice_mask_noice_ANT == 'none') THEN
+        ! No no-ice mask is defined for Antarctica
+      ELSEIF (C%choice_mask_noice_ANT == 'MISMIP_mod') THEN
+        ! Confine ice to the circular shelf around the cone-shaped island of the MISMIP_mod idealised geometry
+        CALL initialise_mask_noice_MISMIP_mod( region%grid, region%mask_noice)
+      ELSEIF (C%choice_mask_noice_ANT == 'MISMIP+') THEN
+        ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
+        CALL initialise_mask_noice_MISMIPplus( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_ANT "', TRIM(C%choice_mask_noice_ANT), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END IF
+  
+  END SUBROUTINE initialise_mask_noice
+  SUBROUTINE initialise_mask_noice_NAM_remove_GRL( grid, mask_noice)
+    ! Prevent ice growth in the Greenlandic part of the North America domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb
+    REAL(dp)                                           :: yl_ab
+      
+    pa = [ 490000._dp, 1530000._dp]
+    pb = [2030000._dp,  570000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      DO j = 1, grid%ny
+        IF (grid%y(j) > yl_ab .AND. grid%x(i) > pa(1) .AND. grid%y(j) > pb(2)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_NAM_remove_GRL
+  SUBROUTINE initialise_mask_noice_EAS_remove_GRL( grid, mask_noice)
+    ! Prevent ice growth in the Greenlandic part of the Eurasia domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb, pc, pd
+    REAL(dp)                                           :: yl_ab, yl_bc, yl_cd
+    
+    pa = [-2900000._dp, 1300000._dp]
+    pb = [-1895000._dp,  900000._dp]
+    pc = [ -835000._dp, 1135000._dp]
+    pd = [ -400000._dp, 1855000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      yl_bc = pb(2) + (grid%x(i) - pb(1))*(pc(2)-pb(2))/(pc(1)-pb(1))
+      yl_cd = pc(2) + (grid%x(i) - pc(1))*(pd(2)-pc(2))/(pd(1)-pc(1))
+      DO j = 1, grid%ny
+        IF ((grid%x(i) <  pa(1) .AND. grid%y(j) > pa(2)) .OR. &
+            (grid%x(i) >= pa(1) .AND. grid%x(i) < pb(1) .AND. grid%y(j) > yl_ab) .OR. &
+            (grid%x(i) >= pb(1) .AND. grid%x(i) < pc(1) .AND. grid%y(j) > yl_bc) .OR. &
+            (grid%x(i) >= pc(1) .AND. grid%x(i) < pd(1) .AND. grid%y(j) > yl_cd)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_EAS_remove_GRL
+  SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere( grid, mask_noice)
+    ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb
+    REAL(dp)                                           :: yl_ab
+      
+    pa = [-750000._dp,  900000._dp]
+    pb = [-250000._dp, 1250000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      DO j = 1, grid%ny
+        IF (grid%y(j) > pa(2) .AND. grid%y(j) > yl_ab .AND. grid%x(i) < pb(1)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere
+  SUBROUTINE initialise_mask_noice_MISMIP_mod( grid, mask_noice)
+    ! Confine ice to the circular shelf around the cone-shaped island of the MISMIP_mod idealised-geometry experiment
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+        
+    ! Create a nice circular ice shelf
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (SQRT(grid%x(i)**2+grid%y(j)**2) > grid%xmax * 0.95_dp) THEN
+        mask_noice( j,i) = 1
+      END IF
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_MISMIP_mod
+  SUBROUTINE initialise_mask_noice_MISMIPplus( grid, mask_noice)
+    ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+        
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ! NOTE: because IMAU-ICE wants to centre the domain at x=0, the front now lies at x = 240 km
+      IF (grid%x( i) > 240000._dp) THEN
+        mask_noice( j,i) = 1
+      END IF
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_MISMIPplus
+  
 ! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
   SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)
     
@@ -1432,31 +1643,34 @@ CONTAINS
     REAL(dp)                                           :: TAF1,TAF2,lambda_GL, x_GL
     REAL(dp)                                           :: A_flow_old, f, A_flow_new
     
-    ! Determine mid-channel grounding-line position
-    jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
-    i = 1
-    DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
-      i = i+1
-    END DO
-    
-    TAF1 = ice%TAF_a( jmid,i-1)
-    TAF2 = ice%TAF_a( jmid,i  )
-    lambda_GL = TAF1 / (TAF1 - TAF2)
-    x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
-    
-    ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
-    x_GL = x_GL + 400000._dp
-    
-    ! Adjust the flow factor
-    A_flow_old = ice%A_flow_vav_a( 1,1)
-    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
-    A_flow_new = A_flow_old * f
-    
-    ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_new
-    ice%A_flow_vav_a(   :,grid%i1:grid%i2) = A_flow_new
+    IF (par%master) THEN
+      
+      ! Determine mid-channel grounding-line position
+      jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
+      i = 1
+      DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
+        i = i+1
+      END DO
+      
+      TAF1 = ice%TAF_a( jmid,i-1)
+      TAF2 = ice%TAF_a( jmid,i  )
+      lambda_GL = TAF1 / (TAF1 - TAF2)
+      x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
+      
+      ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
+      x_GL = x_GL + 400000._dp
+      
+      ! Adjust the flow factor
+      A_flow_old = ice%A_flow_vav_a( 1,1)
+      f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
+      A_flow_new = A_flow_old * f
+      
+      C%uniform_flow_factor = A_flow_new
+      
+      IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
+      
+    END IF ! IF (par%master) THEN
     CALL sync
-    
-    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
     
   END SUBROUTINE MISMIPplus_adapt_flow_factor
 

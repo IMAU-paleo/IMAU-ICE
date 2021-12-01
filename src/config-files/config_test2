@@ -1,0 +1,11 @@
+&PROFILE
+! Experiment profile
+experiment_profile_config = 'EISMINT1'
+/
+
+&CONFIG
+
+! The resolutions at which we want to simulate the different ice sheets
+dx_ANT_config                           = 27000
+
+/

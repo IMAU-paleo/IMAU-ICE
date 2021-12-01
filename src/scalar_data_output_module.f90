@@ -42,43 +42,8 @@ CONTAINS
     REAL(dp)                                      :: total_BMB
     REAL(dp)                                      :: total_MB
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
+    IF (.NOT. C%do_write_regional_scalar_output) RETURN
   
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Do nothing; regional scalar output not needed in these experiments
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_regional_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
-  
-  
-      
     ! Regionally integrated output
     ! ============================
       
@@ -154,69 +119,29 @@ CONTAINS
     TYPE(type_forcing_data),             INTENT(IN)    :: forcing
     REAL(dp),                            INTENT(IN)    :: time
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
-  
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Do nothing; global scalar output not needed in these experiments
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_global_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
+    IF (.NOT. C%do_write_global_scalar_output) RETURN
   
     IF (par%master) THEN
     
       ! Sea level: variables have already been set in the IMAU_ICE_program time loop
       
       ! CO2
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      IF     (C%choice_forcing_method == 'none') THEN
+      ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
         global_data%CO2_obs        = forcing%CO2_obs
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
         global_data%CO2_obs        = forcing%CO2_obs
         global_data%CO2_mod        = forcing%CO2_mod
-      ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-      ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_global_scalar_data!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
       ! d18O
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      IF     (C%do_calculate_benthic_d18O) THEN
+        global_data%dT_glob        = forcing%dT_glob
+        global_data%dT_dw          = forcing%dT_deepwater
         global_data%d18O_obs       = forcing%d18O_obs
         global_data%d18O_mod       = forcing%d18O_mod
         global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
@@ -225,39 +150,7 @@ CONTAINS
         global_data%d18O_EAS       = forcing%d18O_EAS
         global_data%d18O_GRL       = forcing%d18O_GRL
         global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-        global_data%d18O_obs       = forcing%d18O_obs
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_global_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
-      
-      ! Temperature (surface and deep-water)
-      global_data%dT_glob        = forcing%dT_glob
-      global_data%dT_dw          = forcing%dT_deepwater
       
       ! Computation times
       global_data%tcomp_total    = 0._dp
@@ -320,21 +213,21 @@ CONTAINS
     CALL allocate_shared_dp_0D( global_data%GMSL_ANT      , global_data%wGMSL_ANT      )
     
     ! CO2
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_forcing_method == 'none') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
       CALL allocate_shared_dp_0D( global_data%CO2_mod       , global_data%wCO2_mod       )
-    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in initialise_global_scalar_data!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
     ! d18O
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_forcing_method == 'none') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
       CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
@@ -353,22 +246,6 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_obs      , global_data%wd18O_obs      )
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
       CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )

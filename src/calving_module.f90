@@ -35,49 +35,6 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j
     
-    ! Exceptions for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        ! No calving in these experiments
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Use the specified calving law in these experiments
-        IF     (C%MISOMIP1_scenario == 'IceOcean0' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean1rr') THEN
-          ! No calving here
-          RETURN
-        ELSEIF (C%MISOMIP1_scenario == 'IceOcean2ra' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean2rr') THEN
-          ! Threshold thickness calving here
-          C%choice_calving_law = 'threshold_thickness'
-          C%calving_threshold_thickness = 100._dp
-        ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: MISOMIP1_scenario "', TRIM(C%MISOMIP1_scenario), '" not implemented in calculate_calving_flux!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calculate_calving_flux!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
     ! If so specified, remove all floating ice
     IF (C%do_remove_shelves) THEN
       DO i = grid%i1, grid%i2

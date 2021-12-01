@@ -304,6 +304,7 @@ CONTAINS
       region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(   :,i1:i2)
       region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_corr( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
       CALL sync
+      CALL update_general_ice_model_data( region%grid, region%ice)
     
     END IF ! IF (do_update_ice_velocity) THEN
       
@@ -312,6 +313,7 @@ CONTAINS
     
     ! Calculate ice thickness at the end of this model loop
     region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
+    CALL sync
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
@@ -574,7 +576,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
   
   ! Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, mask_noice)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
       
@@ -584,6 +586,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -605,7 +608,7 @@ CONTAINS
     CALL sync
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
+    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min, mask_noice)
     CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
     CALL update_general_ice_model_data( grid, ice)
@@ -622,7 +625,7 @@ CONTAINS
     END IF
     CALL sync
     
-    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') THEN
+    IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') THEN
       ! Initialise ice velocity with the exact solution for the SSA icestream benchmark
       ! (since the solver converges very slowly for this one)
       DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -632,16 +635,6 @@ CONTAINS
         ice%u_base_cx( j,i) = ice%u_vav_cx( j,i)
       END DO
       END DO
-      CALL sync
-    END IF
-    
-    IF (C%do_benchmark_experiment .AND. ( &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1')) THEN
-      ! Set the ice flow factor only during initialisation; don't allow the "ice_physical_properties" routine
-      ! to change it, but instead let the tune-for-GL-position routine do that
-      ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
-      ice%A_flow_vav_a(   :,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
       CALL sync
     END IF
     
@@ -777,7 +770,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%taudy_cy             , ice%wtaudy_cy             )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%phi_fric_a           , ice%wphi_fric_a           )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%tauc_a               , ice%wtauc_a               )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%A_slid_a             , ice%wA_slid_a             )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%alpha_sq_a           , ice%walpha_sq_a           )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%beta_sq_a            , ice%wbeta_sq_a            )
         
     ! Ice dynamics - physical terms in the SSA/DIVA
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx-1, ice%du_dx_b              , ice%wdu_dx_b              )
