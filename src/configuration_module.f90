@@ -326,25 +326,15 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
   
-  ! NetCDF file containing direct global/regional climate/SMB forcing
+  ! NetCDF files containing direct global/regional climate forcing
   CHARACTER(LEN=256)  :: filename_direct_global_climate_config       = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_NAM_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_EAS_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_GRL_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_ANT_config = ''
-  CHARACTER(LEN=256)  :: filename_direct_global_SMB_config           = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_NAM_config     = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
   
   ! NetCDF file containing the present-day observed climate (e.g. ERA40)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config              = 'Datasets/ERA40/ERA40_climate_global.nc'
-  
-  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
-  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-  CHARACTER(LEN=256)  :: name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  CHARACTER(LEN=256)  :: name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
   
   ! GCM snapshots in the matrix_warm_cold option
   CHARACTER(LEN=256)  :: filename_climate_snapshot_PI_config         = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
@@ -359,12 +349,13 @@ MODULE configuration_module
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                          ! Default values are from Berends et al, 2018
   REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                          ! 1.0_dp equals glacial index method                       
 
+  ! Orbit time and CO2 concentration of the warm and cold snapshots
   REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                          ! CO2 level  pertaining to the warm climate (PI  level default)         
-  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                          ! CO2 level  pertaining to the cold climate (LGM level default)          
-
+  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                          ! CO2 level  pertaining to the cold climate (LGM level default)   
   REAL(dp)            :: matrix_warm_orbit_time_config               = 0._dp                            ! Orbit time pertaining to the warm climate (PI default)
   REAL(dp)            :: matrix_cold_orbit_time_config               = -21000._dp                       ! Orbit time pertaining to the cold climate (LGM default)
   
+  ! Whether or not to apply a bias correction to the GCM snapshots
   LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
   LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
  
@@ -375,6 +366,16 @@ MODULE configuration_module
   
   CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
+  
+  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+  CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+  CHARACTER(LEN=256)  :: name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+
+  ! GCM snapshots in the matrix_warm_cold option
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config       = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
   
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   REAL(dp)            :: ocean_temperature_PD_config                 = 271.46_dp                        ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
@@ -394,14 +395,11 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: ocean_extrap_hires_geo_filename_ANT_config  = ''
   REAL(dp)            :: ocean_w_tot_hist_averaging_window_config    = 1500._dp                         ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged
 
+  ! Scaling factor for CO2 vs ice weights
   REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
   REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                           ! Can be set separately for different regions
   REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
   REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp
-
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config       = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config     = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
   
   ! Surface mass balance
   ! ====================
@@ -409,6 +407,15 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_SMB_config                 = 'EISMINT1_A'
   REAL(dp)            :: SMB_uniform_config                          = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
+  
+  ! NetCDF file containing direct global/regional climate forcing
+  CHARACTER(LEN=256)  :: filename_direct_global_SMB_config           = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_NAM_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
+  CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
+  
+  ! Tuning parameters for the IMAU-ITM SMB model
   REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
   REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
   REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
@@ -901,40 +908,40 @@ MODULE configuration_module
   
     ! Climate
     ! =======
-    
+  
     CHARACTER(LEN=256)                  :: choice_climate_model
     CHARACTER(LEN=256)                  :: choice_idealised_climate
+    
+    ! NetCDF files containing direct global/regional climate forcing
     CHARACTER(LEN=256)                  :: filename_direct_global_climate
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_NAM
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_EAS
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_GRL
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_ANT
-    CHARACTER(LEN=256)                  :: filename_direct_global_SMB
-    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_NAM
-    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_EAS
-    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_GRL
-    CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_ANT
-    CHARACTER(LEN=256)                  :: filename_PD_obs_climate
-    CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
-    CHARACTER(LEN=256)                  :: name_ocean_temperature
-    CHARACTER(LEN=256)                  :: name_ocean_salinity
+    
+    ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+    CHARACTER(LEN=256)                  :: filename_PD_obs_climate_
+    
+    ! GCM snapshots in the matrix_warm_cold option
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_cold
     
     REAL(dp)                            :: constant_lapserate
     
+    ! Scaling factor for CO2 vs ice weights
     REAL(dp)                            :: climate_matrix_CO2vsice_NAM
     REAL(dp)                            :: climate_matrix_CO2vsice_EAS
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
     
+    ! Orbit time and CO2 concentration of the warm and cold snapshots
     REAL(dp)                            :: matrix_high_CO2_level
     REAL(dp)                            :: matrix_low_CO2_level
-    
     REAL(dp)                            :: matrix_warm_orbit_time
     REAL(dp)                            :: matrix_cold_orbit_time
     
+    ! Whether or not to apply a bias correction to the GCM snapshots
     LOGICAL                             :: climate_matrix_biascorrect_warm
     LOGICAL                             :: climate_matrix_biascorrect_cold
     
@@ -946,6 +953,16 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ocean_model
     CHARACTER(LEN=256)                  :: choice_idealised_ocean
     
+    ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+    CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
+    CHARACTER(LEN=256)                  :: name_ocean_temperature
+    CHARACTER(LEN=256)                  :: name_ocean_salinity
+    
+    ! GCM snapshots in the matrix_warm_cold option
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
+    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
+    
     ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
     REAL(dp)                            :: ocean_temperature_PD
     REAL(dp)                            :: ocean_temperature_cold
@@ -955,8 +972,6 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
     REAL(dp)                            :: ocean_vertical_grid_max_depth
     REAL(dp)                            :: ocean_regular_grid_dz
-    INTEGER                             :: nz_ocean
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: z_ocean
     CHARACTER(LEN=256)                  :: ocean_extrap_dir
     REAL(dp)                            :: ocean_extrap_res
     REAL(dp)                            :: ocean_extrap_Gauss_sigma
@@ -966,14 +981,11 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
     REAL(dp)                            :: ocean_w_tot_hist_averaging_window
     
+    ! Scaling factor for CO2 vs ice weights
     REAL(dp)                            :: ocean_matrix_CO2vsice_NAM
     REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
     REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
     REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
-    
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
-    CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
     
     ! Surface mass balance
     ! ====================
@@ -981,22 +993,31 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_SMB_model
     CHARACTER(LEN=256)                  :: choice_idealised_SMB
     REAL(dp)                            :: SMB_uniform
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_NAM
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_EAS
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_GRL
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_constant_ANT
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_NAM
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_EAS
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_GRL
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Ts_ANT
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_NAM
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_EAS
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_GRL
-    REAL(dp)                            :: SMB_IMAUITM_C_abl_Q_ANT
-    REAL(dp)                            :: SMB_IMAUITM_C_refr_NAM
-    REAL(dp)                            :: SMB_IMAUITM_C_refr_EAS
-    REAL(dp)                            :: SMB_IMAUITM_C_refr_GRL
-    REAL(dp)                            :: SMB_IMAUITM_C_refr_ANT
+    
+    ! NetCDF file containing direct global/regional climate forcing
+    CHARACTER(LEN=256)  :: filename_direct_global_SMB_config           = ''
+    CHARACTER(LEN=256)  :: filename_direct_regional_SMB_NAM_config     = ''
+    CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
+    CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
+    CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
+    
+    ! Tuning parameters for the IMAU-ITM SMB model
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_NAM_config       = -49._dp                          ! 34._dp    (commented values are old ANICE defaults, but since refreezing was not calculated right
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_EAS_config       = -49._dp                          !            and this has since been fixed, these values will still not give the same results as
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_GRL_config       = -49._dp                          !            they used to in ANICE.)
+    REAL(dp)            :: SMB_IMAUITM_C_abl_constant_ANT_config       = -49._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_NAM_config             = 10._dp                           ! 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_EAS_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_GRL_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Ts_ANT_config             = 10._dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227_dp                        ! 0.513_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
+    REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp 
+    REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp 
+    REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================
@@ -1632,11 +1653,6 @@ CONTAINS
                      filename_direct_regional_climate_EAS_config,     &
                      filename_direct_regional_climate_GRL_config,     &
                      filename_direct_regional_climate_ANT_config,     &
-                     filename_direct_global_SMB_config,               &
-                     filename_direct_regional_SMB_NAM_config,         &
-                     filename_direct_regional_SMB_EAS_config,         &
-                     filename_direct_regional_SMB_GRL_config,         &
-                     filename_direct_regional_SMB_ANT_config,         &
                      filename_PD_obs_climate_config,                  &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_config,                   &
@@ -1682,6 +1698,11 @@ CONTAINS
                      choice_SMB_model_config,                         &
                      choice_idealised_SMB_config,                     &
                      SMB_uniform_config,                              &
+                     filename_direct_global_SMB_config,               &
+                     filename_direct_regional_SMB_NAM_config,         &
+                     filename_direct_regional_SMB_EAS_config,         &
+                     filename_direct_regional_SMB_GRL_config,         &
+                     filename_direct_regional_SMB_ANT_config,         &
                      SMB_IMAUITM_C_abl_constant_NAM_config,           &
                      SMB_IMAUITM_C_abl_constant_EAS_config,           &
                      SMB_IMAUITM_C_abl_constant_GRL_config,           &
@@ -1852,7 +1873,7 @@ CONTAINS
       
     OPEN(UNIT=config_unit, FILE=TRIM(config_filename), STATUS='OLD', ACTION='READ', iostat=ios)
     IF(ios /= 0) THEN
-      WRITE(UNIT=*, FMT='(/3A/)') 'read_config_file - ERROR: vould not open the configuration file: ', TRIM(config_filename)
+      WRITE(UNIT=*, FMT='(/3A/)') 'read_config_file - ERROR: could not open the configuration file: ', TRIM(config_filename)
       STOP
     END IF
 
@@ -2157,6 +2178,7 @@ CONTAINS
     C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
     C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
     C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
+    
     C%filename_PD_obs_climate                  = filename_PD_obs_climate_config
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
     C%name_ocean_temperature                   = name_ocean_temperature_config
@@ -2223,6 +2245,13 @@ CONTAINS
     C%choice_SMB_model                         = choice_SMB_model_config
     C%choice_idealised_SMB                     = choice_idealised_SMB_config
     C%SMB_uniform                              = SMB_uniform_config
+    
+    C%filename_direct_global_SMB               = filename_direct_global_SMB_config
+    C%filename_direct_regional_SMB_NAM         = filename_direct_regional_SMB_NAM_config
+    C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
+    C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
+    C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
+    
     C%SMB_IMAUITM_C_abl_constant_NAM           = SMB_IMAUITM_C_abl_constant_NAM_config
     C%SMB_IMAUITM_C_abl_constant_EAS           = SMB_IMAUITM_C_abl_constant_EAS_config
     C%SMB_IMAUITM_C_abl_constant_GRL           = SMB_IMAUITM_C_abl_constant_GRL_config

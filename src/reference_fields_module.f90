@@ -451,7 +451,8 @@ CONTAINS
     ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_B') THEN
       ! The ISMIP-HOM B bumpy slope
       CALL initialise_reference_geometry_idealised_ISMIP_HOM_B( grid, refgeo)
-    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_CD') THEN
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_C' .OR. &
+            choice_refgeo_idealised == 'ISMIP_HOM_D') THEN
       ! The ISMIP-HOM C/D bumpy slope
       CALL initialise_reference_geometry_idealised_ISMIP_HOM_CD( grid, refgeo)
     ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_E') THEN

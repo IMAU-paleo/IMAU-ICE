@@ -25,6 +25,7 @@ MODULE ice_velocity_module
                                              ddx_cx_to_cx_2D, ddy_cy_to_cx_2D, ddx_cx_to_cy_2D, ddy_cy_to_cy_2D, &
                                              ddx_cx_to_a_2D, ddy_cx_to_a_2D, ddx_cy_to_a_2D, ddy_cy_to_a_2D
   USE basal_conditions_and_sliding_module, ONLY: calc_basal_conditions, calc_sliding_law
+  USE general_ice_model_data_module,   ONLY: determine_grounded_fractions
 
   IMPLICIT NONE
   
@@ -154,6 +155,9 @@ CONTAINS
     ! Calculate the basal yield stress tau_c
     CALL calc_basal_conditions( grid, ice)
     
+    ! Determine sub-grid grounded fractions for scaling the basal friction
+    CALL determine_grounded_fractions( grid, ice)
+    
     ! Find analytical solution for the SSA icestream experiment (used only to print numerical error to screen)
     CALL SSA_Schoof2006_analytical_solution( 0.001_dp, 2000._dp, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
             
@@ -209,7 +213,7 @@ CONTAINS
       !IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_SSA_cx), ' - ', MAXVAL(ice%u_SSA_cx), ']'
       
       IF (par%master .AND. C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') &
-        WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_vav_cx) / umax_analytical), ': resid_UV = ', resid_UV
+        WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_SSA_cx) / umax_analytical), ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
       IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
@@ -273,6 +277,9 @@ CONTAINS
     
     ! Calculate the basal yield stress tau_c
     CALL calc_basal_conditions( grid, ice)
+    
+    ! Determine sub-grid grounded fractions for scaling the basal friction
+    CALL determine_grounded_fractions( grid, ice)
             
     ! Initially set error very high 
     ice%DIVA_err_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1E5_dp
@@ -316,7 +323,7 @@ CONTAINS
       
       ! Check if the viscosity iteration has converged
       CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
-     ! IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
+      !IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
       IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN

@@ -612,6 +612,10 @@ CONTAINS
     CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
     CALL update_general_ice_model_data( grid, ice)
+      
+    ! Initialise the "previous ice mask", so that the first call to thermodynamics works correctly
+    ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
+    CALL sync
     
     ! Initialise some numbers for the predictor/corrector ice thickness update method
     IF (par%master) THEN
@@ -808,7 +812,8 @@ CONTAINS
     CALL initialise_SSADIVA_solution_matrix( grid, ice)
     
     ! Ice dynamics - ice thickness calculation
-    IF     (C%choice_ice_integration_method == 'explicit') THEN
+    IF     (C%choice_ice_integration_method == 'none') THEN
+    ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
       CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%Qx_cx                , ice%wQx_cx                )
       CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%Qy_cy                , ice%wQy_cy                )
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN

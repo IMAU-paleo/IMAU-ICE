@@ -49,7 +49,7 @@ CONTAINS
     
     ! Determine masks
     CALL determine_masks(                    grid, ice)
-    CALL determine_grounded_fractions(       grid, ice)
+    !CALL determine_grounded_fractions(       grid, ice)   ! NOTE: called from solve_SSA / solve_DIVA, more efficient
     CALL determine_floating_margin_fraction( grid, ice)
  
     ! Get ice thickness, flow factor, and surface slopes on the required grids
@@ -489,38 +489,38 @@ CONTAINS
     ! The analytical solutions sometime give problems when one or more of the corner
     ! values is VERY close to zero; avoid this.
     IF (f_NW == 0._dp) THEN
-      f_NWp = ftol
+      f_NWp = ftol * 1.1_dp
     ELSEIF (f_NW > 0._dp) THEN
-      f_NWp = MAX(  ftol, f_NW)
+      f_NWp = MAX(  ftol * 1.1_dp, f_NW)
     ELSEIF (f_NW < 0._dp) THEN
-      f_NWp = MIN( -ftol, f_NW)
+      f_NWp = MIN( -ftol * 1.1_dp, f_NW)
     ELSE
       f_NWp = f_NW
     END IF
     IF (f_NE == 0._dp) THEN
-      f_NEp = ftol
+      f_NEp = ftol * 1.21_dp
     ELSEIF (f_NE > 0._dp) THEN
-      f_NEp = MAX(  ftol, f_NE)
+      f_NEp = MAX(  ftol * 1.21_dp, f_NE)
     ELSEIF (f_NE < 0._dp) THEN
-      f_NEp = MIN( -ftol, f_NE)
+      f_NEp = MIN( -ftol * 1.21_dp, f_NE)
     ELSE
       f_NEp = f_NE
     END IF
     IF (f_SW == 0._dp) THEN
-      f_SWp = ftol
+      f_SWp = ftol * 1.13_dp
     ELSEIF (f_SW > 0._dp) THEN
-      f_SWp = MAX(  ftol, f_SW)
+      f_SWp = MAX(  ftol * 1.13_dp, f_SW)
     ELSEIF (f_SW < 0._dp) THEN
-      f_SWp = MIN( -ftol, f_SW)
+      f_SWp = MIN( -ftol * 1.13_dp, f_SW)
     ELSE
       f_SWp = f_SW
     END IF
     IF (f_SE == 0._dp) THEN
-      f_SEp = ftol
+      f_SEp = ftol * 0.97_dp
     ELSEIF (f_SE > 0._dp) THEN
-      f_SEp = MAX(  ftol, f_SE)
+      f_SEp = MAX(  ftol * 0.97_dp, f_SE)
     ELSEIF (f_SE < 0._dp) THEN
-      f_SEp = MIN( -ftol, f_SE)
+      f_SEp = MIN( -ftol * 0.97_dp, f_SE)
     ELSE
       f_SEp = f_SE
     END IF

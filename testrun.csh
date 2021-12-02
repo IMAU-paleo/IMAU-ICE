@@ -4,4 +4,4 @@
 
 rm -rf results_2021*
 
-mpiexec -n 2 IMAU_ICE_program   EISMINT1/config-files/EISMINT1_spinup_fixed EISMINT1/config-files/var_50km
+mpiexec -n 2 IMAU_ICE_program   src/config-files/config_test2 EISMINT1/config-files/var_50km

@@ -26,7 +26,7 @@ MODULE IMAU_ICE_main_model
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, initialise_basins, initialise_mask_noice
   USE ice_velocity_module,             ONLY: solve_DIVA
   USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model
-  USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model
+  USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
   USE ocean_module,                    ONLY: initialise_ocean_model_regional,   run_ocean_model
   USE climate_module,                  ONLY: initialise_climate_model_regional, run_climate_model
   USE SMB_module,                      ONLY: initialise_SMB_model,              run_SMB_model
@@ -353,6 +353,9 @@ CONTAINS
     ! Initialise the temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate_matrix%applied, region%ocean_matrix%applied, region%SMB, region%name)
     
+    ! Initialise the rheology
+    CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
+    
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
     
@@ -603,7 +606,9 @@ CONTAINS
       nsx = FLOOR( (xmax - xmid) / region%grid%dx)
       nsy = FLOOR( (ymax - ymid) / region%grid%dx)
       
+      ! Small exceptions for very weird benchmark experiments
       IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') nsx = 3
+      IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'ISMIP_HOM_E')   nsx = 25
       
       region%grid%nx = 1 + 2*nsx
       region%grid%ny = 1 + 2*nsy
