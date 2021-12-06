@@ -12,7 +12,7 @@ MODULE SMB_module
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_climate_matrix_regional, &
                                              type_climate_snapshot_regional, type_direct_SMB_forcing_regional, type_restart_data
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file, read_restart_file
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_SMB, read_restart_file_SMB
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
@@ -26,7 +26,6 @@ MODULE SMB_module
   REAL(dp), PARAMETER :: albedo_soil         = 0.2_dp
   REAL(dp), PARAMETER :: albedo_ice          = 0.5_dp
   REAL(dp), PARAMETER :: albedo_snow         = 0.85_dp
-  REAL(dp), PARAMETER :: initial_snow_depth  = 0.1_dp
     
 CONTAINS
 
@@ -101,10 +100,14 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
+    IF (par%master) WRITE (0,*) '  Initialising regional SMB model "', TRIM(C%choice_SMB_model), '"...'
+    
     ! Allocate shared memory
     IF     (C%choice_SMB_model == 'uniform' .OR. &
-            C%choice_SMB_model == 'idealised') THEN
-      ! Onlyneed yearly total SMB in these cases
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Only need yearly total SMB in these cases
       
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
       
@@ -494,7 +497,7 @@ CONTAINS
     
     ! Local variables
     INTEGER                                            :: i,j
-    CHARACTER(LEN=256)                                 :: choice_refgeo_init
+    CHARACTER(LEN=256)                                 :: SMB_IMAUITM_choice_init_firn
     
     IF (par%master) WRITE (0,*) '  Initialising the IMAU-ITM SMB model...'
     
@@ -522,34 +525,68 @@ CONTAINS
     
     IF (par%master) THEN
       IF     (region_name == 'NAM') THEN
-        SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
-        SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
-        SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
-        SMB%C_refr         = C%SMB_IMAUITM_C_refr_NAM
-        choice_refgeo_init = C%choice_refgeo_init_NAM
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_NAM
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_NAM
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_NAM
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_NAM
       ELSEIF (region_name == 'EAS') THEN
-        SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
-        SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
-        SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
-        SMB%C_refr         = C%SMB_IMAUITM_C_refr_EAS
-        choice_refgeo_init = C%choice_refgeo_init_EAS
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_EAS
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_EAS
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_EAS
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_EAS
       ELSEIF (region_name == 'GRL') THEN
-        SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
-        SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
-        SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
-        SMB%C_refr         = C%SMB_IMAUITM_C_refr_GRL
-        choice_refgeo_init = C%choice_refgeo_init_GRL
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_GRL
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_GRL
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_GRL
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_GRL
       ELSEIF (region_name == 'ANT') THEN
-        SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
-        SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
-        SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
-        SMB%C_refr         = C%SMB_IMAUITM_C_refr_ANT
-        choice_refgeo_init = C%choice_refgeo_init_ANT
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_ANT
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_ANT
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_ANT
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_ANT
       END IF
     END IF ! IF (par%master) THEN
     CALL sync
     
-    ! Initialise albedo to background albedo, and firn depth to zero
+    ! Initialisation choice
+    IF     (region_name == 'NAM') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_ANT
+    END IF
+    
+    ! Initialise the firn layer
+    IF     (SMB_IMAUITM_choice_init_firn == 'uniform') THEN
+      ! Initialise with a uniform firn layer over the ice sheet
+    
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%Hi_a( j,i) > 0._dp) THEN
+          SMB%FirnDepth(        :,j,i) = C%SMB_IMAUITM_initial_firn_thickness
+          SMB%MeltPreviousYear(   j,i) = 0._dp
+        ELSE
+          SMB%FirnDepth(        :,j,i) = 0._dp
+          SMB%MeltPreviousYear(   j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (SMB_IMAUITM_choice_init_firn == 'restart') THEN
+      ! Initialise with the firn layer of a previous run
+      
+      CALL initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
+      
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_SMB_model_IMAU_ITM - ERROR: unknown SMB_IMAUITM_choice_init_firn "', TRIM(SMB_IMAUITM_choice_init_firn), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Initialise albedo
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -559,10 +596,8 @@ CONTAINS
       ELSE
         SMB%AlbedoSurf( j,i) = albedo_soil
       END IF
-      
       IF (ice%Hi_a( j,i) > 0._dp) THEN
         SMB%AlbedoSurf(  j,i) = albedo_snow
-        SMB%FirnDepth( :,j,i) = initial_snow_depth   
       END IF
       
       SMB%Albedo( :,j,i) = SMB%AlbedoSurf( j,i)
@@ -570,14 +605,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
-    IF (choice_refgeo_init == 'restart') THEN
-      CALL initialise_SMB_model_IMAU_ITM_restart( grid, SMB, region_name)
-    END IF
   
   END SUBROUTINE initialise_SMB_model_IMAU_ITM
-  SUBROUTINE initialise_SMB_model_IMAU_ITM_restart( grid, SMB, region_name)
+  SUBROUTINE initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
     ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
     
     IMPLICIT NONE
@@ -611,32 +641,23 @@ CONTAINS
     ! and determine the dimensions of the memory to be allocated.
     CALL allocate_shared_int_0D( restart%nx, restart%wnx)
     CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
     CALL allocate_shared_int_0D( restart%nt, restart%wnt)
     IF (par%master) THEN
       restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file( restart)
+      CALL inquire_restart_file_SMB( restart)
     END IF
     CALL sync
     
     ! Allocate memory for raw data
     CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
     CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
     CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
     
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
     CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
-    IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
+    IF (par%master) CALL read_restart_file_SMB( restart, time_to_restart_from)
     CALL sync
     
     ! Safety
@@ -654,23 +675,14 @@ CONTAINS
     ! Deallocate raw data
     CALL deallocate_shared( restart%wnx              )
     CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnz              )
     CALL deallocate_shared( restart%wnt              )
     CALL deallocate_shared( restart%wx               )
     CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wzeta            )
     CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wTi              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
     CALL deallocate_shared( restart%wFirnDepth       )
     CALL deallocate_shared( restart%wMeltPreviousYear)
-    CALL deallocate_shared( restart%wIsoIce          )
   
-  END SUBROUTINE initialise_SMB_model_IMAU_ITM_restart
+  END SUBROUTINE initialise_IMAU_ITM_firn_restart
 
 ! == Directly prescribed global/regional SMB
 ! ==========================================

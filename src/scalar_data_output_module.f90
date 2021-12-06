@@ -47,62 +47,92 @@ CONTAINS
     ! Regionally integrated output
     ! ============================
       
+    ! Surface temperature (entire region) and surface/basal mass balance (ice-sheet only)
     T2m_mean                   = 0._dp
-    total_snowfall             = 0._dp
-    total_rainfall             = 0._dp
-    total_melt                 = 0._dp
-    total_refreezing           = 0._dp
-    total_runoff               = 0._dp
     total_SMB                  = 0._dp
     total_BMB                  = 0._dp
     
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-    
-      IF (region%ice%Hi_a( j,i) > 0._dp) THEN
-        
-        total_BMB = total_BMB + (region%BMB%BMB( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          
-        DO m = 1, 12
-          total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_SMB        = total_SMB        + (region%SMB%SMB(        m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-        END DO
-        
-      END IF
 
-      T2m_mean = T2m_mean + SUM(region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+      T2m_mean = T2m_mean + SUM( region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+    
+      IF (region%ice%mask_ice_a( j,i) == 1) THEN
+        total_SMB = total_SMB + (region%SMB%SMB_year( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_BMB = total_BMB + (region%BMB%BMB(      j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+      END IF
       
     END DO
     END DO
     CALL sync
     
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean        , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_snowfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_rainfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_melt      , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     
     total_MB = total_SMB + total_BMB
     
     IF (par%master) THEN
       region%int_T2m        = T2m_mean
-      region%int_snowfall   = total_snowfall
-      region%int_rainfall   = total_rainfall
-      region%int_melt       = total_melt
-      region%int_refreezing = total_refreezing
-      region%int_runoff     = total_runoff
       region%int_SMB        = total_SMB
       region%int_BMB        = total_BMB
       region%int_MB         = total_MB
     END IF
     CALL sync
+    
+    ! Individual SMB components
+    IF     (C%choice_SMB_model == 'uniform' .OR. &
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Do nothing
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+            C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+    
+      total_snowfall             = 0._dp
+      total_rainfall             = 0._dp
+      total_melt                 = 0._dp
+      total_refreezing           = 0._dp
+      total_runoff               = 0._dp
+      
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
+      
+        IF (region%ice%Hi_a( j,i) > 0._dp) THEN
+            
+          DO m = 1, 12
+            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          END DO
+          
+        END IF
+        
+      END DO
+      END DO
+      CALL sync
+      
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_snowfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_rainfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_melt      , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      
+      IF (par%master) THEN
+        region%int_snowfall   = total_snowfall
+        region%int_rainfall   = total_rainfall
+        region%int_melt       = total_melt
+        region%int_refreezing = total_refreezing
+        region%int_runoff     = total_runoff
+      END IF
+      CALL sync
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'write_regional_scalar_data - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     ! Write to NetCDF file
     CALL write_to_regional_scalar_output_file( region, time)

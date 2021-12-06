@@ -14,7 +14,7 @@ MODULE reference_fields_module
   USE parameters_module,               ONLY: seawater_density, ice_density, sec_per_year, pi
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
                                              inquire_reference_geometry_file, read_reference_geometry_file, &
-                                             inquire_restart_file, read_restart_file
+                                             inquire_restart_file_geometry, read_restart_file_geometry
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
@@ -225,32 +225,26 @@ CONTAINS
     ! and determine the dimensions of the memory to be allocated.
     CALL allocate_shared_int_0D( restart%nx, restart%wnx)
     CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
     CALL allocate_shared_int_0D( restart%nt, restart%wnt)
     IF (par%master) THEN
       restart%netcdf%filename = filename_refgeo
-      CALL inquire_restart_file( restart)
+      CALL inquire_restart_file_geometry( restart)
     END IF
     CALL sync
     
     ! Allocate memory for raw data
     CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
     CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
     CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
     
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
-    IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
+    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
     CALL sync
     
     ! Safety
@@ -276,21 +270,15 @@ CONTAINS
     ! Deallocate raw data
     CALL deallocate_shared( restart%wnx              )
     CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnz              )
     CALL deallocate_shared( restart%wnt              )
     CALL deallocate_shared( restart%wx               )
     CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wzeta            )
     CALL deallocate_shared( restart%wtime            )
     CALL deallocate_shared( restart%wHi              )
     CALL deallocate_shared( restart%wHb              )
     CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wTi              )
     CALL deallocate_shared( restart%wSL              )
     CALL deallocate_shared( restart%wdHb             )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
-    CALL deallocate_shared( restart%wIsoIce          )
     
   END SUBROUTINE initialise_reference_geometry_from_restart_file
   SUBROUTINE adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, time_to_restart_from)
@@ -318,32 +306,26 @@ CONTAINS
     ! and determine the dimensions of the memory to be allocated.
     CALL allocate_shared_int_0D( restart%nx, restart%wnx)
     CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
     CALL allocate_shared_int_0D( restart%nt, restart%wnt)
     IF (par%master) THEN
       restart%netcdf%filename = filename_refgeo_init
-      CALL inquire_restart_file( restart)
+      CALL inquire_restart_file_geometry( restart)
     END IF
     CALL sync
     
     ! Allocate memory for raw data
     CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
     CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
     CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
     
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
     CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
-    IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
+    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
     CALL sync
     
     ! Safety
@@ -394,21 +376,15 @@ CONTAINS
     ! Deallocate raw data
     CALL deallocate_shared( restart%wnx              )
     CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnz              )
     CALL deallocate_shared( restart%wnt              )
     CALL deallocate_shared( restart%wx               )
     CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wzeta            )
     CALL deallocate_shared( restart%wtime            )
     CALL deallocate_shared( restart%wHi              )
     CALL deallocate_shared( restart%wHb              )
     CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wTi              )
     CALL deallocate_shared( restart%wSL              )
     CALL deallocate_shared( restart%wdHb             )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
-    CALL deallocate_shared( restart%wIsoIce          )
     
   END SUBROUTINE adapt_initial_geometry_from_restart_file
   

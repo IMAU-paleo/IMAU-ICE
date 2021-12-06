@@ -22,7 +22,7 @@ MODULE climate_module
                                              read_direct_global_SMB_file_time_latlon, read_direct_global_SMB_file_timeframes, &
                                              inquire_direct_regional_SMB_forcing_file, read_direct_regional_SMB_file_time_xy, &
                                              read_direct_regional_SMB_file_timeframes
-  USE forcing_module,                  ONLY: forcing, get_insolation_at_time
+  USE forcing_module,                  ONLY: forcing, get_insolation_at_time, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              error_function, smooth_Gaussian_2D, smooth_Shepard_2D, &
@@ -103,6 +103,8 @@ CONTAINS
     ! In/output variables:
     TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix
     
+    IF (par%master) WRITE (0,*) ' Initialising global climate model "', TRIM(C%choice_climate_model), '"...'
+    
     IF     (C%choice_climate_model == 'none') THEN
       ! Possibly a direct SMB is used? Otherwise no need to do anything.
       
@@ -153,6 +155,8 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_climate_matrix_global),    INTENT(IN)    :: climate_matrix_global
+    
+    IF (par%master) WRITE (0,*) '  Initialising regional climate model "', TRIM(C%choice_climate_model), '"...'
     
     IF     (C%choice_climate_model == 'none') THEN
       ! Possibly a direct SMB is used? Otherwise no need to do anything.
@@ -505,8 +509,9 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j,m
     
-    ! Update insolation forcing at model time
+    ! Update forcing at model time
     CALL get_insolation_at_time( grid, time, climate_matrix%applied%Q_TOA)
+    CALL update_CO2_at_model_time( time)
     
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_warm_cold_temperature( grid, ice, SMB, climate_matrix, region_name)
@@ -576,7 +581,7 @@ CONTAINS
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
     
-    IF (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
       CO2 = forcing%CO2_obs
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CO2 = forcing%CO2_mod
@@ -586,7 +591,7 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSE
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - choice_forcing_method "', C%choice_forcing_method, '" not implemented in run_climate_model_matrix_warm_cold!'
+      WRITE(0,*) '  ERROR - choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in run_climate_model_matrix_warm_cold!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -814,9 +819,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_climate_matrix_global), INTENT(INOUT) :: climate_matrix_global
     
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) ' Initialising the global climate matrix...'
-    
     ! Initialise the present-day observed global climate (e.g. ERA-40)
     CALL initialise_climate_PD_obs_global(   climate_matrix_global%PD_obs,   name = 'PD_obs')
       
@@ -974,8 +976,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j,m
-    
-    IF (par%master) WRITE (0,*) '  Initialising regional climate matrix...'
         
     ! Allocate memory for the regional ERA40 climate and the final applied climate
     CALL allocate_climate_snapshot_regional( region%grid, region%climate_matrix%PD_obs,   name = 'PD_obs'  )
@@ -994,10 +994,10 @@ CONTAINS
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
     DO m = 1, 12
-      region%climate_matrix%GCM_warm%Wind_WE( i,j,m) = region%climate_matrix%PD_obs%Wind_WE( i,j,m)
-      region%climate_matrix%GCM_warm%Wind_SN( i,j,m) = region%climate_matrix%PD_obs%Wind_SN( i,j,m)
-      region%climate_matrix%GCM_cold%Wind_WE( i,j,m) = region%climate_matrix%PD_obs%Wind_WE( i,j,m)
-      region%climate_matrix%GCM_cold%Wind_SN( i,j,m) = region%climate_matrix%PD_obs%Wind_SN( i,j,m)
+      region%climate_matrix%GCM_warm%Wind_WE( m,j,i) = region%climate_matrix%PD_obs%Wind_WE( m,j,i)
+      region%climate_matrix%GCM_warm%Wind_SN( m,j,i) = region%climate_matrix%PD_obs%Wind_SN( m,j,i)
+      region%climate_matrix%GCM_cold%Wind_WE( m,j,i) = region%climate_matrix%PD_obs%Wind_WE( m,j,i)
+      region%climate_matrix%GCM_cold%Wind_SN( m,j,i) = region%climate_matrix%PD_obs%Wind_SN( m,j,i)
     END DO
     END DO
     END DO
@@ -1464,7 +1464,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time >= climate_matrix%direct%t0 .AND. time <= climate_matrix%direct%t1) THEN
+    IF (time < climate_matrix%direct%t0 .OR. time > climate_matrix%direct%t1) THEN
       
       ! Find and read the two global time frames
       CALL update_direct_global_climate_timeframes_from_file( clim_glob, time)
@@ -1539,23 +1539,44 @@ CONTAINS
     
     ! Find time indices to be read
     IF (par%master) THEN
-      IF (time <= clim_glob%time( clim_glob%nyears)) THEN
+    
+      IF     (time < clim_glob%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - WARNING: using constant start-of-record climate when extrapolating!'
+        ti0 = 1
+        ti1 = 1
+        clim_glob%t0 = clim_glob%time( ti0) - 1._dp
+        clim_glob%t1 = clim_glob%time( ti1)
+        
+      ELSEIF (time <= clim_glob%time( clim_glob%nyears)) THEN
+      
         ti1 = 1
         DO WHILE (clim_glob%time( ti1) < time)
           ti1 = ti1 + 1
         END DO
         ti0 = ti1 - 1
         
+        IF (ti0 == 0) THEN
+          ti0 = 1
+          ti1 = 2
+        ELSEIF (ti1 == clim_glob%nyears) THEN
+          ti0 = clim_glob%nyears - 1
+          ti1 = ti0 + 1
+        END IF
+        
         clim_glob%t0 = clim_glob%time( ti0)
         clim_glob%t1 = clim_glob%time( ti1)
-      ELSE
-        IF (par%master) WRITE(0,*) '  WARNING: using constant end-of-simulation climate when extrapolating!'
+        
+      ELSE ! IF     (time < clim_glob%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - WARNING: using constant end-of-record climate when extrapolating!'
         ti0 = clim_glob%nyears
         ti1 = clim_glob%nyears
-        
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
         clim_glob%t1 = clim_glob%time( ti1)
-      END IF
+      
+      END IF ! IF     (time < clim_glob%time( 1)) THEN
+      
     END IF ! IF (par%master) THEN
         
     ! Read new global climate fields from the NetCDF file
@@ -1701,7 +1722,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time >= climate_matrix%direct%t0 .AND. time <= climate_matrix%direct%t1) THEN
+    IF (time < climate_matrix%direct%t0 .OR. time > climate_matrix%direct%t1) THEN
       
       ! Find and read the two global time frames
       CALL update_direct_regional_climate_timeframes_from_file( grid, climate_matrix%direct, time)
@@ -1757,23 +1778,44 @@ CONTAINS
     
     ! Find time indices to be read
     IF (par%master) THEN
-      IF (time <= clim_reg%time( clim_reg%nyears)) THEN
+    
+      IF     (time < clim_reg%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - WARNING: using constant start-of-record climate when extrapolating!'
+        ti0 = 1
+        ti1 = 1
+        clim_reg%t0 = clim_reg%time( ti0) - 1._dp
+        clim_reg%t1 = clim_reg%time( ti1)
+        
+      ELSEIF (time <= clim_reg%time( clim_reg%nyears)) THEN
+      
         ti1 = 1
         DO WHILE (clim_reg%time( ti1) < time)
           ti1 = ti1 + 1
         END DO
         ti0 = ti1 - 1
         
+        IF (ti0 == 0) THEN
+          ti0 = 1
+          ti1 = 2
+        ELSEIF (ti1 == clim_reg%nyears) THEN
+          ti0 = clim_reg%nyears - 1
+          ti1 = ti0 + 1
+        END IF
+        
         clim_reg%t0 = clim_reg%time( ti0)
         clim_reg%t1 = clim_reg%time( ti1)
-      ELSE
-        IF (par%master) WRITE(0,*) '  WARNING: using constant end-of-simulation climate when extrapolating!'
+        
+      ELSE ! IF     (time < clim_reg%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - WARNING: using constant end-of-record climate when extrapolating!'
         ti0 = clim_reg%nyears
         ti1 = clim_reg%nyears
-        
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
         clim_reg%t1 = clim_reg%time( ti1)
-      END IF
+      
+      END IF ! IF     (time < clim_reg%time( 1)) THEN
+      
     END IF ! IF (par%master) THEN
         
     ! Read new regional climate fields from the NetCDF file
@@ -1828,8 +1870,6 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    IF (par%master) WRITE(0,*) ' Initialising direct regional climate forcing from ', TRIM( C%filename_direct_global_climate), '...'
-    
     ! Inquire into the direct global cliamte forcing netcdf file    
     CALL allocate_shared_int_0D( climate_matrix%direct%nyears, climate_matrix%direct%wnyears)
     CALL allocate_shared_int_0D( climate_matrix%direct%nx_raw, climate_matrix%direct%wnx_raw)
@@ -1846,6 +1886,8 @@ CONTAINS
       climate_matrix%direct%netcdf%filename = C%filename_direct_regional_climate_ANT
     END IF
     
+    IF (par%master) WRITE(0,*) ' Initialising direct regional climate forcing from ', TRIM( climate_matrix%direct%netcdf%filename), '...'
+    
     IF (par%master) CALL inquire_direct_regional_climate_forcing_file( climate_matrix%direct)
     CALL sync
     
@@ -1854,6 +1896,10 @@ CONTAINS
     ny = climate_matrix%direct%ny_raw
     
     ! Allocate shared memory
+    CALL allocate_shared_dp_1D( climate_matrix%direct%nyears, climate_matrix%direct%time, climate_matrix%direct%wtime        )
+    CALL allocate_shared_dp_1D(                   nx, climate_matrix%direct%x_raw,        climate_matrix%direct%wx_raw       )
+    CALL allocate_shared_dp_1D(          ny,          climate_matrix%direct%y_raw,        climate_matrix%direct%wy_raw       )
+    
     CALL allocate_shared_dp_2D(          ny,      nx, climate_matrix%direct%Hs0_raw,      climate_matrix%direct%wHs0_raw     )
     CALL allocate_shared_dp_2D(          ny,      nx, climate_matrix%direct%Hs1_raw,      climate_matrix%direct%wHs1_raw     )
     CALL allocate_shared_dp_3D( 12,      ny,      nx, climate_matrix%direct%T2m0_raw,     climate_matrix%direct%wT2m0_raw    )
@@ -1913,7 +1959,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time >= climate_matrix%SMB_direct%t0 .AND. time <= climate_matrix%SMB_direct%t1) THEN
+    IF (time < climate_matrix%SMB_direct%t0 .OR. time > climate_matrix%SMB_direct%t1) THEN
       
       ! Find and read the two global time frames
       CALL update_direct_global_SMB_timeframes_from_file( clim_glob, time)
@@ -1974,23 +2020,44 @@ CONTAINS
     
     ! Find time indices to be read
     IF (par%master) THEN
-      IF (time <= clim_glob%time( clim_glob%nyears)) THEN
+    
+      IF     (time < clim_glob%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - WARNING: using constant start-of-record SMB when extrapolating!'
+        ti0 = 1
+        ti1 = 1
+        clim_glob%t0 = clim_glob%time( ti0) - 1._dp
+        clim_glob%t1 = clim_glob%time( ti1)
+        
+      ELSEIF (time <= clim_glob%time( clim_glob%nyears)) THEN
+      
         ti1 = 1
         DO WHILE (clim_glob%time( ti1) < time)
           ti1 = ti1 + 1
         END DO
         ti0 = ti1 - 1
         
+        IF (ti0 == 0) THEN
+          ti0 = 1
+          ti1 = 2
+        ELSEIF (ti1 == clim_glob%nyears) THEN
+          ti0 = clim_glob%nyears - 1
+          ti1 = ti0 + 1
+        END IF
+        
         clim_glob%t0 = clim_glob%time( ti0)
         clim_glob%t1 = clim_glob%time( ti1)
-      ELSE
-        IF (par%master) WRITE(0,*) '  WARNING: using constant end-of-simulation SMB when extrapolating!'
+        
+      ELSE ! IF     (time < clim_glob%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - WARNING: using constant end-of-record SMB when extrapolating!'
         ti0 = clim_glob%nyears
         ti1 = clim_glob%nyears
-        
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
         clim_glob%t1 = clim_glob%time( ti1)
-      END IF
+      
+      END IF ! IF     (time < clim_glob%time( 1)) THEN
+      
     END IF ! IF (par%master) THEN
         
     ! Read new global climate fields from the NetCDF file
@@ -2113,8 +2180,8 @@ CONTAINS
     REAL(dp),                                 INTENT(IN)    :: time
 
     ! Local variables
-    REAL(dp)                                           :: wt0, wt1
-    INTEGER                                            :: i,j,m
+    REAL(dp)                                                :: wt0, wt1
+    INTEGER                                                 :: i,j
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
@@ -2124,7 +2191,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time >= climate_matrix%SMB_direct%t0 .AND. time <= climate_matrix%SMB_direct%t1) THEN
+    IF (time < climate_matrix%SMB_direct%t0 .OR. time > climate_matrix%SMB_direct%t1) THEN
       
       ! Find and read the two global time frames
       CALL update_direct_regional_SMB_timeframes_from_file( grid, climate_matrix%SMB_direct, time)
@@ -2137,9 +2204,7 @@ CONTAINS
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    DO m = 1, 12
-      climate_matrix%applied%T2m( m,j,i) = (wt0 * climate_matrix%SMB_direct%T2m_year0( j,i)) + (wt1 * climate_matrix%SMB_direct%T2m_year1( j,i))
-    END DO
+      climate_matrix%applied%T2m( :,j,i) = (wt0 * climate_matrix%SMB_direct%T2m_year0( j,i)) + (wt1 * climate_matrix%SMB_direct%T2m_year1( j,i))
     END DO
     END DO
     CALL sync
@@ -2172,23 +2237,44 @@ CONTAINS
     
     ! Find time indices to be read
     IF (par%master) THEN
-      IF (time <= clim_reg%time( clim_reg%nyears)) THEN
+    
+      IF     (time < clim_reg%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - WARNING: using constant start-of-record SMB when extrapolating!'
+        ti0 = 1
+        ti1 = 1
+        clim_reg%t0 = clim_reg%time( ti0) - 1._dp
+        clim_reg%t1 = clim_reg%time( ti1)
+        
+      ELSEIF (time <= clim_reg%time( clim_reg%nyears)) THEN
+      
         ti1 = 1
         DO WHILE (clim_reg%time( ti1) < time)
           ti1 = ti1 + 1
         END DO
         ti0 = ti1 - 1
         
+        IF (ti0 == 0) THEN
+          ti0 = 1
+          ti1 = 2
+        ELSEIF (ti1 == clim_reg%nyears) THEN
+          ti0 = clim_reg%nyears - 1
+          ti1 = ti0 + 1
+        END IF
+        
         clim_reg%t0 = clim_reg%time( ti0)
         clim_reg%t1 = clim_reg%time( ti1)
-      ELSE
-        IF (par%master) WRITE(0,*) '  WARNING: using constant end-of-simulation SMB when extrapolating!'
+        
+      ELSE ! IF     (time < clim_reg%time( 1)) THEN
+      
+        IF (par%master) WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - WARNING: using constant end-of-record SMB when extrapolating!'
         ti0 = clim_reg%nyears
         ti1 = clim_reg%nyears
-        
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
         clim_reg%t1 = clim_reg%time( ti1)
-      END IF
+      
+      END IF ! IF     (time < clim_reg%time( 1)) THEN
+      
     END IF ! IF (par%master) THEN
         
     ! Read new regional climate fields from the NetCDF file
@@ -2215,7 +2301,7 @@ CONTAINS
     CHARACTER(LEN=3),                         INTENT(IN)    :: region_name
     
     ! Local variables:
-    INTEGER                                            :: nx, ny
+    INTEGER                                                 :: nx, ny
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
@@ -2237,8 +2323,6 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    IF (par%master) WRITE(0,*) ' Initialising direct regional climate forcing from ', TRIM( C%filename_direct_global_climate), '...'
-    
     ! Inquire into the direct global cliamte forcing netcdf file    
     CALL allocate_shared_int_0D( climate_matrix%SMB_direct%nyears, climate_matrix%SMB_direct%wnyears)
     CALL allocate_shared_int_0D( climate_matrix%SMB_direct%nx_raw, climate_matrix%SMB_direct%wnx_raw)
@@ -2246,14 +2330,16 @@ CONTAINS
     
     ! Determine name of file to read data from
     IF     (region_name == 'NAM') THEN
-      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_climate_NAM
+      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_SMB_NAM
     ELSEIF (region_name == 'EAS') THEN
-      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_climate_EAS
+      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_SMB_EAS
     ELSEIF (region_name == 'GRL') THEN
-      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_climate_GRL
+      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_SMB_GRL
     ELSEIF (region_name == 'ANT') THEN
-      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_climate_ANT
+      climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_SMB_ANT
     END IF
+    
+    IF (par%master) WRITE(0,*) ' Initialising direct regional SMB forcing from ', TRIM( climate_matrix%SMB_direct%netcdf%filename), '...'
     
     IF (par%master) CALL inquire_direct_regional_SMB_forcing_file( climate_matrix%SMB_direct)
     CALL sync
@@ -2263,6 +2349,10 @@ CONTAINS
     ny = climate_matrix%SMB_direct%ny_raw
     
     ! Allocate shared memory
+    CALL allocate_shared_dp_1D( climate_matrix%SMB_direct%nyears, climate_matrix%SMB_direct%time, climate_matrix%SMB_direct%wtime  )
+    CALL allocate_shared_dp_1D(               nx, climate_matrix%SMB_direct%x_raw,         climate_matrix%SMB_direct%wx_raw        )
+    CALL allocate_shared_dp_1D(      ny,          climate_matrix%SMB_direct%y_raw,         climate_matrix%SMB_direct%wy_raw        )
+    
     CALL allocate_shared_dp_2D(      ny,      nx, climate_matrix%SMB_direct%T2m_year0_raw, climate_matrix%SMB_direct%wT2m_year0_raw)
     CALL allocate_shared_dp_2D(      ny,      nx, climate_matrix%SMB_direct%T2m_year1_raw, climate_matrix%SMB_direct%wT2m_year1_raw)
     CALL allocate_shared_dp_2D(      ny,      nx, climate_matrix%SMB_direct%SMB_year0_raw, climate_matrix%SMB_direct%wSMB_year0_raw)

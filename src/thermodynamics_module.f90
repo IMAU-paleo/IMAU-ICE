@@ -10,7 +10,7 @@ MODULE thermodynamics_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file, read_restart_file
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_temperature, read_restart_file_temperature
   USE parameters_module
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_snapshot_regional, type_SMB_model, &
                                              type_restart_data, type_ocean_snapshot_regional
@@ -394,7 +394,7 @@ CONTAINS
     
     thermal_conductivity_robin        = kappa_0_ice_conductivity * sec_per_year * EXP(-kappa_e_ice_conductivity * T0)  ! Thermal conductivity            [J m^-1 K^-1 y^-1]
     thermal_diffusivity_robin         = thermal_conductivity_robin / (ice_density * c_0_specific_heat)                 ! Thermal diffusivity             [m^2 y^-1]
-    bottom_temperature_gradient_robin = - ice%GHF_a( j,i) / thermal_conductivity_robin                                ! Temperature gradient at bedrock
+    bottom_temperature_gradient_robin = -ice%GHF_a( j,i) / thermal_conductivity_robin                                ! Temperature gradient at bedrock
     
     Ts = MIN( T0, SUM(climate%T2m( :,j,i)) / 12._dp)
     
@@ -489,8 +489,8 @@ CONTAINS
       ice%Cpi_a( :,:,grid%i1:grid%i2) = C%uniform_ice_heat_capacity
       CALL sync
       
-    ELSEIF (C%choice_ice_heat_capacity == 'Pounder1985') THEN
-      ! Calculate the heat capacity of ice according to Pounder (1985)
+    ELSEIF (C%choice_ice_heat_capacity == 'Pounder1965') THEN
+      ! Calculate the heat capacity of ice according to Pounder: The Physics of Ice (1965)
       
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
@@ -687,7 +687,7 @@ CONTAINS
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     
-    ! Local variables
+    IF (par%master) WRITE (0,*) '  Initialising ice temperature profile "', TRIM(C%choice_initial_ice_temperature), '"...'
     
     IF     (C%choice_initial_ice_temperature == 'uniform') THEN
       ! Simple uniform temperature
@@ -783,11 +783,6 @@ CONTAINS
     
     ! Local variables
     INTEGER                                             :: i,j
-      
-    ! First set all temperatures to -10C so thermal properties can be "estimated"
-    ! (they will be off, but they don't really matter much anyway, as long as they're not NaN or 0.0)
-    ice%Ti_a( :,:,grid%i1:grid%i2) = 260._dp
-    CALL sync
  
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( grid, ice)
@@ -841,7 +836,7 @@ CONTAINS
     CALL allocate_shared_int_0D( restart%nt, restart%wnt)
     IF (par%master) THEN
       restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file( restart)
+      CALL inquire_restart_file_temperature( restart)
     END IF
     CALL sync
     
@@ -851,18 +846,10 @@ CONTAINS
     CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
     CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
     
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
     CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%IsoIce,           restart%wIsoIce          )
   
     ! Read data from input file
-    IF (par%master) CALL read_restart_file( restart, time_to_restart_from)
+    IF (par%master) CALL read_restart_file_temperature( restart, time_to_restart_from)
     CALL sync
     
     ! Safety
@@ -883,15 +870,7 @@ CONTAINS
     CALL deallocate_shared( restart%wy               )
     CALL deallocate_shared( restart%wzeta            )
     CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
     CALL deallocate_shared( restart%wTi              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
-    CALL deallocate_shared( restart%wIsoIce          )
     
   END SUBROUTINE initialise_ice_temperature_restart
   

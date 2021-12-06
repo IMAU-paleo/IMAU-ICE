@@ -1253,11 +1253,10 @@ CONTAINS
     INTEGER                                      :: i, j, il, iu, jl, ju, k, nz
     REAL(dp)                                     :: wil, wiu, wjl, wju
     
-    nz = SIZE( d_glob,1)
+    nz = SIZE( d_glob,3)
     
     ! Safety
     IF (SIZE(d_grid,1) /= nz) THEN
-      IF (par%master) WRITE(0,*) 'map_glob_to_grid_3D - ERROR: d_glob /= d_grid!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     

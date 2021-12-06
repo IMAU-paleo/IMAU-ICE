@@ -55,24 +55,15 @@ CONTAINS
     nz   = C%nZ
     ti   = region%restart%netcdf%ti
     
-    ! Ice dynamics
+    ! Geometry
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hi,               region%ice%Hi_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hb,               region%ice%Hb_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hs,               region%ice%Hs_a,             (/1, 1,    ti/))
-    CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, region%restart%netcdf%id_var_Ti,               region%ice%Ti_a,             (/1, 1, 1, ti/))
+    CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_SL,               region%ice%SL_a,             (/1, 1,    ti/))
+    CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_dHb,              region%ice%dHb_a,            (/1, 1,    ti/))
     
-    ! GIA
-    IF     (C%choice_GIA_model == 'none') THEN
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_SL,               region%ice%SL_a,             (/1, 1,    ti/))
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_dHb,              region%ice%dHb_a,            (/1, 1,    ti/))
-    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_SL,               region%ice%SL_a,             (/1, 1,    ti/))
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_dHb,              region%ice%dHb_a,            (/1, 1,    ti/))
-    ELSE
-      IF (par%master) WRITE(0,*) 'write_to_restart_file - ERROR: unknown choice_GIA_model "', TRIM(C%choice_GIA_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Temperature
+    CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, region%restart%netcdf%id_var_Ti,               region%ice%Ti_a,             (/1, 1, 1, ti/))
     
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -698,14 +689,27 @@ CONTAINS
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_ice_volume_af, region%ice_volume_above_flotation, start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_ice_area,      region%ice_area,                   start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_T2m,           region%int_T2m,                    start = (/region%scalars%ti/)))
-    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_snowfall,      region%int_snowfall,               start = (/region%scalars%ti/)))
-    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_rainfall,      region%int_rainfall,               start = (/region%scalars%ti/)))
-    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_melt,          region%int_melt,                   start = (/region%scalars%ti/)))
-    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_refreezing,    region%int_refreezing,             start = (/region%scalars%ti/)))
-    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_runoff,        region%int_runoff,                 start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_SMB,           region%int_SMB,                    start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_BMB,           region%int_BMB,                    start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_MB,            region%int_MB,                     start = (/region%scalars%ti/)))
+    
+    ! Individual SMB components
+    IF     (C%choice_SMB_model == 'uniform' .OR. &
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Do nothing
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+            C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+      CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_snowfall,      region%int_snowfall,               start = (/region%scalars%ti/)))
+      CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_rainfall,      region%int_rainfall,               start = (/region%scalars%ti/)))
+      CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_melt,          region%int_melt,                   start = (/region%scalars%ti/)))
+      CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_refreezing,    region%int_refreezing,             start = (/region%scalars%ti/)))
+      CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_runoff,        region%int_runoff,                 start = (/region%scalars%ti/)))
+    ELSE
+      IF (par%master) WRITE(0,*) 'write_to_regional_scalar_output_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     ! Close the file
     CALL close_netcdf_file(region%scalars%ncid)
@@ -774,24 +778,15 @@ CONTAINS
   ! ==== Create fields for the different model components =====
   ! ===========================================================
     
-    ! Ice dynamics
+    ! Geometry
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hi,               [x, y,       t], region%restart%netcdf%id_var_Hi,               long_name='Ice thickness', units='m')
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hb,               [x, y,       t], region%restart%netcdf%id_var_Hb,               long_name='Bedrock elevation', units='m')
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hs,               [x, y,       t], region%restart%netcdf%id_var_Hs,               long_name='Surface elevation', units='m')
-    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Ti,               [x, y, z,    t], region%restart%netcdf%id_var_Ti,               long_name='Ice temperature', units='K')
+    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_SL,               [x, y,       t], region%restart%netcdf%id_var_SL,               long_name='Sea surface change',  units='m')
+    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_dHb,              [x, y,       t], region%restart%netcdf%id_var_dHb,              long_name='Bedrock deformation', units='m')
     
-    ! GIA
-    IF     (C%choice_GIA_model == 'none') THEN
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_SL,               [x, y,       t], region%restart%netcdf%id_var_SL,               long_name='Sea surface change',  units='m')
-      CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_dHb,              [x, y,       t], region%restart%netcdf%id_var_dHb,              long_name='Bedrock deformation', units='m')
-    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_SL,               [x, y,       t], region%restart%netcdf%id_var_SL,               long_name='Sea surface change',  units='m')
-      CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_dHb,              [x, y,       t], region%restart%netcdf%id_var_dHb,              long_name='Bedrock deformation', units='m')
-    ELSE
-      IF (par%master) WRITE(0,*) 'create_restart_file - ERROR: unknown choice_GIA_model "', TRIM(C%choice_GIA_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Temperature
+    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Ti,               [x, y, z,    t], region%restart%netcdf%id_var_Ti,               long_name='Ice temperature', units='K')
     
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -1616,14 +1611,27 @@ CONTAINS
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_ice_volume_af, [t], region%scalars%id_var_ice_volume_af, long_name='Ice volume above flotation', units='m.s.l.e')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_ice_area,      [t], region%scalars%id_var_ice_area,      long_name='Ice volume', units='km^2')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_T2m,           [t], region%scalars%id_var_T2m,           long_name='Regionally averaged annual mean surface temperature', units='K')
-    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_snowfall,      [t], region%scalars%id_var_snowfall,      long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
-    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_rainfall,      [t], region%scalars%id_var_rainfall,      long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
-    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_melt,          [t], region%scalars%id_var_melt,          long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
-    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_refreezing,    [t], region%scalars%id_var_refreezing,    long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
-    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_runoff,        [t], region%scalars%id_var_runoff,        long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_SMB,           [t], region%scalars%id_var_SMB,           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_BMB,           [t], region%scalars%id_var_BMB,           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_MB,            [t], region%scalars%id_var_MB,            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
+    
+    ! Individual SMB components
+    IF     (C%choice_SMB_model == 'uniform' .OR. &
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Do nothing
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+            C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+      CALL create_double_var( region%scalars%ncid, region%scalars%name_var_snowfall,      [t], region%scalars%id_var_snowfall,      long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
+      CALL create_double_var( region%scalars%ncid, region%scalars%name_var_rainfall,      [t], region%scalars%id_var_rainfall,      long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
+      CALL create_double_var( region%scalars%ncid, region%scalars%name_var_melt,          [t], region%scalars%id_var_melt,          long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
+      CALL create_double_var( region%scalars%ncid, region%scalars%name_var_refreezing,    [t], region%scalars%id_var_refreezing,    long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
+      CALL create_double_var( region%scalars%ncid, region%scalars%name_var_runoff,        [t], region%scalars%id_var_runoff,        long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
+    ELSE
+      IF (par%master) WRITE(0,*) 'create_regional_scalar_output_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     ! Leave definition mode:
     CALL handle_error(nf90_enddef( region%scalars%ncid))
@@ -2062,7 +2070,7 @@ CONTAINS
 ! Read data to restart a run
 ! ==========================
   
-  SUBROUTINE inquire_restart_file( restart) 
+  SUBROUTINE inquire_restart_file_geometry(    restart) 
     ! Check if the right dimensions and variables are present in the file.
    
     IMPLICIT NONE
@@ -2071,7 +2079,51 @@ CONTAINS
     TYPE(type_restart_data), INTENT(INOUT) :: restart
  
     ! Local variables:
-    INTEGER                                :: x, y, z, m, t, int_dummy
+    INTEGER                                :: x, y, t
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_x,     restart%nx, restart%netcdf%id_dim_x    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_y,     restart%ny, restart%netcdf%id_dim_y    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_time,  restart%nt, restart%netcdf%id_dim_time )
+    
+    ! Abbreviations for shorter code
+    x = restart%netcdf%id_dim_x
+    y = restart%netcdf%id_dim_y
+    t = restart%netcdf%id_dim_time
+
+    ! Inquire variable ID's; make sure that each variable has the correct dimensions.
+    
+    ! Dimensions
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_x,                (/ x             /), restart%netcdf%id_var_x   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_y,                (/    y          /), restart%netcdf%id_var_y   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_time,             (/             t /), restart%netcdf%id_var_time)
+    
+    ! Data
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hi,               (/ x, y   ,    t /), restart%netcdf%id_var_Hi  )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hb,               (/ x, y   ,    t /), restart%netcdf%id_var_Hb  )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hs,               (/ x, y   ,    t /), restart%netcdf%id_var_Hs  )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_SL,               (/ x, y,       t /), restart%netcdf%id_var_SL  )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_dHb,              (/ x, y,       t /), restart%netcdf%id_var_dHb )
+
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE inquire_restart_file_geometry
+  SUBROUTINE inquire_restart_file_temperature( restart) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data), INTENT(INOUT) :: restart
+ 
+    ! Local variables:
+    INTEGER                                :: x, y, z, t
     
     IF (.NOT. par%master) RETURN
         
@@ -2083,69 +2135,113 @@ CONTAINS
     CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_y,     restart%ny, restart%netcdf%id_dim_y    )
     CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_zeta,  restart%nz, restart%netcdf%id_dim_zeta )
     CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_time,  restart%nt, restart%netcdf%id_dim_time )
-    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_month, int_dummy,  restart%netcdf%id_dim_month)
     
     ! Abbreviations for shorter code
     x = restart%netcdf%id_dim_x
     y = restart%netcdf%id_dim_y
     z = restart%netcdf%id_dim_zeta
-    m = restart%netcdf%id_dim_month
     t = restart%netcdf%id_dim_time
 
-    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_x,                (/ x             /), restart%netcdf%id_var_x   )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_y,                (/    y          /), restart%netcdf%id_var_y   )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_zeta,             (/       z       /), restart%netcdf%id_var_zeta)
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_time,             (/             t /), restart%netcdf%id_var_time)
+    ! Inquire variable ID's; make sure that each variable has the correct dimensions.
     
-    ! Ice dynamics
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hi,               (/ x, y   ,    t /), restart%netcdf%id_var_Hi  )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hb,               (/ x, y   ,    t /), restart%netcdf%id_var_Hb  )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Hs,               (/ x, y   ,    t /), restart%netcdf%id_var_Hs  )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Ti,               (/ x, y, z,    t /), restart%netcdf%id_var_Ti  )
+    ! Dimensions
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_x,                (/ x             /), restart%netcdf%id_var_x   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_y,                (/    y          /), restart%netcdf%id_var_y   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_zeta,             (/       z       /), restart%netcdf%id_var_zeta)
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_time,             (/             t /), restart%netcdf%id_var_time)
     
-    ! GIA
-    IF     (C%choice_GIA_model == 'none') THEN
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_SL,               (/ x, y,       t /), restart%netcdf%id_var_SL  )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_dHb,              (/ x, y,       t /), restart%netcdf%id_var_dHb )
-     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_SL,               (/ x, y,       t /), restart%netcdf%id_var_SL  )
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_dHb,              (/ x, y,       t /), restart%netcdf%id_var_dHb )
-    ELSE
-      IF (par%master) WRITE(0,*) 'inquire_restart_file - ERROR: unknown choice_GIA_model "', TRIM(C%choice_GIA_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! SMB
-    IF     (C%choice_SMB_model == 'uniform') THEN
-    ELSEIF (C%choice_SMB_model == 'idealised') THEN
-    ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_FirnDepth,        (/ x, y,    m, t /), restart%netcdf%id_var_FirnDepth)
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_MeltPreviousYear, (/ x, y,       t /), restart%netcdf%id_var_MeltPreviousYear)
-    ELSEIF (C%choice_SMB_model == 'direct_global') THEN
-    ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
-    ELSE
-      IF (par%master) WRITE(0,*) 'inquire_restart_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! Isotopes
-    IF     (C%choice_ice_isotopes_model == 'none') THEN
-    ELSEIF (C%choice_ice_isotopes_model == 'uniform') THEN
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_IsoIce,           (/ x, y,       t /), restart%netcdf%id_var_IsoIce )
-    ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
-      CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_IsoIce,           (/ x, y,       t /), restart%netcdf%id_var_IsoIce )
-    ELSE
-      IF (par%master) WRITE(0,*) 'inquire_restart_file - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Data
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_Ti,               (/ x, y, z,    t /), restart%netcdf%id_var_Ti  )
 
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
-  END SUBROUTINE inquire_restart_file
-  SUBROUTINE read_restart_file(    restart, time_to_restart_from)
+  END SUBROUTINE inquire_restart_file_temperature
+  SUBROUTINE inquire_restart_file_SMB(         restart) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data), INTENT(INOUT) :: restart
+ 
+    ! Local variables:
+    INTEGER                                :: x, y, m, t, int_dummy
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_x,     restart%nx, restart%netcdf%id_dim_x    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_y,     restart%ny, restart%netcdf%id_dim_y    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_time,  restart%nt, restart%netcdf%id_dim_time )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_month, int_dummy,  restart%netcdf%id_dim_month)
+    
+    ! Abbreviations for shorter code
+    x = restart%netcdf%id_dim_x
+    y = restart%netcdf%id_dim_y
+    m = restart%netcdf%id_dim_month
+    t = restart%netcdf%id_dim_time
+
+    ! Inquire variable ID's; make sure that each variable has the correct dimensions.
+    
+    ! Dimensions
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_x,                (/ x             /), restart%netcdf%id_var_x   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_y,                (/    y          /), restart%netcdf%id_var_y   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_time,             (/             t /), restart%netcdf%id_var_time)
+    
+    ! Data
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_FirnDepth,        (/ x, y,    m, t /), restart%netcdf%id_var_FirnDepth)
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_MeltPreviousYear, (/ x, y,       t /), restart%netcdf%id_var_MeltPreviousYear)
+
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE inquire_restart_file_SMB
+  SUBROUTINE inquire_restart_file_isotopes(    restart) 
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data), INTENT(INOUT) :: restart
+ 
+    ! Local variables:
+    INTEGER                                :: x, y, t
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_x,     restart%nx, restart%netcdf%id_dim_x    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_y,     restart%ny, restart%netcdf%id_dim_y    )
+    CALL inquire_dim( restart%netcdf%ncid, restart%netcdf%name_dim_time,  restart%nt, restart%netcdf%id_dim_time )
+    
+    ! Abbreviations for shorter code
+    x = restart%netcdf%id_dim_x
+    y = restart%netcdf%id_dim_y
+    t = restart%netcdf%id_dim_time
+
+    ! Inquire variable ID's; make sure that each variable has the correct dimensions.
+    
+    ! Dimensions
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_x,                (/ x             /), restart%netcdf%id_var_x   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_y,                (/    y          /), restart%netcdf%id_var_y   )
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_time,             (/             t /), restart%netcdf%id_var_time)
+    
+    ! Data
+    CALL inquire_double_var( restart%netcdf%ncid, restart%netcdf%name_var_IsoIce,           (/ x, y,       t /), restart%netcdf%id_var_IsoIce )
+
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE inquire_restart_file_isotopes
+  
+  SUBROUTINE read_restart_file_geometry(       restart, time_to_restart_from)
     ! Read the restart netcdf file
    
     IMPLICIT NONE
@@ -2155,27 +2251,13 @@ CONTAINS
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
 
     ! Local variables:
-    INTEGER                                       :: k, ti, ti_min
+    INTEGER                                       :: ti, ti_min
     REAL(dp)                                      :: dt, dt_min
     
     IF (.NOT. par%master) RETURN
     
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
-    
-    ! Read zeta, check if it matches the config zeta
-    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_zeta, restart%zeta, start=(/1/) ))
-    IF (restart%nz /= C%nz) THEN
-      WRITE(0,*) '  read_restart_file - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    ELSE
-      DO k = 1, C%nz
-        IF (ABS(C%zeta(k) - restart%zeta(k)) > 0.0001_dp) THEN
-      WRITE(0,*) '  read_restart_file - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-      END DO
-    END IF
     
     ! Read x,y
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_x, restart%x, start=(/1/) ))
@@ -2185,7 +2267,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
     
     IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
-      WRITE(0,*) '  ERROR - time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
+      WRITE(0,*) 'read_restart_file_geometry - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF    
     
@@ -2201,66 +2283,203 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
-      WRITE(0,*) ' ======== '
-      WRITE(0,*) '  WARNING - no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
-      WRITE(0,*) ' ======== '
+      WRITE(0,*) 'read_restart_file_geometry - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
     END IF
     IF (time_to_restart_from /= C%start_time_of_run) THEN
-      WRITE(0,*) ' ======== '
-      WRITE(0,*) '  WARNING - starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
-      WRITE(0,*) ' ======== '
+      WRITE(0,*) 'read_restart_file_geometry - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
     END IF
     
-  ! ===== Read the data =====
-  ! =========================
-    
-    ! Ice dynamics
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hi,               restart%Hi,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hb,               restart%Hb,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hs,               restart%Hs,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Ti,               restart%Ti,               start = (/ 1, 1, 1, ti /), count = (/ restart%nx, restart%ny, restart%nz, 1 /) ))
-    
-    ! GIA
-    IF     (C%choice_GIA_model == 'none') THEN
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_SL,               restart%SL,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_dHb,              restart%dHb,              start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_SL,               restart%SL,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_dHb,              restart%dHb,              start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-    ELSE
-      IF (par%master) WRITE(0,*) 'read_restart_file - ERROR: unknown choice_GIA_model "', TRIM(C%choice_GIA_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! SMB
-    IF     (C%choice_SMB_model == 'uniform') THEN
-    ELSEIF (C%choice_SMB_model == 'idealised') THEN
-    ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_FirnDepth,        restart%FirnDepth,        start = (/ 1, 1, 1, ti /), count = (/ restart%nx, restart%ny, 12,         1 /) ))
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_MeltPreviousYear, restart%MeltPreviousYear, start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-    ELSEIF (C%choice_SMB_model == 'direct_global') THEN
-    ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
-    ELSE
-      IF (par%master) WRITE(0,*) 'read_restart_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! Isotopes
-    IF     (C%choice_ice_isotopes_model == 'none') THEN
-    ELSEIF (C%choice_ice_isotopes_model == 'uniform') THEN
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_IsoIce,           restart%IsoIce,           start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-    ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
-      CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_IsoIce,           restart%IsoIce,           start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
-    ELSE
-      IF (par%master) WRITE(0,*) 'read_restart_file - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Read the data
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hi,               restart%Hi,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hb,               restart%Hb,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Hs,               restart%Hs,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_SL,               restart%SL,               start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_dHb,              restart%dHb,              start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
         
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
-  END SUBROUTINE read_restart_file
+  END SUBROUTINE read_restart_file_geometry
+  SUBROUTINE read_restart_file_temperature(    restart, time_to_restart_from)
+    ! Read the restart netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data),        INTENT(INOUT) :: restart
+    REAL(dp),                       INTENT(IN)    :: time_to_restart_from
+
+    ! Local variables:
+    INTEGER                                       :: ti, ti_min, k
+    REAL(dp)                                      :: dt, dt_min
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Read zeta, check if it matches the config zeta
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_zeta, restart%zeta, start=(/1/) ))
+    IF (restart%nz /= C%nz) THEN
+      WRITE(0,*) 'read_restart_file_temperature - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSE
+      DO k = 1, C%nz
+        IF (ABS(C%zeta(k) - restart%zeta(k)) > 0.0001_dp) THEN
+      WRITE(0,*) 'read_restart_file_temperature - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      END DO
+    END IF
+    
+    ! Read x,y
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_x, restart%x, start=(/1/) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_y, restart%y, start=(/1/) ))
+    
+    ! Read time, determine which time frame to read
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
+    
+    IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
+      WRITE(0,*) 'read_restart_file_temperature - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF    
+    
+    ti_min = 0
+    dt_min = 1E8_dp
+    DO ti = 1, restart%nt
+      dt = ABS(restart%time( ti) - time_to_restart_from)
+      IF (dt < dt_min) THEN
+        ti_min = ti
+        dt_min = dt
+      END IF
+    END DO
+    ti = ti_min
+    
+    IF (dt_min > 0._dp) THEN
+      WRITE(0,*) 'read_restart_file_temperature - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+    END IF
+    IF (time_to_restart_from /= C%start_time_of_run) THEN
+      WRITE(0,*) 'read_restart_file_temperature - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+    END IF
+        
+    ! Read the data
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_Ti,               restart%Ti,               start = (/ 1, 1, 1, ti /), count = (/ restart%nx, restart%ny, restart%nz, 1 /) ))
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE read_restart_file_temperature
+  SUBROUTINE read_restart_file_SMB(            restart, time_to_restart_from)
+    ! Read the restart netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data),        INTENT(INOUT) :: restart
+    REAL(dp),                       INTENT(IN)    :: time_to_restart_from
+
+    ! Local variables:
+    INTEGER                                       :: ti, ti_min
+    REAL(dp)                                      :: dt, dt_min
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Read x,y
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_x, restart%x, start=(/1/) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_y, restart%y, start=(/1/) ))
+    
+    ! Read time, determine which time frame to read
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
+    
+    IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
+      WRITE(0,*) 'read_restart_file_SMB - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF    
+    
+    ti_min = 0
+    dt_min = 1E8_dp
+    DO ti = 1, restart%nt
+      dt = ABS(restart%time( ti) - time_to_restart_from)
+      IF (dt < dt_min) THEN
+        ti_min = ti
+        dt_min = dt
+      END IF
+    END DO
+    ti = ti_min
+    
+    IF (dt_min > 0._dp) THEN
+      WRITE(0,*) 'read_restart_file_SMB - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+    END IF
+    IF (time_to_restart_from /= C%start_time_of_run) THEN
+      WRITE(0,*) 'read_restart_file_SMB - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+    END IF
+        
+    ! Read the data
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_FirnDepth,        restart%FirnDepth,        start = (/ 1, 1, 1, ti /), count = (/ restart%nx, restart%ny, 12,         1 /) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_MeltPreviousYear, restart%MeltPreviousYear, start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE read_restart_file_SMB
+  SUBROUTINE read_restart_file_isotopes(       restart, time_to_restart_from)
+    ! Read the restart netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_restart_data),        INTENT(INOUT) :: restart
+    REAL(dp),                       INTENT(IN)    :: time_to_restart_from
+
+    ! Local variables:
+    INTEGER                                       :: ti, ti_min
+    REAL(dp)                                      :: dt, dt_min
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
+    
+    ! Read x,y
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_x, restart%x, start=(/1/) ))
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_y, restart%y, start=(/1/) ))
+    
+    ! Read time, determine which time frame to read
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
+    
+    IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
+      WRITE(0,*) 'read_restart_file_isotopes - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF    
+    
+    ti_min = 0
+    dt_min = 1E8_dp
+    DO ti = 1, restart%nt
+      dt = ABS(restart%time( ti) - time_to_restart_from)
+      IF (dt < dt_min) THEN
+        ti_min = ti
+        dt_min = dt
+      END IF
+    END DO
+    ti = ti_min
+    
+    IF (dt_min > 0._dp) THEN
+      WRITE(0,*) 'read_restart_file_isotopes - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+    END IF
+    IF (time_to_restart_from /= C%start_time_of_run) THEN
+      WRITE(0,*) 'read_restart_file_isotopes - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+    END IF
+        
+    ! Read the data
+    CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_IsoIce,           restart%IsoIce,           start = (/ 1, 1,    ti /), count = (/ restart%nx, restart%ny,             1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( restart%netcdf%ncid)
+    
+  END SUBROUTINE read_restart_file_isotopes
   
   SUBROUTINE read_inverse_routine_history_dT_glob(         forcing, filename)
     ! Read the inverse routine history from the specified NetCDF file

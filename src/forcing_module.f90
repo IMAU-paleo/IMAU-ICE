@@ -466,6 +466,7 @@ CONTAINS
   SUBROUTINE update_CO2_at_model_time( time)
     ! Interpolate the data in forcing%CO2 to find the value at the queried time.
     ! If time lies outside the range of forcing%CO2_time, return the first/last value
+    ! 
     ! NOTE: assumes time is listed in kyr (so LGM would be -21000.0)
     
     IMPLICIT NONE
@@ -476,18 +477,12 @@ CONTAINS
     ! Local variables
     INTEGER                                            :: il, iu
     REAL(dp)                                           :: wl, wu
-    
-    ! Not needed for all forcing methods
-    IF (C%choice_forcing_method == 'CO2_direct') THEN
+
+    ! Safety
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
-            C%choice_forcing_method == 'SMB_direct' .OR. &
-            C%choice_forcing_method == 'climate_direct' ) THEN
-      ! Observed CO2 is not needed for these forcing methods
-      RETURN
     ELSE
-      WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in update_CO2_at_model_time!'
+      WRITE(0,*) '  ERROR: update_CO2_at_model_time should only be called when choice_forcing_method = "CO2_direct"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -500,13 +495,13 @@ CONTAINS
         forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
       ELSE
         iu = 1
-        DO WHILE (forcing%CO2_time(iu) * 1000._dp < time)
+        DO WHILE (forcing%CO2_time( iu) * 1000._dp < time)
           iu = iu+1
         END DO
         il = iu-1
         
-        wl = (forcing%CO2_time(iu)*1000._dp - time) / ((forcing%CO2_time(iu)-forcing%CO2_time(il))*1000._dp)
-        wu = (time - forcing%CO2_time(il)*1000._dp) / ((forcing%CO2_time(iu)-forcing%CO2_time(il))*1000._dp)
+        wl = (forcing%CO2_time( iu)*1000._dp - time) / ((forcing%CO2_time( iu) - forcing%CO2_time( il))*1000._dp)
+        wu = 1._dp - wl
         
         forcing%CO2_obs = forcing%CO2_record(il) * wl + forcing%CO2_record(iu) * wu
    
@@ -525,36 +520,38 @@ CONTAINS
     ! Local variables
     INTEGER                                            :: i,ios
     
-    ! Not needed for all forcing methods
-    IF (C%choice_forcing_method == 'CO2_direct') THEN
+    ! Safety
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
       ! Observed CO2 is needed for these forcing methods.
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
-            C%choice_forcing_method == 'SMB_direct' .OR. &
-            C%choice_forcing_method == 'climate_direct') THEN
-      ! Observed CO2 is not needed for these forcing methods
-      RETURN
     ELSE
-      WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in initialise_CO2_record!'
+      WRITE(0,*) '  ERROR: initialise_CO2_record should only be called when choice_forcing_method = "CO2_direct"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    
-    IF (par%master) WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
     
     ! Allocate shared memory to take the data
     CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_time,   forcing%wCO2_time  )
     CALL allocate_shared_dp_1D( C%CO2_record_length, forcing%CO2_record, forcing%wCO2_record)
+    CALL allocate_shared_dp_0D(                      forcing%CO2_obs,    forcing%wCO2_obs   )
     
     ! Read CO2 record (time and values) from specified text file
-    OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
-    DO i = 1, C%CO2_record_length
-      READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time(i), forcing%CO2_record(i) 
-      IF (ios /= 0) THEN
-        WRITE(0,*) ' read_CO2_record - ERROR: length of text file "', TRIM(C%filename_CO2_record), '" does not match C%CO2_record_length = ', C%CO2_record_length
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END DO
-    CLOSE( UNIT  = 1337)
+    IF (par%master) THEN
+    
+      WRITE(0,*) ' Reading CO2 record from ', TRIM(C%filename_CO2_record), '...'
+    
+      OPEN(   UNIT = 1337, FILE=C%filename_CO2_record, ACTION='READ')
+      
+      DO i = 1, C%CO2_record_length
+        READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%CO2_time( i), forcing%CO2_record( i) 
+        IF (ios /= 0) THEN
+          WRITE(0,*) ' read_CO2_record - ERROR: length of text file "', TRIM(C%filename_CO2_record), '" does not match C%CO2_record_length = ', C%CO2_record_length
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      END DO
+      
+      CLOSE( UNIT  = 1337)
+      
+    END IF ! IF (par%master)
+    CALL sync
     
     ! Set the value for the current (starting) model time
     CALL update_CO2_at_model_time( C%start_time_of_run)
@@ -679,7 +676,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied >= forcing%ins_t0 .AND. time_applied <= forcing%ins_t1) THEN
+    IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
       CALL update_insolation_timeframes_from_file( time_applied)
     END IF
     
@@ -750,7 +747,7 @@ CONTAINS
     
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time_applied >= forcing%ins_t0 .AND. time_applied <= forcing%ins_t1) THEN
+    IF (time_applied < forcing%ins_t0 .AND. time_applied > forcing%ins_t1) THEN
       CALL update_insolation_timeframes_from_file( time_applied)
     END IF
     

@@ -19,7 +19,7 @@ MODULE ocean_module
                                              inquire_hires_geometry_file, read_hires_geometry_file, &
                                              create_extrapolated_ocean_file, inquire_extrapolated_ocean_file, &
                                              read_extrapolated_ocean_file
-  USE forcing_module,                  ONLY: forcing
+  USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              error_function, smooth_Gaussian_2D, smooth_Gaussian_3D, smooth_Shepard_2D, &
@@ -68,7 +68,7 @@ CONTAINS
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Run the warm/cold ocean matrix
       
-      CALL run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name)
+      CALL run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name, time)
       
     ELSE
       IF (par%master) WRITE(0,*) 'run_ocean_model - ERROR: unknown choice_ocean_model "', TRIM(C%choice_ocean_model), '"!'
@@ -84,6 +84,8 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_ocean_matrix_global),      INTENT(IN)    :: ocean_matrix_global
+    
+    IF (par%master) WRITE (0,*) '  Initialising regional ocean model "', TRIM(C%choice_ocean_model), '"...'
     
     IF     (C%choice_ocean_model == 'none') THEN
       ! No ocean data is used at all
@@ -123,6 +125,8 @@ CONTAINS
     
     ! In/output variables:
     TYPE(type_ocean_matrix_global),      INTENT(INOUT) :: ocean_matrix
+    
+    IF (par%master) WRITE (0,*) ' Initialising global ocean model "', TRIM(C%choice_ocean_model), '"...'
     
     IF     (C%choice_ocean_model == 'none') THEN
       ! No global ocean data is used at all
@@ -539,7 +543,7 @@ CONTAINS
 ! == Ocean matrix with warm and cold snapshots
 ! ============================================
 
-  SUBROUTINE run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name)
+  SUBROUTINE run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name, time)
     ! Run the regional ocean model
     ! 
     ! Run the warm/cold ocean matrix
@@ -551,6 +555,7 @@ CONTAINS
     TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
     TYPE(type_climate_matrix_regional),  INTENT(IN)    :: climate_matrix
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
     INTEGER                                            :: i,j,k
@@ -572,6 +577,8 @@ CONTAINS
       
     ! Find CO2 interpolation weight (use either prescribed or modelled CO2)
     ! =====================================================================
+    
+    CALL update_CO2_at_model_time( time)
     
     IF     (C%choice_forcing_method == 'CO2_direct') THEN
       CO2 = forcing%CO2_obs
@@ -665,9 +672,6 @@ CONTAINS
     
     ! In/output variables:
     TYPE(type_ocean_matrix_global),      INTENT(INOUT) :: ocean_matrix
-    
-    IF (par%master) WRITE(0,*) ''
-    IF (par%master) WRITE(0,*) ' Initialising the global ocean matrix...'
     
     ! Initialise the present-day observed global ocean (e.g. WOA18)
     CALL initialise_ocean_PD_obs_global(   ocean_matrix%PD_obs,   name = 'WOA18')
@@ -782,8 +786,6 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j,k
-    
-    IF (par%master) WRITE (0,*) '  Initialising regional ocean matrix...'
     
     ! Allocate all the snapshots
     CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%PD_obs,   name = 'PD_obs')
