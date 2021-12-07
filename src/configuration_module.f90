@@ -302,11 +302,13 @@ MODULE configuration_module
   ! Ice dynamics - calving
   ! ======================
   
-  CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
-  REAL(dp)            :: calving_threshold_thickness_config          = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
-  LOGICAL             :: do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
-  LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
-
+  CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  LOGICAL             :: do_remove_shelves_config                = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
+  LOGICAL             :: remove_shelves_larger_than_PD_config    = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
+  LOGICAL             :: continental_shelf_calving_config        = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
+  REAL(dp)            :: continental_shelf_min_height_config     = -2000._dp                        ! Maximum depth of the continental shelf
+  
   ! Thermodynamics and rheology
   ! ===========================
   
@@ -322,7 +324,7 @@ MODULE configuration_module
   
   ! Climate
   ! =======
-  
+
   CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
   
@@ -459,7 +461,15 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_basins_ANT_config                  = ''
   LOGICAL             :: do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
   LOGICAL             :: do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
-  
+ 
+  INTEGER                  ::  basin_BMB_amplification_n_ANT_config         = 17                    ! Number of basins used for ANT
+  REAL(dp), DIMENSION(17)  ::  basin_BMB_amplification_factor_ANT_config    = &                     ! BMB amplification factor for each basin for ANT
+    (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
+       1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
+  INTEGER                  ::  basin_BMB_amplification_n_GRL_config         = 8                     ! Number of basins used for GRL
+  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                     ! BMB amplification factor for each basin for GRL 
+    (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
+ 
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
   REAL(dp)            :: BMB_Favier2019_lin_GammaT_config            = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
   REAL(dp)            :: BMB_Favier2019_quad_GammaT_config           = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
@@ -897,6 +907,8 @@ MODULE configuration_module
     REAL(dp)                            :: calving_threshold_thickness
     LOGICAL                             :: do_remove_shelves
     LOGICAL                             :: remove_shelves_larger_than_PD
+    LOGICAL                             :: continental_shelf_calving
+    REAL(dp)                            :: continental_shelf_min_height
 
     ! Thermodynamics and rheology
     ! ===========================
@@ -1041,6 +1053,12 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     LOGICAL                             :: do_asynchronous_BMB
+    CHARACTER(LEN=256)                  :: choice_BMB_shelf_amplification
+    
+    INTEGER                             :: basin_BMB_amplification_n_ANT
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_ANT
+    INTEGER                             :: basin_BMB_amplification_n_GRL
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_GRL
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1473,6 +1491,7 @@ CONTAINS
     INTEGER            :: ios
     
     ! The NAMELIST that's used to read the external config file.
+
     NAMELIST /CONFIG/start_time_of_run_config,                        &                
                      end_time_of_run_config,                          &
                      dt_coupling_config,                              &
@@ -1649,6 +1668,8 @@ CONTAINS
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
                      remove_shelves_larger_than_PD_config,            &
+                     continental_shelf_calving_config,                &
+                     continental_shelf_min_height_config,             &
                      choice_initial_ice_temperature_config,           &
                      uniform_ice_temperature_config,                  &
                      choice_thermo_model_config,                      &
@@ -1753,6 +1774,10 @@ CONTAINS
                      filename_basins_ANT_config,                      &
                      do_merge_basins_ANT_config,                      &
                      do_merge_basins_GRL_config,                      &
+                     basin_BMB_amplification_n_ANT_config,            &
+                     basin_BMB_amplification_factor_ANT_config,       &
+                     basin_BMB_amplification_n_GRL_config,            &
+                     basin_BMB_amplification_factor_GRL_config,       &
                      BMB_Favier2019_lin_GammaT_config,                &
                      BMB_Favier2019_quad_GammaT_config,               &
                      BMB_Favier2019_Mplus_GammaT_config,              &
@@ -2170,6 +2195,8 @@ CONTAINS
     C%calving_threshold_thickness              = calving_threshold_thickness_config
     C%do_remove_shelves                        = do_remove_shelves_config
     C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
+    C%continental_shelf_calving                = continental_shelf_calving_config
+    C%continental_shelf_min_height             = continental_shelf_min_height_config
   
     ! Thermodynamics and rheology
     ! ===========================
@@ -2323,6 +2350,13 @@ CONTAINS
     C%filename_basins_ANT                      = filename_basins_ANT_config
     C%do_merge_basins_ANT                      = do_merge_basins_ANT_config
     C%do_merge_basins_GRL                      = do_merge_basins_GRL_config
+    
+    C%basin_BMB_amplification_n_ANT       = basin_BMB_amplification_n_ANT_config
+    ALLOCATE( C%basin_BMB_amplification_factor_ANT( C%basin_BMB_amplification_n_ANT))
+    C%basin_BMB_amplification_factor_ANT  = basin_BMB_amplification_factor_ANT_config( 1:C%basin_BMB_amplification_n_ANT)
+    C%basin_BMB_amplification_n_GRL       = basin_BMB_amplification_n_GRL_config
+    ALLOCATE( C%basin_BMB_amplification_factor_GRL( C%basin_BMB_amplification_n_GRL)) 
+    C%basin_BMB_amplification_factor_GRL  = basin_BMB_amplification_factor_GRL_config( 1:C%basin_BMB_amplification_n_GRL)
     
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
     C%BMB_Favier2019_lin_GammaT                = BMB_Favier2019_lin_GammaT_config

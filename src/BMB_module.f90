@@ -39,7 +39,8 @@ CONTAINS
     REAL(dp),                             INTENT(IN)    :: time
     
     ! Local variables:
-    INTEGER                                             :: i,j
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: amplification_factor
   
     ! Initialise at zero
     BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
@@ -82,6 +83,32 @@ CONTAINS
     
     ! Extrapolate melt field from the regular (FCMP) mask to the (extended) PMP mask
     IF (C%choice_BMB_subgrid == 'PMP') CALL extrapolate_melt_from_FCMP_to_PMP( grid, ice, BMB)
+    
+    
+    ! If desired, the BMB can be tuned locally by changing the amplification factor
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      IF (C%choice_BMB_shelf_amplification == 'uniform') THEN
+        amplification_factor = 1._dp
+      ELSE IF (C%choice_BMB_shelf_amplification == 'basin') THEN
+        IF (region_name == 'ANT') THEN
+          amplification_factor = C%basin_BMB_amplification_factor_ANT (ice%basin_ID( j,i))
+        ELSE IF (region_name == 'GRL') THEN
+          amplification_factor = C%basin_BMB_amplification_factor_GRL (ice%basin_ID( j,i))
+        ELSE
+          amplification_factor = 1._dp
+        END IF 
+      ELSE
+        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_shelf_amplification), '" not implemented in run_BMB_model!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF       
+    
+      BMB%BMB_shelf( j,i) = amplification_factor * BMB%BMB_shelf( j,i)
+    
+    END DO
+    END DO
+    CALL sync    
     
     ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
     ! (see Leguy et al. 2021 for explanations of the three schemes)

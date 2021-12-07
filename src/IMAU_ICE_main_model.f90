@@ -168,8 +168,9 @@ CONTAINS
       
       ! Update masks, apply calving
       CALL update_general_ice_model_data( region%grid, region%ice)
-      CALL apply_calving_law( region%grid, region%ice, region%refgeo_PD)
+      CALL apply_calving_law( region%grid, region%ice, region%refgeo_PD, region%refgeo_GIAeq)
       CALL update_general_ice_model_data( region%grid, region%ice)
+
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       t2 = MPI_WTIME()
