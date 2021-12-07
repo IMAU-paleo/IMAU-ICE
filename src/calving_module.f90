@@ -23,7 +23,7 @@ CONTAINS
 
   ! The main routine that's called from the IMAU_ICE_main_model
   SUBROUTINE apply_calving_law( grid, ice, refgeo_PD, refgeo_GIAeq)
-    ! Calculate the calving flux
+    ! Apply the selected calving law, plus some calving-related operations
 
     IMPLICIT NONE
 
@@ -49,16 +49,6 @@ CONTAINS
       RETURN
     END IF ! IF (C%do_remove_shelves) THEN
     
-    ! Apply the selected calving law
-    IF     (C%choice_calving_law == 'none') THEN
-      ! No calving at all
-    ELSEIF (C%choice_calving_law == 'threshold_thickness') THEN
-      CALL threshold_thickness_calving( grid, ice)
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_calving_law "', TRIM(C%choice_calving_law), '" not implemented in calculate_calving_flux!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
     ! If so specified, remove all floating ice beyond the present-day calving front
     IF (C%remove_shelves_larger_than_PD) THEN
       DO i = grid%i1, grid%i2
@@ -82,6 +72,16 @@ CONTAINS
       END DO
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
+    
+    ! Apply the selected calving law
+    IF     (C%choice_calving_law == 'none') THEN
+      ! No calving at all
+    ELSEIF (C%choice_calving_law == 'threshold_thickness') THEN
+      CALL threshold_thickness_calving( grid, ice)
+    ELSE
+      IF (par%master) WRITE(0,*) '  ERROR: choice_calving_law "', TRIM(C%choice_calving_law), '" not implemented in calculate_calving_flux!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
   END SUBROUTINE apply_calving_law
   
