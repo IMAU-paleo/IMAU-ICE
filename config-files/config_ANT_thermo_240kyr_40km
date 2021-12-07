@@ -1,0 +1,290 @@
+&CONFIG
+
+  ! Time steps and range
+  ! ====================
+  
+  start_time_of_run_config                    = -240000.0                        ! Start time (in years) of the simulations
+  end_time_of_run_config                      =       0.0                        ! End   time (in years) of the simulations
+  dt_coupling_config                          = 100.0                            ! Interval of coupling (in years) between the four ice-sheets  
+  dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
+  dt_thermo_config                            = 10.0                             ! Time step (in years) for updating thermodynamics
+  dt_climate_config                           = 100.0                            ! Time step (in years) for updating the climate
+  dt_ocean_config                             = 10.0                             ! Time step (in years) for updating the ocean
+  dt_SMB_config                               = 10.0                             ! Time step (in years) for updating the SMB
+  dt_BMB_config                               = 10.0                             ! Time step (in years) for updating the BMB
+  dt_bedrock_ELRA_config                      = 10.0                             ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
+  dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
+  dt_output_config                            = 10000.0                          ! Time step (in years) for writing output
+  
+  ! Which ice sheets do we simulate?
+  ! ================================
+  
+  do_NAM_config                               = .FALSE.                          ! North America
+  do_EAS_config                               = .FALSE.                          ! Eurasia
+  do_GRL_config                               = .FALSE.                          ! Greenland
+  do_ANT_config                               = .TRUE.                           ! Antarctica
+  
+  ! Whether or not to let IMAU_ICE dynamically create its own output folder.
+  ! This works fine locally, on LISA its better to use a fixed folder name.
+  ! =======================================================================
+  
+  create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  fixed_output_dir_config                     = 'results_ANT_thermo_240kyr_40km' ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  do_write_regional_scalar_output_config      = .TRUE.
+  do_write_global_scalar_output_config        = .TRUE.
+  
+  ! Debugging
+  ! =========
+  
+  do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
+  do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values                           
+  
+  ! Horizontal grid spacing and size for the four regions
+  ! =====================================================
+
+  ! Reference geometries (initial, present-day, and GIA equilibrium)
+  ! ================================================================
+  
+  ! Initial geometry
+  choice_refgeo_init_ANT_config               = 'restart'             ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Models/IMAU-ICE/results_ANT_relax_100yr_40km/restart_ANT.nc'
+  time_to_restart_from_ANT_config             = 100.0
+  
+  ! Present-day geometry
+  choice_refgeo_PD_ANT_config                 = 'realistic'           ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  
+  ! GIA equilibrium geometry
+  choice_refgeo_GIAeq_ANT_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  filename_refgeo_GIAeq_ANT_config            = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+  remove_Lake_Vostok_config                   = .TRUE.
+  
+  ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
+  ! ============================================================
+  
+  ! Possible choice_forcing_method options:
+  ! 'none'                 : No global forcing used at all; climate or SMB are fully parameterised or directly prescribed
+  ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
+  ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
+  ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
+  choice_forcing_method_config                = 'CO2_direct'
+  
+  ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+  filename_CO2_record_config                  = '/Users/berends/Documents/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+  CO2_record_length_config                    = 8001 
+   
+  ! Insolation forcing (NetCDF)
+  choice_insolation_forcing_config            = 'realistic'                      ! Choice of insolation forcing: "none", "static", "realistic"
+  filename_insolation_config                  = '/Users/berends/Documents/Datasets/Insolation/Insolation_Laskar_etal_2004.nc'
+  
+  ! Geothermal heat flux
+  choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
+  filename_geothermal_heat_flux_config        = '/Users/berends/Documents/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
+
+  ! Parameters for calculating modelled benthic d18O
+  do_calculate_benthic_d18O_config            = .FALSE.                          ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
+
+  ! Ice dynamics - velocity
+  ! =======================
+  
+  choice_ice_dynamics_config                  = 'none'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  n_flow_config                               = 3.0                              ! Exponent in Glen's flow law
+  m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
+  m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
+  do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
+  do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
+  r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
+  
+  ! Ice thickness boundary conditions
+  choice_mask_noice_NAM_config                = 'NAM_remove_GRL'                 ! Choice of mask_noice configuration
+  choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
+  choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
+  choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
+
+  ! Ice dynamics - basal conditions and sliding
+  ! ===========================================
+  
+  ! Sliding laws
+  choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005"
+  slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
+  slid_Weertman_m_config                      = 3.0                              ! Exponent in Weertman sliding law
+  slid_Coulomb_reg_q_plastic_config           = 0.3                              ! Scaling exponent   in regularised Coulomb sliding law
+  slid_Coulomb_reg_u_threshold_config         = 100.0                            ! Threshold velocity in regularised Coulomb sliding law
+  
+  ! Basal conditions
+  choice_basal_conditions_config              = 'Martin2011'                     ! Choice of basal conditions: "idealised", "Martin2011"
+  Martin2011till_pwp_Hb_min_config            = 0.0                              ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
+  Martin2011till_pwp_Hb_max_config            = 1000.0                           ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
+  Martin2011till_phi_Hb_min_config            = -1000.0                          ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
+  Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
+  Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
+  Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
+
+  ! Ice dynamics - calving
+  ! ======================
+  
+  choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  calving_threshold_thickness_config          = 200.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
+  remove_shelves_larger_than_PD_config        = .TRUE.                           ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
+
+  ! Thermodynamics and rheology
+  ! ===========================
+  
+  choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
+  choice_ice_rheology_config                  = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
+  choice_ice_heat_capacity_config             = 'Pounder1965'                    ! Choice of ice heat capacity model: "uniform", "Pounder1965"
+  choice_ice_thermal_conductivity_config      = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
+  
+  ! Climate
+  ! =======
+  
+  choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
+  
+  ! NetCDF file containing the present-day observed climate (e.g. ERA40)
+  filename_PD_obs_climate_config              = '/Users/berends/Documents/Datasets/ERA40/ERA40_climate_global.nc'
+  
+  ! GCM snapshots in the matrix_warm_cold option
+  filename_climate_snapshot_PI_config         = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
+  filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  
+  constant_lapserate_config                   = 0.008                            ! Constant atmospheric lapse rate [K m^-1]
+  
+  ! Scaling factor for CO2 vs ice weights
+  climate_matrix_CO2vsice_ANT_config          = 1.0                              ! 1.0    equals glacial index method                       
+
+  ! Orbit time and CO2 concentration of the warm and cold snapshots
+  matrix_high_CO2_level_config                = 280.0                            ! CO2 level  pertaining to the warm climate (PI  level default)         
+  matrix_low_CO2_level_config                 = 190.0                            ! CO2 level  pertaining to the cold climate (LGM level default)   
+  matrix_warm_orbit_time_config               = 0.0                              ! Orbit time pertaining to the warm climate (PI default)
+  matrix_cold_orbit_time_config               = -21000.0                         ! Orbit time pertaining to the cold climate (LGM default)
+  
+  ! Whether or not to apply a bias correction to the GCM snapshots
+  climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
+  climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
+ 
+  switch_glacial_index_precip_config          = .FALSE.                          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
+  
+  ! Ocean
+  ! =====
+  
+  choice_ocean_model_config                   = 'PD_obs'                         ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  
+  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+  filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/World_Ocean_Atlas/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
+  name_ocean_temperature_config               = 't_an'                           ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  name_ocean_salinity_config                  = 's_an'                           ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)  
+  
+  ! Surface mass balance
+  ! ====================
+  
+  choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  
+  ! Tuning parameters for the IMAU-ITM SMB model
+  SMB_IMAUITM_choice_init_firn_ANT_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
+  SMB_IMAUITM_initial_firn_thickness_config   = 1.0
+  SMB_IMAUITM_C_abl_constant_ANT_config       = -49.0
+  SMB_IMAUITM_C_abl_Ts_ANT_config             = 10.0
+  SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227
+  SMB_IMAUITM_C_refr_ANT_config               = 0.051
+  
+  ! Basal mass balance
+  ! ==================
+  
+  choice_BMB_shelf_model_config               = 'Favier2019_quad'                ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+  choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "none"
+  BMB_sheet_uniform_config                    = 0.0                              ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
+  choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
+  
+  choice_basin_scheme_ANT_config              = 'file'                           ! Choice of basin ID scheme; can be 'none' or 'file'
+  filename_basins_NAM_config                  = ''                               ! Path to a text file containing polygons of drainage basins
+  filename_basins_ANT_config                  = '/Users/berends/Documents/Datasets/basins_Antarctica/ant_full_drainagesystem_polygons.txt'
+  do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
+  
+  ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
+  BMB_Favier2019_lin_GammaT_config            = 3.3314E-05     ! 2.03E-5         ! Heat exchange velocity [m s^-1] 
+  BMB_Favier2019_quad_GammaT_config           = 111.6E-5       ! 99.32E-5        ! Commented values are from Favier et al. (2019), Table 3
+  BMB_Favier2019_Mplus_GammaT_config          = 108.6E-5       ! 132.9E-5        ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  
+  ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
+  BMB_Lazeroms2018_GammaT_config              = 3.7506E-04     ! 1.1E-3          ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
+  BMB_Lazeroms2018_find_GL_scheme_config      = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
+  
+  ! Parameters for the PICO BMB model
+  BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
+  BMB_PICO_GammaTstar_config                  = 3.6131E-05     ! 2.0E-5          ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
+  
+  ! Englacial isotope tracing
+  ! =========================
+  
+  choice_ice_isotopes_model_config             = 'none'                          ! Choice of englacial isotopes model: "none", "uniform", "ANICE_legacy"
+    
+  ! Sea level and GIA
+  ! =================
+  
+  do_ocean_floodfill_config                   = .FALSE.                          ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
+  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
+  
+  choice_GIA_model_config                     = 'none'                           ! Can be "none", "ELRA", or "SELEN"
+  
+  ! Which data fields will be written to the help_fields output file
+  ! ================================================================
+  
+  help_field_01_config                         = 'lat'
+  help_field_02_config                         = 'lon'
+  help_field_03_config                         = 'GCM_Warm_T2m'
+  help_field_04_config                         = 'GCM_Cold_T2m'
+  help_field_05_config                         = 'GCM_PI_T2m'
+  help_field_06_config                         = 'PD_obs_T2m'
+  help_field_07_config                         = 'T2m'
+  help_field_08_config                         = 'none'
+  help_field_09_config                         = 'none'
+  help_field_10_config                         = 'none'
+  help_field_11_config                         = 'none'
+  help_field_12_config                         = 'none'
+  help_field_13_config                         = 'none'
+  help_field_14_config                         = 'none'
+  help_field_15_config                         = 'none'
+  help_field_16_config                         = 'none'
+  help_field_17_config                         = 'none'
+  help_field_18_config                         = 'none'
+  help_field_19_config                         = 'none'
+  help_field_20_config                         = 'none'
+  help_field_21_config                         = 'none'
+  help_field_22_config                         = 'none'
+  help_field_23_config                         = 'none'
+  help_field_24_config                         = 'none'
+  help_field_25_config                         = 'none'
+  help_field_26_config                         = 'none'
+  help_field_27_config                         = 'none'
+  help_field_28_config                         = 'none'
+  help_field_29_config                         = 'none'
+  help_field_30_config                         = 'none'
+  help_field_31_config                         = 'none'
+  help_field_32_config                         = 'none'
+  help_field_33_config                         = 'none'
+  help_field_34_config                         = 'none'
+  help_field_35_config                         = 'none'
+  help_field_36_config                         = 'none'
+  help_field_37_config                         = 'none'
+  help_field_38_config                         = 'none'
+  help_field_39_config                         = 'none'
+  help_field_40_config                         = 'none'
+  help_field_41_config                         = 'none'
+  help_field_42_config                         = 'none'
+  help_field_43_config                         = 'none'
+  help_field_44_config                         = 'none'
+  help_field_45_config                         = 'none'
+  help_field_46_config                         = 'none'
+  help_field_47_config                         = 'none'
+  help_field_48_config                         = 'none'
+  help_field_49_config                         = 'none'
+  help_field_50_config                         = 'none'
+
+/

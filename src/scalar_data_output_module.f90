@@ -42,102 +42,97 @@ CONTAINS
     REAL(dp)                                      :: total_BMB
     REAL(dp)                                      :: total_MB
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
+    IF (.NOT. C%do_write_regional_scalar_output) RETURN
   
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Do nothing; regional scalar output not needed in these experiments
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_regional_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
-  
-  
-      
     ! Regionally integrated output
     ! ============================
       
+    ! Surface temperature (entire region) and surface/basal mass balance (ice-sheet only)
     T2m_mean                   = 0._dp
-    total_snowfall             = 0._dp
-    total_rainfall             = 0._dp
-    total_melt                 = 0._dp
-    total_refreezing           = 0._dp
-    total_runoff               = 0._dp
     total_SMB                  = 0._dp
     total_BMB                  = 0._dp
     
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-    
-      IF (region%ice%Hi_a( j,i) > 0._dp) THEN
-        
-        total_BMB = total_BMB + (region%BMB%BMB( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          
-        DO m = 1, 12
-          total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_SMB        = total_SMB        + (region%SMB%SMB(        m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-        END DO
-        
-      END IF
 
-      T2m_mean = T2m_mean + SUM(region%climate%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+      T2m_mean = T2m_mean + SUM( region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+    
+      IF (region%ice%mask_ice_a( j,i) == 1) THEN
+        total_SMB = total_SMB + (region%SMB%SMB_year( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_BMB = total_BMB + (region%BMB%BMB(      j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+      END IF
       
     END DO
     END DO
     CALL sync
     
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean        , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_snowfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_rainfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_melt      , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     
     total_MB = total_SMB + total_BMB
     
     IF (par%master) THEN
       region%int_T2m        = T2m_mean
-      region%int_snowfall   = total_snowfall
-      region%int_rainfall   = total_rainfall
-      region%int_melt       = total_melt
-      region%int_refreezing = total_refreezing
-      region%int_runoff     = total_runoff
       region%int_SMB        = total_SMB
       region%int_BMB        = total_BMB
       region%int_MB         = total_MB
     END IF
     CALL sync
+    
+    ! Individual SMB components
+    IF     (C%choice_SMB_model == 'uniform' .OR. &
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Do nothing
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+            C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+    
+      total_snowfall             = 0._dp
+      total_rainfall             = 0._dp
+      total_melt                 = 0._dp
+      total_refreezing           = 0._dp
+      total_runoff               = 0._dp
+      
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
+      
+        IF (region%ice%Hi_a( j,i) > 0._dp) THEN
+            
+          DO m = 1, 12
+            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          END DO
+          
+        END IF
+        
+      END DO
+      END DO
+      CALL sync
+      
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_snowfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_rainfall  , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_melt      , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      
+      IF (par%master) THEN
+        region%int_snowfall   = total_snowfall
+        region%int_rainfall   = total_rainfall
+        region%int_melt       = total_melt
+        region%int_refreezing = total_refreezing
+        region%int_runoff     = total_runoff
+      END IF
+      CALL sync
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'write_regional_scalar_data - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     ! Write to NetCDF file
     CALL write_to_regional_scalar_output_file( region, time)
@@ -154,69 +149,29 @@ CONTAINS
     TYPE(type_forcing_data),             INTENT(IN)    :: forcing
     REAL(dp),                            INTENT(IN)    :: time
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
-  
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Do nothing; global scalar output not needed in these experiments
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_global_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
+    IF (.NOT. C%do_write_global_scalar_output) RETURN
   
     IF (par%master) THEN
     
       ! Sea level: variables have already been set in the IMAU_ICE_program time loop
       
       ! CO2
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      IF     (C%choice_forcing_method == 'none') THEN
+      ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
         global_data%CO2_obs        = forcing%CO2_obs
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
         global_data%CO2_obs        = forcing%CO2_obs
         global_data%CO2_mod        = forcing%CO2_mod
-      ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-      ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_global_scalar_data!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
       ! d18O
-      IF     (C%choice_forcing_method == 'CO2_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      IF     (C%do_calculate_benthic_d18O) THEN
+        global_data%dT_glob        = forcing%dT_glob
+        global_data%dT_dw          = forcing%dT_deepwater
         global_data%d18O_obs       = forcing%d18O_obs
         global_data%d18O_mod       = forcing%d18O_mod
         global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
@@ -225,39 +180,7 @@ CONTAINS
         global_data%d18O_EAS       = forcing%d18O_EAS
         global_data%d18O_GRL       = forcing%d18O_GRL
         global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-        global_data%d18O_obs       = forcing%d18O_obs
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
-        global_data%d18O_mod       = forcing%d18O_mod
-        global_data%d18O_ice       = forcing%d18O_from_ice_volume_mod
-        global_data%d18O_Tdw       = forcing%d18O_from_temperature_mod
-        global_data%d18O_NAM       = forcing%d18O_NAM
-        global_data%d18O_EAS       = forcing%d18O_EAS
-        global_data%d18O_GRL       = forcing%d18O_GRL
-        global_data%d18O_ANT       = forcing%d18O_ANT
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_global_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
-      
-      ! Temperature (surface and deep-water)
-      global_data%dT_glob        = forcing%dT_glob
-      global_data%dT_dw          = forcing%dT_deepwater
       
       ! Computation times
       global_data%tcomp_total    = 0._dp
@@ -320,21 +243,21 @@ CONTAINS
     CALL allocate_shared_dp_0D( global_data%GMSL_ANT      , global_data%wGMSL_ANT      )
     
     ! CO2
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_forcing_method == 'none') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
       CALL allocate_shared_dp_0D( global_data%CO2_mod       , global_data%wCO2_mod       )
-    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in initialise_global_scalar_data!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
     ! d18O
-    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+    IF     (C%choice_forcing_method == 'none') THEN
+    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
       CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
@@ -353,22 +276,6 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_obs      , global_data%wd18O_obs      )
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'climate_direct') THEN
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'SMB_direct') THEN
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
       CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )

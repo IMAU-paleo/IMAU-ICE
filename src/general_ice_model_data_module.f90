@@ -11,31 +11,29 @@ MODULE general_ice_model_data_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_model_region
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE parameters_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              is_floating, surface_elevation, thickness_above_floatation, &
-                                             vertical_average, interp_bilin_2D, is_in_polygon, oblique_sg_projection
+                                             is_in_polygon, oblique_sg_projection
   USE derivatives_and_grids_module,    ONLY: map_a_to_cx_2D, map_a_to_cy_2D, ddx_a_to_cx_2D, ddy_a_to_cy_2D, &
                                              ddy_a_to_cx_2D, ddx_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D, &
                                              ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D
-  USE basal_conditions_module,         ONLY: calc_basal_conditions
 
   IMPLICIT NONE
 
 CONTAINS
   
-! ==Routines for calculating general ice model data - Hs, masks, ice physical properties
-  SUBROUTINE update_general_ice_model_data( grid, ice, time)
+! == Update general ice model data - Hs, masks, ice physical properties (the main routine that's called from the main ice model)
+  SUBROUTINE update_general_ice_model_data( grid, ice)
     
     IMPLICIT NONE
     
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables
     INTEGER                                            :: i,j
@@ -43,7 +41,7 @@ CONTAINS
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%Hs_a(  j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
       ice%TAF_a( j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
     END DO
     END DO
@@ -51,7 +49,7 @@ CONTAINS
     
     ! Determine masks
     CALL determine_masks(                    grid, ice)
-    CALL determine_grounded_fractions(       grid, ice)
+    !CALL determine_grounded_fractions(       grid, ice)   ! NOTE: called from solve_SSA / solve_DIVA, more efficient
     CALL determine_floating_margin_fraction( grid, ice)
  
     ! Get ice thickness, flow factor, and surface slopes on the required grids
@@ -72,14 +70,10 @@ CONTAINS
     CALL ddy_a_to_cx_2D( grid, ice%Hs_a,          ice%dHs_dy_cx)
     CALL ddx_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dx_cy)
     CALL ddy_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dy_cy)
-            
-    ! Calculate physical properties (flow factor, heat capacity, thermal conductivity, pressure melting point)
-    CALL ice_physical_properties( grid, ice, time)
-    
-    ! Calculate the basal yield stress tau_c
-    CALL calc_basal_conditions( grid, ice)
     
   END SUBROUTINE update_general_ice_model_data
+  
+! == Different routines for determining the model masks
   SUBROUTINE determine_masks( grid, ice)
     ! Determine the different masks, on both the Aa and the Ac grid
       
@@ -90,10 +84,6 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
     INTEGER                                            :: i,j
-    
-    ! Save the previous ice mask, for use in thermodynamics
-    ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
-    CALL sync
     
     ! Start out with land everywhere, fill in the rest based on input.
     IF (par%master) THEN
@@ -253,170 +243,6 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE determine_masks
-  SUBROUTINE ice_physical_properties( grid, ice, time)
-    ! Calculate the flow factor, pressure melting point, specific heat, and thermal conductivity of the ice.
-      
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: time
-  
-    ! Local variables:
-    INTEGER                                            :: i,j,k
-    REAL(dp), DIMENSION(C%nZ)                          :: prof
-    REAL(dp)                                           :: A_flow_MISMIP
-    
-    REAL(dp), PARAMETER                                :: A_low_temp  = 1.14E-05_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
-    REAL(dp), PARAMETER                                :: A_high_temp = 5.47E+10_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
-    REAL(dp), PARAMETER                                :: Q_low_temp  = 6.0E+04_dp    ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
-    REAL(dp), PARAMETER                                :: Q_high_temp = 13.9E+04_dp   ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
-    
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
-  
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-          C%choice_benchmark_experiment == 'Bueler' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-        
-        ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = 1.0E-16_dp
-        ice%A_flow_vav_a(   :,grid%i1:grid%i2) = 1.0E-16_dp
-        ice%Ki_a(         :,:,grid%i1:grid%i2) = 2.1_dp * sec_per_year
-        ice%Cpi_a(        :,:,grid%i1:grid%i2) = 2009._dp
-        
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-        DO k = 1, C%nZ
-          ice%Ti_pmp_a( k,j,i) = T0 - (C%zeta(k) * ice%Hi_a( j,i) * 8.7E-04_dp)
-        END DO
-        END DO
-        END DO
-        CALL sync
-        
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-      
-        A_flow_MISMIP = 1.0E-16_dp
-        IF     (time < 25000._dp) THEN
-          A_flow_MISMIP = 1.0E-16_dp
-        ELSEIF (time < 50000._dp) THEN
-          A_flow_MISMIP = 1.0E-17_dp
-        ELSEIF (time < 75000._dp) THEN
-          A_flow_MISMIP = 1.0E-16_dp
-        END IF
-        
-        ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_MISMIP
-        ice%A_flow_vav_a(   :,grid%i1:grid%i2) = A_flow_MISMIP
-        CALL sync
-        
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-      
-        ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = (3.7E8_dp ** (-C%n_flow)) * sec_per_year
-        ice%A_flow_vav_a(   :,grid%i1:grid%i2) = (3.7E8_dp ** (-C%n_flow)) * sec_per_year
-        CALL sync
-        
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-      
-        ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = 2.140373E-7_dp
-        ice%A_flow_vav_a(   :,grid%i1:grid%i2) = 2.140373E-7_dp
-        CALL sync
-        
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Don't change the flow factor here; set it once during initialisation (done in initialise_ice_model),
-        ! then only change it with the tuning subroutine!
-        
-        RETURN
-        
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in ice_physical_properties!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
-    
-    ! Calculate the ice flow factor as a function of the ice temperature according to the Arrhenius relationship  (Huybrechts, 1992)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    
-      DO k = 1, C%nz
-        IF (ice%mask_ice_a( j,i) == 1) THEN
-          IF (ice%Ti_a( k,j,i) < 263.15_dp) THEN
-            ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * ice%Ti_a( k,j,i)))  
-          ELSE
-            ice%A_flow_3D_a( k,j,i) = A_high_temp * EXP(-Q_high_temp / (R_gas * ice%Ti_a( k,j,i)))  
-          END IF
-        ELSE
-          IF (C%choice_ice_margin == 'BC') THEN
-            ice%A_flow_3D_a( k,j,i) = 0._dp
-          ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
-            ! In the "infinite slab" case, calculate effective viscosity everywhere
-            ! (even when there's technically no ice present)
-            ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * 263.15_dp))  
-          ELSE
-            IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-            CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-          END IF
-        END IF
-      END DO ! DO k = 1, C%nz
-        
-      ! Apply the flow enhancement factors
-      IF (ice%mask_sheet_a( j,i) == 1) THEN
-        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_sheet
-      ELSE
-        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_shelf
-      END IF
-
-      ! Vertical average
-      prof = ice%A_flow_3D_a( :,j,i)
-      ice%A_flow_vav_a( j,i) = vertical_average( prof)
-       
-    END DO
-    END DO
-    CALL sync
-    
-    ! Calculate the pressure melting point (Huybrechts, 1992), heat capacity (Pounder, 1965), and thermal conductivity (Ritz, 1987) of ice
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      ice%Ti_pmp_a( :,j,i) = T0 - CC * ice%Hi_a( j,i) * C%zeta
-      ice%Cpi_a(    :,j,i) = 2115.3_dp + 7.79293_dp * (ice%Ti_a( :,j,i) - T0)
-      ice%Ki_a(     :,j,i) = 3.101E+08_dp * EXP(-0.0057_dp * ice%Ti_a( :,j,i))
-    END DO
-    END DO
-    CALL sync
-    
-    ! Safety
-    CALL check_for_NaN_dp_3D( ice%A_flow_3D_a , 'ice%A_flow_3D_a' , 'ice_physical_properties')
-    CALL check_for_NaN_dp_2D( ice%A_flow_vav_a, 'ice%A_flow_vav_a', 'ice_physical_properties')
-    CALL check_for_NaN_dp_3D( ice%Ti_pmp_a    , 'ice%Ti_pmp_a'    , 'ice_physical_properties')
-    CALL check_for_NaN_dp_3D( ice%Cpi_a       , 'ice%Cpi_a'       , 'ice_physical_properties')
-    CALL check_for_NaN_dp_3D( ice%Ki_a        , 'ice%Ki_a'        , 'ice_physical_properties')
-    
-  END SUBROUTINE ice_physical_properties 
-  
   SUBROUTINE determine_floating_margin_fraction( grid, ice)
     ! Determine the ice-filled fraction of floating margin pixels
     
@@ -486,119 +312,6 @@ CONTAINS
     CALL check_for_NaN_dp_2D( ice%Hi_actual_cf_a     , 'ice%Hi_actual_cf_a'     , 'determine_floating_margin_fraction')
     
   END SUBROUTINE determine_floating_margin_fraction
-  SUBROUTINE ocean_floodfill( grid, ice)
-    ! Use a simple floodfill algorithm to determine the ocean mask,
-    ! to prevent the formation of (pro-/sub-glacial) lakes
-      
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
-  
-    INTEGER                                            :: i,j,ii,jj
-    INTEGER, DIMENSION( :,:  ), POINTER                :: map
-    INTEGER, DIMENSION( :,:  ), POINTER                :: stack
-    INTEGER                                            :: wmap, wstack
-    INTEGER                                            :: stackN
-    
-    ! Allocate shared memory for the map, because even though the flood-fill is done only
-    ! by the Master, the other processes need access to the resulting filled map.
-    CALL allocate_shared_int_2D( grid%ny, grid%nx,   map,   wmap  )
-    CALL allocate_shared_int_2D( grid%ny*grid%nx, 2, stack, wstack)
-    
-    ! No easy way to parallelise flood-fill, just let the Master do it
-    IF (par%master) THEN
-    
-      ice%mask_land_a  = 1
-      ice%mask_ocean_a = 0
-      ice%mask_a       = C%type_land
-      
-      map    = 0
-      stack  = 0
-      stackN = 0
-      
-      ! Let the ocean flow in from the domain edges
-      DO i = 1, grid%nx
-        j = 1
-        stackN = stackN + 1
-        stack( stackN,:) = [i,j]
-        map( j,i) = 1
-        
-        j = grid%ny
-        stackN = stackN + 1
-        stack( stackN,:) = [i,j]
-        map( j,i) = 1
-      END DO
-      DO j = 1, grid%ny
-        i = 1
-        stackN = stackN + 1
-        stack( stackN,:) = [i,j]
-        map( j,i) = 1
-        
-        i = grid%nx
-        stackN = stackN + 1
-        stack( stackN,:) = [i,j]
-        map( j,i) = 1
-      END DO
-      
-      ! Flood fill
-      DO WHILE (stackN > 0)
-        
-        ! Inspect the last element of the stack
-        i = stack( stackN,1)
-        j = stack( stackN,2)
-        
-        ! Remove it from the stack
-        stack( stackN,:) = [0,0]
-        stackN = stackN-1
-        
-        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-          ! This element is ocean
-          
-          ! Mark it as such on the map
-          map( j,i) = 2
-          ice%mask_ocean_a( j,i) = 1
-          ice%mask_land_a(  j,i) = 0
-          ice%mask_a(       j,i) = C%type_ocean
-          
-          ! Add its (valid) neighbours to the stack
-          DO ii = i-1,i+1
-          DO jj = j-1,j+1
-          
-            IF (ii>=1 .AND. ii<= grid%nx .AND. jj>=1 .AND. jj<=grid%ny .AND. (.NOT. (ii==i .AND. jj==j))) THEN
-              ! This neighbour exists
-              
-              IF (map( jj,ii) == 0) THEN
-                ! This neighbour isn't yet mapped or stacked
-                
-                map( jj,ii) = 1
-                stackN = stackN + 1
-                stack( stackN,:) = [ii,jj]
-                
-              END IF
-              
-            END IF ! IF (neighbour exists) THEN
-            
-          END DO
-          END DO
-          
-        ELSE ! IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-          ! This element is land
-        END IF ! IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-        
-      END DO ! DO WHILE (stackN > 0)
-    
-    END IF ! IF (par%master) THEN
-    CALL sync
-      
-    ! Clean up after yourself
-    CALL deallocate_shared( wmap)
-    CALL deallocate_shared( wstack)
-    
-  END SUBROUTINE ocean_floodfill
-  
-! == Routines for determining the grounded fraction on all four grids
   SUBROUTINE determine_grounded_fractions( grid, ice)
     ! Determine the grounded fraction of next-to-grounding-line pixels
     ! (used for determining basal friction in the DIVA)
@@ -776,38 +489,38 @@ CONTAINS
     ! The analytical solutions sometime give problems when one or more of the corner
     ! values is VERY close to zero; avoid this.
     IF (f_NW == 0._dp) THEN
-      f_NWp = ftol
+      f_NWp = ftol * 1.1_dp
     ELSEIF (f_NW > 0._dp) THEN
-      f_NWp = MAX(  ftol, f_NW)
+      f_NWp = MAX(  ftol * 1.1_dp, f_NW)
     ELSEIF (f_NW < 0._dp) THEN
-      f_NWp = MIN( -ftol, f_NW)
+      f_NWp = MIN( -ftol * 1.1_dp, f_NW)
     ELSE
       f_NWp = f_NW
     END IF
     IF (f_NE == 0._dp) THEN
-      f_NEp = ftol
+      f_NEp = ftol * 1.21_dp
     ELSEIF (f_NE > 0._dp) THEN
-      f_NEp = MAX(  ftol, f_NE)
+      f_NEp = MAX(  ftol * 1.21_dp, f_NE)
     ELSEIF (f_NE < 0._dp) THEN
-      f_NEp = MIN( -ftol, f_NE)
+      f_NEp = MIN( -ftol * 1.21_dp, f_NE)
     ELSE
       f_NEp = f_NE
     END IF
     IF (f_SW == 0._dp) THEN
-      f_SWp = ftol
+      f_SWp = ftol * 1.13_dp
     ELSEIF (f_SW > 0._dp) THEN
-      f_SWp = MAX(  ftol, f_SW)
+      f_SWp = MAX(  ftol * 1.13_dp, f_SW)
     ELSEIF (f_SW < 0._dp) THEN
-      f_SWp = MIN( -ftol, f_SW)
+      f_SWp = MIN( -ftol * 1.13_dp, f_SW)
     ELSE
       f_SWp = f_SW
     END IF
     IF (f_SE == 0._dp) THEN
-      f_SEp = ftol
+      f_SEp = ftol * 0.97_dp
     ELSEIF (f_SE > 0._dp) THEN
-      f_SEp = MAX(  ftol, f_SE)
+      f_SEp = MAX(  ftol * 0.97_dp, f_SE)
     ELSEIF (f_SE < 0._dp) THEN
-      f_SEp = MIN( -ftol, f_SE)
+      f_SEp = MIN( -ftol * 0.97_dp, f_SE)
     ELSE
       f_SEp = f_SE
     END IF
@@ -1028,6 +741,119 @@ CONTAINS
     f_SW = fvals( 1)
     
   END SUBROUTINE rotate_quad
+  
+! == A simple flood-fill algorithm for determining the ocean mask without creating inland seas / lakes
+  SUBROUTINE ocean_floodfill( grid, ice)
+    ! Use a simple floodfill algorithm to determine the ocean mask,
+    ! to prevent the formation of (pro-/sub-glacial) lakes
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+  
+    INTEGER                                            :: i,j,ii,jj
+    INTEGER, DIMENSION( :,:  ), POINTER                :: map
+    INTEGER, DIMENSION( :,:  ), POINTER                :: stack
+    INTEGER                                            :: wmap, wstack
+    INTEGER                                            :: stackN
+    
+    ! Allocate shared memory for the map, because even though the flood-fill is done only
+    ! by the Master, the other processes need access to the resulting filled map.
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,   map,   wmap  )
+    CALL allocate_shared_int_2D( grid%ny*grid%nx, 2, stack, wstack)
+    
+    ! No easy way to parallelise flood-fill, just let the Master do it
+    IF (par%master) THEN
+    
+      ice%mask_land_a  = 1
+      ice%mask_ocean_a = 0
+      ice%mask_a       = C%type_land
+      
+      map    = 0
+      stack  = 0
+      stackN = 0
+      
+      ! Let the ocean flow in from the domain edges
+      DO i = 1, grid%nx
+        j = 1
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+        
+        j = grid%ny
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      DO j = 1, grid%ny
+        i = 1
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+        
+        i = grid%nx
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      
+      ! Flood fill
+      DO WHILE (stackN > 0)
+        
+        ! Inspect the last element of the stack
+        i = stack( stackN,1)
+        j = stack( stackN,2)
+        
+        ! Remove it from the stack
+        stack( stackN,:) = [0,0]
+        stackN = stackN-1
+        
+        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+          ! This element is ocean
+          
+          ! Mark it as such on the map
+          map( j,i) = 2
+          ice%mask_ocean_a( j,i) = 1
+          ice%mask_land_a(  j,i) = 0
+          ice%mask_a(       j,i) = C%type_ocean
+          
+          ! Add its (valid) neighbours to the stack
+          DO ii = i-1,i+1
+          DO jj = j-1,j+1
+          
+            IF (ii>=1 .AND. ii<= grid%nx .AND. jj>=1 .AND. jj<=grid%ny .AND. (.NOT. (ii==i .AND. jj==j))) THEN
+              ! This neighbour exists
+              
+              IF (map( jj,ii) == 0) THEN
+                ! This neighbour isn't yet mapped or stacked
+                
+                map( jj,ii) = 1
+                stackN = stackN + 1
+                stack( stackN,:) = [ii,jj]
+                
+              END IF
+              
+            END IF ! IF (neighbour exists) THEN
+            
+          END DO
+          END DO
+          
+        ELSE ! IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+          ! This element is land
+        END IF ! IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+        
+      END DO ! DO WHILE (stackN > 0)
+    
+    END IF ! IF (par%master) THEN
+    CALL sync
+      
+    ! Clean up after yourself
+    CALL deallocate_shared( wmap)
+    CALL deallocate_shared( wstack)
+    
+  END SUBROUTINE ocean_floodfill
   
 ! == Routines for defining ice drainage basins from an external polygon file
   SUBROUTINE initialise_basins( grid, basin_ID, nbasins, region_name)
@@ -1588,6 +1414,221 @@ CONTAINS
     
   END SUBROUTINE merge_basins_GRL
   
+! == The no-ice mask, to prevent ice growth in certain areas
+  SUBROUTINE initialise_mask_noice( region)
+    ! Mask a certain area where no ice is allowed to grow. This is used to "remove"
+    ! Greenland from NAM and EAS, and Ellesmere Island from GRL.
+    ! 
+    ! Also used to define calving fronts in certain idealised-geometry experiments
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
+    
+    ! Initialise
+    region%mask_noice( :,region%grid%i1:region%grid%i2) = 0
+    CALL sync
+    
+    IF     (region%name == 'NAM') THEN
+      ! Define a no-ice mask for North America
+    
+      IF     (C%choice_mask_noice_NAM == 'none') THEN
+        ! No no-ice mask is defined for North America
+      ELSEIF (C%choice_mask_noice_NAM == 'NAM_remove_GRL') THEN
+        ! Prevent ice growth in the Greenlandic part of the North America domain
+        CALL initialise_mask_noice_NAM_remove_GRL( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_NAM "', TRIM(C%choice_mask_noice_NAM), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'EAS') THEN
+      ! Define a no-ice mask for Eurasia
+    
+      IF     (C%choice_mask_noice_EAS == 'none') THEN
+        ! No no-ice mask is defined for Eurasia
+      ELSEIF (C%choice_mask_noice_EAS == 'EAS_remove_GRL') THEN
+        ! Prevent ice growth in the Greenlandic part of the Eurasia domain
+        CALL initialise_mask_noice_EAS_remove_GRL( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_EAS "', TRIM(C%choice_mask_noice_EAS), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'GRL') THEN
+      ! Define a no-ice mask for Greenland
+    
+      IF     (C%choice_mask_noice_GRL == 'none') THEN
+        ! No no-ice mask is defined for Greenland
+      ELSEIF (C%choice_mask_noice_GRL == 'GRL_remove_Ellesmere') THEN
+        ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+        CALL initialise_mask_noice_GRL_remove_Ellesmere( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_GRL "', TRIM(C%choice_mask_noice_GRL), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    ELSEIF (region%name == 'ANT') THEN
+      ! Define a no-ice mask for Antarctica, or for an idealised-geometry experiment
+    
+      IF     (C%choice_mask_noice_ANT == 'none') THEN
+        ! No no-ice mask is defined for Antarctica
+      ELSEIF (C%choice_mask_noice_ANT == 'MISMIP_mod') THEN
+        ! Confine ice to the circular shelf around the cone-shaped island of the MISMIP_mod idealised geometry
+        CALL initialise_mask_noice_MISMIP_mod( region%grid, region%mask_noice)
+      ELSEIF (C%choice_mask_noice_ANT == 'MISMIP+') THEN
+        ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
+        CALL initialise_mask_noice_MISMIPplus( region%grid, region%mask_noice)
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_ANT "', TRIM(C%choice_mask_noice_ANT), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+    END IF
+  
+  END SUBROUTINE initialise_mask_noice
+  SUBROUTINE initialise_mask_noice_NAM_remove_GRL( grid, mask_noice)
+    ! Prevent ice growth in the Greenlandic part of the North America domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb
+    REAL(dp)                                           :: yl_ab
+      
+    pa = [ 490000._dp, 1530000._dp]
+    pb = [2030000._dp,  570000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      DO j = 1, grid%ny
+        IF (grid%y(j) > yl_ab .AND. grid%x(i) > pa(1) .AND. grid%y(j) > pb(2)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_NAM_remove_GRL
+  SUBROUTINE initialise_mask_noice_EAS_remove_GRL( grid, mask_noice)
+    ! Prevent ice growth in the Greenlandic part of the Eurasia domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb, pc, pd
+    REAL(dp)                                           :: yl_ab, yl_bc, yl_cd
+    
+    pa = [-2900000._dp, 1300000._dp]
+    pb = [-1895000._dp,  900000._dp]
+    pc = [ -835000._dp, 1135000._dp]
+    pd = [ -400000._dp, 1855000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      yl_bc = pb(2) + (grid%x(i) - pb(1))*(pc(2)-pb(2))/(pc(1)-pb(1))
+      yl_cd = pc(2) + (grid%x(i) - pc(1))*(pd(2)-pc(2))/(pd(1)-pc(1))
+      DO j = 1, grid%ny
+        IF ((grid%x(i) <  pa(1) .AND. grid%y(j) > pa(2)) .OR. &
+            (grid%x(i) >= pa(1) .AND. grid%x(i) < pb(1) .AND. grid%y(j) > yl_ab) .OR. &
+            (grid%x(i) >= pb(1) .AND. grid%x(i) < pc(1) .AND. grid%y(j) > yl_bc) .OR. &
+            (grid%x(i) >= pc(1) .AND. grid%x(i) < pd(1) .AND. grid%y(j) > yl_cd)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_EAS_remove_GRL
+  SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere( grid, mask_noice)
+    ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(2)                             :: pa, pb
+    REAL(dp)                                           :: yl_ab
+      
+    pa = [-750000._dp,  900000._dp]
+    pb = [-250000._dp, 1250000._dp]
+    
+    DO i = grid%i1, grid%i2
+      yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
+      DO j = 1, grid%ny
+        IF (grid%y(j) > pa(2) .AND. grid%y(j) > yl_ab .AND. grid%x(i) < pb(1)) THEN
+          mask_noice( j,i) = 1
+        END IF
+      END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere
+  SUBROUTINE initialise_mask_noice_MISMIP_mod( grid, mask_noice)
+    ! Confine ice to the circular shelf around the cone-shaped island of the MISMIP_mod idealised-geometry experiment
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+        
+    ! Create a nice circular ice shelf
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (SQRT(grid%x(i)**2+grid%y(j)**2) > grid%xmax * 0.95_dp) THEN
+        mask_noice( j,i) = 1
+      END IF
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_MISMIP_mod
+  SUBROUTINE initialise_mask_noice_MISMIPplus( grid, mask_noice)
+    ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+        
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ! NOTE: because IMAU-ICE wants to centre the domain at x=0, the front now lies at x = 240 km
+      IF (grid%x( i) > 240000._dp) THEN
+        mask_noice( j,i) = 1
+      END IF
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_MISMIPplus
+  
 ! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
   SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)
     
@@ -1602,31 +1643,34 @@ CONTAINS
     REAL(dp)                                           :: TAF1,TAF2,lambda_GL, x_GL
     REAL(dp)                                           :: A_flow_old, f, A_flow_new
     
-    ! Determine mid-channel grounding-line position
-    jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
-    i = 1
-    DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
-      i = i+1
-    END DO
-    
-    TAF1 = ice%TAF_a( jmid,i-1)
-    TAF2 = ice%TAF_a( jmid,i  )
-    lambda_GL = TAF1 / (TAF1 - TAF2)
-    x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
-    
-    ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
-    x_GL = x_GL + 400000._dp
-    
-    ! Adjust the flow factor
-    A_flow_old = ice%A_flow_vav_a( 1,1)
-    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
-    A_flow_new = A_flow_old * f
-    
-    ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_new
-    ice%A_flow_vav_a(   :,grid%i1:grid%i2) = A_flow_new
+    IF (par%master) THEN
+      
+      ! Determine mid-channel grounding-line position
+      jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
+      i = 1
+      DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
+        i = i+1
+      END DO
+      
+      TAF1 = ice%TAF_a( jmid,i-1)
+      TAF2 = ice%TAF_a( jmid,i  )
+      lambda_GL = TAF1 / (TAF1 - TAF2)
+      x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
+      
+      ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
+      x_GL = x_GL + 400000._dp
+      
+      ! Adjust the flow factor
+      A_flow_old = ice%A_flow_vav_a( 1,1)
+      f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
+      A_flow_new = A_flow_old * f
+      
+      C%uniform_flow_factor = A_flow_new
+      
+      IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
+      
+    END IF ! IF (par%master) THEN
     CALL sync
-    
-    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
     
   END SUBROUTINE MISMIPplus_adapt_flow_factor
 

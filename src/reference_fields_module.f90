@@ -10,716 +10,716 @@ MODULE reference_fields_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_grid, type_init_data_fields, type_PD_data_fields
+  USE data_types_module,               ONLY: type_grid, type_reference_geometry, type_restart_data
   USE parameters_module,               ONLY: seawater_density, ice_density, sec_per_year, pi
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_PD_data_file, inquire_init_data_file, &
-                                             inquire_restart_file, read_PD_data_file, read_init_data_file, read_restart_file
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
+                                             inquire_reference_geometry_file, read_reference_geometry_file, &
+                                             inquire_restart_file_geometry, read_restart_file_geometry
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
-                                             transpose_dp_2D, transpose_dp_3D, remove_Lake_Vostok, surface_elevation
+                                             transpose_dp_2D, transpose_dp_3D, remove_Lake_Vostok, surface_elevation, &
+                                             smooth_Gaussian_2D, is_floating
 
   IMPLICIT NONE
   
 CONTAINS
 
-  ! ===== Present-day ice geometry ======
-  ! ======================================
-  
-  SUBROUTINE initialise_PD_data_fields( PD, region_name)
-    ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_PD_data_fields),      INTENT(INOUT) :: PD
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-    
-    IF (C%do_benchmark_experiment) THEN
-      CALL initialise_PD_data_fields_schematic_benchmarks( PD)
-      RETURN
-    END IF
-    
-    IF      (region_name == 'NAM') THEN
-      PD%netcdf%filename   = C%filename_PD_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      PD%netcdf%filename   = C%filename_PD_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      PD%netcdf%filename   = C%filename_PD_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      PD%netcdf%filename   = C%filename_PD_ANT
-    END IF
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( PD%nx, PD%wnx)
-    CALL allocate_shared_int_0D( PD%ny, PD%wny)
-    IF (par%master) WRITE(0,*) '  Reading PD      data from file ', TRIM(PD%netcdf%filename), '...'
-    IF (par%master) CALL inquire_PD_data_file(PD)
-    CALL sync
-    
-    ! Allocate memory
-    CALL allocate_shared_dp_1D( PD%nx,        PD%x,      PD%wx     )
-    CALL allocate_shared_dp_1D(        PD%ny, PD%y,      PD%wy     )
-    CALL allocate_shared_dp_2D( PD%nx, PD%ny, PD%Hi_raw, PD%wHi_raw)
-    CALL allocate_shared_dp_2D( PD%nx, PD%ny, PD%Hb_raw, PD%wHb_raw)
-    CALL allocate_shared_dp_2D( PD%nx, PD%ny, PD%Hs_raw, PD%wHs_raw)
-  
-    ! Read data from input file
-    IF (par%master) CALL read_PD_data_file( PD)
-    
-    ! Safety
-    CALL check_for_NaN_dp_2D( PD%Hi_raw, 'PD%Hi_raw', 'initialise_PD_data_fields')
-    CALL check_for_NaN_dp_2D( PD%Hb_raw, 'PD%Hb_raw', 'initialise_PD_data_fields')
-    CALL check_for_NaN_dp_2D( PD%Hs_raw, 'PD%Hs_raw', 'initialise_PD_data_fields')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( PD%Hi_raw, PD%wHi_raw)
-    CALL transpose_dp_2D( PD%Hb_raw, PD%wHb_raw)
-    CALL transpose_dp_2D( PD%Hs_raw, PD%wHs_raw)
-    
-    ! Remove Lake Vostok from Antarctica (because it's annoying)
-    IF (region_name == 'ANT'.AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( PD%x, PD%y, PD%Hi_raw, PD%Hb_raw, PD%Hs_raw)
-    
-  END SUBROUTINE initialise_PD_data_fields
-  SUBROUTINE initialise_PD_data_fields_schematic_benchmarks( PD)
-    ! Allocate memory for the reference data fields, initialise them
-    ! for schematic benchmark experiments (Halfar dome, EISMINT, MISMIP, etc.)
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_PD_data_fields),      INTENT(INOUT) :: PD
-    
-    ! Local variables:
-    INTEGER                                       :: i,j
-    
-    REAL(dp), PARAMETER                           :: EISMINT_xmin = -750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_xmax =  750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_ymin = -750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_ymax =  750000._dp
-    
-    CALL allocate_shared_int_0D( PD%nx, PD%wnx)
-    CALL allocate_shared_int_0D( PD%ny, PD%wny)
-    
-    IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-        C%choice_benchmark_experiment == 'Halfar' .OR. &
-        C%choice_benchmark_experiment == 'Bueler') THEN
-      PD%nx = 51
-      PD%ny = 51
-    ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-      PD%nx =  41
-      PD%ny = 241
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-      PD%nx = 751
-      PD%ny = 751
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-      PD%nx = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
-      PD%ny = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-      PD%nx = 161
-      PD%ny = 17
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_PD_data_fields_schematic_benchmarks!'
-      STOP
-    END IF
-    
-    ! Allocate memory - PD
-    CALL allocate_shared_dp_1D(        PD%nx, PD%x,      PD%wx     )
-    CALL allocate_shared_dp_1D( PD%ny,        PD%y,      PD%wy     )
-    CALL allocate_shared_dp_2D( PD%ny, PD%nx, PD%Hi_raw, PD%wHi_raw)
-    CALL allocate_shared_dp_2D( PD%ny, PD%nx, PD%Hb_raw, PD%wHb_raw)
-    CALL allocate_shared_dp_2D( PD%ny, PD%nx, PD%Hs_raw, PD%wHs_raw)
-  
-    IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-        C%choice_benchmark_experiment == 'Halfar' .OR. &
-        C%choice_benchmark_experiment == 'Bueler') THEN
-  
-      ! Simple square grid with no data
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) = EISMINT_xmin + (EISMINT_xmax - EISMINT_xmin) * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) = EISMINT_ymin + (EISMINT_ymax - EISMINT_ymin) * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-      
-    ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-  
-      ! Simple square grid with no data
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) =  -20000._dp +  40000._dp * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) = -120000._dp + 240000._dp * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) = -1500000._dp + 3000000._dp * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) = -1500000._dp + 3000000._dp * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) = -0.5_dp * C%ISMIP_HOM_L + C%ISMIP_HOM_L * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) = -0.5_dp * C%ISMIP_HOM_L + C%ISMIP_HOM_L * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) = -400000._dp + 800000._dp * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) =  -40000._dp +  80000._dp * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-      
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_PD_data_fields_schematic_benchmarks!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-  END SUBROUTINE initialise_PD_data_fields_schematic_benchmarks
-  SUBROUTINE map_PD_data_to_model_grid( grid, PD)
+  ! Initialise all three reference geometries
+  SUBROUTINE initialise_reference_geometries( grid, refgeo_init, refgeo_PD, refgeo_GIAeq, region_name)
+    ! Initialise all three reference geometries
      
     IMPLICIT NONE
       
     ! In/output variables:
     TYPE(type_grid),                INTENT(IN)    :: grid
-    TYPE(type_PD_data_fields),      INTENT(INOUT) :: PD
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_init
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_PD
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_GIAeq
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
     
-    IF (par%master) WRITE(0,*) '  Mapping PD      data to model grid...'
+    ! Local variables:
+    CHARACTER(LEN=256)                            :: choice_refgeo_init, choice_refgeo_PD, choice_refgeo_GIAeq
+    CHARACTER(LEN=256)                            :: filename_refgeo_init, filename_refgeo_PD, filename_refgeo_GIAeq
+    REAL(dp)                                      :: time_to_restart_from
     
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hi, PD%wHi)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hb, PD%wHb)
+    ! Determine parameters for this region
+    IF     (region_name == 'NAM') THEN
+      choice_refgeo_init    = C%choice_refgeo_init_NAM
+      choice_refgeo_PD      = C%choice_refgeo_PD_NAM
+      choice_refgeo_GIAeq   = C%choice_refgeo_GIAeq_NAM
+      filename_refgeo_init  = C%filename_refgeo_init_NAM
+      filename_refgeo_PD    = C%filename_refgeo_PD_NAM
+      filename_refgeo_GIAeq = C%filename_refgeo_GIAeq_NAM
+      time_to_restart_from  = C%time_to_restart_from_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_refgeo_init    = C%choice_refgeo_init_EAS
+      choice_refgeo_PD      = C%choice_refgeo_PD_EAS
+      choice_refgeo_GIAeq   = C%choice_refgeo_GIAeq_EAS
+      filename_refgeo_init  = C%filename_refgeo_init_EAS
+      filename_refgeo_PD    = C%filename_refgeo_PD_EAS
+      filename_refgeo_GIAeq = C%filename_refgeo_GIAeq_EAS
+      time_to_restart_from  = C%time_to_restart_from_EAS
+    ELSEIF (region_name == 'GR:') THEN
+      choice_refgeo_init    = C%choice_refgeo_init_GRL
+      choice_refgeo_PD      = C%choice_refgeo_PD_GRL
+      choice_refgeo_GIAeq   = C%choice_refgeo_GIAeq_GRL
+      filename_refgeo_init  = C%filename_refgeo_init_GRL
+      filename_refgeo_PD    = C%filename_refgeo_PD_GRL
+      filename_refgeo_GIAeq = C%filename_refgeo_GIAeq_GRL
+      time_to_restart_from  = C%time_to_restart_from_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_refgeo_init    = C%choice_refgeo_init_ANT
+      choice_refgeo_PD      = C%choice_refgeo_PD_ANT
+      choice_refgeo_GIAeq   = C%choice_refgeo_GIAeq_ANT
+      filename_refgeo_init  = C%filename_refgeo_init_ANT
+      filename_refgeo_PD    = C%filename_refgeo_PD_ANT
+      filename_refgeo_GIAeq = C%filename_refgeo_GIAeq_ANT
+      time_to_restart_from  = C%time_to_restart_from_ANT
+    END IF
     
-    CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hi_raw, PD%Hi)
-    CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hb_raw, PD%Hb)
+    ! Initial ice-sheet geometry
+    ! ==========================
     
-  END SUBROUTINE map_PD_data_to_model_grid
+    IF     (choice_refgeo_init == 'idealised') THEN
+      IF (par%master) WRITE(0,*) '  Initialising initial         reference geometry from idealised case "', TRIM(C%choice_refgeo_init_idealised), '"...'
+      CALL initialise_reference_geometry_idealised( grid, refgeo_init, C%choice_refgeo_init_idealised)
+    ELSEIF (choice_refgeo_init == 'realistic') THEN
+      IF (par%master) WRITE(0,*) '  Initialising initial         reference geometry from file ', TRIM( filename_refgeo_init), '...'
+      CALL initialise_reference_geometry_from_file( grid, refgeo_init, filename_refgeo_init, region_name)
+    ELSEIF (choice_refgeo_init == 'restart') THEN
+      IF (par%master) WRITE(0,*) '  Initialising initial         reference geometry from restart file ', TRIM( filename_refgeo_init), '...'
+      CALL initialise_reference_geometry_from_restart_file( grid, refgeo_init, filename_refgeo_init, time_to_restart_from)
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_reference_geometries - ERROR: unknown choice_refgeo_init "', TRIM(choice_refgeo_init), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Present-day ice-sheet geometry
+    ! ==============================
+    
+    IF     (choice_refgeo_PD == 'idealised') THEN
+      IF (par%master) WRITE(0,*) '  Initialising present-day     reference geometry from idealised case "', TRIM(C%choice_refgeo_PD_idealised), '"...'
+      CALL initialise_reference_geometry_idealised( grid, refgeo_PD, C%choice_refgeo_PD_idealised)
+    ELSEIF (choice_refgeo_PD == 'realistic') THEN
+      IF (par%master) WRITE(0,*) '  Initialising present-day     reference geometry from file ', TRIM( filename_refgeo_PD), '...'
+      CALL initialise_reference_geometry_from_file( grid, refgeo_PD, filename_refgeo_PD, region_name)
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_reference_geometries - ERROR: unknown choice_refgeo_PD "', TRIM(choice_refgeo_PD), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! GIA equilibrium ice-sheet geometry
+    ! ==================================
+    
+    IF     (choice_refgeo_GIAeq == 'idealised') THEN
+      IF (par%master) WRITE(0,*) '  Initialising GIA equilibrium reference geometry from idealised case "', TRIM(C%choice_refgeo_GIAeq_idealised), '"...'
+      CALL initialise_reference_geometry_idealised( grid, refgeo_GIAeq, C%choice_refgeo_GIAeq_idealised)
+    ELSEIF (choice_refgeo_GIAeq == 'realistic') THEN
+      IF (par%master) WRITE(0,*) '  Initialising GIA equilibrium reference geometry from file ', TRIM( filename_refgeo_GIAeq), '...'
+      CALL initialise_reference_geometry_from_file( grid, refgeo_GIAeq, filename_refgeo_GIAeq, region_name)
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_reference_geometries - ERROR: unknown choice_refgeo_GIAeq "', TRIM(choice_refgeo_GIAeq), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! When doing a restart, adapt initial ice geometry to make sure everything still fits
+    IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, time_to_restart_from)
+    
+    ! Smooth input geometry (bed and ice)
+    IF (C%do_smooth_geometry) THEN
+      CALL smooth_model_geometry( grid, refgeo_PD%Hi,    refgeo_PD%Hb,    refgeo_PD%Hs   )
+      CALL smooth_model_geometry( grid, refgeo_init%Hi,  refgeo_init%Hb,  refgeo_init%Hs )
+      CALL smooth_model_geometry( grid, refgeo_GIAeq%Hi, refgeo_GIAeq%Hb, refgeo_GIAeq%Hs)
+    END IF
+    
+  END SUBROUTINE initialise_reference_geometries
   
-  ! ===== Initial ice geometry =====
-  ! ================================
-
-  SUBROUTINE initialise_init_data_fields( init, region_name)
-    ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
+  ! Initialise a reference geometry with data from a (timeless) NetCDF file (e.g. BedMachine)
+  SUBROUTINE initialise_reference_geometry_from_file( grid, refgeo, filename_refgeo, region_name)
+    ! Initialise a reference geometry with data from a NetCDF file
      
     IMPLICIT NONE
       
     ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
     
-    ! Exception for schematic benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF (.NOT. C%is_restart) THEN
-        CALL initialise_init_data_fields_schematic_benchmarks( init)
+    ! Local variables:
+    
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( refgeo%nx_raw, refgeo%wnx_raw)
+    CALL allocate_shared_int_0D( refgeo%ny_raw, refgeo%wny_raw)
+    IF (par%master) THEN
+      refgeo%netcdf%filename = filename_refgeo
+      CALL inquire_reference_geometry_file( refgeo)
+    END IF
+    CALL sync
+    
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( refgeo%nx_raw,                refgeo%x_raw,  refgeo%wx_raw )
+    CALL allocate_shared_dp_1D(                refgeo%ny_raw, refgeo%y_raw,  refgeo%wy_raw )
+    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hi_raw, refgeo%wHi_raw)
+    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hb_raw, refgeo%wHb_raw)
+    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hs_raw, refgeo%wHs_raw)
+  
+    ! Read data from input file
+    IF (par%master) CALL read_reference_geometry_file( refgeo)
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( refgeo%Hi_raw, 'refgeo%Hi_raw', 'initialise_reference_geometry_from_file')
+    CALL check_for_NaN_dp_2D( refgeo%Hb_raw, 'refgeo%Hb_raw', 'initialise_reference_geometry_from_file')
+    CALL check_for_NaN_dp_2D( refgeo%Hs_raw, 'refgeo%Hs_raw', 'initialise_reference_geometry_from_file')
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( refgeo%Hi_raw, refgeo%wHi_raw)
+    CALL transpose_dp_2D( refgeo%Hb_raw, refgeo%wHb_raw)
+    CALL transpose_dp_2D( refgeo%Hs_raw, refgeo%wHs_raw)
+    
+    ! Remove Lake Vostok from Antarctica (because it's annoying)
+    IF (region_name == 'ANT'.AND. C%remove_Lake_Vostok) THEN
+      CALL remove_Lake_Vostok( refgeo%x_raw, refgeo%y_raw, refgeo%Hi_raw, refgeo%Hb_raw, refgeo%Hs_raw)
+    END IF
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
+    
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hi_raw, refgeo%Hi)
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hb_raw, refgeo%Hb)
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hs_raw, refgeo%Hs)
+    
+    ! Deallocate raw data
+    CALL deallocate_shared( refgeo%wnx_raw)
+    CALL deallocate_shared( refgeo%wny_raw)
+    CALL deallocate_shared( refgeo%wx_raw )
+    CALL deallocate_shared( refgeo%wy_raw )
+    CALL deallocate_shared( refgeo%wHi_raw)
+    CALL deallocate_shared( refgeo%wHb_raw)
+    CALL deallocate_shared( refgeo%wHs_raw)
+    
+  END SUBROUTINE initialise_reference_geometry_from_file
+  
+  ! Initialise a reference geometry with data from a previous simulation's restart file
+  SUBROUTINE initialise_reference_geometry_from_restart_file( grid, refgeo, filename_refgeo, time_to_restart_from)
+    ! Initialise a reference geometry with data from a previous simulation's restart file
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo
+    REAL(dp),                       INTENT(IN)    :: time_to_restart_from
+    
+    ! Local variables:
+    TYPE(type_restart_data)                       :: restart
+    
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
+    CALL allocate_shared_int_0D( restart%ny, restart%wny)
+    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
+    IF (par%master) THEN
+      restart%netcdf%filename = filename_refgeo
+      CALL inquire_restart_file_geometry( restart)
+    END IF
+    CALL sync
+    
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
+    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
+    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
+    
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
+  
+    ! Read data from input file
+    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( restart%Hi, 'restart%Hi', 'initialise_reference_geometry_from_restart_file')
+    CALL check_for_NaN_dp_2D( restart%Hb, 'restart%Hb', 'initialise_reference_geometry_from_restart_file')
+    CALL check_for_NaN_dp_2D( restart%Hs, 'restart%Hs', 'initialise_reference_geometry_from_restart_file')
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( restart%Hi, restart%wHi)
+    CALL transpose_dp_2D( restart%Hb, restart%wHb)
+    CALL transpose_dp_2D( restart%Hs, restart%wHs)
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
+    
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hi, refgeo%Hi)
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hb, refgeo%Hb)
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hs, refgeo%Hs)
+    
+    ! Deallocate raw data
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wHi              )
+    CALL deallocate_shared( restart%wHb              )
+    CALL deallocate_shared( restart%wHs              )
+    CALL deallocate_shared( restart%wSL              )
+    CALL deallocate_shared( restart%wdHb             )
+    
+  END SUBROUTINE initialise_reference_geometry_from_restart_file
+  SUBROUTINE adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, time_to_restart_from)
+    ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
+    ! Also, the current model resolution might be higher than that which was used to generate
+    ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(IN)    :: refgeo_PD
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_init
+    CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo_init
+    REAL(dp),                       INTENT(IN)    :: time_to_restart_from
+    
+    ! Local variables:
+    INTEGER                                       :: i,j
+    TYPE(type_restart_data)                       :: restart
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  dHb,  SL
+    INTEGER                                       :: wdHb, wSL
+    REAL(dp)                                      :: Hs, Hs_max_float
+    
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
+    CALL allocate_shared_int_0D( restart%ny, restart%wny)
+    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
+    IF (par%master) THEN
+      restart%netcdf%filename = filename_refgeo_init
+      CALL inquire_restart_file_geometry( restart)
+    END IF
+    CALL sync
+    
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
+    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
+    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
+    
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
+  
+    ! Read data from input file
+    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( restart%SL,  'restart%SL',  'initialise_reference_geometry_from_restart_file')
+    CALL check_for_NaN_dp_2D( restart%dHb, 'restart%dHb', 'initialise_reference_geometry_from_restart_file')
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( restart%SL,  restart%wSL )
+    CALL transpose_dp_2D( restart%dHb, restart%wdHb)
+    
+    ! Allocate memory for data on the model grid
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, SL,  wSL )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb, wdHb)
+    
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%SL,  SL )
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%dHb, dHb)
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Assume the mapped surface elevation is correct
+      Hs = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
+      
+      ! Define bedrock as PD bedrock + restarted deformation
+      refgeo_init%Hb( j,i) = refgeo_PD%Hb( j,i) + dHb( j,i)
+      
+      ! Surface elevation cannot be below bedrock
+      Hs = MAX( Hs, refgeo_init%Hb( j,i))
+      
+      ! Define ice thickness
+      Hs_max_float = refgeo_init%Hb( j,i) + MAX( 0._dp, (SL( j,i) - refgeo_init%Hb( j,i)) * seawater_density / ice_density)
+      IF (Hs > Hs_max_float) THEN
+        ! Ice here must be grounded
+        refgeo_init%Hi( j,i) = Hs - refgeo_init%Hb( j,i)
       ELSE
-        CALL initialise_init_data_fields_restart( init, region_name)
+        ! Ice here must be floating
+        refgeo_init%Hi( j,i) = MIN( Hs - refgeo_init%Hb( j,i), MAX( 0._dp, (Hs - SL( j,i))) / (1._dp - ice_density / seawater_density))
       END IF
-      RETURN
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    ! Different routines for reading a fixed geometry file (only Hi,Hb,Hs),
-    ! and a restart file from a previous run (also Ti,MeltPreviousYear, and a time dimension)
-    IF (.NOT. C%is_restart) THEN
-      CALL initialise_init_data_fields_regular( init, region_name)
-    ELSE
-      CALL initialise_init_data_fields_restart( init, region_name)
-    END IF
-    
-  END SUBROUTINE initialise_init_data_fields
-  SUBROUTINE initialise_init_data_fields_regular( init, region_name)
-    ! Read data from a time-less geometry file (so containing only Hi,Hb,Hs)
-     
-    IMPLICIT NONE
       
-    ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-    
-    ! Select the file to read from
-    IF      (region_name == 'NAM') THEN
-      init%netcdf%filename   = C%filename_init_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      init%netcdf%filename   = C%filename_init_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      init%netcdf%filename   = C%filename_init_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      init%netcdf%filename   = C%filename_init_ANT
-    END IF
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( init%nx, init%wnx)
-    CALL allocate_shared_int_0D( init%ny, init%wny)
-    CALL allocate_shared_int_0D( init%nz, init%wnz)
-    CALL allocate_shared_int_0D( init%nt, init%wnt)
-    IF (par%master) CALL inquire_init_data_file( init)
-    CALL sync
-  
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( init%nx,          init%x,         init%wx     )
-    CALL allocate_shared_dp_1D(          init%ny, init%y,         init%wy     )
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hi_raw,    init%wHi_raw)
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hb_raw,    init%wHb_raw)
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hs_raw,    init%wHs_raw)
-  
-    ! Read data from input file
-    IF (par%master) WRITE(0,*) '  Reading init    data from file ', TRIM(init%netcdf%filename), '...'
-    IF (par%master) CALL read_init_data_file( init)
-  
-    ! Safety
-    CALL check_for_NaN_dp_2D( init%Hi_raw, 'init%Hi_raw', 'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hb_raw, 'init%Hb_raw', 'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hs_raw, 'init%Hs_raw', 'initialise_init_data_fields')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( init%Hi_raw, init%wHi_raw)
-    CALL transpose_dp_2D( init%Hb_raw, init%wHb_raw)
-    CALL transpose_dp_2D( init%Hs_raw, init%wHs_raw)
-  
-    ! Remove Lake Vostok from Antarctica (because it's annoying)
-    IF (region_name == 'ANT' .AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( init%x, init%y, init%Hi_raw, init%Hb_raw, init%Hs_raw)
-    
-  END SUBROUTINE initialise_init_data_fields_regular
-  SUBROUTINE initialise_init_data_fields_restart( init, region_name)
-    ! Read data from the restart file of a previous run, which also contains Ti, FirnDepth and MeltPreviousYear (and zeta, time and month dimensions)
-     
-    IMPLICIT NONE
+      ! Recalculate surface elevation
+      refgeo_init%Hs( j,i) = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
       
-    ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-    
-    ! Select the file to read from
-    IF      (region_name == 'NAM') THEN
-      init%netcdf%filename   = C%filename_init_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      init%netcdf%filename   = C%filename_init_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      init%netcdf%filename   = C%filename_init_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      init%netcdf%filename   = C%filename_init_ANT
-    END IF
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( init%nx, init%wnx)
-    CALL allocate_shared_int_0D( init%ny, init%wny)
-    CALL allocate_shared_int_0D( init%nz, init%wnz)
-    CALL allocate_shared_int_0D( init%nt, init%wnt)
-    IF (par%master) CALL inquire_restart_file( init)
+    END DO
+    END DO
     CALL sync
     
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( init%nx,                   init%x,                    init%wx                   )
-    CALL allocate_shared_dp_1D(          init%ny,          init%y,                    init%wy                   )
-    CALL allocate_shared_dp_1D(                   init%nz, init%zeta,                 init%wzeta                )
-    CALL allocate_shared_dp_1D( init%nt,                   init%time,                 init%wtime                )
+    ! Deallocate raw data
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wHi              )
+    CALL deallocate_shared( restart%wHb              )
+    CALL deallocate_shared( restart%wHs              )
+    CALL deallocate_shared( restart%wSL              )
+    CALL deallocate_shared( restart%wdHb             )
     
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hi_raw,               init%wHi_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hb_raw,               init%wHb_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%SL_raw,               init%wSL_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%dHb_raw,              init%wdHb_raw             )
-    CALL allocate_shared_dp_3D( init%nx, init%ny, init%nz, init%Ti_raw,               init%wTi_raw              )
-    CALL allocate_shared_dp_3D( init%nx, init%ny, 12,      init%FirnDepth_raw,        init%wFirnDepth_raw       )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
+  END SUBROUTINE adapt_initial_geometry_from_restart_file
   
-    ! Read data from input file
-    IF (par%master) WRITE(0,*) '  Reading restart data from file ', TRIM(init%netcdf%filename), '...'
-    IF (par%master) CALL read_restart_file( init)
-    CALL sync
-  
-    ! Safety
-    CALL check_for_NaN_dp_2D( init%Hi_raw,               'init%Hi_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hb_raw,               'init%Hb_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%SL_raw,               'init%SL_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%dHb_raw,              'init%dHb_raw',              'initialise_init_data_fields')
-    CALL check_for_NaN_dp_3D( init%Ti_raw,               'init%Ti_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_3D( init%FirnDepth_raw,        'init%FirnDepth_raw',        'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%MeltPreviousYear_raw, 'init%MeltPreviousYear_raw', 'initialise_init_data_fields')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( init%Hi_raw,               init%wHi_raw              )
-    CALL transpose_dp_2D( init%Hb_raw,               init%wHb_raw              )
-    CALL transpose_dp_2D( init%SL_raw,               init%wSL_raw              )
-    CALL transpose_dp_2D( init%dHb_raw,              init%wdHb_raw             )
-    CALL transpose_dp_3D( init%Ti_raw,               init%wTi_raw              )
-    CALL transpose_dp_3D( init%FirnDepth_raw,        init%wFirnDepth_raw       )
-    CALL transpose_dp_2D( init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
-    
-  END SUBROUTINE initialise_init_data_fields_restart
-  SUBROUTINE initialise_init_data_fields_schematic_benchmarks( init)
-    ! Allocate memory for the reference data fields, initialise them
-    ! for schematic benchmark experiments (Halfar dome, EISMINT, MISMIP, etc.)
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
-    
-    ! Local variables:
-    INTEGER                                       :: i,j
-    
-    REAL(dp), PARAMETER                           :: EISMINT_xmin = -750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_xmax =  750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_ymin = -750000._dp
-    REAL(dp), PARAMETER                           :: EISMINT_ymax =  750000._dp
-    
-    ! For the benchmark experiments, use dummy input data.
-    ! For realistic experiments, read the provided input file.
-    
-    CALL allocate_shared_int_0D( init%nx, init%wnx)
-    CALL allocate_shared_int_0D( init%ny, init%wny)
-    
-    IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-        C%choice_benchmark_experiment == 'Halfar' .OR. &
-        C%choice_benchmark_experiment == 'Bueler') THEN
-      init%nx = 51
-      init%ny = 51
-    ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-      init%nx =  41
-      init%ny = 241
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-      init%nx = 51
-      init%ny = 51
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-      init%nx = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
-      init%ny = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-      init%nx = 51
-      init%ny = 251
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-      init%nx = 161
-      init%ny = 17
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-    ! Allocate memory - init
-    CALL allocate_shared_dp_1D(          init%nx, init%x,      init%wx     )
-    CALL allocate_shared_dp_1D( init%ny,          init%y,      init%wy     )
-    CALL allocate_shared_dp_2D( init%ny, init%nx, init%Hi_raw, init%wHi_raw)
-    CALL allocate_shared_dp_2D( init%ny, init%nx, init%Hb_raw, init%wHb_raw)
-    CALL allocate_shared_dp_2D( init%ny, init%nx, init%Hs_raw, init%wHs_raw)
-  
-    IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-        C%choice_benchmark_experiment == 'Halfar' .OR. &
-        C%choice_benchmark_experiment == 'Bueler') THEN
-  
-      ! Simple square grid with no data
-      IF (par%master) THEN
-        DO i = 1, init%nx
-          init%x(i) = EISMINT_xmin + (EISMINT_xmax - EISMINT_xmin) * (i-1) / (init%nx-1)
-        END DO
-        DO j = 1, init%ny
-          init%y(j) = EISMINT_ymin + (EISMINT_ymax - EISMINT_ymin) * (j-1) / (init%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-      
-    ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-  
-      ! Simple square grid with no data
-      IF (par%master) THEN
-        DO i = 1, init%nx
-          init%x(i) =  -20000._dp +  40000._dp * (i-1) / (init%nx-1)
-        END DO
-        DO j = 1, init%ny
-          init%y(j) = -120000._dp + 240000._dp * (j-1) / (init%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, init%nx
-        DO j = 1, init%ny
-          init%x(i) = -1500000._dp + 3000000._dp * (i-1) / (init%nx-1)
-          init%y(j) = -1500000._dp + 3000000._dp * (j-1) / (init%ny-1)
-        END DO
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, init%nx
-          init%x(i) = -0.5_dp * C%ISMIP_HOM_L + C%ISMIP_HOM_L * (i-1) / (init%nx-1)
-        END DO
-        DO j = 1, init%ny
-          init%y(j) = -0.5_dp * C%ISMIP_HOM_L + C%ISMIP_HOM_L * (j-1) / (init%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, init%nx
-          init%x(i) = 5000._dp * (i-1) / (init%nx-1)
-        END DO
-        DO j = 1, init%ny
-          init%y(j) = 25000._dp * (j-1) / (init%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, init%nx
-        DO j = 1, init%ny
-          init%x(i) = -400000._dp + 800000._dp * REAL(i-1,dp) / REAL(init%nx-1,dp)
-          init%y(j) =  -40000._dp +  80000._dp * REAL(j-1,dp) / REAL(init%ny-1,dp)
-        END DO
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
-      
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-  END SUBROUTINE initialise_init_data_fields_schematic_benchmarks
-  
-  SUBROUTINE map_init_data_to_model_grid( grid, init)
+  ! Initialise a reference geometry according to an idealised world
+  SUBROUTINE initialise_reference_geometry_idealised( grid, refgeo, choice_refgeo_idealised)
+    ! Initialise a reference geometry according to an idealised world
      
     IMPLICIT NONE
       
     ! In/output variables:
     TYPE(type_grid),                INTENT(IN)    :: grid
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    CHARACTER(LEN=256),             INTENT(IN)    :: choice_refgeo_idealised
     
-    ! Local variables:
-    INTEGER                                       :: i,j
+    ! Local variables
     
-    IF (C%do_benchmark_experiment .AND. (.NOT. C%is_restart)) THEN
-      ! No need to map, just initialise the schematic world directly on the model grid
-      CALL initialise_initial_model_state_schematic_benchmarks( grid, init)
-      RETURN
-    END IF
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
     
-    IF (par%master) WRITE(0,*) '  Mapping init    data to model grid...'
-    
-    ! Map the init data from the provided grid to the model grid
-    IF (.NOT. C%is_restart) THEN
-      ! External initial file (Bedmachine) has only geometry, no ice temperature or SMB history
-    
-      CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hi, init%wHi)
-      CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hb, init%wHb)
-      
-      CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%Hi_raw, init%Hi)
-      CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%Hb_raw, init%Hb)
-    
+    IF     (choice_refgeo_idealised == 'flatearth') THEN
+      ! Simply a flat, empty earth. Used for example in the EISMINT-1 benchmark experiments
+      CALL initialise_reference_geometry_idealised_flatearth( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'Halfar') THEN
+      ! The Halfar dome solution at t = 0
+      CALL initialise_reference_geometry_idealised_Halfar( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'Bueler') THEN
+      ! The Bueler dome solution at t = 0
+      CALL initialise_reference_geometry_idealised_Bueler( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'SSA_icestream') THEN
+      ! The SSA_icestream infinite slab on a flat slope
+      CALL initialise_reference_geometry_idealised_SSA_icestream( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'MISMIP_mod') THEN
+      ! The MISMIP_mod cone-shaped island
+      CALL initialise_reference_geometry_idealised_MISMIP_mod( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_A') THEN
+      ! The ISMIP-HOM A bumpy slope
+      CALL initialise_reference_geometry_idealised_ISMIP_HOM_A( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_B') THEN
+      ! The ISMIP-HOM B bumpy slope
+      CALL initialise_reference_geometry_idealised_ISMIP_HOM_B( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_C' .OR. &
+            choice_refgeo_idealised == 'ISMIP_HOM_D') THEN
+      ! The ISMIP-HOM C/D bumpy slope
+      CALL initialise_reference_geometry_idealised_ISMIP_HOM_CD( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_E') THEN
+      ! The ISMIP-HOM E Glacier d'Arolla geometry
+      CALL initialise_reference_geometry_idealised_ISMIP_HOM_E( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'ISMIP_HOM_F') THEN
+      ! The ISMIP-HOM A bumpy slope
+      CALL initialise_reference_geometry_idealised_ISMIP_HOM_F( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'MISMIP+') THEN
+      ! The MISMIP+ fjord geometry
+      CALL initialise_reference_geometry_idealised_MISMIPplus( grid, refgeo)
     ELSE
-      ! IMAU-ICE restart files have ice geometry, as well as temperature and SMB history
-    
-      CALL allocate_shared_dp_2D(       grid%ny, grid%nx, init%Hi,               init%wHi              )
-      CALL allocate_shared_dp_2D(       grid%ny, grid%nx, init%Hb,               init%wHb              )
-      CALL allocate_shared_dp_2D(       grid%ny, grid%nx, init%SL,               init%wSL              )
-      CALL allocate_shared_dp_2D(       grid%ny, grid%nx, init%dHb,              init%wdHb             )
-      CALL allocate_shared_dp_3D( C%nz, grid%ny, grid%nx, init%Ti,               init%wTi              )
-      CALL allocate_shared_dp_3D( 12,   grid%ny, grid%nx, init%FirnDepth,        init%wFirnDepth       )
-      CALL allocate_shared_dp_2D(       grid%ny, grid%nx, init%MeltPreviousYear, init%wMeltPreviousYear)
-    
-      IF (ABS( 1._dp - grid%dx / ABS(init%x(2) - init%x(1))) < 1E-4_dp) THEN
-        ! If the model grid is identical to the restart file grid, no remapping is needed
-        
-        init%Hi(                 :,grid%i1:grid%i2) = init%Hi_raw(                 :,grid%i1:grid%i2)
-        init%Hb(                 :,grid%i1:grid%i2) = init%Hb_raw(                 :,grid%i1:grid%i2)
-        init%SL(                 :,grid%i1:grid%i2) = init%SL_raw(                 :,grid%i1:grid%i2)
-        init%dHb(                :,grid%i1:grid%i2) = init%dHb_raw(                :,grid%i1:grid%i2)
-        init%Ti(               :,:,grid%i1:grid%i2) = init%Ti_raw(               :,:,grid%i1:grid%i2)
-        init%FirnDepth(        :,:,grid%i1:grid%i2) = init%FirnDepth_raw(        :,:,grid%i1:grid%i2)
-        init%MeltPreviousYear(   :,grid%i1:grid%i2) = init%MeltPreviousYear_raw(   :,grid%i1:grid%i2)
-        CALL sync
-        
-      ELSE
-        ! If the model grid is different from the restart file grid, remap the data
-      
-        CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%Hi_raw,               init%Hi                    )
-        CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%Hb_raw,               init%Hb                    )
-        CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%SL_raw,               init%SL                    )
-        CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%dHb_raw,              init%dHb                   )
-        CALL map_square_to_square_cons_2nd_order_3D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%Ti_raw,               init%Ti              , C%nz)
-        CALL map_square_to_square_cons_2nd_order_3D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%FirnDepth_raw,        init%FirnDepth       , 12  )
-        CALL map_square_to_square_cons_2nd_order_2D( init%nx, init%ny, init%x, init%y, grid%nx, grid%ny, grid%x, grid%y, init%MeltPreviousYear_raw, init%MeltPreviousYear      )
-        
-        ! Some small manual corrections
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          
-          IF (init%Hi( j,i) < 0._dp) THEN
-            ! Don't allow negative ice thickness
-            init%Hi(                 j,i) = 0._dp
-            init%Ti(               :,j,i) = init%Ti( 1,j,i)
-            init%FirnDepth(        :,j,i) = 0._dp
-            init%MeltPreviousYear(   j,i) = 0._dp
-          END IF
-          
-        END DO
-        END DO
-        CALL sync
-        
-      END IF ! IF (ABS( 1._dp - grid%dx / ABS(init%x(2) - init%x(1))) < 1E-4_dp) THEN
-      
-    END IF ! IF (.NOT. C%is_restart) THEN
-    
-  END SUBROUTINE map_init_data_to_model_grid
-  SUBROUTINE initialise_initial_model_state_schematic_benchmarks( grid, init)
+      IF (par%master) WRITE(0,*) 'initialise_reference_geometry_idealised - ERROR: unknown "', TRIM(choice_refgeo_idealised), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+  
+  END SUBROUTINE initialise_reference_geometry_idealised
+  SUBROUTINE initialise_reference_geometry_idealised_flatearth(     grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! Simply a flat, empty earth. Used for example in the EISMINT-1 benchmark experiments
      
     IMPLICIT NONE
       
     ! In/output variables:
     TYPE(type_grid),                INTENT(IN)    :: grid
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
     
-    ! Local variables:
+    ! Local variables
     INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hi( j,i) = 0._dp
+      refgeo%Hb( j,i) = 0._dp
+      refgeo%Hs( j,i) = 0._dp
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_flatearth
+  SUBROUTINE initialise_reference_geometry_idealised_Halfar(        grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The Halfar dome solution at t = 0
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
     
-    ! ISMIP-HOM E,F
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hi( j,i) = Halfar_solution( grid%x( i), grid%y( j), C%start_time_of_run)
+      refgeo%Hb( j,i) = 0._dp
+      refgeo%Hs( j,i) = refgeo%Hi( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_Halfar
+  SUBROUTINE initialise_reference_geometry_idealised_Bueler(        grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The Bueler dome solution at t = 0
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hi( j,i) = Bueler_solution( grid%x( i), grid%y( j), C%start_time_of_run)
+      refgeo%Hb( j,i) = 0._dp
+      refgeo%Hs( j,i) = refgeo%Hi( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_Bueler
+  SUBROUTINE initialise_reference_geometry_idealised_SSA_icestream( grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The SSA_icestream infinite slab on a flat slope
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hi( j,i) = 2000._dp
+      refgeo%Hb( j,i) = -0.001_dp * grid%x( i)
+      refgeo%Hs( j,i) = refgeo%Hb( j,i) + refgeo%Hi( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_SSA_icestream
+  SUBROUTINE initialise_reference_geometry_idealised_MISMIP_mod(    grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The MISMIP_mod cone-shaped island
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hi( j,i) = 100._dp
+      refgeo%Hb( j,i) = 720._dp - 778.5_dp * SQRT( grid%x(i)**2 + grid%y(j)**2)/ 750000._dp
+      refgeo%Hs( j,i) = refgeo%Hb( j,i) + refgeo%Hi( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_MISMIP_mod
+  SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_A(   grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The ISMIP-HOM A bumpy slope
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hs( j,i) = 2000._dp - grid%x( i) * TAN( 0.5_dp * pi / 180._dp)
+      refgeo%Hb( j,i) = refgeo%Hs( j,i) - 1000._dp + 500._dp * SIN( grid%x( i) * 2._dp * pi / C%ISMIP_HOM_L) * SIN( grid%y( j) * 2._dp * pi / C%ISMIP_HOM_L)
+      refgeo%Hi( j,i) = refgeo%Hs( j,i) - refgeo%Hb( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_A
+  SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_B(   grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The ISMIP-HOM B bumpy slope
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hs( j,i) = 2000._dp - grid%x( i) * TAN( 0.5_dp * pi / 180._dp)
+      refgeo%Hb( j,i) = refgeo%Hs( j,i) - 1000._dp + 500._dp * SIN( grid%x(i) * 2._dp * pi / C%ISMIP_HOM_L)
+      refgeo%Hi( j,i) = refgeo%Hs( j,i) - refgeo%Hb( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_B
+  SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_CD(  grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The ISMIP-HOM C/D bumpy slope
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+        refgeo%Hs( j,i) = 2000._dp - grid%x( i) * TAN( 0.1_dp * pi / 180._dp)
+        refgeo%Hb( j,i) = refgeo%Hs( j,i) - 1000._dp
+        refgeo%Hi( j,i) = refgeo%Hs( j,i) - refgeo%Hb( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_CD
+  SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_E(   grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The ISMIP-HOM E Glacier d'Arolla geometry
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
     REAL(dp)                                      :: x,Hs,Hb
     INTEGER                                       :: ios,slides
-    REAL(dp)                                      :: H0,a0,sigma
+      
+    ! Read data from external file
+    IF (par%master) THEN
+      
+      OPEN( UNIT = 1337, FILE=C%ISMIP_HOM_E_Arolla_filename, ACTION = 'READ')
+      DO i = 1, 51
+        READ( UNIT = 1337, FMT=*, IOSTAT=ios) x, Hb, Hs, slides
+        DO j = 1, grid%ny
+          refgeo%Hb( j,i) = Hb
+          refgeo%Hi( j,i) = Hs - Hb
+          refgeo%Hs( j,i) = Hs
+        END DO
+        IF (ios /= 0) THEN
+          WRITE(0,*) ' initialise_reference_geometry_idealised_ISMIP_HOM_E - ERROR: length of text file "', TRIM(C%ISMIP_HOM_E_Arolla_filename), '" should be 51 lines!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      END DO
+      CLOSE( UNIT  = 1337)
+      
+    END IF ! IF (par%master) THEN
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_E
+  SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_F(   grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The ISMIP-HOM A bumpy slope
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
     
-    ! MISMIPplus
+    ! Local variables
+    INTEGER                                       :: i,j
+    
+    REAL(dp), PARAMETER                           :: H0    = 1000._dp
+    REAL(dp), PARAMETER                           :: a0    = 100._dp
+    REAL(dp), PARAMETER                           :: sigma = 10000._dp
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      refgeo%Hs( j,i) = 5000._dp - grid%x( i) * TAN( 3._dp * pi / 180._dp)
+      refgeo%Hb( j,i) = refgeo%Hs( j,i) - H0 + a0 * EXP( -(grid%x( i)**2 + grid%y( j)**2) / sigma**2)
+      refgeo%Hi( j,i) = refgeo%Hs( j,i) - refgeo%Hb( j,i)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_ISMIP_HOM_F
+  SUBROUTINE initialise_reference_geometry_idealised_MISMIPplus(    grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The MISMIpplus fjord geometry
+     
+    IMPLICIT NONE
+      
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
+    
+    ! Local variables
+    INTEGER                                       :: i,j
+    
     INTEGER                                       :: imid,jmid
-    REAL(dp)                                      :: y,xtilde,Bx,By
+    REAL(dp)                                      :: x,y,xtilde,Bx,By
     REAL(dp), PARAMETER                           :: B0     = -150._dp
     REAL(dp), PARAMETER                           :: B2     = -728.8_dp
     REAL(dp), PARAMETER                           :: B4     = 343.91_dp
@@ -730,260 +730,94 @@ CONTAINS
     REAL(dp), PARAMETER                           :: wc     = 24000._dp
     REAL(dp), PARAMETER                           :: zbdeep = -720._dp
     
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hi, init%wHi)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hb, init%wHb)
+    imid = CEILING( REAL( grid%nx,dp) / 2._dp)
+    jmid = CEILING( REAL( grid%nx,dp) / 2._dp)
+  
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      x = grid%x( i) + 400000._dp
+      y = -40000._dp +  80000._dp * REAL(j-1,dp) / REAL(grid%ny-1,dp)
+      xtilde = x / xbar
+      Bx = B0 + (B2 * xtilde**2._dp) + (B4 * xtilde**4._dp) + (B6 * xtilde**6._dp)
+      By = (dc / (1 + EXP(-2._dp*(y - wc)/fc))) + &
+           (dc / (1 + EXP( 2._dp*(y + wc)/fc)))
+      refgeo%Hi( j,i) = 100._dp
+      refgeo%Hb( j,i) = MAX( Bx + By, zbdeep)
+      refgeo%Hs( j,i) = surface_elevation( refgeo%Hi( j,i), refgeo%Hb( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_reference_geometry_idealised_MISMIPplus
+  
+  ! Apply some light smoothing to the initial geometry to improve numerical stability
+  SUBROUTINE smooth_model_geometry( grid, Hi, Hb, Hs)
+    ! Apply some light smoothing to the initial geometry to improve numerical stability
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi, Hb, Hs
     
-    IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-        C%choice_benchmark_experiment == 'EISMINT_6') THEN
-      ! These all start ice-free
+    ! Local variables:
+    INTEGER                                            :: i,j
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hb_old,  dHb
+    INTEGER                                            :: wHb_old, wdHb
+    REAL(dp)                                           :: r_smooth
+    
+    ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
+    r_smooth = grid%dx * C%r_smooth_geometry
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, Hb_old, wHb_old)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb,    wdHb   )
+    
+    ! Calculate original surface elevation
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      Hs( j,i) = surface_elevation( Hi( j,i), Hb( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Store the unsmoothed bed topography so we can determine the smoothing anomaly later
+    Hb_old( :,grid%i1:grid%i2) = Hb( :,grid%i1:grid%i2)
+    CALL sync
+    
+    ! Apply smoothing to the bed topography
+    CALL smooth_Gaussian_2D( grid, Hb, r_smooth)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
       
-    ELSEIF (C%choice_benchmark_experiment == 'Halfar') THEN
-    
-      ! Start with the Halfar solution for the given parameters
-      init%Hb(:,grid%i1:grid%i2) = 0._dp
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        init%Hb( j,i) = 0._dp
-        init%Hi( j,i) = Halfar_solution( grid%x(i), grid%y(j), C%start_time_of_run)
-      END DO
-      END DO
-    
-    ELSEIF (C%choice_benchmark_experiment == 'Bueler') THEN
-    
-      ! Start with the Bueler solution for the given parameters
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        init%Hb( j,i) = 0._dp
-        init%Hi( j,i) = Bueler_solution( grid%x(i), grid%y(j), C%start_time_of_run)
-      END DO
-      END DO
-    
-    ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-    
-      ! Start with the set-up of the Schoof2006 SSA solution (according to Bueler&Brown 2009)
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        init%Hb( j,i) = -0.001_dp * grid%x( i)
-        init%Hi( j,i) = 2000._dp
-      END DO
-      END DO
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        init%Hi( j,i) = 100._dp
-        init%Hb( j,i) = 720._dp - 778.5_dp * SQRT( grid%x(i)**2 + grid%y(j)**2)/ 750000._dp
-      END DO
-      END DO
+      ! Calculate the smoothing anomaly
+      dHb( j,i) = Hb( j,i) - Hb_old( j,i)
       
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_A') THEN
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        Hs = 2000._dp - grid%x( i) * TAN( 0.5_dp * pi / 180._dp)
-        init%Hb( j,i) = Hs - 1000._dp + 500._dp * SIN( grid%x(i) * 2._dp * pi / C%ISMIP_HOM_L) * SIN( grid%y(j) * 2._dp * pi / C%ISMIP_HOM_L)
-        init%Hi( j,i) = Hs - init%Hb( j,i)
-      END DO
-      END DO
+      IF (.NOT. is_floating( Hi( j,i), Hb( j,i), 0._dp) .AND. Hi( j,i) > 0._dp) THEN
       
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_B') THEN
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        Hs = 2000._dp - grid%x( i) * TAN( 0.5_dp * pi / 180._dp)
-        init%Hb( j,i) = Hs - 1000._dp + 500._dp * SIN( grid%x(i) * 2._dp * pi / C%ISMIP_HOM_L)
-        init%Hi( j,i) = Hs - init%Hb( j,i)
-      END DO
-      END DO
+        ! Correct the ice thickness so the ice surface remains unchanged (only relevant for floating ice)
+        Hi( j,i) = Hi( j,i) - dHb( j,i)
       
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-            C%choice_benchmark_experiment == 'ISMIP_HOM_D') THEN
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        Hs = 2000._dp - grid%x( i) * TAN( 0.1_dp * pi / 180._dp)
-        init%Hb( j,i) = Hs - 1000._dp
-        init%Hi( j,i) = Hs - init%Hb( j,i)
-      END DO
-      END DO
+        ! Don't allow negative ice thickness
+        Hi( j,i) = MAX(0._dp, Hi( j,i))
       
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-      ! Read data from external file
-      
-      IF (par%master) THEN
-        
-        OPEN(   UNIT = 1337, FILE=C%ISMIP_HOM_E_Arolla_filename, ACTION='READ')
-        DO i = 1, 51
-          READ( UNIT = 1337, FMT=*, IOSTAT=ios) x, Hb, Hs, slides
-          DO j = 1, init%ny
-            init%Hb( j,i) = Hb
-            init%Hi( j,i) = Hs - Hb
-          END DO
-          IF (ios /= 0) THEN
-            WRITE(0,*) ' initialise_initial_model_state_schematic_benchmarks - ERROR: length of text file "', TRIM(C%ISMIP_HOM_E_Arolla_filename), '" should be 51 lines!'
-            CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-          END IF
-        END DO
-        CLOSE( UNIT  = 1337)
+        ! Correct the surface elevation for this if necessary
+        Hs( j,i) = Hi( j,i) + MAX( 0._dp - ice_density / seawater_density * Hi( j,i), Hb( j,i))
         
       END IF
       
-    ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-      
-      H0    = 1000._dp
-      a0    = 100._dp
-      sigma = 10000._dp
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        Hs = 5000._dp - grid%x( i) * TAN( 3._dp * pi / 180._dp)
-        init%Hb( j,i) = Hs - H0 + a0 * EXP( -(init%x( i)**2 + init%y( j)**2) / sigma**2)
-        init%Hi( j,i) = Hs - init%Hb( j,i)
-      END DO
-      END DO
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      imid = CEILING( REAL(grid%nx,dp) / 2._dp)
-      jmid = CEILING( REAL(grid%nx,dp) / 2._dp)
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        x = grid%x( i) + 400000._dp
-        y = -40000._dp +  80000._dp * REAL(j-1,dp) / REAL(grid%ny-1,dp)
-        xtilde = x / xbar
-        Bx = B0 + (B2 * xtilde**2._dp) + (B4 * xtilde**4._dp) + (B6 * xtilde**6._dp)
-        By = (dc / (1 + EXP(-2._dp*(y - wc)/fc))) + &
-             (dc / (1 + EXP( 2._dp*(y + wc)/fc)))
-        init%Hi( j,i) = 100._dp
-        init%Hb( j,i) = MAX( Bx + By, zbdeep)
-      END DO
-      END DO
-      
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_initial_model_state_schematic_benchmarks!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    END DO
+    END DO
     CALL sync
     
-  END SUBROUTINE initialise_initial_model_state_schematic_benchmarks
-  
-  ! ===== GIA reference equilibrium topography =====
-  ! ================================================
-  
-  SUBROUTINE initialise_topo_data_fields( topo, PD, region_name)
-    ! Allocate memory for the reference data fields, read them from the specified NetCDF file (latter only done by master process).
-   
-    IMPLICIT NONE
+    ! Clean up after yourself
+    CALL deallocate_shared( wHb_old)
+    CALL deallocate_shared( wdHb   )
     
-    ! In/output variables:
-    TYPE(type_PD_data_fields),      INTENT(INOUT) :: topo
-    TYPE(type_PD_data_fields),      INTENT(IN)    :: PD
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-  
-    IF      (region_name == 'NAM') THEN
-      topo%netcdf%filename   = C%filename_topo_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      topo%netcdf%filename   = C%filename_topo_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      topo%netcdf%filename   = C%filename_topo_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      topo%netcdf%filename   = C%filename_topo_ANT
-    END IF
-  
-    CALL allocate_shared_int_0D( topo%nx, topo%wnx)
-    CALL allocate_shared_int_0D( topo%ny, topo%wny)
-    
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
-      ! Just use the same field as PD
-      IF (par%master) THEN
-        topo%nx = PD%nx
-        topo%ny = PD%ny
-      END IF
-    ELSE
-      ! Read data from input file
-      IF (par%master) WRITE(0,*) '  Reading topo    data from file ', TRIM(topo%netcdf%filename), '...'
-      IF (par%master) CALL inquire_PD_data_file(topo)
-    END IF ! (C%do_benchmark_experiment)
-    CALL sync
+  END SUBROUTINE smooth_model_geometry
 
-    ! Read paleo data
-
-    IF (C%do_benchmark_experiment .OR. (.NOT. C%switch_paleotopography)) THEN
-
-      ! Allocate shared memory
-      CALL allocate_shared_dp_1D( topo%nx,          topo%x,      topo%wx     )
-      CALL allocate_shared_dp_1D(          topo%ny, topo%y,      topo%wy     )
-      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hi_raw, topo%wHi_raw)
-      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hb_raw, topo%wHb_raw)
-      CALL allocate_shared_dp_2D( topo%ny, topo%nx, topo%Hs_raw, topo%wHs_raw)
-  
-      IF (par%master) THEN
-        ! Just use the same field as PD
-        topo%x      = PD%x
-        topo%y      = PD%y
-        topo%Hi_raw = PD%Hi_raw
-        topo%Hs_raw = PD%Hs_raw
-        topo%Hb_raw = PD%Hb_raw
-      END IF ! IF (par%master) THEN
-      CALL sync
-
-    ELSE
-
-      ! Allocate shared memory
-      CALL allocate_shared_dp_1D( topo%nx,          topo%x,      topo%wx     )
-      CALL allocate_shared_dp_1D(          topo%ny, topo%y,      topo%wy     )
-      CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hi_raw, topo%wHi_raw)
-      CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hb_raw, topo%wHb_raw)
-      CALL allocate_shared_dp_2D( topo%nx, topo%ny, topo%Hs_raw, topo%wHs_raw)
-      
-      ! Read data from input file
-      IF (par%master) CALL read_PD_data_file( topo)
-
-      ! Safety
-      CALL check_for_NaN_dp_2D( topo%Hi_raw, 'topo%Hi_raw', 'initialise_topo_data_fields')
-      CALL check_for_NaN_dp_2D( topo%Hb_raw, 'topo%Hb_raw', 'initialise_topo_data_fields')
-      CALL check_for_NaN_dp_2D( topo%Hs_raw, 'topo%Hs_raw', 'initialise_topo_data_fields')
-      
-      ! Since we want data represented as [j,i] internally, transpose the data we just read.
-      CALL transpose_dp_2D( topo%Hi_raw, topo%wHi_raw)
-      CALL transpose_dp_2D( topo%Hb_raw, topo%wHb_raw)
-      CALL transpose_dp_2D( topo%Hs_raw, topo%wHs_raw)
-      
-      ! Remove Lake Vostok from Antarctica (because it's annoying)
-      IF (region_name == 'ANT') CALL remove_Lake_Vostok( topo%x, topo%y, topo%Hi_raw, topo%Hb_raw, topo%Hs_raw)
-
-    END IF !(C%do_benchmark_experiment)
-  
-  END SUBROUTINE initialise_topo_data_fields
-  SUBROUTINE map_topo_data_to_model_grid( grid, topo)
-   
-    IMPLICIT NONE
-    
-    ! In/output variables:
-    TYPE(type_grid),                INTENT(IN)    :: grid
-    TYPE(type_PD_data_fields),      INTENT(INOUT) :: topo
-  
-    IF (par%master) WRITE(0,*) '  Mapping topo    data to model grid...'
-  
-    ! Map the PD data from the provided grid to the model grid
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, topo%Hi, topo%wHi)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, topo%Hb, topo%wHb)
-  
-    CALL map_square_to_square_cons_2nd_order_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hi_raw, topo%Hi)
-    CALL map_square_to_square_cons_2nd_order_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hb_raw, topo%Hb)
-  
-  END SUBROUTINE map_topo_data_to_model_grid
-
-  ! ===== Analytical solutions used to initialise some benchmark experiments =====
-  ! ==============================================================================
-  
+  ! Analytical solutions used to initialise some benchmark experiments
   FUNCTION Halfar_solution( x, y, t) RESULT(H)
     ! Describes an ice-sheet at time t (in years) conforming to the Halfar similarity function 
     ! with dome thickness H0 and margin radius R0 at t0. Used to initialise the model

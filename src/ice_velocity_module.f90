@@ -24,6 +24,8 @@ MODULE ice_velocity_module
                                              map_cx_to_cy_2D, map_cy_to_cx_2D, map_a_to_cx_2D, map_a_to_cy_2D, &
                                              ddx_cx_to_cx_2D, ddy_cy_to_cx_2D, ddx_cx_to_cy_2D, ddy_cy_to_cy_2D, &
                                              ddx_cx_to_a_2D, ddy_cx_to_a_2D, ddx_cy_to_a_2D, ddy_cy_to_a_2D
+  USE basal_conditions_and_sliding_module, ONLY: calc_basal_conditions, calc_sliding_law
+  USE general_ice_model_data_module,   ONLY: determine_grounded_fractions
 
   IMPLICIT NONE
   
@@ -132,7 +134,7 @@ CONTAINS
     IF (SUM( ice%mask_sheet_a) == 0) set_velocities_to_zero = .TRUE.
     
     ! If we're prescribing no sliding, set velocities to zero
-    IF (C%no_sliding) set_velocities_to_zero = .TRUE.
+    IF (C%choice_sliding_law == 'no_sliding') set_velocities_to_zero = .TRUE.
     
     IF (set_velocities_to_zero) THEN
       ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
@@ -149,6 +151,12 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Calculate the basal yield stress tau_c
+    CALL calc_basal_conditions( grid, ice)
+    
+    ! Determine sub-grid grounded fractions for scaling the basal friction
+    CALL determine_grounded_fractions( grid, ice)
     
     ! Find analytical solution for the SSA icestream experiment (used only to print numerical error to screen)
     CALL SSA_Schoof2006_analytical_solution( 0.001_dp, 2000._dp, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
@@ -204,8 +212,8 @@ CONTAINS
       CALL calc_visc_iter_UV_resid( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy, resid_UV)
       !IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_SSA_cx), ' - ', MAXVAL(ice%u_SSA_cx), ']'
       
-      IF (par%master .AND. C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') &
-        WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_vav_cx) / umax_analytical), ': resid_UV = ', resid_UV
+      IF (par%master .AND. C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') &
+        WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_SSA_cx) / umax_analytical), ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
       IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
@@ -266,6 +274,12 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Calculate the basal yield stress tau_c
+    CALL calc_basal_conditions( grid, ice)
+    
+    ! Determine sub-grid grounded fractions for scaling the basal friction
+    CALL determine_grounded_fractions( grid, ice)
             
     ! Initially set error very high 
     ice%DIVA_err_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1E5_dp
@@ -309,7 +323,7 @@ CONTAINS
       
       ! Check if the viscosity iteration has converged
       CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
-     ! IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
+      !IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
 
       has_converged = .FALSE.
       IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
@@ -799,12 +813,6 @@ CONTAINS
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_a,  v_a
     INTEGER                                            :: wu_a, wv_a
-    REAL(dp)                                           :: dummy1, dummy2, dummy3, tauc_a_Schoof
-    REAL(dp)                                           :: uabs_a
-    INTEGER                                            :: ios,slides
-    REAL(dp), PARAMETER                                :: MISMIPplus_alpha_sq = 0.5_dp   ! See Asay-Davis et al., 2016
-    REAL(dp), PARAMETER                                :: MISMIPplus_beta_sq  = 1.0E4_dp ! Idem dito
-    REAL(dp)                                           :: N, hf
       
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_a, wu_a)
@@ -814,192 +822,12 @@ CONTAINS
     CALL map_cx_to_a_2D( grid, u_cx, u_a)
     CALL map_cy_to_a_2D( grid, v_cy, v_a)
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
-  
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-          C%choice_benchmark_experiment == 'Bueler' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-        ! No exceptions here; either no sliding is included, or the default model sliding law is used.
-      
-      ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream') THEN
-      
-        ! Calculate beta using a Coulomb sliding law with the analytical solution for tauc
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          CALL SSA_Schoof2006_analytical_solution( ABS(ice%dHs_dx_a( j,i)), ice%Hi_a( j,i), ice%A_flow_vav_a( j,i), grid%y(j), dummy1, tauc_a_Schoof)
-          ice%beta_a( j,i) = MIN( C%DIVA_beta_max, tauc_a_Schoof / SQRT(C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2))
-        END DO
-        END DO
-        CALL sync
-        RETURN
+    ! Calculate the basal friction coefficients beta on the a-grid
+    CALL calc_sliding_law( grid, ice, u_a, v_a, ice%beta_a)
         
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_C') THEN
-        
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%beta_a( j,i) = 1000._dp + 1000._dp * SIN( 2._dp * pi * grid%x( i) / C%ISMIP_HOM_L) * SIN( 2._dp * pi * grid%y( j) / C%ISMIP_HOM_L)
-        END DO
-        END DO
-        CALL sync
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_D') THEN
-        
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%beta_a( j,i) = 1000._dp + 1000._dp * SIN( 2._dp * pi * grid%x( i) / C%ISMIP_HOM_L)
-        END DO
-        END DO
-        CALL sync
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-        ! Use the externally prescribed slip zone in Haut Glacier d'Arolla
-        
-        IF (par%master) THEN
-          OPEN(   UNIT = 1337, FILE=C%ISMIP_HOM_E_Arolla_filename, ACTION='READ')
-          DO i = 1, 51
-            READ( UNIT = 1337, FMT=*, IOSTAT=ios) dummy1, dummy2, dummy3, slides
-            IF (slides == 1) THEN
-              DO j = 1, grid%ny
-                ice%beta_a( j,i) = 0._dp
-              END DO
-            ELSE
-              DO j = 1, grid%ny
-                ice%beta_a( j,i) = 1.0E30_dp
-              END DO
-            END IF
-            IF (ios /= 0) THEN
-              IF (par%master) WRITE(0,*) ' calc_basal_yield_stress - ERROR: length of text file "', TRIM(C%ISMIP_HOM_E_Arolla_filename), '" should be 51 lines!'
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-            END IF
-          END DO
-          CLOSE( UNIT  = 1337)
-        END IF ! IF (par%master) THEN
-        CALL sync
-        
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-        
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%beta_a( j,i) = (ice%A_flow_vav_a( j,i) * 1000._dp)**(-1._dp)
-        END DO
-        END DO
-        CALL sync
-        RETURN
-      
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Apply the selected sliding law for the MISMIP+ experiment (see Asay-Davis et al., 2016)
-        
-        IF     (C%MISMIPplus_sliding_law == 1) THEN
-          ! Basically a Weertman sliding law
-       
-          DO i = grid%i1, grid%i2
-          DO j = 1, grid%ny
-            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
-            ice%beta_a( j,i) = MISMIPplus_beta_sq * uabs_a ** (1._dp / C%slid_Weertman_m - 1._dp) ! Asay-Davis et al. (2016), Eq. 6
-          END DO
-          END DO
-          CALL sync
-          RETURN
-          
-        ELSEIF (C%MISMIPplus_sliding_law == 2) THEN
-          ! A sort of combined Coulomb/Weertman law
-       
-          DO i = grid%i1, grid%i2
-          DO j = 1, grid%ny
-            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
-            hf = MAX( 0._dp, -seawater_density * ice%Hb_a( j,i) / ice_density)                                                              ! Asay-Davis et al. (2016), Eq. 10
-            N  = MAX( 0._dp, ice_density * grav * (ice%Hi_a( j,i) - hf) )                                                                   ! Asay-Davis et al. (2016), Eq. 9
-            ice%beta_a( j,i) = MIN( MISMIPplus_alpha_sq * N, MISMIPplus_beta_sq * uabs_a ** (1._dp / C%slid_Weertman_m)) * uabs_a**(-1._dp) ! Asay-Davis et al. (2016), Eq. 7
-          END DO
-          END DO
-          CALL sync
-          RETURN
-          
-        ELSEIF (C%MISMIPplus_sliding_law == 3) THEN
-          ! Another combined Coulomb/Weertman law, with (apparently) a smoother transition between the two regimes
-       
-          DO i = grid%i1, grid%i2
-          DO j = 1, grid%ny
-            uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
-            hf = MAX( 0._dp, -seawater_density * ice%Hb_a( j,i) / ice_density)                                                              ! Asay-Davis et al. (2016), Eq. 10
-            N  = MAX( 0._dp, ice_density * grav * (ice%Hi_a( j,i) - hf) )                                                                   ! Asay-Davis et al. (2016), Eq. 9
-            ice%beta_a( j,i) = ((MISMIPplus_beta_sq * uabs_a**(1._dp / C%slid_Weertman_m) * MISMIPplus_alpha_sq * N) / &                    ! Asay-Davis et al. (2016), Eq. 11
-              ((MISMIPplus_beta_sq**C%slid_Weertman_m * uabs_a + (MISMIPplus_alpha_sq * N)**C%slid_Weertman_m)**(1._dp / C%slid_Weertman_m))) &
-              * uabs_a**(-1._dp)
-          END DO
-          END DO
-          CALL sync
-          RETURN
-          
-        ELSE
-          IF (par%master) WRITE(0,*) '  calc_sliding_term_beta - ERROR: MISMIPplus_sliding_law can only be 1, 2, or 3!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-        
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calc_sliding_term_beta!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
-    
-    ! Calculate the sliding term beta for the specified sliding law
-    
-    IF (C%choice_sliding_law == 'Weertman') THEN
-       ! Weertman-type sliding law
-       
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        uabs_a = SQRT( u_a( j,i)**2 + v_a( j,i)**2)
-        ice%beta_a( j,i) = ice%A_slid_a( j,i) ** (-1._dp / C%slid_Weertman_m) * uabs_a ** (1._dp / C%slid_Weertman_m - 1._dp)
-      END DO
-      END DO
-      CALL sync
-    
-    ELSEIF (C%choice_sliding_law == 'Coulomb') THEN
-        ! Coulomb-type sliding law
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
-        uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
-        ice%beta_a( j,i) = ice%tauc_a( j,i) / uabs_a
-      END DO
-      END DO
-      CALL sync
-    
-    ELSEIF (C%choice_sliding_law == 'Coulomb_regularised') THEN
-      ! Regularised Coulomb-type sliding law
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
-        uabs_a = SQRT( C%slid_Coulomb_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
-        ice%beta_a( j,i) = ice%tauc_a( j,i) * uabs_a ** (C%slid_Coulomb_reg_q_plastic - 1._dp) / (C%slid_Coulomb_reg_u_threshold ** C%slid_Coulomb_reg_q_plastic)
-      END DO
-      END DO
-      CALL sync
-      
-    ELSE
-      WRITE(0,*) ' ERROR: choice_sliding_law "', C%choice_sliding_law,'" not implemented in DIVA_sliding_term!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Clean up after yourself
+    CALl deallocate_shared( wu_a)
+    CALl deallocate_shared( wv_a)
     
     ! Limit beta to improve stability
     DO i = grid%i1, grid%i2
@@ -1018,10 +846,6 @@ CONTAINS
       END DO
       CALL sync
     END IF
-        
-    ! Clean up after yourself
-    CALl deallocate_shared( wu_a)
-    CALl deallocate_shared( wv_a)
     
     ! Safety
     CALL check_for_NaN_dp_2D( ice%beta_a, 'ice%beta_a', 'calc_sliding_term_beta')
@@ -1089,7 +913,7 @@ CONTAINS
     INTEGER                                            :: i,j
 
     ! Calculate beta_eff on the a-grid
-    IF (C%no_sliding) THEN
+    IF (C%choice_sliding_law == 'no_sliding') THEN
       ! No basal sliding allowed, impose beta_eff derived from viscosity 
 
       DO i = grid%i1, grid%i2
@@ -1174,7 +998,7 @@ CONTAINS
     INTEGER                                            :: i,j
     REAL(dp)                                           :: F2_stag
 
-    IF (C%no_sliding) THEN
+    IF (C%choice_sliding_law == 'no_sliding') THEN
       ! Set basal velocities to zero 
       ! (this comes out naturally more or less with beta_eff set as above, 
       !  but ensuring basal velocity is zero adds stability)

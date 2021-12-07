@@ -605,6 +605,11 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: PETSc_rtol
     REAL(dp),                            INTENT(IN)    :: PETSc_abstol
     
+    ! Safety
+    CALL check_for_NaN_dp_1D(  CSR%A_val, 'CSR%A_val', 'solve_matrix_equation_CSR')
+    CALL check_for_NaN_dp_1D(  CSR%b,     'CSR%b',     'solve_matrix_equation_CSR')
+    CALL check_for_NaN_dp_1D(  CSR%x,     'CSR%x',     'solve_matrix_equation_CSR')
+    
     IF (choice_matrix_solver == 'SOR') THEN
       ! Use the old simple SOR solver
       
@@ -1036,7 +1041,7 @@ CONTAINS
     CALL deallocate_shared( wmask_dst_outside_src)
   
   END SUBROUTINE map_square_to_square_cons_2nd_order_2D
-  SUBROUTINE map_square_to_square_cons_2nd_order_3D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst, nz)
+  SUBROUTINE map_square_to_square_cons_2nd_order_3D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst)
     ! Map data from one square grid to another (e.g. PD ice thickness from the square grid in the input file to the model square grid)
     
     IMPLICIT NONE
@@ -1052,12 +1057,19 @@ CONTAINS
     REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: y_dst
     REAL(dp), DIMENSION(:,:,:),         INTENT(IN)    :: d_src
     REAL(dp), DIMENSION(:,:,:),         INTENT(OUT)   :: d_dst
-    INTEGER,                            INTENT(IN)    :: nz
     
     ! Local variables
-    INTEGER                                           :: k, i1_src, i2_src, i1_dst, i2_dst
+    INTEGER                                           :: nz, k, i1_src, i2_src, i1_dst, i2_dst
     REAL(dp), DIMENSION(:,:  ), POINTER               ::  d_src_2D,  d_dst_2D
     INTEGER                                           :: wd_src_2D, wd_dst_2D
+    
+    nz = SIZE( d_src,1)
+    
+    ! Safety
+    IF (SIZE(d_dst,1) /= nz) THEN
+      IF (par%master) WRITE(0,*) 'map_square_to_square_cons_2nd_order_3D - ERROR: nz_src /= nz_dst!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     CALL partition_list( nx_src, par%i, par%n, i1_src, i2_src)
     CALL partition_list( nx_dst, par%i, par%n, i1_dst, i2_dst)
@@ -1223,7 +1235,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE map_glob_to_grid_2D
-  SUBROUTINE map_glob_to_grid_3D( nlat, nlon, lat, lon, grid, d_glob, d_grid, nz)
+  SUBROUTINE map_glob_to_grid_3D( nlat, nlon, lat, lon, grid, d_glob, d_grid)
     ! Map a data field from a global lat-lon grid to the regional square grid
     
     IMPLICIT NONE
@@ -1236,11 +1248,17 @@ CONTAINS
     TYPE(type_grid),                 INTENT(IN)  :: grid
     REAL(dp), DIMENSION(:,:,:),      INTENT(IN)  :: d_glob
     REAL(dp), DIMENSION(:,:,:),      INTENT(OUT) :: d_grid
-    INTEGER,                         INTENT(IN)  :: nz
     
     ! Local variables:
-    INTEGER                                      :: i, j, il, iu, jl, ju, k
+    INTEGER                                      :: i, j, il, iu, jl, ju, k, nz
     REAL(dp)                                     :: wil, wiu, wjl, wju
+    
+    nz = SIZE( d_glob,3)
+    
+    ! Safety
+    IF (SIZE(d_grid,1) /= nz) THEN
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -2199,6 +2217,14 @@ CONTAINS
         WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - NaN detected at [', i, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d (i) > HUGE( d( i))) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - Inf detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d (i) < -HUGE( d( i))) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - -Inf detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
     END DO
@@ -2250,6 +2276,14 @@ CONTAINS
       
       IF (d( j,i) /= d( j,i)) THEN
         WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - NaN detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( j,i) > HUGE( d( j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - Inf detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( j,i) < -HUGE( d( j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - Inf detected at [', i, ',', j, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
@@ -2308,6 +2342,14 @@ CONTAINS
         WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - NaN detected at [', i, ',', j, ',', k, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( k,j,i) > HUGE( d( k,j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - Inf detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( k,j,i) < -HUGE( d( k,j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - -Inf detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
     END DO
@@ -2361,6 +2403,14 @@ CONTAINS
         WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - NaN detected at [', i, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( i) > HUGE( d( i))) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - Inf detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( i) < -HUGE( d( i))) THEN
+        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - -Inf detected at [', i, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
       
     END DO
@@ -2412,6 +2462,14 @@ CONTAINS
       
       IF (d( j,i) /= d( j,i)) THEN
         WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - NaN detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( j,i) > HUGE( d( j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - Inf detected at [', i, ',', j, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( j,i) < -HUGE( d( j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - -Inf detected at [', i, ',', j, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
@@ -2468,6 +2526,14 @@ CONTAINS
       
       IF (d( k,j,i) /= d( k,j,i)) THEN
         WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - NaN detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( k,j,i) > HUGE( d( k,j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - Inf detected at [', i, ',', j, ',', k, &
+          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (d( k,j,i) < -HUGE( d( k,j,i))) THEN
+        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - -Inf detected at [', i, ',', j, ',', k, &
           '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF

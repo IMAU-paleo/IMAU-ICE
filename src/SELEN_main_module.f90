@@ -170,7 +170,7 @@ CONTAINS
       
       ! Bedrock
       region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
-      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%PD%Hb( j,i)
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_PD%Hb( j,i)
       
       ! Geoid
       region%ice%SL_a(  j,i) = region%ice%SL_a( j,i) + region%ice%dSL_dt_a( j,i) * region%dt
@@ -637,10 +637,10 @@ CONTAINS
     
     CALL map_square_to_square_cons_2nd_order_2D( region%grid%nx,     region%grid%ny,     region%grid%x,     region%grid%y,&
                                                  region%grid_GIA%nx, region%grid_GIA%ny, region%grid_GIA%x, region%grid_GIA%y, &
-                                                 region%PD%Hi, Hi_PD_grid_GIA)
+                                                 region%refgeo_PD%Hi, Hi_PD_grid_GIA)
     CALL map_square_to_square_cons_2nd_order_2D( region%grid%nx,     region%grid%ny,     region%grid%x,     region%grid%y, &
                                                  region%grid_GIA%nx, region%grid_GIA%ny, region%grid_GIA%x, region%grid_GIA%y, &
-                                                 region%PD%Hb, Hb_PD_grid_GIA)
+                                                 region%refgeo_PD%Hb, Hb_PD_grid_GIA)
     
     DO i = region%grid_GIA%i1, region%grid_GIA%i2
     DO j = 1, region%grid_GIA%ny

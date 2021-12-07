@@ -10,10 +10,13 @@ MODULE SMB_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_subclimate_region, type_init_data_fields, type_SMB_model
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_climate_matrix_regional, &
+                                             type_climate_snapshot_regional, type_direct_SMB_forcing_regional, type_restart_data
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_SMB, read_restart_file_SMB
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
-                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
+                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                             map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
+                                             transpose_dp_2D, transpose_dp_3D
   USE forcing_module,                  ONLY: forcing
   USE parameters_module,               ONLY: T0, L_fusion, sec_per_year, pi, ice_density
 
@@ -23,101 +26,234 @@ MODULE SMB_module
   REAL(dp), PARAMETER :: albedo_soil         = 0.2_dp
   REAL(dp), PARAMETER :: albedo_ice          = 0.5_dp
   REAL(dp), PARAMETER :: albedo_snow         = 0.85_dp
-  REAL(dp), PARAMETER :: initial_snow_depth  = 0.1_dp
     
 CONTAINS
 
-  ! The main routine that is called from IMAU_ICE_main_model
-  SUBROUTINE run_SMB_model( grid, ice, climate, time, SMB, mask_noice)
+! == The main routines that should be called from the main ice model/program
+! ==========================================================================
+
+  SUBROUTINE run_SMB_model( grid, ice, climate_matrix, time, SMB, mask_noice)
     ! Run the selected SMB model.
     
     IMPLICIT NONE
     
     ! In/output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice
+    TYPE(type_climate_matrix_regional),   INTENT(IN)    :: climate_matrix
+    REAL(dp),                             INTENT(IN)    :: time
+    TYPE(type_SMB_model),                 INTENT(INOUT) :: SMB
+    INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
+    
+    ! Local variables:
+    INTEGER                                             :: i,j
+
+    IF     (C%choice_SMB_model == 'uniform') THEN
+      ! Apply a simple uniform SMB
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (mask_noice( j,i) == 0) THEN
+          SMB%SMB_year( j,i) = C%SMB_uniform
+        ELSE
+          SMB%SMB_year( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_SMB_model == 'idealised') THEN
+      ! Apply an idealised SMB parameterisation
+      
+      CALL run_SMB_model_idealised( grid, SMB, time, mask_noice)
+      
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
+      ! Run the IMAU-ITM SMB model
+      
+      CALL run_SMB_model_IMAUITM( grid, ice, climate_matrix%applied, SMB, mask_noice)
+      
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+      ! Run the IMAU-ITM SMB model with the old wrong refreezing parameterisation from ANICE
+      
+      CALL run_SMB_model_IMAUITM_wrongrefreezing( grid, ice, climate_matrix%applied, SMB, mask_noice)
+      
+    ELSEIF (C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Use a directly prescribed global/regional SMB
+      
+      CALL run_SMB_model_direct( grid, climate_matrix%SMB_direct, SMB, time, mask_noice)
+      
+    ELSE
+      IF (par%master) WRITE(0,*) 'run_SMB_model - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+          
+  END SUBROUTINE run_SMB_model
+  SUBROUTINE initialise_SMB_model( grid, ice, SMB, region_name)
+    ! Allocate memory for the data fields of the SMB model.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice 
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    IF (par%master) WRITE (0,*) '  Initialising regional SMB model "', TRIM(C%choice_SMB_model), '"...'
+    
+    ! Allocate shared memory
+    IF     (C%choice_SMB_model == 'uniform' .OR. &
+            C%choice_SMB_model == 'idealised' .OR. &
+            C%choice_SMB_model == 'direct_global' .OR. &
+            C%choice_SMB_model == 'direct_regional') THEN
+      ! Only need yearly total SMB in these cases
+      
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
+      
+    ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+            C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+      ! Allocate memory and initialise some fields for the IMAU-ITM SMB model
+      
+      CALL initialise_SMB_model_IMAU_ITM( grid, ice, SMB, region_name)
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_SMB_model - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+  
+  END SUBROUTINE initialise_SMB_model
+  
+! == Idealised SMB parameterisations
+! ==================================
+
+  SUBROUTINE run_SMB_model_idealised( grid, SMB, time, mask_noice)
+    ! Run the selected SMB model.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_SMB_model),                 INTENT(INOUT) :: SMB
+    REAL(dp),                             INTENT(IN)    :: time
+    INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
+    
+    IF     (C%choice_idealised_SMB == 'EISMINT1_A' .OR. &
+            C%choice_idealised_SMB == 'EISMINT1_B' .OR. &
+            C%choice_idealised_SMB == 'EISMINT1_C' .OR. &
+            C%choice_idealised_SMB == 'EISMINT1_D' .OR. &
+            C%choice_idealised_SMB == 'EISMINT1_E' .OR. &
+            C%choice_idealised_SMB == 'EISMINT1_F') THEN
+      CALL run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
+    ELSEIF (C%choice_idealised_SMB == 'Bueler') THEN
+      CALL run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
+    ELSE
+      IF (par%master) WRITE(0,*) 'run_SMB_model_idealised - ERROR: unknown choice_idealised_SMB "', TRIM(C%choice_idealised_SMB), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+          
+  END SUBROUTINE run_SMB_model_idealised
+  SUBROUTINE run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    REAL(dp),                            INTENT(IN)    :: time
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
     INTEGER                                            :: i,j
     
-  ! ================================================
-  ! ===== Exceptions for benchmark experiments =====
-  ! ================================================
+    REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
+    REAL(dp)                                           :: dist            ! distance to centre of circle
+    REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
+    REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
     
-    IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_6') THEN
-          
-        CALL EISMINT_SMB( grid, time, SMB)
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream') THEN
-        SMB%SMB_year(   :,grid%i1:grid%i2) = 0._dp
-        SMB%SMB(      :,:,grid%i1:grid%i2) = 0._dp
-        CALL sync
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'Bueler') THEN
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          SMB%SMB_year( j,i) = Bueler_solution_MB( grid%x(i), grid%y(j), time)
-          SMB%SMB(    :,j,i) = SMB%SMB_year( j,i) / 12._dp
-        END DO
-        END DO
-        CALL sync
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-        SMB%SMB_year(   :,grid%i1:grid%i2) = 0.3_dp
-        SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
-        CALL sync
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        SMB%SMB_year(   :,grid%i1:grid%i2) = 0.3_dp
-        SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
-        CALL sync
-        RETURN
+    ! Default EISMINT configuration
+    E         = 450000._dp
+    S_b       = 0.01_dp / 1000._dp 
+    M_max     = 0.5_dp
+    
+    IF     (C%choice_idealised_SMB == 'EISMINT1_A') THEN ! Moving margin, steady state
+      ! No changes
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_B') THEN ! Moving margin, 20 kyr
+      IF (time < 0._dp) THEN
+        ! No changes; first 120 kyr are initialised with EISMINT_1
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_SMB_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 20000._dp)
       END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-  ! =======================================================
-  ! ===== End of exceptions for benchmark experiments =====
-  ! =======================================================
-    
-    ! Run the selected SMB model
-    ! If C%choice_forcing_method == 'SMB_direct', SMB is directly given, no need for a calculation
-    IF (C%choice_forcing_method == 'SMB_direct' ) THEN 
-      CALL sync
-      RETURN
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_C') THEN ! Moving margin, 40 kyr
+      IF (time < 0._dp) THEN
+        ! No changes; first 120 kyr are initialised with EISMINT_1
+      ELSE
+        E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 40000._dp)
+      END IF
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_D') THEN ! Fixed margin, steady state
+      M_max       = 0.3_dp       
+      E           = 999000._dp
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_E') THEN ! Fixed margin, 20 kyr
+      IF (time < 0._dp) THEN
+        M_max     = 0.3_dp
+        E         = 999000._dp 
+      ELSE
+        M_max     = 0.3_dp + 0.2_dp * SIN( 2._dp * pi * time / 20000._dp)
+        E         = 999000._dp 
+      END IF
+    ELSEIF (C%choice_idealised_SMB == 'EISMINT1_F') THEN ! Fixed margin, 40 kyr
+      IF (time < 0._dp) THEN
+        M_max     = 0.3_dp
+        E         = 999000._dp 
+      ELSE
+        M_max     = 0.3_dp + 0.2_dp * SIN( 2._dp * pi * time / 40000._dp)
+        E         = 999000._dp 
+      END IF
     END IF
 
-    IF     (C%choice_SMB_model == 'uniform') THEN
-      SMB%SMB_year( :,grid%i1:grid%i2) = C%SMB_uniform
-      CALL sync
-    ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      CALL run_IMAUITM( grid, ice, climate, SMB, mask_noice)
-    ELSEIF (C%choice_SMB_model == 'IMAU-ITM_wrongrefreezinn') THEN
-      CALL run_IMAUITM_wrongrefreezing( grid, ice, climate, SMB, mask_noice)
-    ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_SMB_model "', TRIM(C%choice_SMB_model), '" not implemented in run_SMB_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 0) THEN
+        dist = SQRT(grid%x(i)**2+grid%y(j)**2)
+        SMB%SMB_year( j,i) = MIN( M_max, S_b * (E - dist))
+      ELSE
+        SMB%SMB_year( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
           
-  END SUBROUTINE run_SMB_model
+  END SUBROUTINE run_SMB_model_idealised_EISMINT1
+  SUBROUTINE run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    REAL(dp),                            INTENT(IN)    :: time
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 0) THEN
+        SMB%SMB_year( j,i) = Bueler_solution_MB( grid%x(i), grid%y(j), time)
+      ELSE
+        SMB%SMB_year( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+          
+  END SUBROUTINE run_SMB_model_idealised_Bueler
   
-  ! The IMAU-ITM SMB model
-  SUBROUTINE run_IMAUITM( grid, ice, climate, SMB, mask_noice)
+! == The IMAU-ITM SMB model
+! =========================
+
+  SUBROUTINE run_SMB_model_IMAUITM( grid, ice, climate, SMB, mask_noice)
     ! Run the IMAU-ITM SMB model.
     
     ! NOTE: all the SMB components are in meters of water equivalent;
@@ -126,16 +262,16 @@ CONTAINS
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice 
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    TYPE(type_grid),                      INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice 
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_SMB_model),                 INTENT(INOUT) :: SMB
+    INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
-    INTEGER                                            :: i,j,m
-    INTEGER                                            :: mprev
-    REAL(dp)                                           :: snowfrac, liquid_water, sup_imp_wat
+    INTEGER                                             :: i,j,m
+    INTEGER                                             :: mprev
+    REAL(dp)                                            :: snowfrac, liquid_water, sup_imp_wat
     
     ! Make sure this routine is called correctly
     IF (.NOT. C%choice_SMB_model == 'IMAU-ITM') THEN
@@ -236,8 +372,8 @@ CONTAINS
     CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_IMAUITM')
     CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_IMAUITM')
           
-  END SUBROUTINE run_IMAUITM
-  SUBROUTINE run_IMAUITM_wrongrefreezing( grid, ice, climate, SMB, mask_noice)
+  END SUBROUTINE run_SMB_model_IMAUITM
+  SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing( grid, ice, climate, SMB, mask_noice)
     ! Run the IMAU-ITM SMB model. Old version, exactly as it was in ANICE2.1 (so with the "wrong" refreezing)
     
     ! NOTE: all the SMB components and the total are in meters of water equivalent
@@ -245,16 +381,16 @@ CONTAINS
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(IN)    :: ice 
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    TYPE(type_grid),                      INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice 
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_SMB_model),                 INTENT(INOUT) :: SMB
+    INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
-    INTEGER                                            :: i,j,m
-    INTEGER                                            :: mprev
-    REAL(dp)                                           :: snowfrac, liquid_water, sup_imp_wat
+    INTEGER                                             :: i,j,m
+    INTEGER                                             :: mprev
+    REAL(dp)                                            :: snowfrac, liquid_water, sup_imp_wat
     
     ! Make sure this routine is called correctly
     IF (.NOT. C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -347,79 +483,252 @@ CONTAINS
     CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_IMAUITM_wrongrefreezing')
     CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_IMAUITM_wrongrefreezing')
           
-  END SUBROUTINE run_IMAUITM_wrongrefreezing
-  
-  ! The EISMINT SMB parameterisations
-  SUBROUTINE EISMINT_SMB( grid, time, SMB)
-    ! Run the IMAU-ITM SMB model. Based on the one from ANICE.
-    
-    ! NOTE: all the SMB components and the total are in meters of water equivalent
+  END SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing
+  SUBROUTINE initialise_SMB_model_IMAU_ITM( grid, ice, SMB, region_name)
+    ! Allocate memory for the data fields of the SMB model.
     
     IMPLICIT NONE
     
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
-    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
-    ! Local variables:
+    ! Local variables
     INTEGER                                            :: i,j
+    CHARACTER(LEN=256)                                 :: SMB_IMAUITM_choice_init_firn
     
-    REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
-    REAL(dp)                                           :: dist            ! distance to centre of circle
-    REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
-    REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
+    IF (par%master) WRITE (0,*) '  Initialising the IMAU-ITM SMB model...'
     
-    ! Default EISMINT configuration
-    E         = 450000._dp
-    S_b       = 0.01_dp / 1000._dp 
-    M_max     = 0.5_dp
+    ! Data fields
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%AlbedoSurf      , SMB%wAlbedoSurf      )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%MeltPreviousYear, SMB%wMeltPreviousYear)
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%FirnDepth       , SMB%wFirnDepth       )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Rainfall        , SMB%wRainfall        )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Snowfall        , SMB%wSnowfall        )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%AddedFirn       , SMB%wAddedFirn       )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Melt            , SMB%wMelt            )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Refreezing      , SMB%wRefreezing      )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%Refreezing_year , SMB%wRefreezing_year )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Runoff          , SMB%wRunoff          )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Albedo          , SMB%wAlbedo          )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%Albedo_year     , SMB%wAlbedo_year     )
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%SMB             , SMB%wSMB             )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%SMB_year        , SMB%wSMB_year        )
     
-    IF     (C%choice_benchmark_experiment == 'EISMINT_1') THEN ! Moving margin, steady state
-      ! No changes
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_2') THEN ! Moving margin, 20 kyr
-      IF (time < 0._dp) THEN
-        ! No changes; first 120 kyr are initialised with EISMINT_1
-      ELSE
-        E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 20000._dp)
+    ! Tuning parameters
+    CALL allocate_shared_dp_0D( SMB%C_abl_constant, SMB%wC_abl_constant)
+    CALL allocate_shared_dp_0D( SMB%C_abl_Ts,       SMB%wC_abl_Ts      )
+    CALL allocate_shared_dp_0D( SMB%C_abl_Q,        SMB%wC_abl_Q       )
+    CALL allocate_shared_dp_0D( SMB%C_refr,         SMB%wC_refr        )
+    
+    IF (par%master) THEN
+      IF     (region_name == 'NAM') THEN
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_NAM
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_NAM
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_NAM
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_NAM
+      ELSEIF (region_name == 'EAS') THEN
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_EAS
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_EAS
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_EAS
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_EAS
+      ELSEIF (region_name == 'GRL') THEN
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_GRL
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_GRL
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_GRL
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_GRL
+      ELSEIF (region_name == 'ANT') THEN
+        SMB%C_abl_constant           = C%SMB_IMAUITM_C_abl_constant_ANT
+        SMB%C_abl_Ts                 = C%SMB_IMAUITM_C_abl_Ts_ANT
+        SMB%C_abl_Q                  = C%SMB_IMAUITM_C_abl_Q_ANT
+        SMB%C_refr                   = C%SMB_IMAUITM_C_refr_ANT
       END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_3') THEN ! Moving margin, 40 kyr
-      IF (time < 0._dp) THEN
-        ! No changes; first 120 kyr are initialised with EISMINT_1
-      ELSE
-        E         = 450000._dp + 100000._dp * SIN( 2._dp * pi * time / 40000._dp)
-      END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_4') THEN ! Fixed margin, steady state
-      M_max       = 0.3_dp       
-      E           = 999000._dp
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_5') THEN ! Fixed margin, 20 kyr
-      IF (time < 0._dp) THEN
-        M_max     = 0.3_dp
-        E         = 999000._dp 
-      ELSE
-        M_max     = 0.3_dp + 0.2_dp * SIN( 2._dp * pi * time / 20000._dp)
-        E         = 999000._dp 
-      END IF
-    ELSEIF (C%choice_benchmark_experiment == 'EISMINT_6') THEN ! Fixed margin, 40 kyr
-      IF (time < 0._dp) THEN
-        M_max     = 0.3_dp
-        E         = 999000._dp 
-      ELSE
-        M_max     = 0.3_dp + 0.2_dp * SIN( 2._dp * pi * time / 40000._dp)
-        E         = 999000._dp 
-      END IF
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Initialisation choice
+    IF     (region_name == 'NAM') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      SMB_IMAUITM_choice_init_firn = C%SMB_IMAUITM_choice_init_firn_ANT
     END IF
-
+    
+    ! Initialise the firn layer
+    IF     (SMB_IMAUITM_choice_init_firn == 'uniform') THEN
+      ! Initialise with a uniform firn layer over the ice sheet
+    
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%Hi_a( j,i) > 0._dp) THEN
+          SMB%FirnDepth(        :,j,i) = C%SMB_IMAUITM_initial_firn_thickness
+          SMB%MeltPreviousYear(   j,i) = 0._dp
+        ELSE
+          SMB%FirnDepth(        :,j,i) = 0._dp
+          SMB%MeltPreviousYear(   j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (SMB_IMAUITM_choice_init_firn == 'restart') THEN
+      ! Initialise with the firn layer of a previous run
+      
+      CALL initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
+      
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_SMB_model_IMAU_ITM - ERROR: unknown SMB_IMAUITM_choice_init_firn "', TRIM(SMB_IMAUITM_choice_init_firn), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Initialise albedo
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      dist = SQRT(grid%x(i)**2+grid%y(j)**2)
-      SMB%SMB_year( j,i) = MIN( M_max, S_b * (E - dist))
-      SMB%SMB(    :,j,i) = SMB%SMB_year( j,i) / 12._dp
+      
+      ! Background albedo
+      IF (ice%Hb_a( j,i) < 0._dp) THEN
+        SMB%AlbedoSurf( j,i) = albedo_water
+      ELSE
+        SMB%AlbedoSurf( j,i) = albedo_soil
+      END IF
+      IF (ice%Hi_a( j,i) > 0._dp) THEN
+        SMB%AlbedoSurf(  j,i) = albedo_snow
+      END IF
+      
+      SMB%Albedo( :,j,i) = SMB%AlbedoSurf( j,i)
+      
     END DO
     END DO
     CALL sync
-          
-  END SUBROUTINE EISMINT_SMB
+  
+  END SUBROUTINE initialise_SMB_model_IMAU_ITM
+  SUBROUTINE initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
+    ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Local variables
+    CHARACTER(LEN=256)                                 :: filename_restart
+    REAL(dp)                                           :: time_to_restart_from
+    TYPE(type_restart_data)                            :: restart
+    
+    ! Assume that SMB and geometry are read from the same restart file
+    IF     (region_name == 'NAM') THEN
+      filename_restart     = C%filename_refgeo_init_NAM
+      time_to_restart_from = C%time_to_restart_from_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_restart     = C%filename_refgeo_init_EAS
+      time_to_restart_from = C%time_to_restart_from_EAS
+    ELSEIF (region_name == 'GR:') THEN
+      filename_restart     = C%filename_refgeo_init_GRL
+      time_to_restart_from = C%time_to_restart_from_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_restart     = C%filename_refgeo_init_ANT
+      time_to_restart_from = C%time_to_restart_from_ANT
+    END IF
+    
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
+    CALL allocate_shared_int_0D( restart%ny, restart%wny)
+    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
+    IF (par%master) THEN
+      restart%netcdf%filename = filename_restart
+      CALL inquire_restart_file_SMB( restart)
+    END IF
+    CALL sync
+    
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
+    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
+    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
+    
+    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
+    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
+  
+    ! Read data from input file
+    IF (par%master) CALL read_restart_file_SMB( restart, time_to_restart_from)
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth',        'initialise_ice_temperature')
+    CALL check_for_NaN_dp_2D( restart%MeltPreviousYear, 'restart%MeltPreviousYear', 'initialise_ice_temperature')
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_3D( restart%FirnDepth,        restart%wFirnDepth       )
+    CALL transpose_dp_2D( restart%MeltPreviousYear, restart%wMeltPreviousYear)
+    
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%FirnDepth,        SMB%FirnDepth       )
+    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%MeltPreviousYear, SMB%MeltPreviousYear)
+    
+    ! Deallocate raw data
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wFirnDepth       )
+    CALL deallocate_shared( restart%wMeltPreviousYear)
+  
+  END SUBROUTINE initialise_IMAU_ITM_firn_restart
+
+! == Directly prescribed global/regional SMB
+! ==========================================
+
+  SUBROUTINE run_SMB_model_direct( grid, SMB_direct, SMB, time, mask_noice)
+    ! Run the selected SMB model: direct global/regional SMB forcing.
+    !
+    ! NOTE: the whole business of reading the data from the NetCDF file and mapping
+    !       it to the model grid is handled by the climate_module!
+    ! NOTE ALSO: since the climate_module routines for the "direct_global" option
+    !       already map the results to the model grid (located in region%climate_matrix%SMB_direct),
+    !       in this routine here we can treat "direct_global" and "direct_regional" the same way
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                        INTENT(IN)    :: grid
+    TYPE(type_direct_SMB_forcing_regional), INTENT(IN)    :: SMB_direct
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
+    REAL(dp),                               INTENT(IN)    :: time
+    INTEGER,  DIMENSION(:,:  ),             INTENT(IN)    :: mask_noice
+
+    ! Local variables
+    REAL(dp)                                           :: wt0, wt1
+    INTEGER                                            :: i,j
+
+    ! Interpolate the two timeframes in time
+    wt0 = (SMB_direct%t1 - time) / (SMB_direct%t1 - SMB_direct%t0)
+    wt1 = 1._dp - wt0
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 0) THEN
+        SMB%SMB_year( j,i) = (wt0 * SMB_direct%SMB_year0( j,i)) + (wt1 * SMB_direct%SMB_year1( j,i))
+      ELSE
+        SMB%SMB_year( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE run_SMB_model_direct
+  
+! == Some generally useful tools
+! ==============================
+
   FUNCTION Bueler_solution_MB( x, y, t) RESULT(M)
     ! Describes an ice-sheet at time t (in years) conforming to the Bueler solution
     ! with dome thickness H0 and margin radius R0 at t0, with a surface mass balance
@@ -465,113 +774,5 @@ CONTAINS
     M = (lambda / tp) * H * sec_per_year
   
   END FUNCTION Bueler_solution_MB
-  
-  ! Initialise the SMB model (allocating shared memory)
-  SUBROUTINE initialise_SMB_model( grid, init, SMB, region_name)
-    ! Allocate memory for the data fields of the SMB model.
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_init_data_fields),         INTENT(IN)    :: init
-    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
-    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    
-    ! Local variables
-    INTEGER                                            :: i,j
-    
-    IF (par%master) WRITE (0,*) '  Initialising SMB model...'
-    
-    ! Allocate shared memory
-    IF     (C%choice_SMB_model == 'uniform') THEN
-      ! Uniform mass balance
-      
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%SMB_year        , SMB%wSMB_year        )
-      
-    ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      ! Allocate memory and initialise some fields for the IMAU-ITM SMB model
-    
-      ! Data fields
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%AlbedoSurf      , SMB%wAlbedoSurf      )
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%MeltPreviousYear, SMB%wMeltPreviousYear)
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%FirnDepth       , SMB%wFirnDepth       )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Rainfall        , SMB%wRainfall        )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Snowfall        , SMB%wSnowfall        )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%AddedFirn       , SMB%wAddedFirn       )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Melt            , SMB%wMelt            )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Refreezing      , SMB%wRefreezing      )
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%Refreezing_year , SMB%wRefreezing_year )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Runoff          , SMB%wRunoff          )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Albedo          , SMB%wAlbedo          )
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%Albedo_year     , SMB%wAlbedo_year     )
-      CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%SMB             , SMB%wSMB             )
-      CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%SMB_year        , SMB%wSMB_year        )
-      
-      ! Tuning parameters
-      CALL allocate_shared_dp_0D( SMB%C_abl_constant, SMB%wC_abl_constant)
-      CALL allocate_shared_dp_0D( SMB%C_abl_Ts,       SMB%wC_abl_Ts      )
-      CALL allocate_shared_dp_0D( SMB%C_abl_Q,        SMB%wC_abl_Q       )
-      CALL allocate_shared_dp_0D( SMB%C_refr,         SMB%wC_refr        )
-      
-      IF (par%master) THEN
-        IF     (region_name == 'NAM') THEN
-          SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_NAM
-          SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_NAM
-          SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_NAM
-          SMB%C_refr         = C%SMB_IMAUITM_C_refr_NAM
-        ELSEIF (region_name == 'EAS') THEN
-          SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_EAS
-          SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_EAS
-          SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_EAS
-          SMB%C_refr         = C%SMB_IMAUITM_C_refr_EAS
-        ELSEIF (region_name == 'GRL') THEN
-          SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_GRL
-          SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_GRL
-          SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_GRL
-          SMB%C_refr         = C%SMB_IMAUITM_C_refr_GRL
-        ELSEIF (region_name == 'ANT') THEN
-          SMB%C_abl_constant = C%SMB_IMAUITM_C_abl_constant_ANT
-          SMB%C_abl_Ts       = C%SMB_IMAUITM_C_abl_Ts_ANT
-          SMB%C_abl_Q        = C%SMB_IMAUITM_C_abl_Q_ANT
-          SMB%C_refr         = C%SMB_IMAUITM_C_refr_ANT
-        END IF
-      END IF ! IF (par%master) THEN
-      CALL sync
-      
-      ! Initialise albedo to background albedo
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Background albedo
-        IF (init%Hb( j,i) < 0._dp) THEN
-          SMB%AlbedoSurf( j,i) = albedo_water
-        ELSE
-          SMB%AlbedoSurf( j,i) = albedo_soil
-        END IF
-        
-        IF (init%Hi( j,i) > 0._dp) THEN
-          SMB%AlbedoSurf(  j,i) = albedo_snow
-          SMB%FirnDepth( :,j,i) = initial_snow_depth   
-        END IF
-        
-        SMB%Albedo( :,j,i) = SMB%AlbedoSurf( j,i)
-        
-      END DO
-      END DO
-      CALL sync
-      
-      IF (C%is_restart) THEN
-        SMB%FirnDepth(        :,:,grid%i1:grid%i2) = init%FirnDepth(        :,:,grid%i1:grid%i2)
-        SMB%MeltPreviousYear(   :,grid%i1:grid%i2) = init%MeltPreviousYear(   :,grid%i1:grid%i2)
-        CALL sync
-      END IF
-    
-    ELSE ! IF     (C%choice_SMB_model == 'uniform') THEN
-      WRITE(0,*) ' ERROR: choice_SMB_model "', C%choice_SMB_model,'" not implemented in initialise_SMB_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-  
-  END SUBROUTINE initialise_SMB_model
 
 END MODULE SMB_module

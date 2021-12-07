@@ -11,7 +11,7 @@ MODULE calving_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_PD_data_fields
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -22,7 +22,7 @@ MODULE calving_module
 CONTAINS
 
   ! The main routine that's called from the IMAU_ICE_main_model
-  SUBROUTINE apply_calving_law( grid, ice, PD, topo)
+  SUBROUTINE apply_calving_law( grid, ice, refgeo_PD, refgeo_GIAeq)
     ! Calculate the calving flux
 
     IMPLICIT NONE
@@ -30,54 +30,11 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: PD
-    TYPE(type_PD_data_fields),           INTENT(IN)    :: topo
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     INTEGER                                            :: i,j
-    
-    ! Exceptions for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus') THEN
-        ! No calving in these experiments
-        RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Use the specified calving law in these experiments
-        IF     (C%MISOMIP1_scenario == 'IceOcean0' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean1rr') THEN
-          ! No calving here
-          RETURN
-        ELSEIF (C%MISOMIP1_scenario == 'IceOcean2ra' .OR. &
-                C%MISOMIP1_scenario == 'IceOcean2rr') THEN
-          ! Threshold thickness calving here
-          C%choice_calving_law = 'threshold_thickness'
-          C%calving_threshold_thickness = 100._dp
-        ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: MISOMIP1_scenario "', TRIM(C%MISOMIP1_scenario), '" not implemented in calculate_calving_flux!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        END IF
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calculate_calving_flux!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
     
     ! If so specified, remove all floating ice
     IF (C%do_remove_shelves) THEN
@@ -106,7 +63,7 @@ CONTAINS
     IF (C%remove_shelves_larger_than_PD) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (PD%Hi( j,i) == 0._dp .AND. PD%Hb( j,i) < 0._dp) THEN
+        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO
@@ -118,7 +75,7 @@ CONTAINS
     IF (C%continental_shelf_calving) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (topo%Hi( j,i) == 0._dp .AND. topo%Hb( j,i) < C%continental_shelf_min_height) THEN
+        IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO

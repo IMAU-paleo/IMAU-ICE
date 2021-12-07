@@ -35,63 +35,21 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: dt
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
-    ! Local variables:
-    INTEGER                                            :: i,j
-    
-    ! Exceptions for benchmark experiments with no time evolution
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! No exceptions here; these experiments have evolving ice geometry
-      ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-        ! These experiments have no time evolution; don't change ice thickness
-        ice%dHi_dt_a( :,grid%i1:grid%i2) = 0._dp
-        CALL sync
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calc_dHi_dt!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
     ! Use the specified time integration method to calculate the ice thickness at t+dt
-    IF     (C%choice_ice_integration_method == 'explicit') THEN
+    IF     (C%choice_ice_integration_method == 'none') THEN
+      ice%dHi_dt_a( :,grid%i1:grid%i2) = 0._dp
+      CALL sync
+    ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
       CALL calc_dHi_dt_explicit(     grid, ice, SMB, BMB, dt)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       CALL calc_dHi_dt_semiimplicit( grid, ice, SMB, BMB, dt)
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_ice_integration_method "', TRIM(C%choice_ice_integration_method), '" not implemented in calc_dHi_dt!'
+      IF (par%master) WRITE(0,*) 'calc_dHi_dt - ERROR: unknown choice_ice_integration_method "', TRIM(C%choice_ice_integration_method), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! Remove ice in areas where no ice is allowed (i.e. Greenland in NAM and EAS, and Ellesmere Island in GRL)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      IF (mask_noice(     j,i) == 1) THEN
-        ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-        ice%Hi_tplusdt_a( j,i) = 0._dp
-      END IF
-    END DO
-    END DO
-    CALL sync
-    
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice, dt)
+    CALL apply_ice_thickness_BC( grid, ice, dt, mask_noice)
     
     ! Remove free-floating shelves not connected to any grounded ice
     CALL remove_unconnected_shelves( grid, ice, dt)
@@ -693,7 +651,8 @@ CONTAINS
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit
     
   ! Some useful tools
-  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt)
+  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt, mask_noice)
+    ! Apply ice thickness boundary conditions (at the domain boundary, and through the mask_noice)
     
     IMPLICIT NONE
     
@@ -701,101 +660,93 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: dt
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
     INTEGER                                            :: i,j
-
-    IF (.NOT. C%do_benchmark_experiment) THEN
-          
-      ! For realistic experiments set ice thickness to zero at the domain boundary
-      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = -ice%Hi_a( 1              ,grid%i1:grid%i2) / dt
-      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = -ice%Hi_a( grid%ny        ,grid%i1:grid%i2) / dt
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1              ) / dt
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx        ) / dt
-      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 0._dp
-      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
+    
+    ! West
+    IF     (C%ice_thickness_west_BC == 'zero') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
-      CALL sync
-      
+    ELSEIF (C%ice_thickness_west_BC == 'infinite') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%dHi_dt_a( grid%j1:grid%j2,2) - ice%dHi_dt_a( grid%j1:grid%j2,1)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2)
+    ELSEIF (C%ice_thickness_west_BC == 'periodic') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%dHi_dt_a( grid%j1:grid%j2,grid%nx-1) - ice%dHi_dt_a( grid%j1:grid%j2,1)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
+    ELSEIF (C%ice_thickness_west_BC == 'ISMIP_HOM_F') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,1)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 1000._dp
     ELSE
-        
-      IF     (C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
-        ! No exceptions here; in these cases, ice thickness is not updated anyway
-        ! (so we should never reach this point!)
-        
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" should not change ice thickness!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        
-      ELSEIF (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler') THEN
-          
-        ! Apply boundary conditions: set ice thickness to zero at the domain boundary
-        ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = -ice%Hi_a( 1              ,grid%i1:grid%i2) / dt
-        ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = -ice%Hi_a( grid%ny        ,grid%i1:grid%i2) / dt
-        ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1              ) / dt
-        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx        ) / dt
-        ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 0._dp
-        ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 0._dp
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
-        CALL sync
-        
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIP_mod') THEN
-        
-        ! Create a nice circular ice shelf
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          IF (SQRT(grid%x(i)**2+grid%y(j)**2) > grid%xmax * 0.95_dp) THEN
-            ice%Hi_a(     j,i) = 0._dp
-            ice%dHi_dt_a( j,i) = 0._dp
-          END IF
-        END DO
-        END DO
-        CALL sync
-        
-      ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-      
-        ! Fixed ice thickness at the boundary
-        ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( 1              ,grid%i1:grid%i2)) / dt
-        ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( grid%ny        ,grid%i1:grid%i2)) / dt
-        ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,1              )) / dt
-        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,grid%nx        )) / dt
-        ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 1000._dp
-        ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 1000._dp
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 1000._dp
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
-        CALL sync
-        
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Note; the calving front at x = 640 km is already created by the no-ice mask
-      
-        ! Ice divides at west, south, and north boundaries
-        ice%Hi_a(     grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2              )
-        ice%Hi_a(     1,              grid%i1:grid%i2) = ice%Hi_a( 2,              grid%i1:grid%i2)
-        ice%Hi_a(     grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,      grid%i1:grid%i2)
-        ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
-        ice%dHi_dt_a( 1,              grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
-        
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in apply_ice_thickness_BC!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_west_BC "', TRIM(C%ice_thickness_west_BC), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! East
+    IF     (C%ice_thickness_east_BC == 'zero') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
+    ELSEIF (C%ice_thickness_east_BC == 'infinite') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%dHi_dt_a( grid%j1:grid%j2,grid%nx-1) - ice%dHi_dt_a( grid%j1:grid%j2,grid%nx)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
+    ELSEIF (C%ice_thickness_east_BC == 'periodic') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%dHi_dt_a( grid%j1:grid%j2,2) - ice%dHi_dt_a( grid%j1:grid%j2,grid%nx)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,2)
+    ELSEIF (C%ice_thickness_east_BC == 'ISMIP_HOM_F') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
+    ELSE
+      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_east_BC "', TRIM(C%ice_thickness_east_BC), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! South
+    IF     (C%ice_thickness_south_BC == 'zero') THEN
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = -ice%Hi_a( 1,grid%i1:grid%i2) / dt
+      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = 0._dp
+    ELSEIF (C%ice_thickness_south_BC == 'infinite') THEN
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%dHi_dt_a( 2,grid%i1:grid%i2) - ice%dHi_dt_a( 1,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_south_BC == 'periodic') THEN
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%dHi_dt_a( grid%ny-1,grid%i1:grid%i2) - ice%dHi_dt_a( 1,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_south_BC == 'ISMIP_HOM_F') THEN
+      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 1000._dp
+    ELSE
+      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_south_BC "', TRIM(C%ice_thickness_south_BC), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! North
+    IF     (C%ice_thickness_north_BC == 'zero') THEN
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = -ice%Hi_a( grid%ny,grid%i1:grid%i2) / dt
+      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
+    ELSEIF (C%ice_thickness_north_BC == 'infinite') THEN
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%dHi_dt_a( grid%ny-1,grid%i1:grid%i2) - ice%dHi_dt_a( grid%ny,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_north_BC == 'periodic') THEN
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%dHi_dt_a( 2,grid%i1:grid%i2) - ice%dHi_dt_a( grid%ny,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_north_BC == 'ISMIP_HOM_F') THEN
+      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
+      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 1000._dp
+    ELSE
+      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_north_BC "', TRIM(C%ice_thickness_north_BC), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Remove ice in areas where no ice is allowed (e.g. Greenland in NAM and EAS, and Ellesmere Island in GRL)
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice(     j,i) == 1) THEN
+        ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+        ice%Hi_tplusdt_a( j,i) = 0._dp
       END IF
-      
-    END IF ! IF (.NOT. C%do_benchmark_experiment) THEN
+    END DO
+    END DO
+    CALL sync
     
   END SUBROUTINE apply_ice_thickness_BC
   SUBROUTINE remove_unconnected_shelves( grid, ice, dt)

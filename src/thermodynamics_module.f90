@@ -10,134 +10,137 @@ MODULE thermodynamics_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file 
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_temperature, read_restart_file_temperature
   USE parameters_module
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_subclimate_region, type_SMB_model, type_init_data_fields
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_snapshot_regional, type_SMB_model, &
+                                             type_restart_data, type_ocean_snapshot_regional
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             tridiagonal_solve
+                                             tridiagonal_solve, map_square_to_square_cons_2nd_order_3D, transpose_dp_3D, &
+                                             interpolate_ocean_depth, vertical_average
   USE derivatives_and_grids_module,    ONLY: zeta, calculate_zeta_derivatives, ddx_a_to_a_2D, ddy_a_to_a_2D, Neumann_BC_a_3D
-  USE general_ice_model_data_module,   ONLY: ice_physical_properties
   
   IMPLICIT NONE
   
 CONTAINS
    
-  SUBROUTINE run_thermo_model( grid, ice, climate, SMB, do_solve_heat_equation)
+! == Run the chosen thermodynamics model
+  SUBROUTINE run_thermo_model( grid, ice, climate, ocean, SMB, time, do_solve_heat_equation)
     ! Run the thermodynamics model. If so specified, solve the heat equation;
-    ! if not, only prescribe a simple temperature profile to newly ice-covered grid cells.
+    ! if not, only prescribe a vertically uniform temperature to newly ice-covered grid cells.
     
     IMPLICIT NONE
     
     ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
-    LOGICAL,                             INTENT(IN)    :: do_solve_heat_equation
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
+    REAL(dp),                             INTENT(IN)    :: time
+    LOGICAL,                              INTENT(IN)    :: do_solve_heat_equation
 
     ! Local variables:
-    INTEGER                                            :: i,j,k
-    REAL(dp)                                           :: T_surf_annual
+    INTEGER                                             :: i,j
+    REAL(dp)                                            :: T_surf_annual
     
-    ! Exceptions for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6') THEN
-        ! Thermodynamics are included in these experiments
-      ELSEIF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Thermodynamics are not included in these experiments
-        RETURN
-      ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_thermo_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      END IF
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    ! Prescribe a simple temperature profile to newly ice-covered grid cells.
-    DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
+    IF     (C%choice_thermo_model == 'none') THEN
+      ! No need to do anything
+      ! NOTE: choice_ice_rheology_model should be set to "uniform"!
+    ELSEIF (C%choice_thermo_model == '3D_heat_equation') THEN
+      ! Solve the 3-D heat equation
       
-      IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ice_a_prev( j,i) == 0) THEN
-        ! This grid cell is newly ice-covered
-        ! If one of its neighbours was already ice-covered, assume the temperature
-        ! profile here is equal to the profile from the upstream neighbour (due to advection).
-        ! If no neighbours were ice-covered, the new ice must come from accumulation;
-        ! just set a simple linear profile instead.
+      ! NOTE: solved asynchronously from the ice dynamical equations.
+      !       Since newly ice-covered pixels won't have a temperature assigned
+      !       until the heat equation is solved again, treat these separately every time step.
+    
+      ! Prescribe a simple temperature profile to newly ice-covered grid cells.
+      DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
+      DO j = 1, grid%ny
         
-        IF     (ice%u_vav_cx( j  ,i-1) > 0._dp .AND. ice%mask_ice_a_prev( j  ,i-1) == 1) THEN
-          ! Ice probably came from the west
-          ice%Ti_a( :,j,i) = ice%Ti_a( :,j  ,i-1)
-        ELSEIF (ice%u_vav_cx( j  ,i  ) < 0._dp .AND. ice%mask_ice_a_prev( j  ,i+1) == 1) THEN
-          ! Ice probably came from the east
-          ice%Ti_a( :,j,i) = ice%Ti_a( :,j  ,i+1)
-        ELSEIF (ice%v_vav_cy( j-1,i  ) > 0._dp .AND. ice%mask_ice_a_prev( j-1,i  ) == 1) THEN
-          ! Ice probably came from the south
-          ice%Ti_a( :,j,i) = ice%Ti_a( :,j-1,i  )
-        ELSEIF (ice%v_vav_cy( j  ,i  ) < 0._dp .AND. ice%mask_ice_a_prev( j+1,i  ) == 1) THEN
-          ! Ice probably came from the north
-          ice%Ti_a( :,j,i) = ice%Ti_a( :,j+1,i  )
-        ELSE
-          ! Ice probably came from surface accumulation; initialise with a linear temperature profile.
+        IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ice_a_prev( j,i) == 0) THEN
+          ! This grid cell is newly ice-covered
+          ! If one of its neighbours was already ice-covered, assume the temperature
+          ! profile here is equal to the profile from the upstream neighbour (due to advection).
+          ! If no neighbours were ice-covered, the new ice must come from accumulation;
+          ! just set a simple linear profile instead.
           
-          T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
-          DO k = 1, C%nz
-            ice%Ti_a( k,j,i) = T_surf_annual + C%zeta(k) * (ice%Ti_pmp_a( C%nz,j,i) - T_surf_annual)
-          END DO
+          IF     (ice%u_vav_cx( j  ,i-1) > 0._dp .AND. ice%mask_ice_a_prev( j  ,i-1) == 1) THEN
+            ! Ice probably came from the west
+            ice%Ti_a( :,j,i) = ice%Ti_a( :,j  ,i-1)
+          ELSEIF (ice%u_vav_cx( j  ,i  ) < 0._dp .AND. ice%mask_ice_a_prev( j  ,i+1) == 1) THEN
+            ! Ice probably came from the east
+            ice%Ti_a( :,j,i) = ice%Ti_a( :,j  ,i+1)
+          ELSEIF (ice%v_vav_cy( j-1,i  ) > 0._dp .AND. ice%mask_ice_a_prev( j-1,i  ) == 1) THEN
+            ! Ice probably came from the south
+            ice%Ti_a( :,j,i) = ice%Ti_a( :,j-1,i  )
+          ELSEIF (ice%v_vav_cy( j  ,i  ) < 0._dp .AND. ice%mask_ice_a_prev( j+1,i  ) == 1) THEN
+            ! Ice probably came from the north
+            ice%Ti_a( :,j,i) = ice%Ti_a( :,j+1,i  )
+          ELSE
+            ! Ice probably came from surface accumulation; initialise with a vertically uniform temperature.
+            
+            T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
+            ice%Ti_a( :,j,i) = T_surf_annual
+            
+          END IF
           
-        END IF
+        END IF ! IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ice_a_prev( j,i) == 0) THEN
         
-      END IF
+      END DO
+      END DO
+      CALL sync
+    
+      ! Calculate various physical terms
+      CALL calc_bottom_frictional_heating( grid, ice)
+      CALL calc_heat_capacity(             grid, ice)
+      CALL calc_thermal_conductivity(      grid, ice)
+      CALL calc_pressure_melting_point(    grid, ice)
       
-    END DO
-    END DO
-    CALL sync
+      ! If so specified, solve the heat equation
+      IF (do_solve_heat_equation) CALL solve_3D_heat_equation( grid, ice, climate, ocean, SMB)
+      
+      ! Safety
+      CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'run_thermo_model')
     
-    ! If so specified, solve the heat equation
-    IF (do_solve_heat_equation) CALL solve_heat_equation( grid, ice, climate, SMB)
+    ELSE
+      IF (par%master) WRITE(0,*) 'run_thermo_model - ERROR: unknown choice_thermo_model "', TRIM(C%choice_thermo_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
     
-    ! Safety
-    CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'run_thermo_model')
+    ! Calculate the ice flow factor for the new temperature solution
+    CALL calc_ice_rheology( grid, ice, time)
 
   END SUBROUTINE run_thermo_model
-  SUBROUTINE solve_heat_equation( grid, ice, climate, SMB)
+  
+! == Solve the 3-D heat equation
+  SUBROUTINE solve_3D_heat_equation( grid, ice, climate, ocean, SMB)
     
     IMPLICIT NONE
     
     ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
 
     ! Local variables:
-    INTEGER                                            :: i,j,k
-    REAL(dp), DIMENSION(:,:,:), POINTER                :: Ti_new
-    INTEGER                                            :: wTi_new
-    REAL(dp)                                           :: internal_heating, u_times_dT_dx_upwind, v_times_dT_dy_upwind, f1, f2, f3
-    REAL(dp), DIMENSION(2:C%nz)                        :: alpha
-    REAL(dp), DIMENSION(C%nz)                          :: beta
-    REAL(dp), DIMENSION(C%nz-1)                        :: gamma
-    REAL(dp), DIMENSION(C%nz)                          :: delta
-    INTEGER,  DIMENSION(:,:  ), POINTER                ::  is_unstable
-    INTEGER                                            :: wis_unstable
-    LOGICAL                                            :: hasnan
-    INTEGER                                            :: n_unstable
+    INTEGER                                             :: i,j,k
+    REAL(dp), DIMENSION(:,:,:), POINTER                 :: Ti_new
+    INTEGER                                             :: wTi_new
+    REAL(dp)                                            :: internal_heating, u_times_dT_dx_upwind, v_times_dT_dy_upwind, f1, f2, f3
+    REAL(dp), DIMENSION(2:C%nz)                         :: alpha
+    REAL(dp), DIMENSION(C%nz)                           :: beta
+    REAL(dp), DIMENSION(C%nz-1)                         :: gamma
+    REAL(dp), DIMENSION(C%nz)                           :: delta
+    INTEGER,  DIMENSION(:,:  ), POINTER                 ::  is_unstable
+    INTEGER                                             :: wis_unstable
+    LOGICAL                                             :: hasnan
+    INTEGER                                             :: n_unstable
+    REAL(dp)                                            :: depth
+    REAL(dp), DIMENSION(:,:  ), POINTER                 ::  T_ocean_at_shelf_base
+    INTEGER                                             :: wT_ocean_at_shelf_base
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D(       grid%ny, grid%nx, is_unstable, wis_unstable)
@@ -172,8 +175,24 @@ CONTAINS
     END DO
     CALL sync
     
-    ! Calculate bottom frictional heating
-    CALL bottom_frictional_heating(  grid, ice)
+    ! Find ocean temperature at the shelf base
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, T_ocean_at_shelf_base, wT_ocean_at_shelf_base)
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+        depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base( j,i))
+      ELSE
+        T_ocean_at_shelf_base( j,i) = 0._dp
+      END IF
+      
+      ! NOTE: ocean data gives temperature in Celsius, thermodynamics wants Kelvin!
+      T_ocean_at_shelf_base( j,i) = T_ocean_at_shelf_base( j,i) + T0
+      
+    END DO
+    END DO
+    CALL sync
     
     ! Solve the heat equation for all interior grid cells
     is_unstable( :,grid%i1:grid%i2) = 0
@@ -255,7 +274,7 @@ CONTAINS
         ! Set ice bottom temperature equal to seawater temperature (limited to the PMP)
         alpha( C%nz) = 0._dp
         beta ( C%nz) = 1._dp
-        delta( C%nz) = MIN( T0, MIN( ice%Ti_pmp_a( C%nz,j,i), T0 + climate%T_ocean_mean ))
+        delta( C%nz) = MIN( T0, MIN( ice%Ti_pmp_a( C%nz,j,i), T_ocean_at_shelf_base( j,i) ))
       ELSE
         IF (ice%Ti_a( C%nz,j,i) >= ice%Ti_pmp_a( C%nz,j,i)) THEN
           ! Ice is already at/above pressure melting point; set temperature equal to PMP
@@ -311,7 +330,7 @@ CONTAINS
       
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (is_unstable( j,i) == 1) CALL replace_Ti_with_robin_solution( ice, climate, SMB, Ti_new, i,j)
+        IF (is_unstable( j,i) == 1) CALL replace_Ti_with_robin_solution( ice, climate, ocean, SMB, Ti_new, i,j)
       END DO
       END DO
       CALL sync
@@ -331,13 +350,15 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wTi_new)
     CALL deallocate_shared( wis_unstable)
+    CALL deallocate_shared( wT_ocean_at_shelf_base)
     
     ! Safety
     CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'solve_heat_equation')
 
-  END SUBROUTINE solve_heat_equation
+  END SUBROUTINE solve_3D_heat_equation
   
-  SUBROUTINE replace_Ti_with_robin_solution( ice, climate, SMB, Ti, i,j)
+! == The Robin temperature solution
+  SUBROUTINE replace_Ti_with_robin_solution( ice, climate, ocean, SMB, Ti, i,j)
     ! This function calculates for one horizontal grid point the temperature profiles
     ! using the surface temperature and the geothermal heat flux as boundary conditions.
     ! See Robin solution in: Cuffey & Paterson 2010, 4th ed, chapter 9, eq. (9.13) - (9.22).
@@ -345,31 +366,35 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
-    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: Ti
-    INTEGER,                             INTENT(IN)    :: i,j
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
+    REAL(dp), DIMENSION(:,:,:),           INTENT(INOUT) :: Ti
+    INTEGER,                              INTENT(IN)    :: i,j
 
     ! Local variables:
-    INTEGER                                            :: k
-    REAL(dp)                                           :: Ts
-    REAL(dp)                                           :: thermal_length_scale
-    REAL(dp)                                           :: distance_above_bed
-    REAL(dp)                                           :: erf1
-    REAL(dp)                                           :: erf2
+    INTEGER                                             :: k
+    REAL(dp)                                            :: Ts
+    REAL(dp)                                            :: thermal_length_scale
+    REAL(dp)                                            :: distance_above_bed
+    REAL(dp)                                            :: erf1
+    REAL(dp)                                            :: erf2
     
-    REAL(dp)                                           :: thermal_conductivity_robin
-    REAL(dp)                                           :: thermal_diffusivity_robin
-    REAL(dp)                                           :: bottom_temperature_gradient_robin
+    REAL(dp)                                            :: thermal_conductivity_robin
+    REAL(dp)                                            :: thermal_diffusivity_robin
+    REAL(dp)                                            :: bottom_temperature_gradient_robin
     
-    REAL(dp), PARAMETER                                :: kappa_0_ice_conductivity     = 9.828_dp                      ! The linear constant in the thermal conductivity of ice [J m^-1 K^-1 s^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
-    REAL(dp), PARAMETER                                :: kappa_e_ice_conductivity     = 0.0057_dp                     ! The exponent constant in the thermal conductivity of ice [K^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
-    REAL(dp), PARAMETER                                :: c_0_specific_heat            = 2127.5_dp                     ! The constant in the specific heat capacity of ice [J kg^-1 K^-1], see equation (12.5), Zwinger (2007), Cuffey & Paterson (2010, p. 400)
+    REAL(dp), PARAMETER                                 :: kappa_0_ice_conductivity     = 9.828_dp  ! The linear constant in the thermal conductivity of ice [J m^-1 K^-1 s^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
+    REAL(dp), PARAMETER                                 :: kappa_e_ice_conductivity     = 0.0057_dp ! The exponent constant in the thermal conductivity of ice [K^-1], see equation (12.6), Ritz (1987), Cuffey & Paterson (2010, p. 400), Zwinger (2007)
+    REAL(dp), PARAMETER                                 :: c_0_specific_heat            = 2127.5_dp ! The constant in the specific heat capacity of ice [J kg^-1 K^-1], see equation (12.5), Zwinger (2007), Cuffey & Paterson (2010, p. 400)
+    
+    REAL(dp)                                            :: depth
+    REAL(dp)                                            :: T_ocean_at_shelf_base
     
     thermal_conductivity_robin        = kappa_0_ice_conductivity * sec_per_year * EXP(-kappa_e_ice_conductivity * T0)  ! Thermal conductivity            [J m^-1 K^-1 y^-1]
     thermal_diffusivity_robin         = thermal_conductivity_robin / (ice_density * c_0_specific_heat)                 ! Thermal diffusivity             [m^2 y^-1]
-    bottom_temperature_gradient_robin = - ice%GHF_a( j,i) / thermal_conductivity_robin                                ! Temperature gradient at bedrock
+    bottom_temperature_gradient_robin = -ice%GHF_a( j,i) / thermal_conductivity_robin                                ! Temperature gradient at bedrock
     
     Ts = MIN( T0, SUM(climate%T2m( :,j,i)) / 12._dp)
     
@@ -396,7 +421,9 @@ CONTAINS
     ELSEIF( ice%mask_shelf_a( j,i) == 1) THEN
     
       ! Use a linear profile between Ts and seawater temperature:
-      Ti( :,j,i) = Ts + C%zeta(:) * (T0 + climate%T_ocean_mean - Ts)
+      depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base)
+      Ti( :,j,i) = Ts + C%zeta(:) * (T0 + T_ocean_at_shelf_base - Ts)
       
     ELSE
     
@@ -407,11 +434,13 @@ CONTAINS
 
     ! Correct all temperatures above T_pmp:
     DO k = 1, C%nz
-      Ti( k,j,i) = MIN( Ti( k,j,i), T0 - CC * ice%Hi_a( j,i) * C%zeta(k))
+      Ti( k,j,i) = MIN( Ti( k,j,i), ice%Ti_pmp_a( k,j,i))
     END DO
 
   END SUBROUTINE replace_Ti_with_robin_solution
-  SUBROUTINE bottom_frictional_heating( grid, ice)
+
+! == Calculate various physical terms
+  SUBROUTINE calc_bottom_frictional_heating( grid, ice)
     ! Calculation of the frictional heating at the bottom due to sliding at the sheet/Gl - bedrock interface.
     
     IMPLICIT NONE
@@ -422,122 +451,427 @@ CONTAINS
 
     ! Local variables
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: beta
     
-    REAL(dp), PARAMETER                                :: delta_v = 1E-4_dp
-    REAL(dp), PARAMETER                                :: q_plastic            = 0.30_dp       ! Parameter used for basal stress (inverse of m_flow)
-    REAL(dp), PARAMETER                                :: u_threshold          = 100._dp       ! scaling of tau_yield to get the correct unit (function of q_plastic)
-    
-    ! Exception for when no sliding can pccur
-    IF (C%choice_ice_dynamics == 'SIA' .OR. C%no_sliding) THEN
+    ! Exception for when no sliding can occur
+    IF (C%choice_ice_dynamics == 'SIA' .OR. C%choice_sliding_law == 'no_sliding') THEN
       ice%frictional_heating_a( :,grid%i1:grid%i2) = 0._dp
+      CALL sync
       RETURN
     END IF
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
-    
-      ice%frictional_heating_a( j,i) = 0._dp
-    
       IF (ice%mask_sheet_a( j,i) == 1) THEN
-      
-        beta = ice%tauc_a( j,i) * ( (delta_v**2 + ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)**(0.5_dp * (q_plastic-1._dp)) ) / (u_threshold**q_plastic)
-        ice%frictional_heating_a( j,i) = beta * (ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)
-        
+        ice%frictional_heating_a( j,i) = ice%beta_a( j,i) * (ice%U_base_a( j,i)**2 + ice%V_base_a( j,i)**2)
+      ELSE
+        ice%frictional_heating_a( j,i) = 0._dp
       END IF 
-           
     END DO
     END DO
     CALL sync
 
-  END SUBROUTINE bottom_frictional_heating
-  
-  SUBROUTINE initialise_ice_temperature( grid, ice, climate, init, SMB)
+  END SUBROUTINE calc_bottom_frictional_heating
+  SUBROUTINE calc_heat_capacity( grid, ice)
+    ! Calculate the heat capacity of the ice
       
     IMPLICIT NONE
     
     ! In- and output variables
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_subclimate_region),        INTENT(IN)    :: climate
-    TYPE(type_init_data_fields),         INTENT(IN)    :: init
-    TYPE(type_SMB_model),                INTENT(IN)    :: SMB
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    
+    IF     (C%choice_ice_heat_capacity == 'uniform') THEN
+      ! Apply a uniform value for the heat capacity
+      
+      ice%Cpi_a( :,:,grid%i1:grid%i2) = C%uniform_ice_heat_capacity
+      CALL sync
+      
+    ELSEIF (C%choice_ice_heat_capacity == 'Pounder1965') THEN
+      ! Calculate the heat capacity of ice according to Pounder: The Physics of Ice (1965)
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ice%Cpi_a( :,j,i) = 2115.3_dp + 7.79293_dp * (ice%Ti_a( :,j,i) - T0)
+      END DO
+      END DO
+      CALL sync
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'calc_heat_capacity - ERROR: unknown choice_ice_heat_capacity "', TRIM(C%choice_ice_heat_capacity), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( ice%Cpi_a, 'ice%Cpi_a', 'calc_heat_capacity')
+    
+  END SUBROUTINE calc_heat_capacity
+  SUBROUTINE calc_thermal_conductivity( grid, ice)
+    ! Calculate the thermal conductivity of the ice
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    
+    IF     (C%choice_ice_thermal_conductivity == 'uniform') THEN
+      ! Apply a uniform value for the thermal conductivity
+      
+      ice%Ki_a( :,:,grid%i1:grid%i2) = C%uniform_ice_thermal_conductivity
+      CALL sync
+      
+    ELSEIF (C%choice_ice_thermal_conductivity == 'Ritz1987') THEN
+      ! Calculate the thermal conductivity of ice according to Ritz (1987) 
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ice%Ki_a( :,j,i) = 3.101E+08_dp * EXP(-0.0057_dp * ice%Ti_a( :,j,i))
+      END DO
+      END DO
+      CALL sync
+    
+    ELSE
+      IF (par%master) WRITE(0,*) 'calc_thermal_conductivity - ERROR: unknown choice_ice_thermal_conductivity "', TRIM(C%choice_ice_thermal_conductivity), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( ice%Ki_a, 'ice%Ki_a', 'calc_thermal_conductivity')
+    
+  END SUBROUTINE calc_thermal_conductivity
+  SUBROUTINE calc_pressure_melting_point( grid, ice)
+    ! Calculate the pressure melting point of the ice according to Huybrechts (1992)
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%Ti_pmp_a( :,j,i) = T0 - CC * ice%Hi_a( j,i) * C%zeta
+    END DO
+    END DO
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( ice%Ti_pmp_a, 'ice%Ti_pmp_a', 'calc_pressure_melting_point')
+    
+  END SUBROUTINE calc_pressure_melting_point
+  
+! == Calculate the  flow factor A in Glen's flow law
+  SUBROUTINE calc_ice_rheology( grid, ice, time)
+    ! Calculate the flow factor A in Glen's flow law
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    REAL(dp),                            INTENT(IN)    :: time
+  
+    ! Local variables:
+    INTEGER                                            :: i,j,k
+    REAL(dp), DIMENSION(C%nZ)                          :: prof
+    REAL(dp), PARAMETER                                :: A_low_temp  = 1.14E-05_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
+    REAL(dp), PARAMETER                                :: A_high_temp = 5.47E+10_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
+    REAL(dp), PARAMETER                                :: Q_low_temp  = 6.0E+04_dp    ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
+    REAL(dp), PARAMETER                                :: Q_high_temp = 13.9E+04_dp   ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
+    REAL(dp)                                           :: A_flow_MISMIP
+    
+    IF     (C%choice_ice_rheology == 'uniform') THEN
+      ! Apply a uniform value for the ice flow factor
+      
+      ice%A_flow_3D_a( :,:,grid%i1:grid%i2) = C%uniform_flow_factor
+      CALL sync
+      
+    ELSEIF (C%choice_ice_rheology == 'Huybrechts1992') THEN
+    
+      ! Calculate the ice flow factor as a function of the ice temperature according to the Arrhenius relationship (Huybrechts, 1992)
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        DO k = 1, C%nz
+          IF (ice%mask_ice_a( j,i) == 1) THEN
+            IF (ice%Ti_a( k,j,i) < 263.15_dp) THEN
+              ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * ice%Ti_a( k,j,i)))  
+            ELSE
+              ice%A_flow_3D_a( k,j,i) = A_high_temp * EXP(-Q_high_temp / (R_gas * ice%Ti_a( k,j,i)))  
+            END IF
+          ELSE
+            IF (C%choice_ice_margin == 'BC') THEN
+              ice%A_flow_3D_a( k,j,i) = 0._dp
+            ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
+              ! In the "infinite slab" case, calculate effective viscosity everywhere
+              ! (even when there's technically no ice present)
+              ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * 263.15_dp))  
+            ELSE
+              IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
+              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+            END IF
+          END IF
+        END DO ! DO k = 1, C%nz
+         
+      END DO
+      END DO
+      CALL sync
+    
+    ELSEIF (C%choice_ice_rheology == 'MISMIP_mod') THEN
+      ! The time-dependent, step-wise changing uniform flow factor in the MISMIP_mod experiment
+      
+      A_flow_MISMIP = 1.0E-16_dp
+      IF     (time < 25000._dp) THEN
+        A_flow_MISMIP = 1.0E-16_dp
+      ELSEIF (time < 50000._dp) THEN
+        A_flow_MISMIP = 1.0E-17_dp
+      ELSEIF (time < 75000._dp) THEN
+        A_flow_MISMIP = 1.0E-16_dp
+      END IF
+        
+      ice%A_flow_vav_a( :,grid%i1:grid%i2) = A_flow_MISMIP
+      CALL sync
+        
+    ELSE
+      IF (par%master) WRITE(0,*) 'calc_ice_rheology - ERROR: unknown choice_ice_rheology "', TRIM(C%choice_ice_rheology), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+        
+    ! Apply the flow enhancement factors
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF     (ice%mask_sheet_a( j,i) == 1) THEN
+        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_sheet
+      ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+        ice%A_flow_3D_a( :,j,i) = ice%A_flow_3D_a( :,j,i) * C%m_enh_shelf
+      END IF
+    END DO
+    END DO
+    CALL sync
+
+    ! Calculate vertical average
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      prof = ice%A_flow_3D_a( :,j,i)
+      ice%A_flow_vav_a( j,i) = vertical_average( prof)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( ice%A_flow_3D_a , 'ice%A_flow_3D_a' , 'ice_physical_properties')
+    CALL check_for_NaN_dp_2D( ice%A_flow_vav_a, 'ice%A_flow_vav_a', 'ice_physical_properties')
+    
+  END SUBROUTINE calc_ice_rheology
+  
+! == Initialise the englacial ice temperature at the start of a simulation
+  SUBROUTINE initialise_ice_temperature( grid, ice, climate, ocean, SMB, region_name)
+    ! Initialise the englacial ice temperature at the start of a simulation
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
+    CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
+    
+    IF (par%master) WRITE (0,*) '  Initialising ice temperature profile "', TRIM(C%choice_initial_ice_temperature), '"...'
+    
+    IF     (C%choice_initial_ice_temperature == 'uniform') THEN
+      ! Simple uniform temperature
+      CALL initialise_ice_temperature_uniform( grid, ice)
+    ELSEIF (C%choice_initial_ice_temperature == 'linear') THEN
+      ! Simple linear temperature profile
+      CALL initialise_ice_temperature_linear( grid, ice, climate)
+    ELSEIF (C%choice_initial_ice_temperature == 'Robin') THEN
+      ! Initialise with the Robin solution
+      CALL initialise_ice_temperature_Robin( grid, ice, climate, ocean, SMB)
+    ELSEIF (C%choice_initial_ice_temperature == 'restart') THEN
+      ! Initialise with the temperature field from the provided restart file
+      CALL initialise_ice_temperature_restart( grid, ice, region_name)
+    ELSE
+      IF (par%master) WRITE(0,*) 'initialise_ice_temperature - ERROR: unknown choice_initial_ice_temperature "', TRIM(C%choice_thermo_model), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+  END SUBROUTINE initialise_ice_temperature
+  SUBROUTINE initialise_ice_temperature_uniform( grid, ice)
+    ! Initialise the englacial ice temperature at the start of a simulation
+    !
+    ! Simple uniform temperature
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables
     INTEGER                                            :: i,j
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
     
-    ! Special cases for benchmark experiments
-    IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3') THEN
-              
-        ice%Ti_a( :,:,grid%i1:grid%i2) = 270._dp
-        CALL sync
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6') THEN
-              
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%Ti_a( :,j,i) = climate%T2m( 1,j,i)
-        END DO
-        END DO
-        CALL sync
-        RETURN
-              
-      ELSEIF (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-              
-        ice%Ti_a( :,:,grid%i1:grid%i2) = 270._dp
-        CALL sync
-        RETURN
-        
+      IF (ice%Hi_a( j,i) > 0._dp) THEN
+        ice%Ti_a( :,j,i) = C%uniform_ice_temperature
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_ice_temperature!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        ice%Ti_a( :,j,i) = 0._dp
       END IF
-    END IF
-    
-    ! Realistic experiments
-    ! =====================
       
-    IF (C%is_restart) THEN
-      ! Initialise with temperatures read from restart file
-      ice%Ti_a( :,:,grid%i1:grid%i2) = init%Ti( :,:,grid%i1:grid%i2)
-      CALL sync
-      RETURN
-    END IF ! IF (C%is_restart) THEN
-    
-    ! Not a restart; initialise from scratch with a simple linear profile
-    
-    ! First set all temperatures to -10C so thermal properties can be determined
-    ice%Ti_a( :,:,grid%i1:grid%i2) = 260._dp
+    END DO
+    END DO
     CALL sync
-   
-    ! Calculate Ti_pmp
-    CALL ice_physical_properties( grid, ice, C%start_time_of_run)
+    
+  END SUBROUTINE initialise_ice_temperature_uniform
+  SUBROUTINE initialise_ice_temperature_linear( grid, ice, climate)
+    ! Initialise the englacial ice temperature at the start of a simulation
+    !
+    ! Simple linear temperature profile
       
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    
+    ! Local variables
+    INTEGER                                             :: i,j
+    REAL(dp)                                            :: T_surf_annual, T_PMP_base
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      IF (ice%Hi_a( j,i) > 0._dp) THEN
+        T_surf_annual = MIN( SUM( climate%T2m( :,j,i)) / 12._dp, T0)
+        T_PMP_base    = T0 - (ice%Hi_a( j,i) * 8.7E-04_dp)
+        ice%Ti_a( :,j,i) = T_surf_annual - C%zeta * (T_surf_annual - T_PMP_base)
+      ELSE
+        ice%Ti_a( :,j,i) = 0._dp
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE initialise_ice_temperature_linear
+  SUBROUTINE initialise_ice_temperature_Robin( grid, ice, climate, ocean, SMB)
+    ! Initialise the englacial ice temperature at the start of a simulation
+    !
+    ! Initialise with the Robin solution
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(INOUT) :: ice
+    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
+    TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
+    
+    ! Local variables
+    INTEGER                                             :: i,j
+ 
+    ! Calculate Ti_pmp
+    CALL calc_pressure_melting_point( grid, ice)
+    
     ! Initialise with the Robin solution
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      CALL replace_Ti_with_robin_solution( ice, climate, SMB, ice%Ti_a, i,j)    
+      CALL replace_Ti_with_robin_solution( ice, climate, ocean, SMB, ice%Ti_a, i,j)    
     END DO
     END DO
     CALL sync
     
-  END SUBROUTINE initialise_ice_temperature 
+  END SUBROUTINE initialise_ice_temperature_Robin
+  SUBROUTINE initialise_ice_temperature_restart( grid, ice, region_name)
+    ! Initialise the englacial ice temperature at the start of a simulation
+    !
+    ! Initialise with the temperature field from the provided restart file
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Local variables
+    CHARACTER(LEN=256)                                 :: filename_restart
+    REAL(dp)                                           :: time_to_restart_from
+    TYPE(type_restart_data)                            :: restart
+    
+    ! Assume that temperature and geometry are read from the same restart file
+    IF     (region_name == 'NAM') THEN
+      filename_restart     = C%filename_refgeo_init_NAM
+      time_to_restart_from = C%time_to_restart_from_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_restart     = C%filename_refgeo_init_EAS
+      time_to_restart_from = C%time_to_restart_from_EAS
+    ELSEIF (region_name == 'GR:') THEN
+      filename_restart     = C%filename_refgeo_init_GRL
+      time_to_restart_from = C%time_to_restart_from_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_restart     = C%filename_refgeo_init_ANT
+      time_to_restart_from = C%time_to_restart_from_ANT
+    END IF
+    
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
+    CALL allocate_shared_int_0D( restart%ny, restart%wny)
+    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
+    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
+    IF (par%master) THEN
+      restart%netcdf%filename = filename_restart
+      CALL inquire_restart_file_temperature( restart)
+    END IF
+    CALL sync
+    
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
+    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
+    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
+    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
+    
+    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
+  
+    ! Read data from input file
+    IF (par%master) CALL read_restart_file_temperature( restart, time_to_restart_from)
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti', 'initialise_ice_temperature')
+    
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_3D( restart%Ti, restart%wTi)
+    
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Ti, ice%Ti_a)
+    
+    ! Deallocate raw data
+    CALL deallocate_shared( restart%wnx              )
+    CALL deallocate_shared( restart%wny              )
+    CALL deallocate_shared( restart%wnz              )
+    CALL deallocate_shared( restart%wnt              )
+    CALL deallocate_shared( restart%wx               )
+    CALL deallocate_shared( restart%wy               )
+    CALL deallocate_shared( restart%wzeta            )
+    CALL deallocate_shared( restart%wtime            )
+    CALL deallocate_shared( restart%wTi              )
+    
+  END SUBROUTINE initialise_ice_temperature_restart
   
 END MODULE thermodynamics_module

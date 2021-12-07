@@ -20,3 +20,9 @@ MISMIPplus/*
 run_*
 MISOMIP1/*
 extrapolated_ocean_files/*
+EISMINT1/*
+Halfar/*
+Bueler/*
+SSA_icestream/*
+ISMIP-HOM/*
+config-files_old/*
