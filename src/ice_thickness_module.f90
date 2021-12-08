@@ -11,18 +11,19 @@ MODULE ice_thickness_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_BMB_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_BMB_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             initialise_matrix_equation_CSR, solve_matrix_equation_CSR, check_CSR_for_double_entries
+                                             initialise_matrix_equation_CSR, solve_matrix_equation_CSR, check_CSR_for_double_entries, &
+                                             is_floating
 
   IMPLICIT NONE
   
 CONTAINS
 
   ! The main routine that is called from "run_ice_model" in the ice_dynamics_module
-  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt, mask_noice)
+  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
     ! Use the total ice velocities to update the ice thickness
     
     IMPLICIT NONE
@@ -34,6 +35,8 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Use the specified time integration method to calculate the ice thickness at t+dt
     IF     (C%choice_ice_integration_method == 'none') THEN
@@ -49,10 +52,7 @@ CONTAINS
     END IF
     
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice, dt, mask_noice)
-    
-    ! Remove free-floating shelves not connected to any grounded ice
-    CALL remove_unconnected_shelves( grid, ice, dt)
+    CALL apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
     
   END SUBROUTINE calc_dHi_dt
   
@@ -91,13 +91,6 @@ CONTAINS
         ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a( j,i+1) * grid%dx * dt
       END IF
       
-!      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-!      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
-!      ELSEIF (ice%mask_shelf_a( j  ,i+1) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i+1) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
-!      END IF
-      
     END DO
     END DO
     
@@ -113,12 +106,60 @@ CONTAINS
         ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
       END IF
       
-!      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-!      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
-!      ELSEIF (ice%mask_shelf_a( j+1,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j+1,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
-!      END IF
+    END DO
+    END DO
+    CALL sync
+    
+    ! Correct fluxes at the calving front to account for partially-filled grid cells
+    ! ==============================================================================
+    
+    ! x-direction
+    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+    DO j = 1, grid%ny
+      
+      IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
+              ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
+        
+        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+          ice%Qx_cx( j,i) = 0._dp
+        END IF
+        
+      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
+              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
+        
+        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+        IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
+          ice%Qx_cx( j,i) = 0._dp
+        END IF
+        
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! y-direction
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny-1
+      
+      IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
+              ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
+        
+        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+          ice%Qy_cy( j,i) = 0._dp
+        END IF
+        
+      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
+              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
+        
+        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+        IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
+          ice%Qy_cy( j,i) = 0._dp
+        END IF
+        
+      END IF
       
     END DO
     END DO
@@ -651,7 +692,7 @@ CONTAINS
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit
     
   ! Some useful tools
-  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt, mask_noice)
+  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
     ! Apply ice thickness boundary conditions (at the domain boundary, and through the mask_noice)
     
     IMPLICIT NONE
@@ -661,6 +702,8 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: dt
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     INTEGER                                            :: i,j
@@ -748,8 +791,48 @@ CONTAINS
     END DO
     CALL sync
     
+    ! If so specified, remove all floating ice
+    IF (C%do_remove_shelves) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (is_floating( ice%Hi_tplusdt_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+          ice%Hi_tplusdt_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+      RETURN
+    END IF ! IF (C%do_remove_shelves) THEN
+    
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_shelves_larger_than_PD) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
+          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+          ice%Hi_tplusdt_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%remove_shelves_larger_than_PD) THEN
+    
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
+          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
+          ice%Hi_tplusdt_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%continental_shelf_calving) THEN
+    
   END SUBROUTINE apply_ice_thickness_BC
-  SUBROUTINE remove_unconnected_shelves( grid, ice, dt)
+  SUBROUTINE remove_unconnected_shelves( grid, ice)
     ! Use a flood-fill algorithm to find all shelves connected to sheets.
     ! Remove all other shelves.
     
@@ -758,7 +841,6 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Local variables
     INTEGER                                            :: i,j
@@ -843,9 +925,7 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         IF (ice%mask_shelf_a( j,i) == 1 .AND. map( j,i) == 0) THEN
-          ice%Hi_a(         j,i) = 0._dp
-          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-          ice%Hi_tplusdt_a( j,i) = 0._dp
+          ice%Hi_a( j,i) = 0._dp
         END IF
       END DO
       END DO

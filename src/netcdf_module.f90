@@ -433,27 +433,19 @@ CONTAINS
       
     ! Masks
     ELSEIF (field_name == 'mask') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_a,                     (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_a,         (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_land') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_land_a,                (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_land_a,    (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_ocean') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_ocean_a,               (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_ocean_a,   (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_lake') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_lake_a,                (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_lake_a,    (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_ice') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_ice_a,                 (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_ice_a,     (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_sheet') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_sheet_a,               (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_sheet_a,   (/1, 1,    ti /))
     ELSEIF (field_name == 'mask_shelf') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_shelf_a,               (/1, 1,    ti /))
-    ELSEIF (field_name == 'mask_coast') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_coast_a,               (/1, 1,    ti /))
-    ELSEIF (field_name == 'mask_margin') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_margin_a,              (/1, 1,    ti /))
-    ELSEIF (field_name == 'mask_gl') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_gl_a,                  (/1, 1,    ti /))
-    ELSEIF (field_name == 'mask_cf') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_cf_a,                  (/1, 1,    ti /))
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_shelf_a,   (/1, 1,    ti /))
       
     ! Basal conditions
     ELSEIF (field_name == 'phi_fric') THEN
@@ -1177,14 +1169,6 @@ CONTAINS
       CALL create_int_var(    region%help_fields%ncid, 'mask_sheet',               [x, y,    t], id_var, long_name='sheet mask')
     ELSEIF (field_name == 'mask_shelf') THEN
       CALL create_int_var(    region%help_fields%ncid, 'mask_shelf',               [x, y,    t], id_var, long_name='shelf mask')
-    ELSEIF (field_name == 'mask_coast') THEN
-      CALL create_int_var(    region%help_fields%ncid, 'mask_coast',               [x, y,    t], id_var, long_name='coast mask')
-    ELSEIF (field_name == 'mask_margin') THEN
-      CALL create_int_var(    region%help_fields%ncid, 'mask_margin',              [x, y,    t], id_var, long_name='margin mask')
-    ELSEIF (field_name == 'mask_gl') THEN
-      CALL create_int_var(    region%help_fields%ncid, 'mask_gl',                  [x, y,    t], id_var, long_name='grounding-line mask')
-    ELSEIF (field_name == 'mask_cf') THEN
-      CALL create_int_var(    region%help_fields%ncid, 'mask_cf',                  [x, y,    t], id_var, long_name='calving-front mask')
       
     ! Basal conditions
     ELSEIF (field_name == 'phi_fric') THEN

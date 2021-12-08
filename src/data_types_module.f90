@@ -125,17 +125,9 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_sheet_a          ! Grounded ice
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_shelf_a          ! Floating ice
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_coast_a          ! On A-grid: land bordering ocean
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_coast_cx         ! On C-grid: in between A-land and A-ocean
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_coast_cy
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_margin_a         ! On A-grid: ice  bordering non-ice
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_margin_cx        ! On C-grid: in between A-ice and A-non-ice
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_margin_cy
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_gl_a             ! On A-grid: sheet bordering shelf
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_gl_cx            ! On C-grid: in between A-sheet and A-shelf
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_gl_cy
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_cf_a             ! On A-grid: shelf bordering ocean
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_cf_cx            ! On C-grid: in between A-shelf and A-ocean
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_cf_cy
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_a                ! Multi-info mask, only used for writing to output
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_a              ! Grounded fraction (used to determine basal friction in DIVA)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cx
@@ -144,8 +136,7 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: basin_ID              ! The drainage basin to which each grid cell belongs
     INTEGER,                    POINTER     :: nbasins               ! Total number of basins defined for this region
     INTEGER :: wmask_land_a, wmask_ocean_a, wmask_lake_a, wmask_ice_a, wmask_sheet_a, wmask_shelf_a
-    INTEGER :: wmask_coast_a, wmask_coast_cx, wmask_coast_cy, wmask_margin_a, wmask_margin_cx, wmask_margin_cy
-    INTEGER :: wmask_gl_a, wmask_gl_cx, wmask_gl_cy, wmask_cf_a, wmask_cf_cx, wmask_cf_cy, wmask_a
+    INTEGER :: wmask_coast_a, wmask_margin_a, wmask_gl_a, wmask_cf_a, wmask_a
     INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy, wf_grnd_b
     INTEGER :: wbasin_ID, wnbasins
     
@@ -255,8 +246,8 @@ MODULE data_types_module
     
     ! Ice dynamics - calving
     REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_actual_cf_a        ! "actual" ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
-    INTEGER :: wfloat_margin_frac_a, wHi_actual_cf_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
+    INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
     
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta

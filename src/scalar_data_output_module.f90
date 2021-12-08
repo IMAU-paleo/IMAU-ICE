@@ -43,25 +43,40 @@ CONTAINS
     REAL(dp)                                      :: total_MB
     
     IF (.NOT. C%do_write_regional_scalar_output) RETURN
-  
-    ! Regionally integrated output
-    ! ============================
+    
+    ! Region-wide annual mean surface temperature
+    IF (C%choice_climate_model == 'none') THEN
+      ! In this case, no surface temperature is calculated at all
+    ELSE
+    
+      T2m_mean = 0._dp
       
-    ! Surface temperature (entire region) and surface/basal mass balance (ice-sheet only)
-    T2m_mean                   = 0._dp
-    total_SMB                  = 0._dp
-    total_BMB                  = 0._dp
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
+        T2m_mean = T2m_mean + SUM( region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+      END DO
+      END DO
+      CALL sync
+      
+      CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      
+      IF (par%master) THEN
+        region%int_T2m = T2m_mean
+      END IF
+      CALL sync
+    
+    END IF ! IF (C%choice_climate_model == 'none') THEN
+      
+    ! Ice-sheet-integrated surface/basal mass balance
+    total_SMB = 0._dp
+    total_BMB = 0._dp
     
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-
-      T2m_mean = T2m_mean + SUM( region%climate_matrix%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
-    
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
         total_SMB = total_SMB + (region%SMB%SMB_year( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
         total_BMB = total_BMB + (region%BMB%BMB(      j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
       END IF
-      
     END DO
     END DO
     CALL sync
@@ -73,10 +88,9 @@ CONTAINS
     total_MB = total_SMB + total_BMB
     
     IF (par%master) THEN
-      region%int_T2m        = T2m_mean
-      region%int_SMB        = total_SMB
-      region%int_BMB        = total_BMB
-      region%int_MB         = total_MB
+      region%int_SMB = total_SMB
+      region%int_BMB = total_BMB
+      region%int_MB  = total_MB
     END IF
     CALL sync
     
