@@ -59,8 +59,6 @@ CONTAINS
     ! using the till model by Martin et al. (2011).
     ! 
     ! Only applicable when choice_sliding_law = "Coulomb" or "Coulomb_regularised"
-  
-    USE derivatives_and_grids_module,    ONLY: map_a_to_b_2D
 
     IMPLICIT NONE
 

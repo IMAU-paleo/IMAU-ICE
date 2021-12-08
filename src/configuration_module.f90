@@ -132,37 +132,37 @@ MODULE configuration_module
   ! ================================================================
   
   ! Initial geometry
-  CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config               = 'realistic'           ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config               = 'realistic'           ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_init_GRL_config               = 'realistic'           ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_init_ANT_config               = 'realistic'           ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  REAL(dp)            :: time_to_restart_from_NAM_config             = 0._dp                 ! Can be different from C%start_time_of_run, though this will issue a warning
+  CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_GRL_config               = 'realistic'                      ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  REAL(dp)            :: time_to_restart_from_NAM_config             = 0._dp                            ! Can be different from C%start_time_of_run, though this will issue a warning
   REAL(dp)            :: time_to_restart_from_EAS_config             = 0._dp
   REAL(dp)            :: time_to_restart_from_GRL_config             = 0._dp
   REAL(dp)            :: time_to_restart_from_ANT_config             = 0._dp
-  CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config         = 'flatearth'           ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
   ! Present-day geometry
-  CHARACTER(LEN=256)  :: choice_refgeo_PD_NAM_config                 = 'realistic'           ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_PD_EAS_config                 = 'realistic'           ! Choice of present-day geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_PD_GRL_config                 = 'realistic'           ! Choice of present-day geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_PD_ANT_config                 = 'realistic'           ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config           = 'flatearth'           ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_EAS_config                 = 'realistic'                      ! Choice of present-day geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_GRL_config                 = 'realistic'                      ! Choice of present-day geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config           = 'flatearth'                      ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_PD_NAM_config               = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
   ! GIA equilibrium geometry
-  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config              = 'realistic'           ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_GRL_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_ANT_config              = 'realistic'           ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config        = 'flatearth'           ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_GRL_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_ANT_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config        = 'flatearth'                      ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_NAM_config            = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_EAS_config            = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
@@ -302,12 +302,12 @@ MODULE configuration_module
   ! Ice dynamics - calving
   ! ======================
   
-  CHARACTER(LEN=256)  :: choice_calving_law_config               = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
-  REAL(dp)            :: calving_threshold_thickness_config      = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
-  LOGICAL             :: do_remove_shelves_config                = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
-  LOGICAL             :: remove_shelves_larger_than_PD_config    = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
-  LOGICAL             :: continental_shelf_calving_config        = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
-  REAL(dp)            :: continental_shelf_min_height_config     = -2000._dp                        ! Maximum depth of the continental shelf
+  CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  REAL(dp)            :: calving_threshold_thickness_config          = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  LOGICAL             :: do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
+  LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
+  LOGICAL             :: continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
+  REAL(dp)            :: continental_shelf_min_height_config         = -2000._dp                        ! Maximum depth of the continental shelf
   
   ! Thermodynamics and rheology
   ! ===========================
@@ -445,7 +445,7 @@ MODULE configuration_module
   
   CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config               = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   CHARACTER(LEN=256)  :: choice_idealised_BMB_shelf_config           = 'MISMIP+'
-  CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "none"
+  CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "uniform"
   REAL(dp)            :: BMB_shelf_uniform_config                    = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                    = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
@@ -462,12 +462,13 @@ MODULE configuration_module
   LOGICAL             :: do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
   LOGICAL             :: do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
  
-  INTEGER                  ::  basin_BMB_amplification_n_ANT_config         = 17                    ! Number of basins used for ANT
-  REAL(dp), DIMENSION(17)  ::  basin_BMB_amplification_factor_ANT_config    = &                     ! BMB amplification factor for each basin for ANT
+  CHARACTER(LEN=256)       ::  choice_BMB_shelf_amplification_config        = 'basin'                   ! Choice of method to determine BMB amplification factors: "uniform", "basin"
+  INTEGER                  ::  basin_BMB_amplification_n_ANT_config         = 17                        ! Number of basins used for ANT
+  REAL(dp), DIMENSION(17)  ::  basin_BMB_amplification_factor_ANT_config    = &                         ! BMB amplification factor for each basin for ANT
     (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
        1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
-  INTEGER                  ::  basin_BMB_amplification_n_GRL_config         = 8                     ! Number of basins used for GRL
-  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                     ! BMB amplification factor for each basin for GRL 
+  INTEGER                  ::  basin_BMB_amplification_n_GRL_config         = 8                         ! Number of basins used for GRL
+  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                         ! BMB amplification factor for each basin for GRL 
     (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
  
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
@@ -1053,12 +1054,6 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     LOGICAL                             :: do_asynchronous_BMB
-    CHARACTER(LEN=256)                  :: choice_BMB_shelf_amplification
-    
-    INTEGER                             :: basin_BMB_amplification_n_ANT
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_ANT
-    INTEGER                             :: basin_BMB_amplification_n_GRL
-    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_GRL
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1070,6 +1065,12 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_basins_ANT
     LOGICAL                             :: do_merge_basins_ANT
     LOGICAL                             :: do_merge_basins_GRL
+    
+    CHARACTER(LEN=256)                  :: choice_BMB_shelf_amplification
+    INTEGER                             :: basin_BMB_amplification_n_ANT
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_ANT
+    INTEGER                             :: basin_BMB_amplification_n_GRL
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_GRL
   
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
     REAL(dp)                            :: BMB_Favier2019_lin_GammaT
@@ -1774,6 +1775,7 @@ CONTAINS
                      filename_basins_ANT_config,                      &
                      do_merge_basins_ANT_config,                      &
                      do_merge_basins_GRL_config,                      &
+                     choice_BMB_shelf_amplification_config,           &
                      basin_BMB_amplification_n_ANT_config,            &
                      basin_BMB_amplification_factor_ANT_config,       &
                      basin_BMB_amplification_n_GRL_config,            &
@@ -2351,12 +2353,13 @@ CONTAINS
     C%do_merge_basins_ANT                      = do_merge_basins_ANT_config
     C%do_merge_basins_GRL                      = do_merge_basins_GRL_config
     
-    C%basin_BMB_amplification_n_ANT       = basin_BMB_amplification_n_ANT_config
+    C%choice_BMB_shelf_amplification           = choice_BMB_shelf_amplification_config
+    C%basin_BMB_amplification_n_ANT            = basin_BMB_amplification_n_ANT_config
     ALLOCATE( C%basin_BMB_amplification_factor_ANT( C%basin_BMB_amplification_n_ANT))
-    C%basin_BMB_amplification_factor_ANT  = basin_BMB_amplification_factor_ANT_config( 1:C%basin_BMB_amplification_n_ANT)
-    C%basin_BMB_amplification_n_GRL       = basin_BMB_amplification_n_GRL_config
+    C%basin_BMB_amplification_factor_ANT       = basin_BMB_amplification_factor_ANT_config( 1:C%basin_BMB_amplification_n_ANT)
+    C%basin_BMB_amplification_n_GRL            = basin_BMB_amplification_n_GRL_config
     ALLOCATE( C%basin_BMB_amplification_factor_GRL( C%basin_BMB_amplification_n_GRL)) 
-    C%basin_BMB_amplification_factor_GRL  = basin_BMB_amplification_factor_GRL_config( 1:C%basin_BMB_amplification_n_GRL)
+    C%basin_BMB_amplification_factor_GRL       = basin_BMB_amplification_factor_GRL_config( 1:C%basin_BMB_amplification_n_GRL)
     
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
     C%BMB_Favier2019_lin_GammaT                = BMB_Favier2019_lin_GammaT_config

@@ -89,18 +89,20 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
+      amplification_factor = 1._dp
+    
       IF (C%choice_BMB_shelf_amplification == 'uniform') THEN
         amplification_factor = 1._dp
       ELSE IF (C%choice_BMB_shelf_amplification == 'basin') THEN
         IF (region_name == 'ANT') THEN
-          amplification_factor = C%basin_BMB_amplification_factor_ANT (ice%basin_ID( j,i))
+          amplification_factor = C%basin_BMB_amplification_factor_ANT( ice%basin_ID( j,i))
         ELSE IF (region_name == 'GRL') THEN
-          amplification_factor = C%basin_BMB_amplification_factor_GRL (ice%basin_ID( j,i))
+          amplification_factor = C%basin_BMB_amplification_factor_GRL( ice%basin_ID( j,i))
         ELSE
           amplification_factor = 1._dp
         END IF 
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_sheet_model "', TRIM(C%choice_BMB_shelf_amplification), '" not implemented in run_BMB_model!'
+        IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_amplification "', TRIM(C%choice_BMB_shelf_amplification), '" not implemented in run_BMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF       
     
@@ -1243,8 +1245,8 @@ CONTAINS
       
   END SUBROUTINE initialise_BMB_model_ANICE_legacy
   
-  ! The Favier et al. (2019) sub-shelf melt parameterisations
-! ========================================
+! == The Favier et al. (2019) sub-shelf melt parameterisations
+! ============================================================
 
   SUBROUTINE run_BMB_model_Favier2019_linear(         grid, ice, ocean, BMB)
     ! Calculate sub-shelf melt with Favier et al. (2019) linear parameterisation
@@ -1502,8 +1504,8 @@ CONTAINS
       
   END SUBROUTINE initialise_BMB_model_Favier2019
   
-  ! The Lazeroms et al. (2018) quasi-2-D plume parameterisation
-! ========================================
+! == The Lazeroms et al. (2018) quasi-2-D plume parameterisation
+! ==============================================================
 
   SUBROUTINE run_BMB_model_Lazeroms2018_plume( grid, ice, ocean, BMB)
     ! Calculate basal melt using the quasi-2-D plume parameterisation by Lazeroms et al. (2018), following the equations in Appendix A
@@ -1962,8 +1964,8 @@ CONTAINS
       
   END SUBROUTINE initialise_BMB_model_Lazeroms2018_plume
   
-  ! The PICO ocean box model
-! ========================================
+! == The PICO ocean box model
+! ===========================
 
   SUBROUTINE run_BMB_model_PICO( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICO ocean box model
@@ -2537,8 +2539,8 @@ CONTAINS
       
   END SUBROUTINE initialise_BMB_model_PICO
   
-  ! The PICOP ocean box + plume model
-! ========================================
+! == The PICOP ocean box + plume model
+! ====================================
 
   SUBROUTINE run_BMB_model_PICOP( grid, ice, ocean, BMB)
     ! Calculate basal melt using the PICOP ocean box + plume model
