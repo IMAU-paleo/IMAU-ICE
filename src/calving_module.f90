@@ -21,57 +21,17 @@ MODULE calving_module
   
 CONTAINS
 
-  ! The main routine that's called from the IMAU_ICE_main_model
-  SUBROUTINE apply_calving_law( grid, ice, refgeo_PD, refgeo_GIAeq)
-    ! Apply the selected calving law, plus some calving-related operations
+! == The main routines that should be called from the main ice model/program
+! ==========================================================================
+
+  SUBROUTINE apply_calving_law( grid, ice)
+    ! Apply the selected calving law
 
     IMPLICIT NONE
 
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
-    
-    ! Local variables:
-    INTEGER                                            :: i,j
-    
-    ! If so specified, remove all floating ice
-    IF (C%do_remove_shelves) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-          ice%Hi_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-      RETURN
-    END IF ! IF (C%do_remove_shelves) THEN
-    
-    ! If so specified, remove all floating ice beyond the present-day calving front
-    IF (C%remove_shelves_larger_than_PD) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
-          ice%Hi_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-    END IF ! IF (C%remove_shelves_larger_than_PD) THEN
-    
-    ! If so specified, remove all floating ice crossing the continental shelf edge
-    IF (C%continental_shelf_calving) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
-          ice%Hi_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-    END IF ! IF (C%continental_shelf_calving) THEN
     
     ! Apply the selected calving law
     IF     (C%choice_calving_law == 'none') THEN
@@ -85,7 +45,9 @@ CONTAINS
     
   END SUBROUTINE apply_calving_law
   
-  ! Routines for different calving laws
+! == Routines for different calving laws
+! ===================================
+
   SUBROUTINE threshold_thickness_calving( grid, ice)
     ! A simple threshold thickness calving law
 
@@ -98,13 +60,12 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j
     
+    ! Apply calving law
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%Hi_actual_cf_a( j,i) < C%calving_threshold_thickness) THEN
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%Hi_eff_cf_a( j,i) < C%calving_threshold_thickness) THEN
         ice%Hi_a( j,i) = 0._dp
       END IF
-      
     END DO
     END DO
     CALL sync

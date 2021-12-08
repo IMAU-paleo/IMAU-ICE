@@ -48,9 +48,7 @@ CONTAINS
     CALL sync
     
     ! Determine masks
-    CALL determine_masks(                    grid, ice)
-    !CALL determine_grounded_fractions(       grid, ice)   ! NOTE: called from solve_SSA / solve_DIVA, more efficient
-    CALL determine_floating_margin_fraction( grid, ice)
+    CALL determine_masks( grid, ice)
  
     ! Get ice thickness, flow factor, and surface slopes on the required grids
     CALL map_a_to_cx_2D( grid, ice%Hi_a,          ice%Hi_cx    )
@@ -73,9 +71,23 @@ CONTAINS
     
   END SUBROUTINE update_general_ice_model_data
   
-! == Different routines for determining the model masks
+! == Routines for determining the model masks
   SUBROUTINE determine_masks( grid, ice)
-    ! Determine the different masks, on both the Aa and the Ac grid
+    ! Determine the different masks
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+    
+    CALL determine_masks_landocean(   grid, ice)
+    CALL determine_masks_ice(         grid, ice)
+    CALL determine_masks_transitions( grid, ice)
+  
+  END SUBROUTINE determine_masks
+  SUBROUTINE determine_masks_landocean( grid, ice)
+    ! Determine the different masks
       
     IMPLICIT NONE
     
@@ -85,33 +97,13 @@ CONTAINS
   
     INTEGER                                            :: i,j
     
-    ! Start out with land everywhere, fill in the rest based on input.
-    IF (par%master) THEN
-      ice%mask_land_a    = 1
-      ice%mask_ocean_a   = 0
-      ice%mask_lake_a    = 0
-      ice%mask_ice_a     = 0
-      ice%mask_sheet_a   = 0
-      ice%mask_shelf_a   = 0
-      ice%mask_coast_a   = 0
-      ice%mask_coast_cx  = 0
-      ice%mask_coast_cy  = 0
-      ice%mask_margin_a  = 0
-      ice%mask_margin_cx = 0
-      ice%mask_margin_cy = 0
-      ice%mask_gl_a      = 0
-      ice%mask_gl_cx     = 0
-      ice%mask_gl_cy     = 0
-      ice%mask_cf_a      = 0
-      ice%mask_cf_cx     = 0
-      ice%mask_cf_cy     = 0
-      ice%mask_a         = C%type_land
-    END IF
+    ! Initialise: start with land everywhere.
+    ice%mask_land_a(   :,grid%i1:grid%i2) = 1
+    ice%mask_ocean_a(  :,grid%i1:grid%i2) = 0
+    ice%mask_a(        :,grid%i1:grid%i2) = C%type_land
     CALL sync
-  
-    ! First on the Aa grid
-    ! ====================
     
+    ! Determine land/ocean masks
     IF (C%do_ocean_floodfill) THEN
       CALL ocean_floodfill( grid, ice)
     ELSE
@@ -129,11 +121,32 @@ CONTAINS
     
     END IF ! IF (C%do_ocean_floodfill) THEN
   
+  END SUBROUTINE determine_masks_landocean
+  SUBROUTINE determine_masks_ice( grid, ice)
+    ! Determine the different masks
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+  
+    INTEGER                                            :: i,j
+    
+    CALL determine_masks_landocean( grid, ice)
+    
+    ! Initialise: start with land everywhere.
+    ice%mask_ice_a(    :,grid%i1:grid%i2) = 0
+    ice%mask_sheet_a(  :,grid%i1:grid%i2) = 0
+    ice%mask_shelf_a(  :,grid%i1:grid%i2) = 0
+    CALL sync
+    
+    ! Determine ice/sheet/shelf masks
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
       ! Ice
-      IF (ice%Hi_a( j,i) > 0._dp) THEN
+      IF (ice%Hi_a( j,i) > TINY(ice%Hi_a( 1,1))) THEN
         ice%mask_ice_a(  j,i) = 1
       END IF
       
@@ -151,6 +164,27 @@ CONTAINS
       
     END DO
     END DO
+    CALL sync
+  
+  END SUBROUTINE determine_masks_ice
+  SUBROUTINE determine_masks_transitions( grid, ice)
+    ! Determine the different masks
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+  
+    INTEGER                                            :: i,j
+    
+    CALL determine_masks_landocean( grid, ice)
+    
+    ! Initialise
+    ice%mask_coast_a(  :,grid%i1:grid%i2) = 0
+    ice%mask_margin_a( :,grid%i1:grid%i2) = 0
+    ice%mask_gl_a(     :,grid%i1:grid%i2) = 0
+    ice%mask_cf_a(     :,grid%i1:grid%i2) = 0
     CALL sync
   
     ! Determine coast, grounding line and calving front
@@ -204,114 +238,10 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! Then on the Ac grids
-    ! ====================
   
-    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
-      
-      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i+1) == 1) ice%mask_gl_cx(     j,i) = 1
-      IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%mask_sheet_a( j,i+1) == 1) ice%mask_gl_cx(     j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ice_a(   j,i+1) == 0) ice%mask_margin_cx( j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 0 .AND. ice%mask_ice_a(   j,i+1) == 1) ice%mask_margin_cx( j,i) = 1
-      
-      IF (ice%mask_ice_a(   j,i  ) == 1 .AND. &
-         (ice%mask_ocean_a( j,i+1) == 1 .AND. ice%mask_ice_a( j,i+1) == 0)) ice%mask_cf_cx(     j,i) = 1
-      IF (ice%mask_ice_a(   j,i+1) == 1 .AND. &
-         (ice%mask_ocean_a( j,i  ) == 1 .AND. ice%mask_ice_a( j,i  ) == 0)) ice%mask_cf_cx(     j,i) = 1
-      
-    END DO
-    END DO
-    CALL sync
+  END SUBROUTINE determine_masks_transitions
   
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny-1
-      
-      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_shelf_a( j+1,i) == 1) ice%mask_gl_cy(     j,i) = 1
-      IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%mask_sheet_a( j+1,i) == 1) ice%mask_gl_cy(     j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 1 .AND. ice%mask_ice_a(   j+1,i) == 0) ice%mask_margin_cy( j,i) = 1
-      IF (ice%mask_ice_a(   j,i) == 0 .AND. ice%mask_ice_a(   j+1,i) == 1) ice%mask_margin_cy( j,i) = 1
-      
-      IF (ice%mask_ice_a(   j  ,i) == 1 .AND. &
-         (ice%mask_ocean_a( j+1,i) == 1 .AND. ice%mask_ice_a( j+1,i) == 0)) ice%mask_cf_cy(     j,i) = 1
-      IF (ice%mask_ice_a(   j+1,i) == 1 .AND. &
-         (ice%mask_ocean_a( j  ,i) == 1 .AND. ice%mask_ice_a( j  ,i) == 0)) ice%mask_cf_cy(     j,i) = 1
-      
-    END DO
-    END DO
-    CALL sync
-  
-  END SUBROUTINE determine_masks
-  SUBROUTINE determine_floating_margin_fraction( grid, ice)
-    ! Determine the ice-filled fraction of floating margin pixels
-    
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,ii,jj
-    LOGICAL                                            :: has_noncf_neighbours
-    REAL(dp)                                           :: Hi_neighbour_max
-
-    DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
-    DO j = 2, grid%ny-1
-
-      ice%float_margin_frac_a( j,i) = 1._dp
-      ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
-      
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-        
-        ! First check if any non-calving-front neighbours actually exist
-        has_noncf_neighbours = .FALSE.
-        DO ii = i-1,i+1
-        DO jj = j-1,j+1
-          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) has_noncf_neighbours = .TRUE.
-        END DO
-        END DO
-        
-        ! If not, then the floating fraction is defined as 1
-        IF (.NOT. has_noncf_neighbours) THEN
-          ice%float_margin_frac_a( j,i) = 1._dp
-          ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
-          CYCLE
-        END IF
-        
-        ! If so, find the ice thickness the thickest non-calving-front neighbour
-        Hi_neighbour_max = 0._dp
-        DO ii = i-1,i+1
-        DO jj = j-1,j+1
-          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) THEN
-            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( jj,ii))
-          END IF
-        END DO
-        END DO
-        
-        ! If the thickest non-calving-front neighbour has thinner ice, define the fraction as 1
-        IF (Hi_neighbour_max < ice%Hi_a( j,i)) THEN
-          ice%float_margin_frac_a( j,i) = 1._dp
-          ice%Hi_actual_cf_a(      j,i) = ice%Hi_a( j,i)
-          CYCLE
-        END IF
-        
-        ! Calculate ice-filled fraction
-        ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_neighbour_max
-        ice%Hi_actual_cf_a(      j,i) = Hi_neighbour_max
-        
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-    
-    ! Safety
-    CALL check_for_NaN_dp_2D( ice%float_margin_frac_a, 'ice%float_margin_frac_a', 'determine_floating_margin_fraction')
-    CALL check_for_NaN_dp_2D( ice%Hi_actual_cf_a     , 'ice%Hi_actual_cf_a'     , 'determine_floating_margin_fraction')
-    
-  END SUBROUTINE determine_floating_margin_fraction
+! == Routines for calculating sub-grid grounded fractions
   SUBROUTINE determine_grounded_fractions( grid, ice)
     ! Determine the grounded fraction of next-to-grounding-line pixels
     ! (used for determining basal friction in the DIVA)
@@ -741,6 +671,83 @@ CONTAINS
     f_SW = fvals( 1)
     
   END SUBROUTINE rotate_quad
+  
+! == Routines for calculating the sub-grid ice-filled fraction and effective ice thickness at the calving front
+  SUBROUTINE determine_floating_margin_fraction( grid, ice)
+    ! Determine the ice-filled fraction and effective ice thickness of floating margin pixels
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    INTEGER                                            :: i,j,ii,jj
+    LOGICAL                                            :: has_noncf_neighbours
+    REAL(dp)                                           :: Hi_neighbour_max
+
+    DO i = grid%i1, grid%i2
+    DO j = 2, grid%ny-1
+
+      ! Initialise
+      IF (ice%mask_ice_a( j,i) == 1) THEN
+        ice%float_margin_frac_a( j,i) = 1._dp
+        ice%Hi_eff_cf_a(         j,i) = ice%Hi_a( j,i)
+      ELSE
+        ice%float_margin_frac_a( j,i) = 0._dp
+        ice%Hi_eff_cf_a(         j,i) = 0._dp
+      END IF
+      
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        
+        ! First check if any non-calving-front neighbours actually exist
+        has_noncf_neighbours = .FALSE.
+        DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) has_noncf_neighbours = .TRUE.
+        END DO
+        END DO
+        
+        ! If not, then the floating fraction is defined as 1
+        IF (.NOT. has_noncf_neighbours) THEN
+          ice%float_margin_frac_a( j,i) = 1._dp
+          ice%Hi_eff_cf_a(         j,i) = ice%Hi_a( j,i)
+          CYCLE
+        END IF
+        
+        ! If so, find the ice thickness the thickest non-calving-front neighbour
+        Hi_neighbour_max = 0._dp
+        DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) THEN
+            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( jj,ii))
+          END IF
+        END DO
+        END DO
+        
+        ! If the thickest non-calving-front neighbour has thinner ice, define the fraction as 1
+        IF (Hi_neighbour_max < ice%Hi_a( j,i)) THEN
+          ice%float_margin_frac_a( j,i) = 1._dp
+          ice%Hi_eff_cf_a(         j,i) = ice%Hi_a( j,i)
+          CYCLE
+        END IF
+        
+        ! Calculate ice-filled fraction
+        ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_neighbour_max
+        ice%Hi_eff_cf_a(         j,i) = Hi_neighbour_max
+        
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%float_margin_frac_a, 'ice%float_margin_frac_a', 'determine_floating_margin_fraction')
+    CALL check_for_NaN_dp_2D( ice%Hi_eff_cf_a        , 'ice%Hi_eff_cf_a'        , 'determine_floating_margin_fraction')
+    
+  END SUBROUTINE determine_floating_margin_fraction
   
 ! == A simple flood-fill algorithm for determining the ocean mask without creating inland seas / lakes
   SUBROUTINE ocean_floodfill( grid, ice)

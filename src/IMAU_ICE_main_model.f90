@@ -23,9 +23,9 @@ MODULE IMAU_ICE_main_model
                                              create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
                                              create_regional_scalar_output_file
   USE forcing_module,                  ONLY: forcing, initialise_geothermal_heat_flux_regional
-  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, initialise_basins, initialise_mask_noice
+  USE general_ice_model_data_module,   ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,             ONLY: solve_DIVA
-  USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model
+  USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
   USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
   USE ocean_module,                    ONLY: initialise_ocean_model_regional,   run_ocean_model
   USE climate_module,                  ONLY: initialise_climate_model_regional, run_climate_model
@@ -34,7 +34,6 @@ MODULE IMAU_ICE_main_model
   USE isotopes_module,                 ONLY: initialise_isotopes_model,         run_isotopes_model
   USE bedrock_ELRA_module,             ONLY: initialise_ELRA_model,             run_ELRA_model
   USE SELEN_main_module,               ONLY: apply_SELEN_bed_geoid_deformation_rates
-  USE calving_module,                  ONLY: apply_calving_law
   USE scalar_data_output_module,       ONLY: write_regional_scalar_data
 
   IMPLICIT NONE
@@ -156,25 +155,11 @@ CONTAINS
         IF (par%master) CALL write_to_help_fields_file( region)
         CALL sync
       END IF
-      
-      ! Update ice geometry and advance region time
-      t1 = MPI_WTIME()
-      region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
-      CALL sync
-      
-      ! Save the previous ice mask, for use in thermodynamics
-      region%ice%mask_ice_a_prev( :,region%grid%i1:region%grid%i2) = region%ice%mask_ice_a( :,region%grid%i1:region%grid%i2)
-      CALL sync
-      
-      ! Update masks, apply calving
-      CALL update_general_ice_model_data( region%grid, region%ice)
-      CALL apply_calving_law( region%grid, region%ice, region%refgeo_PD, region%refgeo_GIAeq)
-      CALL update_general_ice_model_data( region%grid, region%ice)
 
+      ! Update ice geometry and advance region time
+      CALL update_ice_thickness( region%grid, region%ice)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
-      t2 = MPI_WTIME()
-      IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
       
       ! DENK DROM
       !region%time = t_end
@@ -287,7 +272,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
     
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%mask_noice)
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%mask_noice)
     
     ! ===== Define ice basins =====
     ! =============================

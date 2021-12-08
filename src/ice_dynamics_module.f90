@@ -22,13 +22,15 @@ MODULE ice_dynamics_module
   USE ice_velocity_module,             ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA
   USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
                                              remove_unconnected_shelves
-  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
+  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
+                                             determine_masks_transitions
+  USE calving_module,                  ONLY: apply_calving_law
 
   IMPLICIT NONE
   
 CONTAINS
 
-  ! The main ice dynamics routine
+! == The main ice dynamics routine
   SUBROUTINE run_ice_model( region, t_end)
     ! Calculate ice velocities and the resulting change in ice geometry
     
@@ -164,7 +166,7 @@ CONTAINS
       region%ice%dHi_dt_a( :,i1:i2) = 0._dp
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
     END IF
     
   END SUBROUTINE run_ice_dynamics_direct
@@ -225,7 +227,7 @@ CONTAINS
       
       ! Calculate new ice geometry
       region%ice%pc_f2(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
       region%ice%pc_f1(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a(     :,i1:i2) + region%dt_crit_ice * region%ice%dHi_dt_a( :,i1:i2))
       CALL sync
@@ -288,23 +290,21 @@ CONTAINS
     
       ! Corrector step
       ! ==============
-      
-      ! Calculate "corrected" ice thickness based on new velocities
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
-      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
-      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old(   :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2))      )
-      CALL sync
-  
-      ! Determine truncation error
-      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
     
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
       ! and only go to new (corrected) ice thickness at the end of this time loop.
       region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(   :,i1:i2)
-      region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_corr( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
-      CALL sync
       CALL update_general_ice_model_data( region%grid, region%ice)
+      
+      ! Calculate "corrected" ice thickness based on new velocities
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
+      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2)))
+      CALL sync
+  
+      ! Determine truncation error
+      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
     
     END IF ! IF (do_update_ice_velocity) THEN
       
@@ -312,14 +312,56 @@ CONTAINS
     CALL determine_timesteps_and_actions( region, t_end)
     
     ! Calculate ice thickness at the end of this model loop
-    region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
+    region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
     CALL sync
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
   END SUBROUTINE run_ice_dynamics_pc
   
-  ! Time stepping
+! == Update the ice thickness at the end of a model time loop
+  SUBROUTINE update_ice_thickness( grid, ice)
+    ! Update the ice thickness at the end of a model time loop
+    
+    IMPLICIT NONE
+    
+    ! In- and output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Save the previous ice mask, for use in thermodynamics
+    ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
+    CALL sync
+    
+    ! Set ice thickness to new value
+    ice%Hi_a( :,grid%i1:grid%i2) = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2))
+    CALL sync
+    
+    ! Apply calving law
+    ! 
+    ! NOTE: done twice, so that the calving front is also allowed to retreat
+    IF (.NOT. C%choice_calving_law == 'none') THEN
+      CALL determine_masks_ice(                grid, ice)
+      CALL determine_masks_transitions(        grid, ice)
+      CALL determine_floating_margin_fraction( grid, ice)
+      CALL apply_calving_law(                  grid, ice)
+      
+      CALL determine_masks_ice(                grid, ice)
+      CALL determine_masks_transitions(        grid, ice)
+      CALL determine_floating_margin_fraction( grid, ice)
+      CALL apply_calving_law(                  grid, ice)
+      
+      ! Remove unconnected shelves
+      CALL determine_masks_ice(                grid, ice)
+      CALL determine_masks_transitions(        grid, ice)
+      CALL remove_unconnected_shelves(         grid, ice)
+    END IF
+    
+    CALL update_general_ice_model_data(      grid, ice)
+    
+  END SUBROUTINE update_ice_thickness
+  
+! == Time stepping
   SUBROUTINE calc_critical_timestep_SIA( grid, ice, dt_crit_SIA)
     ! Calculate the critical time step for advective ice flow (CFL criterion)
     
@@ -575,8 +617,8 @@ CONTAINS
     
   END SUBROUTINE determine_timesteps_and_actions
   
-  ! Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, mask_noice)
+! == Administration: allocation and initialisation
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, mask_noice)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
       
@@ -586,6 +628,8 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
@@ -608,9 +652,9 @@ CONTAINS
     CALL sync
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min, mask_noice)
+    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min, mask_noice, refgeo_PD, refgeo_GIAeq)
     CALL update_general_ice_model_data( grid, ice)
-    CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
+    CALL remove_unconnected_shelves(    grid, ice)
     CALL update_general_ice_model_data( grid, ice)
       
     ! Initialise the "previous ice mask", so that the first call to thermodynamics works correctly
@@ -715,17 +759,9 @@ CONTAINS
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_sheet_a         , ice%wmask_sheet_a         )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_shelf_a         , ice%wmask_shelf_a         )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_coast_a         , ice%wmask_coast_a         )
-    CALL allocate_shared_int_2D(       grid%ny  , grid%nx-1, ice%mask_coast_cx        , ice%wmask_coast_cx        )
-    CALL allocate_shared_int_2D(       grid%ny-1, grid%nx  , ice%mask_coast_cy        , ice%wmask_coast_cy        )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_margin_a        , ice%wmask_margin_a        )
-    CALL allocate_shared_int_2D(       grid%ny  , grid%nx-1, ice%mask_margin_cx       , ice%wmask_margin_cx       )
-    CALL allocate_shared_int_2D(       grid%ny-1, grid%nx  , ice%mask_margin_cy       , ice%wmask_margin_cy       )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_gl_a            , ice%wmask_gl_a            )
-    CALL allocate_shared_int_2D(       grid%ny  , grid%nx-1, ice%mask_gl_cx           , ice%wmask_gl_cx           )
-    CALL allocate_shared_int_2D(       grid%ny-1, grid%nx  , ice%mask_gl_cy           , ice%wmask_gl_cy           )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_cf_a            , ice%wmask_cf_a            )
-    CALL allocate_shared_int_2D(       grid%ny  , grid%nx-1, ice%mask_cf_cx           , ice%wmask_cf_cx           )
-    CALL allocate_shared_int_2D(       grid%ny-1, grid%nx  , ice%mask_cf_cy           , ice%wmask_cf_cy           )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_a               , ice%wmask_a               )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%f_grnd_a             , ice%wf_grnd_a             )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%f_grnd_cx            , ice%wf_grnd_cx            )
@@ -825,7 +861,7 @@ CONTAINS
     
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_actual_cf_a       , ice%wHi_actual_cf_a       )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
     
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )
