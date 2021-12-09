@@ -103,9 +103,8 @@ CONTAINS
       
     ELSEIF (C%choice_ocean_model == 'PD_obs') THEN
       ! Allocate both the "PD_obs" and "applied" snapshots, and initialise the present-day observations
-      
-      CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%PD_obs,  name = 'PD_obs')
-      CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%applied, name = 'applied')
+           
+      CALL initialise_ocean_model_PD_obs_regional( region, ocean_matrix_global)
       
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Allocate all the snapshots used in the warm/cold ocean matrix
