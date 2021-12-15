@@ -113,57 +113,57 @@ CONTAINS
     ! Correct fluxes at the calving front to account for partially-filled grid cells
     ! ==============================================================================
     
-    ! x-direction
-    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
-      
-      IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
-              ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
-        END IF
-        
-      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
-              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
-        END IF
-        
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
-    
-    ! y-direction
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny-1
-      
-      IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
-              ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
-        END IF
-        
-      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
-              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
-        END IF
-        
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
+!    ! x-direction
+!    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+!    DO j = 1, grid%ny
+!      
+!      IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
+!              ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+!          ice%Qx_cx( j,i) = 0._dp
+!        END IF
+!        
+!      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
+!              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
+!          ice%Qx_cx( j,i) = 0._dp
+!        END IF
+!        
+!      END IF
+!      
+!    END DO
+!    END DO
+!    CALL sync
+!    
+!    ! y-direction
+!    DO i = grid%i1, grid%i2
+!    DO j = 1, grid%ny-1
+!      
+!      IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
+!              ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+!          ice%Qy_cy( j,i) = 0._dp
+!        END IF
+!        
+!      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
+!              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
+!          ice%Qy_cy( j,i) = 0._dp
+!        END IF
+!        
+!      END IF
+!      
+!    END DO
+!    END DO
+!    CALL sync
         
     ! Correct outfluxes for possible resulting negative ice thicknesses
     ! =================================================================

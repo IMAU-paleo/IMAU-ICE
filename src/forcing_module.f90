@@ -1,6 +1,6 @@
 MODULE forcing_module
 
-  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level, climate),
+  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level),
   ! as well as the "forcing" structure which stores all the results from these routines (so that they
   ! can be accessed from all four ice-sheet models and the coupling routine).
  

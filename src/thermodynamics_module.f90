@@ -241,7 +241,7 @@ CONTAINS
 
         f1 = (ice%Ki_a( k,j,i) * ice%dzeta_dz_a( j,i)**2) / (ice_density * ice%Cpi_a( k,j,i))
 
-        f2 = ice%dzeta_dt_a( k,j,i) + ice%dzeta_dx_a( k,j,i) * ice%U_3D_a( k,j,i) + ice%dzeta_dy_a( k,j,i) * ice%V_3D_a( k,j,i) + ice%dzeta_dz_a( j,i) * ice%W_3D_a( k,j,i)
+        f2 = ice%dzeta_dt_a( k,j,i) + ice%dzeta_dx_a( k,j,i) * ice%u_3D_a( k,j,i) + ice%dzeta_dy_a( k,j,i) * ice%v_3D_a( k,j,i) + ice%dzeta_dz_a( j,i) * ice%w_3D_a( k,j,i)
 
         f3 = internal_heating + (u_times_dT_dx_upwind + v_times_dT_dy_upwind) - ice%Ti_a( k,j,i) / C%dt_thermo
 
@@ -638,7 +638,7 @@ CONTAINS
         A_flow_MISMIP = 1.0E-16_dp
       END IF
         
-      ice%A_flow_vav_a( :,grid%i1:grid%i2) = A_flow_MISMIP
+      ice%A_flow_3D_a( :,:,grid%i1:grid%i2) = A_flow_MISMIP
       CALL sync
         
     ELSE

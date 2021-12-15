@@ -3,38 +3,39 @@ MODULE IMAU_ICE_main_model
   ! Contains all the routines for initialising and running the IMAU-ICE regional ice-sheet model.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
-  USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
-                                             allocate_shared_int_0D, allocate_shared_dp_0D, &
-                                             allocate_shared_int_1D, allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D, allocate_shared_dp_2D, &
-                                             allocate_shared_int_3D, allocate_shared_dp_3D, &
-                                             allocate_shared_bool_0D, &
-                                             deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_model_region, type_ice_model, type_reference_geometry, &
-                                             type_SMB_model, type_BMB_model, type_forcing_data, type_grid, &
-                                             type_climate_matrix_global, type_ocean_matrix_global
-  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
-                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             inverse_oblique_sg_projection, surface_elevation
-  USE parameters_module,               ONLY: seawater_density, ice_density, T0
-  USE reference_fields_module,         ONLY: initialise_reference_geometries
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
-                                             create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
-                                             create_regional_scalar_output_file
-  USE forcing_module,                  ONLY: forcing, initialise_geothermal_heat_flux_regional
-  USE general_ice_model_data_module,   ONLY: initialise_basins, initialise_mask_noice
-  USE ice_velocity_module,             ONLY: solve_DIVA
-  USE ice_dynamics_module,             ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
-  USE thermodynamics_module,           ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
-  USE ocean_module,                    ONLY: initialise_ocean_model_regional,   run_ocean_model
-  USE climate_module,                  ONLY: initialise_climate_model_regional, run_climate_model
-  USE SMB_module,                      ONLY: initialise_SMB_model,              run_SMB_model
-  USE BMB_module,                      ONLY: initialise_BMB_model,              run_BMB_model
-  USE isotopes_module,                 ONLY: initialise_isotopes_model,         run_isotopes_model
-  USE bedrock_ELRA_module,             ONLY: initialise_ELRA_model,             run_ELRA_model
-  USE SELEN_main_module,               ONLY: apply_SELEN_bed_geoid_deformation_rates
-  USE scalar_data_output_module,       ONLY: write_regional_scalar_data
+  USE configuration_module,                ONLY: dp, C           
+  USE parallel_module,                     ONLY: par, sync, cerr, ierr, &
+                                                 allocate_shared_int_0D, allocate_shared_dp_0D, &
+                                                 allocate_shared_int_1D, allocate_shared_dp_1D, &
+                                                 allocate_shared_int_2D, allocate_shared_dp_2D, &
+                                                     allocate_shared_int_3D, allocate_shared_dp_3D, &
+                                                 allocate_shared_bool_0D, &
+                                                 deallocate_shared, partition_list
+  USE data_types_module,                   ONLY: type_model_region, type_ice_model, type_reference_geometry, &
+                                                 type_SMB_model, type_BMB_model, type_forcing_data, type_grid, &
+                                                 type_climate_matrix_global, type_ocean_matrix_global
+  USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                                 check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                                 inverse_oblique_sg_projection, surface_elevation
+  USE parameters_module,                   ONLY: seawater_density, ice_density, T0
+  USE reference_fields_module,             ONLY: initialise_reference_geometries
+  USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
+                                                 create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
+                                                 create_regional_scalar_output_file
+  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional
+  USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
+  USE ice_velocity_module,                 ONLY: solve_DIVA
+  USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
+  USE thermodynamics_module,               ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
+  USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model
+  USE climate_module,                      ONLY: initialise_climate_model_regional, run_climate_model
+  USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
+  USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
+  USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
+  USE bedrock_ELRA_module,                 ONLY: initialise_ELRA_model,             run_ELRA_model
+  USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
+  USE scalar_data_output_module,           ONLY: write_regional_scalar_data
+  USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
 
   IMPLICIT NONE
 
@@ -51,8 +52,8 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
-    REAL(dp)                                      :: tstart, tstop, t1, t2
-    INTEGER                                       :: it
+    REAL(dp)                                           :: tstart, tstop, t1, t2
+    INTEGER                                            :: it
     
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,'(A,A3,A,A13,A,F9.3,A,F9.3,A)') '  Running model region ', region%name, ' (', TRIM(region%long_name), & 
@@ -146,6 +147,13 @@ CONTAINS
     
       CALL run_isotopes_model( region)
       
+    ! Geometry-based basal inversion
+    ! ==============================
+    
+      IF (region%do_BIV) THEN
+        CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, region%dt)
+      END IF
+      
     ! Time step and output
     ! ====================
                             
@@ -172,9 +180,10 @@ CONTAINS
     
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      IF (par%master) CALL write_to_restart_file(     region, forcing)
-      IF (par%master) CALL write_to_help_fields_file( region)
-    END IF 
+      IF (par%master)  CALL write_to_restart_file(     region, forcing)
+      IF (par%master)  CALL write_to_help_fields_file( region)
+      IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
+    END IF
     
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
     ! used for writing to text output and in the inverse routine
@@ -428,6 +437,10 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%t_next_ELRA,      region%wt_next_ELRA     )
     CALL allocate_shared_bool_0D( region%do_ELRA,          region%wdo_ELRA         ) 
     
+    CALL allocate_shared_dp_0D(   region%t_last_BIV,       region%wt_last_BIV      )
+    CALL allocate_shared_dp_0D(   region%t_next_BIV,       region%wt_next_BIV      )
+    CALL allocate_shared_bool_0D( region%do_BIV,           region%wdo_BIV          )
+    
     IF (par%master) THEN
       region%time           = C%start_time_of_run
       region%dt             = C%dt_min
@@ -468,6 +481,10 @@ CONTAINS
       region%t_last_ELRA    = C%start_time_of_run
       region%t_next_ELRA    = C%start_time_of_run
       region%do_ELRA        = .TRUE.
+      
+      region%t_last_BIV     = C%start_time_of_run
+      region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_PDC2012_dt
+      region%do_BIV         = .FALSE.
       
       region%t_last_output  = C%start_time_of_run
       region%t_next_output  = C%start_time_of_run

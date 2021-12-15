@@ -282,22 +282,50 @@ MODULE configuration_module
   ! ===========================================
   
   ! Sliding laws
-  CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005"
+  CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config         = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
   REAL(dp)            :: slid_delta_v_config                         = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
   REAL(dp)            :: slid_Weertman_m_config                      = 3._dp                            ! Exponent in Weertman sliding law
   REAL(dp)            :: slid_Coulomb_reg_q_plastic_config           = 0.3_dp                           ! Scaling exponent   in regularised Coulomb sliding law
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
+  REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
+  REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
   
-  ! Basal conditions
-  CHARACTER(LEN=256)  :: choice_basal_conditions_config              = 'Martin2011'                     ! Choice of basal conditions: "idealised", "Martin2011"
-  CHARACTER(LEN=256)  :: choice_idealised_basal_conditions_config    = ''                               ! "SSA_icestream", "MISMIP+"
-  REAL(dp)            :: Martin2011till_pwp_Hb_min_config            = 0._dp                            ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_pwp_Hb_max_config            = 1000._dp                         ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
+  ! Basal hydrology
+  CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
+  REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
+  
+  ! Basal roughness / friction
+  CHARACTER(LEN=256)  :: choice_basal_roughness_config               = 'parameterised'                  ! "parameterised", "prescribed"
+  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
+  CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  
+  ! Basal inversion
+  LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
+  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
+  REAL(dp)            :: BIVgeo_PDC2012_dt_config                    = 5000._dp                         ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_Lipscomb2021_H0_config               = 100._dp                          ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_CISMplus_wH_config                   = 1._dp                            ! Weighting factor for ice thickness in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_CISMplus_wu_config                   = 1._dp                            ! Weighting factor for velocity      in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_CISMplus_tauc_config                 = 500._dp                          ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_CISMplus_H0_config                   = 100._dp                          ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
+  CHARACTER(LEN=256)  :: BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
+  REAL(dp)            :: BIVgeo_init_Weertman_beta_sq_config         = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using a Weertman sliding law
+  REAL(dp)            :: BIVgeo_init_Coulomb_phi_fric_config         = 15._dp                           ! Initial guess for phi_fric in geometry-based basal inversion using a (regularised) Coulomb sliding law
+  REAL(dp)            :: BIVgeo_init_Tsai2015_alpha_sq_config        = 0.5_dp                           ! Initial guess for alpha_sq in geometry-based basal inversion using the Tsai2015 sliding law
+  REAL(dp)            :: BIVgeo_init_Tsai2015_beta_sq_config         = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using the Tsai2015 sliding law
+  REAL(dp)            :: BIVgeo_init_Schoof2005_alpha_sq_config      = 0.5_dp                           ! Initial guess for alpha_sq in geometry-based basal inversion using the Schoof2005 sliding law
+  REAL(dp)            :: BIVgeo_init_Schoof2005_beta_sq_config       = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using the Schoof2005 sliding law
+  
 
   ! Ice dynamics - calving
   ! ======================
@@ -882,7 +910,7 @@ MODULE configuration_module
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-    
+  
     ! Sliding laws
     CHARACTER(LEN=256)                  :: choice_sliding_law
     CHARACTER(LEN=256)                  :: choice_idealised_sliding_law
@@ -890,16 +918,43 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Weertman_m
     REAL(dp)                            :: slid_Coulomb_reg_q_plastic
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
+    REAL(dp)                            :: slid_ZI_ut
+    REAL(dp)                            :: slid_ZI_p
     
-    ! Basal conditions
-    CHARACTER(LEN=256)                  :: choice_basal_conditions
-    CHARACTER(LEN=256)                  :: choice_idealised_basal_conditions
-    REAL(dp)                            :: Martin2011till_pwp_Hb_min
-    REAL(dp)                            :: Martin2011till_pwp_Hb_max
+    ! Basal hydrology
+    CHARACTER(LEN=256)                  :: choice_basal_hydrology
+    REAL(dp)                            :: Martin2011_hydro_Hb_min
+    REAL(dp)                            :: Martin2011_hydro_Hb_max
+    
+    ! Basal roughness / friction
+    CHARACTER(LEN=256)                  :: choice_basal_roughness
+    CHARACTER(LEN=256)                  :: choice_param_basal_roughness
     REAL(dp)                            :: Martin2011till_phi_Hb_min
     REAL(dp)                            :: Martin2011till_phi_Hb_max
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
+    CHARACTER(LEN=256)                  :: basal_roughness_filename
+    
+    ! Basal inversion
+    LOGICAL                             :: do_BIVgeo
+    CHARACTER(LEN=256)                  :: choice_BIVgeo_method
+    REAL(dp)                            :: BIVgeo_PDC2012_dt
+    REAL(dp)                            :: BIVgeo_PDC2012_hinv
+    REAL(dp)                            :: BIVgeo_Lipscomb2021_tauc
+    REAL(dp)                            :: BIVgeo_Lipscomb2021_H0
+    REAL(dp)                            :: BIVgeo_CISMplus_wH
+    REAL(dp)                            :: BIVgeo_CISMplus_wu
+    REAL(dp)                            :: BIVgeo_CISMplus_tauc
+    REAL(dp)                            :: BIVgeo_CISMplus_H0
+    REAL(dp)                            :: BIVgeo_CISMplus_u0
+    CHARACTER(LEN=256)                  :: BIVgeo_CISMplus_target_filename
+    CHARACTER(LEN=256)                  :: BIVgeo_filename_output
+    REAL(dp)                            :: BIVgeo_init_Weertman_beta_sq
+    REAL(dp)                            :: BIVgeo_init_Coulomb_phi_fric
+    REAL(dp)                            :: BIVgeo_init_Tsai2015_alpha_sq
+    REAL(dp)                            :: BIVgeo_init_Tsai2015_beta_sq
+    REAL(dp)                            :: BIVgeo_init_Schoof2005_alpha_sq
+    REAL(dp)                            :: BIVgeo_init_Schoof2005_beta_sq
     
     ! Ice dynamics - calving
     ! ======================
@@ -1493,7 +1548,7 @@ CONTAINS
     
     ! The NAMELIST that's used to read the external config file.
 
-    NAMELIST /CONFIG/start_time_of_run_config,                        &                
+    NAMELIST /CONFIG/start_time_of_run_config,                        &
                      end_time_of_run_config,                          &
                      dt_coupling_config,                              &
                      dt_max_config,                                   &
@@ -1657,14 +1712,37 @@ CONTAINS
                      slid_Weertman_m_config,                          &
                      slid_Coulomb_reg_q_plastic_config,               &
                      slid_Coulomb_reg_u_threshold_config,             &
-                     choice_basal_conditions_config,                  &
-                     choice_idealised_basal_conditions_config,        &
-                     Martin2011till_pwp_Hb_min_config,                &
-                     Martin2011till_pwp_Hb_max_config,                &
+                     slid_ZI_ut_config,                               &
+                     slid_ZI_p_config,                                &
+                     choice_basal_hydrology_config,                   &
+                     Martin2011_hydro_Hb_min_config,                  &
+                     Martin2011_hydro_Hb_max_config,                  &
+                     choice_basal_roughness_config,                   &
+                     choice_param_basal_roughness_config,             &
                      Martin2011till_phi_Hb_min_config,                &
                      Martin2011till_phi_Hb_max_config,                &
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
+                     basal_roughness_filename_config,                 &
+                     do_BIVgeo_config,                                &
+                     choice_BIVgeo_method_config,                     &
+                     BIVgeo_PDC2012_dt_config,                        &
+                     BIVgeo_PDC2012_hinv_config,                      &
+                     BIVgeo_Lipscomb2021_tauc_config,                 &
+                     BIVgeo_Lipscomb2021_H0_config,                   &
+                     BIVgeo_CISMplus_wH_config,                       &
+                     BIVgeo_CISMplus_wu_config,                       &
+                     BIVgeo_CISMplus_tauc_config,                     &
+                     BIVgeo_CISMplus_H0_config,                       &
+                     BIVgeo_CISMplus_u0_config,                       &
+                     BIVgeo_CISMplus_target_filename_config,          &
+                     BIVgeo_filename_output_config,                   &
+                     BIVgeo_init_Weertman_beta_sq_config,             &
+                     BIVgeo_init_Coulomb_phi_fric_config,             &
+                     BIVgeo_init_Tsai2015_alpha_sq_config,            &
+                     BIVgeo_init_Tsai2015_beta_sq_config,             &
+                     BIVgeo_init_Schoof2005_alpha_sq_config,          &
+                     BIVgeo_init_Schoof2005_beta_sq_config,           &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2171,7 +2249,7 @@ CONTAINS
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-    
+  
     ! Sliding laws
     C%choice_sliding_law                       = choice_sliding_law_config
     C%choice_idealised_sliding_law             = choice_idealised_sliding_law_config
@@ -2179,16 +2257,43 @@ CONTAINS
     C%slid_Weertman_m                          = slid_Weertman_m_config
     C%slid_Coulomb_reg_q_plastic               = slid_Coulomb_reg_q_plastic_config
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
+    C%slid_ZI_ut                               = slid_ZI_ut_config
+    C%slid_ZI_p                                = slid_ZI_p_config
     
-    ! Basal conditions
-    C%choice_basal_conditions                  = choice_basal_conditions_config
-    C%choice_idealised_basal_conditions        = choice_idealised_basal_conditions_config
-    C%Martin2011till_pwp_Hb_min                = Martin2011till_pwp_Hb_min_config
-    C%Martin2011till_pwp_Hb_max                = Martin2011till_pwp_Hb_max_config
+    ! Basal hydrology
+    C%choice_basal_hydrology                   = choice_basal_hydrology_config
+    C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
+    C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
+    
+    ! Basal roughness / friction
+    C%choice_basal_roughness                   = choice_basal_roughness_config
+    C%choice_param_basal_roughness             = choice_param_basal_roughness_config
     C%Martin2011till_phi_Hb_min                = Martin2011till_phi_Hb_min_config
     C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
+    C%basal_roughness_filename                 = basal_roughness_filename_config
+    
+    ! Basal inversion
+    C%do_BIVgeo                                = do_BIVgeo_config
+    C%choice_BIVgeo_method                     = choice_BIVgeo_method_config
+    C%BIVgeo_PDC2012_dt                        = BIVgeo_PDC2012_dt_config
+    C%BIVgeo_PDC2012_hinv                      = BIVgeo_PDC2012_hinv_config
+    C%BIVgeo_Lipscomb2021_tauc                 = BIVgeo_Lipscomb2021_tauc_config
+    C%BIVgeo_Lipscomb2021_H0                   = BIVgeo_Lipscomb2021_H0_config
+    C%BIVgeo_CISMplus_wH                       = BIVgeo_CISMplus_wH_config
+    C%BIVgeo_CISMplus_wu                       = BIVgeo_CISMplus_wu_config
+    C%BIVgeo_CISMplus_tauc                     = BIVgeo_CISMplus_tauc_config
+    C%BIVgeo_CISMplus_H0                       = BIVgeo_CISMplus_H0_config
+    C%BIVgeo_CISMplus_u0                       = BIVgeo_CISMplus_u0_config
+    C%BIVgeo_CISMplus_target_filename          = BIVgeo_CISMplus_target_filename_config
+    C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
+    C%BIVgeo_init_Weertman_beta_sq             = BIVgeo_init_Weertman_beta_sq_config
+    C%BIVgeo_init_Coulomb_phi_fric             = BIVgeo_init_Coulomb_phi_fric_config
+    C%BIVgeo_init_Tsai2015_alpha_sq            = BIVgeo_init_Tsai2015_alpha_sq_config
+    C%BIVgeo_init_Tsai2015_beta_sq             = BIVgeo_init_Tsai2015_beta_sq_config
+    C%BIVgeo_init_Schoof2005_alpha_sq          = BIVgeo_init_Schoof2005_alpha_sq_config
+    C%BIVgeo_init_Schoof2005_beta_sq           = BIVgeo_init_Schoof2005_beta_sq_config
   
     ! Ice dynamics - calving
     ! ======================

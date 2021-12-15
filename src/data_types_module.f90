@@ -13,7 +13,8 @@ MODULE data_types_module
                                          type_netcdf_direct_climate_forcing_regional, type_netcdf_direct_SMB_forcing_global, &
                                          type_netcdf_direct_SMB_forcing_regional, type_netcdf_ocean_data, &
                                          type_netcdf_extrapolated_ocean_data, type_netcdf_scalars_global, &
-                                         type_netcdf_scalars_regional
+                                         type_netcdf_scalars_regional, type_netcdf_BIV_target_velocity, &
+                                         type_netcdf_BIV_bed_roughness
 
   IMPLICIT NONE
   
@@ -185,14 +186,27 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dzeta_dz_a
     INTEGER :: wdzeta_dt_a, wdzeta_dx_a, wdzeta_dy_a, wdzeta_dz_a
     
-    ! Ice dynamics - basal conditions and driving stress
+    ! Ice dynamics - driving stress
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taudx_cx              ! Driving stress taud in the x-direction (on the cx-grid)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taudy_cy              !      "    "      "     "   y-direction ( "  "  cy-grid)
+    INTEGER :: wtaudx_cx, wtaudy_cy
+    
+    ! Ice dynamics - basal hydrology
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: overburden_pressure_a ! Overburden pressure ( = H * rho_i * g) [Pa]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: pore_water_pressure_a ! Pore water pressure (determined by basal hydrology model) [Pa]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Neff_a                ! Effective pressure ( = overburden pressure - pore water pressure) [Pa]
+    INTEGER :: woverburden_pressure_a, wpore_water_pressure_a, wNeff_a
+    
+    ! Ice dynamics - basal roughness / friction
     REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric_a            ! Till friction angle (degrees)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: tauc_a                ! Till yield stress tauc   (used when choice_sliding_law = "Coloumb" or "Coulomb_regularised")
     REAL(dp), DIMENSION(:,:  ), POINTER     :: alpha_sq_a            ! Coulomb-law friction coefficient [unitless]         (used when choice_sliding_law =             "Tsai2015", or "Schoof2005")
     REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_sq_a             ! Power-law friction coefficient   [Pa m^−1/3 yr^1/3] (used when choice_sliding_law = "Weertman", "Tsai2015", or "Schoof2005")
-    INTEGER :: wtaudx_cx, wtaudy_cy, wphi_fric_a, wtauc_a, walpha_sq_a, wbeta_sq_a
+    INTEGER :: wphi_fric_a, wtauc_a, walpha_sq_a, wbeta_sq_a
+    
+    ! Ice dynamics - basal inversion
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BIV_uabs_surf_target  ! Target surface velocity for the basal inversion [m/yr]
+    INTEGER :: wBIV_uabs_surf_target
     
     ! Ice dynamics - physical terms in the SSA/DIVA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: du_dx_b
@@ -918,6 +932,48 @@ MODULE data_types_module
   
   END TYPE type_restart_data
   
+  TYPE type_BIV_bed_roughness
+    ! Bed roughness field produced by a basal inversion procedure
+    
+    ! NetCDF file
+    TYPE(type_netcdf_BIV_bed_roughness)     :: netcdf
+    
+    ! Grid 
+    INTEGER,                    POINTER     :: nx, ny
+    REAL(dp), DIMENSION(:    ), POINTER     :: x, y
+    INTEGER :: wnx, wny, wx, wy
+    
+    ! Data
+    
+    ! Ice dynamics
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: alpha_sq
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_sq
+    INTEGER :: wphi_fric, walpha_sq, wbeta_sq
+  
+  END TYPE type_BIV_bed_roughness
+  
+  TYPE type_BIV_target_velocity
+    ! Target velocity fields used by the basal inversion routine
+    
+    ! NetCDF file
+    TYPE(type_netcdf_BIV_target_velocity)   :: netcdf
+    
+    ! Grid 
+    INTEGER,                    POINTER     :: nx, ny
+    REAL(dp), DIMENSION(:    ), POINTER     :: x, y
+    INTEGER :: wnx, wny, wx, wy
+    
+    ! Data
+    
+    ! Ice dynamics
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_surf
+    INTEGER :: wu_surf, wv_surf, wuabs_surf
+  
+  END TYPE type_BIV_target_velocity
+  
   TYPE type_forcing_data
     ! Data structure containing model forcing data - CO2 record, d18O record, (global) insolation record
     
@@ -1197,6 +1253,7 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: t_last_SMB,     t_next_SMB
     REAL(dp), POINTER                       :: t_last_BMB,     t_next_BMB
     REAL(dp), POINTER                       :: t_last_ELRA,    t_next_ELRA
+    REAL(dp), POINTER                       :: t_last_BIV,     t_next_BIV
     LOGICAL,  POINTER                       :: do_SIA
     LOGICAL,  POINTER                       :: do_SSA
     LOGICAL,  POINTER                       :: do_DIVA
@@ -1207,10 +1264,11 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_BMB
     LOGICAL,  POINTER                       :: do_output
     LOGICAL,  POINTER                       :: do_ELRA
+    LOGICAL,  POINTER                       :: do_BIV
     INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
-    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA
-    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA
-    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
     
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area

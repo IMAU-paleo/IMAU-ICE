@@ -928,8 +928,7 @@ MODULE data_types_netcdf_module
   END TYPE type_netcdf_SELEN_output
   
   TYPE type_netcdf_extrapolated_ocean_data
-    ! Integers describing open ports to different variables in an opened NetCDF file,
-    ! plus character strings describing the names of those variables.
+    ! A NetCDF file containing extrapolated ocean data on a high-resolution grid
     
     CHARACTER(LEN=256) :: filename
     
@@ -968,6 +967,71 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_S_ocean               = 'S_ocean              '
     
   END TYPE type_netcdf_extrapolated_ocean_data
+  
+  TYPE type_netcdf_BIV_bed_roughness
+    ! A NetCDF file containing bed roughness resulting from a basal inversion routine
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+    ! ID's for variables:
+    ! ===================
+    
+    ! Dimensions
+    INTEGER :: id_dim_x
+    INTEGER :: id_dim_y
+    
+    CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
+    
+    ! Variables:
+    INTEGER :: id_var_x
+    INTEGER :: id_var_y
+    INTEGER :: id_var_phi_fric
+    INTEGER :: id_var_alpha_sq
+    INTEGER :: id_var_beta_sq
+    
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_var_phi_fric              = 'phi_fric             '
+    CHARACTER(LEN=256) :: name_var_alpha_sq              = 'alpha_sq             '
+    CHARACTER(LEN=256) :: name_var_beta_sq               = 'beta_sq              '
+    
+  END TYPE type_netcdf_BIV_bed_roughness
+  
+  TYPE type_netcdf_BIV_target_velocity
+    ! A NetCDF file containing surface [u,v]-velocity fields to be used as
+    ! the target in a velocity-based basal inversion routine
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+    ! ID's for variables:
+    ! ===================
+    
+    ! Dimensions
+    INTEGER :: id_dim_x
+    INTEGER :: id_dim_y
+    
+    CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
+    
+    ! Variables:
+    INTEGER :: id_var_x
+    INTEGER :: id_var_y
+    INTEGER :: id_var_u_surf
+    INTEGER :: id_var_v_surf
+    
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_var_u_surf                = 'u_surf               '
+    CHARACTER(LEN=256) :: name_var_v_surf                = 'v_surf               '
+    
+  END TYPE type_netcdf_BIV_target_velocity
   
 CONTAINS
 
