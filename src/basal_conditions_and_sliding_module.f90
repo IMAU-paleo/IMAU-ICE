@@ -850,7 +850,7 @@ CONTAINS
       
     IF     (C%choice_sliding_law == 'no_sliding') THEN
       ! No sliding allowed (choice of beta is trivial)
-      ice%beta_a( :,grid%i1:grid%i2) = 0._dp
+      beta_a( :,grid%i1:grid%i2) = 0._dp
       CALL sync
     ELSEIF (C%choice_sliding_law == 'idealised') THEN
       ! Sliding laws for some idealised experiments

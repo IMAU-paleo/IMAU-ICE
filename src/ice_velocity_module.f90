@@ -497,17 +497,31 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j,k
-    REAL(dp)                                           :: dHb_dx, dHb_dy, u_base_a, v_base_a
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dx_a,  dHs_dy_a,  dHi_dx_a,  dHi_dy_a
+    INTEGER                                            :: wdHs_dx_a, wdHs_dy_a, wdHi_dx_a, wdHi_dy_a
+    REAL(dp)                                           :: dHbase_dx, dHbase_dy, u_base_a, v_base_a
     REAL(dp)                                           :: du_dx_k,   dv_dy_k
     REAL(dp)                                           :: du_dx_kp1, dv_dy_kp1
     REAL(dp)                                           :: w1, w2, w3, w4
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHs_dx_a, wdHs_dx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHs_dy_a, wdHs_dy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHi_dx_a, wdHi_dx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHi_dy_a, wdHi_dy_a)
+    
+    ! Calculate surface & ice thickness gradients
+    CALL ddx_a_to_a_2D( grid, ice%Hs_a, dHs_dx_a)
+    CALL ddy_a_to_a_2D( grid, ice%Hs_a, dHs_dy_a)
+    CALL ddx_a_to_a_2D( grid, ice%Hi_a, dHi_dx_a)
+    CALL ddy_a_to_a_2D( grid, ice%Hi_a, dHi_dy_a)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      ! Base-of-ice slopes (not the same as bedrock slope when ice is floating!)
-      dHb_dx = ice%dHs_dx_a( j,i) - ice%dHi_dx_a( j,i)
-      dHb_dy = ice%dHs_dy_a( j,i) - ice%dHi_dy_a( j,i)
+      ! Calculate the ice basal surface slope (not the same as bedrock slope when ice is floating!)
+      dHbase_dx = dHs_dx_a( j,i) - dHi_dx_a( j,i)
+      dHbase_dy = dHs_dy_a( j,i) - dHi_dy_a( j,i)
       
       ! Horizontal basal velocities
       IF     (i == 1) THEN
@@ -526,7 +540,11 @@ CONTAINS
       END IF
       
       ! Vertical velocity at the base
-      ice%w_3D_a( C%nz,j,i) = ice%dHb_dt_a( j,i) + u_base_a * dHb_dx + v_base_a * dHb_dy 
+      IF (ice%mask_sheet_a( j,i) == 1) THEN
+        ice%w_3D_a( C%nz,j,i) = (u_base_a * dHbase_dx) + (v_base_a * dHbase_dy) + ice%dHb_dt_a( j,i)
+      ELSE
+        ice%w_3D_a( C%nz,j,i) = (u_base_a * dHbase_dx) + (v_base_a * dHbase_dy)  ! Should this include the ice thinning rate?
+      END IF
                            
       ! The integrand is calculated half way the layer of integration at k+1/2. This integrant is multiplied with the layer thickness and added to the integral
       ! of all layers below, giving the integral up to and including this layer:
@@ -569,6 +587,12 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wdHs_dx_a)
+    CALL deallocate_shared( wdHs_dy_a)
+    CALL deallocate_shared( wdHi_dx_a)
+    CALL deallocate_shared( wdHi_dy_a)
     
   END SUBROUTINE calc_3D_vertical_velocities
 
