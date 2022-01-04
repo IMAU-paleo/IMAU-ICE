@@ -269,7 +269,7 @@ MODULE configuration_module
   REAL(dp)            :: dt_min_config                               = 0.01_dp                          ! Smallest allowed time step [yr]
   
   ! Ice thickness boundary conditions
-  CHARACTER(LEN=256)  :: ice_thickness_west_BC_config                = 'zero'                           ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "ISMIP_HOM_F"
+  CHARACTER(LEN=256)  :: ice_thickness_west_BC_config                = 'zero'                           ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "fixed"
   CHARACTER(LEN=256)  :: ice_thickness_east_BC_config                = 'zero' 
   CHARACTER(LEN=256)  :: ice_thickness_south_BC_config               = 'zero'
   CHARACTER(LEN=256)  :: ice_thickness_north_BC_config               = 'zero'

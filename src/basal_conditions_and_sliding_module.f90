@@ -60,7 +60,9 @@ CONTAINS
     CALL initialise_bed_roughness( grid, ice)
     
     ! Basal inversion
-    CALL initialise_basal_inversion( grid, ice)
+    IF (C%do_BIVgeo) THEN
+      CALL initialise_basal_inversion( grid, ice)
+    END IF
     
   END SUBROUTINE initialise_basal_conditions
 
@@ -146,7 +148,7 @@ CONTAINS
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%pore_water_pressure_a( j,i) = -seawater_density * grav * ice%Hb_a( j,i)
+      ice%pore_water_pressure_a( j,i) = -seawater_density * grav * (ice%SL_a( j,i) - ice%Hb_a( j,i))
     END DO
     END DO
     CALL sync
@@ -193,6 +195,9 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! If no sliding is allowed, don't calculate basal roughness
+    IF (C%choice_sliding_law == 'no_sliding') RETURN
     
     IF (C%choice_basal_roughness == 'parameterised') THEN
       ! Apply the chosen parameterisation of bed roughness
