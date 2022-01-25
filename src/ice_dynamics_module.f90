@@ -340,7 +340,16 @@ CONTAINS
     ! Apply calving law
     ! 
     ! NOTE: done twice, so that the calving front is also allowed to retreat
-    IF (.NOT. C%choice_calving_law == 'none') THEN
+    IF (C%choice_calving_law == 'none') THEN 
+      CALL determine_masks_ice(                grid, ice)
+      CALL determine_masks_transitions(        grid, ice)
+      CALL determine_floating_margin_fraction( grid, ice)
+      
+      ! Remove unconnected shelves    
+      CALL determine_masks_ice(                grid, ice)
+      CALL determine_masks_transitions(        grid, ice)
+      CALL remove_unconnected_shelves(         grid, ice)    
+    ELSE
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
       CALL determine_floating_margin_fraction( grid, ice)
@@ -354,7 +363,7 @@ CONTAINS
       ! Remove unconnected shelves
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
-      CALL remove_unconnected_shelves(         grid, ice)
+      CALL remove_unconnected_shelves(         grid, ice)      
     END IF
     
     CALL update_general_ice_model_data(      grid, ice)

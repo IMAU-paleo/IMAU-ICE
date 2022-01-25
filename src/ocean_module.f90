@@ -566,6 +566,7 @@ CONTAINS
     INTEGER                                            :: ww_ins, ww_ins_smooth, ww_ice, ww_tot, ww_tot_final
     REAL(dp)                                           :: w_ins_av
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
+    REAL(dp)                                           :: ocean_matrix_CO2vsice
 
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(             grid%ny, grid%nx, w_ins,        ww_ins         )
@@ -598,43 +599,53 @@ CONTAINS
     ! Find ice interpolation weight 
     ! =============================
     
-    ! Calculate weighting field
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate_matrix%applied%I_abs(  j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
-                                                           (    climate_matrix%GCM_warm%I_abs( j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) ))
-    END DO
-    END DO
-    CALL sync
-    w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate_matrix%applied%I_abs )      - SUM(climate_matrix%GCM_cold%I_abs)     ) / &
-                                                           (SUM(climate_matrix%GCM_warm%I_abs)      - SUM(climate_matrix%GCM_cold%I_abs)     ) ))
-   
-    ! Smooth the weighting field
-    w_ins_smooth( :,grid%i1:grid%i2) = w_ins( :,grid%i1:grid%i2)
-    CALL smooth_Gaussian_2D( grid, w_ins_smooth, 200000._dp)
+    IF         (region_name == 'NAM') THEN
+      ocean_matrix_CO2vsice = C%ocean_matrix_CO2vsice_NAM
+    ELSEIF     (region_name == 'EAS') THEN
+      ocean_matrix_CO2vsice = C%ocean_matrix_CO2vsice_EAS
+    ELSEIF     (region_name == 'GRL') THEN
+      ocean_matrix_CO2vsice = C%ocean_matrix_CO2vsice_GRL
+    ELSEIF     (region_name == 'ANT') THEN
+      ocean_matrix_CO2vsice = C%ocean_matrix_CO2vsice_ANT 
+    END IF
     
-    ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
-    w_ice( :,grid%i1:grid%i2) = (1._dp * w_ins_smooth( :,grid%i1:grid%i2) + 6._dp * w_ins_av) / 7._dp
+    IF (ocean_matrix_CO2vsice == 1._dp) THEN
+      w_ice( :,grid%i1:grid%i2) = w_CO2 ! Dummy value, not actually used
+    ELSE
+      ! Calculate weighting field
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate_matrix%applied%I_abs(  j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
+                                                           (    climate_matrix%GCM_warm%I_abs( j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) ))
+      END DO
+      END DO
+      CALL sync
+      w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate_matrix%applied%I_abs )      - SUM(climate_matrix%GCM_cold%I_abs)     ) / &
+                                                           (SUM(climate_matrix%GCM_warm%I_abs)      - SUM(climate_matrix%GCM_cold%I_abs)     ) ))
+                                                              
+      ! Smooth the weighting field
+      w_ins_smooth( :,grid%i1:grid%i2) = w_ins( :,grid%i1:grid%i2)
+      CALL smooth_Gaussian_2D( grid, w_ins_smooth, 200000._dp)
+    
+      ! Combine unsmoothed, smoothed, and regional average weighting fields (Berends et al., 2018, Eq. 4)
+      w_ice( :,grid%i1:grid%i2) = (1._dp * w_ins_smooth( :,grid%i1:grid%i2) + 6._dp * w_ins_av) / 7._dp
+    END IF
     
     ! Combine weigths CO2 and ice
     ! ===========================
     
-    IF         (region_name == 'NAM') THEN
-      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_NAM * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_NAM) * w_ice( :,grid%i1:grid%i2)) 
-    ELSEIF     (region_name == 'EAS') THEN
-      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_EAS * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_EAS) * w_ice( :,grid%i1:grid%i2)) 
-    ELSEIF     (region_name == 'GRL') THEN
-      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_GRL * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_GRL) * w_ice( :,grid%i1:grid%i2)) 
-    ELSEIF     (region_name == 'ANT') THEN
-      w_tot( :,grid%i1:grid%i2) = (C%ocean_matrix_CO2vsice_ANT * w_CO2) + ((1._dp - C%ocean_matrix_CO2vsice_ANT) * w_ice( :,grid%i1:grid%i2)) 
-    END IF
+      w_tot( :,grid%i1:grid%i2) = (ocean_matrix_CO2vsice * w_CO2) + ((1._dp - ocean_matrix_CO2vsice) * w_ice( :,grid%i1:grid%i2)) 
     
     ! Update the history of the weighing fields
     ! =========================================
     
-    ! 1st entry is the current value, 2nd is 1*dt_ocean ago, 3d is 2*dt_ocean ago, etc.
-    ocean_matrix%applied%w_tot_history( 2:ocean_matrix%applied%nw_tot_history,:,grid%i1:grid%i2) = ocean_matrix%applied%w_tot_history( 1:ocean_matrix%applied%nw_tot_history-1,:,grid%i1:grid%i2)
-    ocean_matrix%applied%w_tot_history( 1,                                    :,grid%i1:grid%i2) =                      w_tot(                                                 :,grid%i1:grid%i2)
+    IF (ocean_matrix%applied%nw_tot_history > 1) THEN
+      ! 1st entry is the current value, 2nd is 1*dt_ocean ago, 3d is 2*dt_ocean ago, etc.
+      ocean_matrix%applied%w_tot_history( 2:ocean_matrix%applied%nw_tot_history,:,grid%i1:grid%i2) = ocean_matrix%applied%w_tot_history( 1:ocean_matrix%applied%nw_tot_history-1,:,grid%i1:grid%i2)
+      ocean_matrix%applied%w_tot_history( 1,                                    :,grid%i1:grid%i2) =                      w_tot(                                                 :,grid%i1:grid%i2)
+    ELSE
+      ocean_matrix%applied%w_tot_history( 1,                                    :,grid%i1:grid%i2) =                      w_tot(                                                 :,grid%i1:grid%i2)      
+    END IF
     
     ! Interpolate the GCM ocean snapshots
     ! =============================
@@ -642,9 +653,13 @@ CONTAINS
     DO k = 1, C%nz_ocean
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      a = ( ( C%z_ocean (k) / C%z_ocean (C%nz_ocean) ) * (ocean_matrix%applied%nw_tot_history-1) ) + 1
-
-      w_tot_final (k,j,i) = ( SUM(ocean_matrix%applied%w_tot_history(1:FLOOR(a),j,i)) + ( (a - FLOOR(a)) * ocean_matrix%applied%w_tot_history(CEILING(a),j,i) ) ) * (1._dp / a)
+    
+      IF (ocean_matrix%applied%nw_tot_history > 1) THEN
+        a = ( ( C%z_ocean (k) / C%z_ocean (C%nz_ocean) ) * (ocean_matrix%applied%nw_tot_history-1) ) + 1
+        w_tot_final (k,j,i) = ( SUM(ocean_matrix%applied%w_tot_history(1:FLOOR(a),j,i)) + ( (a - FLOOR(a)) * ocean_matrix%applied%w_tot_history(CEILING(a),j,i) ) ) * (1._dp / a)      
+      ELSE
+        w_tot_final (k,j,i) = w_tot (j,i)
+      END IF  
       
       ocean_matrix%applied%T_ocean_corr_ext (k,j,i) = (           w_tot_final( k,j,i)  * ocean_matrix%GCM_warm%T_ocean_corr_ext( k,j,i)  ) + &
                                                       (  (1._dp - w_tot_final( k,j,i)) * ocean_matrix%GCM_cold%T_ocean_corr_ext( k,j,i)  )
