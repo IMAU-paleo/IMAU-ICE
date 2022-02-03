@@ -228,10 +228,8 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
   REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! The DIVA is not solved (i.e. velocities are assumed to be zero) for beta values larger than this
-  REAL(dp)            :: DIVA_err_lim_config                         = 1E-5_dp                          ! The DIVA is not refined (i.e. velocities are no longer updated with SOR) wherever successive velocity iterations change the velocity by less than this amount
-  REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
-  REAL(dp)            :: DIVA_vel_min_config                         = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! beta values     are limited to this value
+  REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config             = 'infinite'
@@ -859,9 +857,7 @@ MODULE configuration_module
     INTEGER                             :: DIVA_visc_it_nit
     REAL(dp)                            :: DIVA_visc_it_relax
     REAL(dp)                            :: DIVA_beta_max
-    REAL(dp)                            :: DIVA_err_lim
     REAL(dp)                            :: DIVA_vel_max
-    REAL(dp)                            :: DIVA_vel_min
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_south
@@ -1666,9 +1662,7 @@ CONTAINS
                      DIVA_visc_it_nit_config,                         &
                      DIVA_visc_it_relax_config,                       &
                      DIVA_beta_max_config,                            &
-                     DIVA_err_lim_config,                             &
                      DIVA_vel_max_config,                             &
-                     DIVA_vel_min_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
                      DIVA_boundary_BC_u_east_config,                  &
                      DIVA_boundary_BC_u_south_config,                 &
@@ -2198,9 +2192,7 @@ CONTAINS
     C%DIVA_visc_it_nit                         = DIVA_visc_it_nit_config
     C%DIVA_visc_it_relax                       = DIVA_visc_it_relax_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
-    C%DIVA_err_lim                             = DIVA_err_lim_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
-    C%DIVA_vel_min                             = DIVA_vel_min_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
     C%DIVA_boundary_BC_u_south                 = DIVA_boundary_BC_u_south_config
