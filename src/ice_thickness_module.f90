@@ -113,57 +113,57 @@ CONTAINS
     ! Correct fluxes at the calving front to account for partially-filled grid cells
     ! ==============================================================================
     
-    ! x-direction
-    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
-      
-      IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
-              ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
-        END IF
-        
-      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
-              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
-        END IF
-        
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
-    
-    ! y-direction
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny-1
-      
-      IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
-              ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
-        END IF
-        
-      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
-              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
-        
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
-        END IF
-        
-      END IF
-      
-    END DO
-    END DO
-    CALL sync
+!    ! x-direction
+!    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+!    DO j = 1, grid%ny
+!      
+!      IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
+!              ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+!          ice%Qx_cx( j,i) = 0._dp
+!        END IF
+!        
+!      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
+!              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
+!          ice%Qx_cx( j,i) = 0._dp
+!        END IF
+!        
+!      END IF
+!      
+!    END DO
+!    END DO
+!    CALL sync
+!    
+!    ! y-direction
+!    DO i = grid%i1, grid%i2
+!    DO j = 1, grid%ny-1
+!      
+!      IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
+!              ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
+!          ice%Qy_cy( j,i) = 0._dp
+!        END IF
+!        
+!      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
+!              ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
+!        
+!        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+!        IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
+!          ice%Qy_cy( j,i) = 0._dp
+!        END IF
+!        
+!      END IF
+!      
+!    END DO
+!    END DO
+!    CALL sync
         
     ! Correct outfluxes for possible resulting negative ice thicknesses
     ! =================================================================
@@ -718,9 +718,9 @@ CONTAINS
     ELSEIF (C%ice_thickness_west_BC == 'periodic') THEN
       ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%dHi_dt_a( grid%j1:grid%j2,grid%nx-1) - ice%dHi_dt_a( grid%j1:grid%j2,1)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
-    ELSEIF (C%ice_thickness_west_BC == 'ISMIP_HOM_F') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,1)) / dt
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 1000._dp
+    ELSEIF (C%ice_thickness_west_BC == 'fixed') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = 0._dp
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,1)
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_west_BC "', TRIM(C%ice_thickness_west_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -736,9 +736,9 @@ CONTAINS
     ELSEIF (C%ice_thickness_east_BC == 'periodic') THEN
       ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%dHi_dt_a( grid%j1:grid%j2,2) - ice%dHi_dt_a( grid%j1:grid%j2,grid%nx)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,2)
-    ELSEIF (C%ice_thickness_east_BC == 'ISMIP_HOM_F') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (1000._dp - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
+    ELSEIF (C%ice_thickness_east_BC == 'fixed') THEN
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = 0._dp
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx        )
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_east_BC "', TRIM(C%ice_thickness_east_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -754,9 +754,9 @@ CONTAINS
     ELSEIF (C%ice_thickness_south_BC == 'periodic') THEN
       ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%dHi_dt_a( grid%ny-1,grid%i1:grid%i2) - ice%dHi_dt_a( 1,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
-    ELSEIF (C%ice_thickness_south_BC == 'ISMIP_HOM_F') THEN
-      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
-      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = 1000._dp
+    ELSEIF (C%ice_thickness_south_BC == 'fixed') THEN
+      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = 0._dp
+      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = ice%Hi_a( 1              ,grid%i1:grid%i2)
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_south_BC "', TRIM(C%ice_thickness_south_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -772,9 +772,9 @@ CONTAINS
     ELSEIF (C%ice_thickness_north_BC == 'periodic') THEN
       ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%dHi_dt_a( 2,grid%i1:grid%i2) - ice%dHi_dt_a( grid%ny,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
-    ELSEIF (C%ice_thickness_north_BC == 'ISMIP_HOM_F') THEN
-      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = (1000._dp - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
-      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = 1000._dp
+    ELSEIF (C%ice_thickness_north_BC == 'fixed') THEN
+      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = 0._dp
+      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = ice%Hi_a( grid%ny        ,grid%i1:grid%i2)
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_north_BC "', TRIM(C%ice_thickness_north_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

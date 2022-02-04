@@ -14,11 +14,12 @@ MODULE netcdf_module
                                              nf90_enddef, nf90_put_var, nf90_sync, nf90_def_var, nf90_int, nf90_put_att, nf90_def_dim, &
                                              nf90_open, nf90_write, nf90_inq_dimid, nf90_inquire_dimension, nf90_inquire, nf90_double, &
                                              nf90_inq_varid, nf90_inquire_variable, nf90_get_var, nf90_noerr, nf90_strerror, nf90_float
-  USE data_types_module,               ONLY: type_model_region, type_reference_geometry, type_restart_data, type_forcing_data, &
-                                             type_climate_snapshot_global, type_ocean_snapshot_global, type_debug_fields, type_SELEN_global, &
-                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data, &
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_model_region, type_reference_geometry, type_restart_data, &
+                                             type_forcing_data, type_climate_snapshot_global, type_ocean_snapshot_global, type_debug_fields, &
+                                             type_SELEN_global, type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data, &
                                              type_highres_ocean_data, type_direct_climate_forcing_global, type_direct_climate_forcing_regional, &
-                                             type_direct_SMB_forcing_global, type_direct_SMB_forcing_regional
+                                             type_direct_SMB_forcing_global, type_direct_SMB_forcing_regional, type_netcdf_BIV_bed_roughness, &
+                                             type_BIV_target_velocity, type_BIV_bed_roughness
   IMPLICIT NONE
   
   TYPE(type_debug_fields) :: debug_NAM, debug_EAS, debug_GRL, debug_ANT, debug
@@ -448,6 +449,10 @@ CONTAINS
       CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,               region%ice%mask_shelf_a,   (/1, 1,    ti /))
       
     ! Basal conditions
+    ELSEIF (field_name == 'pore_water_pressure') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%pore_water_pressure_a, (/1, 1,    ti /))
+    ELSEIF (field_name == 'effective_pressure' .OR. field_name == 'Neff') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Neff_a,           (/1, 1,    ti /))
     ELSEIF (field_name == 'phi_fric') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%phi_fric_a,       (/1, 1,    ti /))
     ELSEIF (field_name == 'tau_yield') THEN
@@ -1170,7 +1175,11 @@ CONTAINS
     ELSEIF (field_name == 'mask_shelf') THEN
       CALL create_int_var(    region%help_fields%ncid, 'mask_shelf',               [x, y,    t], id_var, long_name='shelf mask')
       
-    ! Basal conditions
+    ! Basal hydrology and roughness
+    ELSEIF (field_name == 'pore_water_pressure') THEN
+      CALL create_double_var( region%help_fields%ncid, 'pore_water_pressure',      [x, y,    t], id_var, long_name='pore water pressure', units='Pa')
+    ELSEIF (field_name == 'effective_pressure' .OR. field_name == 'Neff') THEN
+      CALL create_double_var( region%help_fields%ncid, 'effective_pressure',       [x, y,    t], id_var, long_name='effective basal pressure', units='Pa')
     ELSEIF (field_name == 'phi_fric') THEN
       CALL create_double_var( region%help_fields%ncid, 'phi_fric',                 [x, y,    t], id_var, long_name='till friction angle', units='degrees')
     ELSEIF (field_name == 'tau_yield') THEN
@@ -3912,6 +3921,254 @@ CONTAINS
     CALL close_netcdf_file(SELEN%netcdf_topo%ncid)
     
   END SUBROUTINE read_SELEN_global_topo_file
+  
+  ! Inverted basal roughness
+  SUBROUTINE create_BIV_bed_roughness_file( grid, ice)
+    ! Create a new folder extrapolated ocean data file
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+
+    ! Local variables:
+    TYPE(type_netcdf_BIV_bed_roughness)                :: netcdf
+    LOGICAL                                            :: file_exists
+    INTEGER                                            :: x, y
+    
+    IF (.NOT. par%master) RETURN
+
+    ! Create a new file and, to prevent loss of data, 
+    ! stop with an error message if one already exists (not when differences are considered):
+    
+    netcdf%filename = TRIM(C%output_dir)//TRIM(C%BIVgeo_filename_output)
+    INQUIRE(EXIST=file_exists, FILE = TRIM( netcdf%filename))
+    IF (file_exists) THEN
+      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM( netcdf%filename), ' already exists!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Create netcdf file
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE(0,*) ' Writing inverted bed roughness to file "', TRIM( netcdf%filename), '"...'
+    CALL handle_error(nf90_create( netcdf%filename, IOR(nf90_clobber,nf90_share), netcdf%ncid))
+        
+    ! Define dimensions:
+    CALL create_dim( netcdf%ncid, netcdf%name_dim_x, grid%nx, netcdf%id_dim_x)
+    CALL create_dim( netcdf%ncid, netcdf%name_dim_y, grid%ny, netcdf%id_dim_y)
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    x = netcdf%id_dim_x
+    y = netcdf%id_dim_y
+    
+    ! Define variables:
+    ! The order of the CALL statements for the different variables determines their
+    ! order of appearence in the netcdf file.
+    
+    ! Dimension variables
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_x,       [x      ], netcdf%id_var_x,       long_name='X-coordinate', units='m')
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_y,       [   y   ], netcdf%id_var_y,       long_name='Y-coordinate', units='m')
+    
+    ! Bed roughness
+    IF     (C%choice_sliding_law == 'no_sliding') THEN
+      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Power-law friction coefficient', units='[Pa m^−1/3 yr^1/3]')
+    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+            C%choice_sliding_law == 'Coulomb_regularised') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_phi_fric, [x, y], netcdf%id_var_phi_fric, long_name='Till friction angle', units='degrees')
+    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Coulomb-law friction coefficient', units='unitless')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Power-law friction coefficient', units='[Pa m^−1/3 yr^1/3]')
+    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Coulomb-law friction coefficient', units='unitless')
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Power-law friction coefficient', units='[Pa m^−1/3 yr^1/3]')
+    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+      CALL create_double_var( netcdf%ncid, netcdf%name_var_phi_fric, [x, y], netcdf%id_var_phi_fric, long_name='Till friction angle', units='degrees')
+    ELSE
+      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+
+    ! Leave definition mode:
+    CALL handle_error(nf90_enddef( netcdf%ncid))
+    
+    ! Write the data
+    CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_var_x,        grid%x ))
+    CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_var_y,        grid%y ))
+    
+    IF     (C%choice_sliding_law == 'no_sliding') THEN
+      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_beta_sq,  ice%beta_sq_a,  (/ 1,1 /) )
+    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+            C%choice_sliding_law == 'Coulomb_regularised') THEN
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_phi_fric, ice%phi_fric_a, (/ 1,1 /) )
+    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_alpha_sq, ice%alpha_sq_a, (/ 1,1 /) )
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_beta_sq,  ice%beta_sq_a,  (/ 1,1 /) )
+    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_alpha_sq, ice%alpha_sq_a, (/ 1,1 /) )
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_beta_sq,  ice%beta_sq_a,  (/ 1,1 /) )
+    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+      CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_phi_fric, ice%phi_fric_a, (/ 1,1 /) )
+    ELSE
+      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+        
+    ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+    CALL handle_error(nf90_sync( netcdf%ncid))
+    
+    ! Close the file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+  END SUBROUTINE create_BIV_bed_roughness_file
+  SUBROUTINE inquire_BIV_bed_roughness_file( BIV)
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_BIV_bed_roughness),        INTENT(INOUT) :: BIV
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( BIV%netcdf%filename, BIV%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist, return their lengths.
+    CALL inquire_dim( BIV%netcdf%ncid, BIV%netcdf%name_dim_x,       BIV%nx,   BIV%netcdf%id_dim_x      )
+    CALL inquire_dim( BIV%netcdf%ncid, BIV%netcdf%name_dim_y,       BIV%ny,   BIV%netcdf%id_dim_y      )
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_x,       (/ BIV%netcdf%id_dim_x                        /), BIV%netcdf%id_var_x      )
+    CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_y,       (/                        BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_y      )
+    
+    IF     (C%choice_sliding_law == 'no_sliding') THEN
+      IF (par%master) WRITE(0,*) 'inquire_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_beta_sq,  (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_beta_sq )
+    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+            C%choice_sliding_law == 'Coulomb_regularised') THEN
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_phi_fric, (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_phi_fric)
+    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_alpha_sq, (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_alpha_sq)
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_beta_sq,  (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_beta_sq )
+    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_alpha_sq, (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_alpha_sq)
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_beta_sq,  (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_beta_sq )
+    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+      CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_phi_fric, (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_phi_fric)
+    ELSE
+      IF (par%master) WRITE(0,*) 'inquire_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( BIV%netcdf%ncid)
+    
+  END SUBROUTINE inquire_BIV_bed_roughness_file
+  SUBROUTINE read_BIV_bed_roughness_file(    BIV)
+    ! Read the extrapolated ocean data netcdf file
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_BIV_bed_roughness),        INTENT(INOUT) :: BIV
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( BIV%netcdf%filename, BIV%netcdf%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_x, BIV%x,  start = (/ 1 /) ))
+    CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_y, BIV%y,  start = (/ 1 /) ))
+    
+    IF     (C%choice_sliding_law == 'no_sliding') THEN
+      IF (par%master) WRITE(0,*) 'read_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_beta_sq,  BIV%beta_sq,  start = (/ 1, 1 /) ))
+    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+            C%choice_sliding_law == 'Coulomb_regularised') THEN
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_phi_fric, BIV%phi_fric, start = (/ 1, 1 /) ))
+    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_alpha_sq, BIV%alpha_sq, start = (/ 1, 1 /) ))
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_beta_sq,  BIV%beta_sq,  start = (/ 1, 1 /) ))
+    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_alpha_sq, BIV%alpha_sq, start = (/ 1, 1 /) ))
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_beta_sq,  BIV%beta_sq,  start = (/ 1, 1 /) ))
+    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+      CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_phi_fric, BIV%phi_fric, start = (/ 1, 1 /) ))
+    ELSE
+      IF (par%master) WRITE(0,*) 'read_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( BIV%netcdf%ncid)
+    
+  END SUBROUTINE read_BIV_bed_roughness_file
+  
+  ! Target velocity fields for basal inversion
+  SUBROUTINE inquire_BIV_target_velocity( BIV_target)
+    ! Check if the right dimensions and variables are present in the file.
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
+    
+    IF (.NOT. par%master) RETURN
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( BIV_target%netcdf%filename, BIV_target%netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_x, BIV_target%nx, BIV_target%netcdf%id_dim_x)
+    CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_y, BIV_target%ny, BIV_target%netcdf%id_dim_y)
+
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_x,      (/ BIV_target%netcdf%id_dim_x                             /), BIV_target%netcdf%id_var_x     )
+    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_y,      (/                             BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_y     )
+    
+    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_u_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_u_surf)
+    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_v_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_v_surf)
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( BIV_target%netcdf%ncid)
+    
+  END SUBROUTINE inquire_BIV_target_velocity
+  SUBROUTINE read_BIV_target_velocity(    BIV_target)
+    ! Read the target velocity NetCDF file
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( BIV_target%netcdf%filename, BIV_target%netcdf%ncid)
+    
+    ! Read the data
+    CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_x,      BIV_target%x,      start = (/ 1    /) ))
+    CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_y,      BIV_target%y,      start = (/ 1    /) ))
+    
+    CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_u_surf, BIV_target%u_surf, start = (/ 1, 1 /) ))
+    CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_v_surf, BIV_target%v_surf, start = (/ 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( BIV_target%netcdf%ncid)
+    
+  END SUBROUTINE read_BIV_target_velocity
   
 ! Some general useful stuff
 ! =========================

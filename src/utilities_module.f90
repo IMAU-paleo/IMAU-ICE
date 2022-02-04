@@ -665,7 +665,7 @@ CONTAINS
         END DO
         
         res = (lhs - CSR%b( i)) / cij
-        res_max = MAX( res_max, res)
+        res_max = MAX( res_max, ABS(res))
         
         CSR%x( i) = CSR%x( i) - omega_dyn * res
         

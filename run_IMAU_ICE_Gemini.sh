@@ -1,1 +1,1 @@
-mpiexec -n 16 IMAU_ICE_program src/config-files/config_test
+mpiexec -n 4 IMAU_ICE_program config-files/config_ANT_thermo_240kyr_32km

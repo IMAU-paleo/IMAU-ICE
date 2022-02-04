@@ -84,10 +84,14 @@ CONTAINS
     CALL determine_masks_landocean(   grid, ice)
     CALL determine_masks_ice(         grid, ice)
     CALL determine_masks_transitions( grid, ice)
+    CALL determine_masks_total(       grid, ice)
   
   END SUBROUTINE determine_masks
   SUBROUTINE determine_masks_landocean( grid, ice)
     ! Determine the different masks
+    ! 
+    ! Determine the land/ocean masks (where "land" can also include ice-covered land,
+    ! and "ocean" can also include shelf-covered ocean, but not marine grounded ice)
       
     IMPLICIT NONE
     
@@ -100,7 +104,6 @@ CONTAINS
     ! Initialise: start with land everywhere.
     ice%mask_land_a(   :,grid%i1:grid%i2) = 1
     ice%mask_ocean_a(  :,grid%i1:grid%i2) = 0
-    ice%mask_a(        :,grid%i1:grid%i2) = C%type_land
     CALL sync
     
     ! Determine land/ocean masks
@@ -113,7 +116,6 @@ CONTAINS
         IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
           ice%mask_land_a(  j,i) = 0
           ice%mask_ocean_a( j,i) = 1
-          ice%mask_a(       j,i) = C%type_ocean
         END IF
       END DO
       END DO
@@ -124,6 +126,8 @@ CONTAINS
   END SUBROUTINE determine_masks_landocean
   SUBROUTINE determine_masks_ice( grid, ice)
     ! Determine the different masks
+    !
+    ! Determine the ice/sheet/shelf masks
       
     IMPLICIT NONE
     
@@ -153,13 +157,11 @@ CONTAINS
       ! Sheet
       IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_land_a( j,i) == 1) THEN
         ice%mask_sheet_a( j,i) = 1
-        ice%mask_a(       j,i) = C%type_sheet
       END IF
     
       ! Shelf
       IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ocean_a( j,i) == 1) THEN
         ice%mask_shelf_a( j,i) = 1
-        ice%mask_a(       j,i) = C%type_shelf
       END IF
       
     END DO
@@ -169,6 +171,8 @@ CONTAINS
   END SUBROUTINE determine_masks_ice
   SUBROUTINE determine_masks_transitions( grid, ice)
     ! Determine the different masks
+    !
+    ! Determine the "transitional" masks (coast, ice margin, grounding line, calving front)
       
     IMPLICIT NONE
     
@@ -197,7 +201,6 @@ CONTAINS
             ice%mask_ocean_a( j+1,i  ) == 1 .OR. &
             ice%mask_ocean_a( j  ,i-1) == 1 .OR. &
             ice%mask_ocean_a( j  ,i+1) == 1) THEN
-          ice%mask_a(       j,i) = C%type_coast
           ice%mask_coast_a( j,i) = 1
         END IF
       END IF
@@ -208,7 +211,6 @@ CONTAINS
             ice%mask_ice_a( j+1,i  ) == 0 .OR. &
             ice%mask_ice_a( j  ,i-1) == 0 .OR. &
             ice%mask_ice_a( j  ,i+1) == 0) THEN
-          ice%mask_a(        j,i) = C%type_margin
           ice%mask_margin_a( j,i) = 1
         END IF
       END IF
@@ -219,7 +221,6 @@ CONTAINS
             ice%mask_shelf_a( j+1,i  ) == 1 .OR. &
             ice%mask_shelf_a( j  ,i-1) == 1 .OR. &
             ice%mask_shelf_a( j  ,i+1) == 1) THEN
-          ice%mask_a(    j,i) = C%type_groundingline
           ice%mask_gl_a( j,i) = 1
         END IF
       END IF
@@ -230,7 +231,6 @@ CONTAINS
             (ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) .OR. &
             (ice%mask_ocean_a( j  ,i-1) == 1 .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
             (ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
-            ice%mask_a(        j,i) = C%type_calvingfront
           ice%mask_cf_a( j,i) = 1
         END IF
       END IF
@@ -240,6 +240,57 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE determine_masks_transitions
+  SUBROUTINE determine_masks_total( grid, ice)
+    ! Determine the different masks
+    !
+    ! Determine the "total" mask (used only for writing to output!)
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+  
+    INTEGER                                            :: i,j
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    
+      ! Land/ocean
+      IF   (ice%mask_land_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_land
+      ELSE
+        ice%mask_a( j,i) = C%type_ocean
+      END IF
+      
+      ! Coast
+      IF (ice%mask_coast_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_coast
+      END IF
+      
+      ! Sheet/shelf
+      IF     (ice%mask_sheet_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_sheet
+      ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_shelf
+      END IF
+      
+      ! Ice margin / grounding line / calving front
+      IF (ice%mask_margin_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_margin
+      END IF
+      IF (ice%mask_gl_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_groundingline
+      END IF
+      IF (ice%mask_cf_a( j,i) == 1) THEN
+        ice%mask_a( j,i) = C%type_calvingfront
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+  
+  END SUBROUTINE determine_masks_total
   
 ! == Routines for calculating sub-grid grounded fractions
   SUBROUTINE determine_grounded_fractions( grid, ice)
@@ -1490,6 +1541,9 @@ CONTAINS
       ELSEIF (C%choice_mask_noice_ANT == 'MISMIP+') THEN
         ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
         CALL initialise_mask_noice_MISMIPplus( region%grid, region%mask_noice)
+      ELSEIF (C%choice_mask_noice_ANT == 'BIVMIP_A') THEN
+        ! Enforce a zero ice thickness BC at the domain boundary in the BIVMIP_A idealised geometry
+        CALL initialise_mask_noice_BIVMIP_A( region%grid, region%mask_noice)
       ELSE
         IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_ANT "', TRIM(C%choice_mask_noice_ANT), '"!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -1635,6 +1689,34 @@ CONTAINS
     CALL sync
   
   END SUBROUTINE initialise_mask_noice_MISMIPplus
+  SUBROUTINE initialise_mask_noice_BIVMIP_A( grid, mask_noice)
+    ! Enforce a zero ice thickness BC at the domain boundary in the BIVMIP_A idealised geometry
+    ! (use the outer two rows of cells so it works for the DIVA)
+      
+    IMPLICIT NONE
+    
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
+  
+    ! Local variables:
+    INTEGER                                            :: i,j
+        
+    DO i = grid%i1, grid%i2
+      mask_noice( 1        ,i) = 1
+      mask_noice( 2        ,i) = 1
+      mask_noice( grid%ny-1,i) = 1
+      mask_noice( grid%ny  ,i) = 1
+    END DO
+    DO j = grid%j1, grid%j2
+      mask_noice( j,1        ) = 1
+      mask_noice( j,2        ) = 1
+      mask_noice( j,grid%nx-1) = 1
+      mask_noice( j,grid%nx  ) = 1
+    END DO
+    CALL sync
+  
+  END SUBROUTINE initialise_mask_noice_BIVMIP_A
   
 ! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
   SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)

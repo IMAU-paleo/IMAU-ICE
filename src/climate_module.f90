@@ -2194,6 +2194,7 @@ CONTAINS
     IF (time < climate_matrix%SMB_direct%t0 .OR. time > climate_matrix%SMB_direct%t1) THEN
       
       ! Find and read the two global time frames
+      CALL sync
       CALL update_direct_regional_SMB_timeframes_from_file( grid, climate_matrix%SMB_direct, time)
       
     END IF ! IF (time >= climate_matrix%SMB_direct%t0 .AND. time <= climate_matrix%SMB_direct%t1) THEN

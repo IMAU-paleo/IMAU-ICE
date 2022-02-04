@@ -1,0 +1,12 @@
+&CONFIG
+
+fixed_output_dir_suffix_config          = '_5km_slid1_SIASSA_NMP'
+
+dx_ANT_config                            = 5000
+MISMIPplus_sliding_law_config            = 1
+choice_ice_dynamics_config               = 'SIA/SSA'
+MISMIPplus_A_flow_initial_config         = 1.211E-17
+filename_init_ANT_config                 = 'MISMIPplus/MISMIPplus_init_5km_slid1_SIASSA/restart_ANT.nc'
+choice_BMB_subgrid_config                = 'NMP'
+
+/

@@ -1,0 +1,12 @@
+&CONFIG
+
+fixed_output_dir_suffix_config          = '_5km_slid2_lin'
+
+dx_ANT_config                            = 5000
+MISMIPplus_sliding_law_config            = 2
+MISMIPplus_A_flow_initial_config         = 1.038E-17
+filename_init_ANT_config                 = 'MISMIPplus/MISMIPplus_init_5km_slid2/restart_ANT.nc'
+choice_BMB_shelf_model_config            = 'Favier2019_lin'
+BMB_Favier2019_lin_GammaT_config         = 3.3314E-05
+
+/

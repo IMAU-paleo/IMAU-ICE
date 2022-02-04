@@ -6,25 +6,27 @@ MODULE ice_dynamics_module
   !       routines for integrating the ice thickness equation have been moved to the ice_thickness_module.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,                ONLY: dp, C           
   USE parameters_module
-  USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
-                                             allocate_shared_int_0D, allocate_shared_dp_0D, &
-                                             allocate_shared_int_1D, allocate_shared_dp_1D, &
-                                             allocate_shared_int_2D, allocate_shared_dp_2D, &
-                                             allocate_shared_int_3D, allocate_shared_dp_3D, &
-                                             deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
-  USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
-                                             check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
-  USE ice_velocity_module,             ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA
-  USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
-                                             remove_unconnected_shelves
-  USE general_ice_model_data_module,   ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
-                                             determine_masks_transitions
-  USE calving_module,                  ONLY: apply_calving_law
+  USE parallel_module,                     ONLY: par, sync, cerr, ierr, &
+                                                 allocate_shared_int_0D, allocate_shared_dp_0D, &
+                                                 allocate_shared_int_1D, allocate_shared_dp_1D, &
+                                                 allocate_shared_int_2D, allocate_shared_dp_2D, &
+                                                 allocate_shared_int_3D, allocate_shared_dp_3D, &
+                                                 deallocate_shared, partition_list
+  USE data_types_module,                   ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
+  USE netcdf_module,                       ONLY: debug, write_to_debug_file
+  USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
+                                                 check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
+                                                 SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
+  USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
+                                                 initialise_ice_velocity_ISMIP_HOM
+  USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
+                                                 remove_unconnected_shelves
+  USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
+                                                 determine_masks_transitions
+  USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
+  USE calving_module,                      ONLY: apply_calving_law
 
   IMPLICIT NONE
   
@@ -192,7 +194,9 @@ CONTAINS
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
     IF     (C%choice_ice_dynamics == 'none') THEN
-      region%ice%dHi_dt_a( :,i1:i2) = 0._dp
+      region%ice%dHi_dt_a(     :,i1:i2) = 0._dp
+      region%ice%Hi_corr(      :,i1:i2) = region%ice%Hi_a( :,i1:i2)
+      region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
       IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
@@ -300,7 +304,7 @@ CONTAINS
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
       region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
-      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2)))
+      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2)))
       CALL sync
   
       ! Determine truncation error
@@ -312,8 +316,7 @@ CONTAINS
     CALL determine_timesteps_and_actions( region, t_end)
     
     ! Calculate ice thickness at the end of this model loop
-    region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
-    CALL sync
+    region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_corr( :,i1:i2)
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
@@ -610,6 +613,26 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_ELRA)
       
+      region%do_BIV     = .FALSE.
+      IF (C%do_BIVgeo) THEN
+        IF     (C%choice_BIVgeo_method == 'PDC2012') THEN
+          ! The Pollard and DeConto (2012) inversion method has a separate time step
+          IF (region%time == region%t_next_BIV) THEN
+            region%do_BIV         = .TRUE.
+            region%t_last_BIV     = region%time
+            region%t_next_BIV     = region%t_last_BIV + C%BIVgeo_PDC2012_dt
+          END IF
+          t_next = MIN( t_next, region%t_next_BIV)
+        ELSEIF (C%choice_BIVgeo_method == 'Lipscomb2021' .OR. &
+                C%choice_BIVgeo_method == 'CISM+') THEN
+          ! The Lipscomb et al. (2012) and CISM+ inversion methods are performed in every ice model time step
+          region%do_BIV = .TRUE.
+        ELSE
+          IF (par%master) WRITE(0,*) 'determine_timesteps_and_actions - ERROR: unknown choice_BIVgeo_method "', TRIM(C%choice_BIVgeo_method), '"!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+      END IF ! IF (C%do_BIVgeo) THEN
+      
       region%do_output  = .FALSE.
       IF (region%time == region%t_next_output) THEN
         region%do_output      = .TRUE.
@@ -644,6 +667,7 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j
     REAL(dp)                                           :: tauc_analytical
+    LOGICAL                                            :: is_ISMIP_HOM
     
     IF (par%master) WRITE(0,*) '  Initialising ice dynamics model...'
     
@@ -665,6 +689,9 @@ CONTAINS
     CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice)
     CALL update_general_ice_model_data( grid, ice)
+    
+    ! Allocate and initialise basal conditions
+    CALL initialise_basal_conditions( grid, ice)
       
     ! Initialise the "previous ice mask", so that the first call to thermodynamics works correctly
     ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
@@ -694,6 +721,17 @@ CONTAINS
       END DO
       CALL sync
     END IF
+    
+    ! Initialise the ISMIP-HOM experiments for faster convergence
+    is_ISMIP_HOM = .FALSE.
+    IF (C%choice_refgeo_init_ANT == 'idealised' .AND. &
+       (C%choice_refgeo_init_idealised == 'ISMIP_HOM_A' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_B' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_C' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_D')) THEN
+      is_ISMIP_HOM = .TRUE.
+    END IF
+    IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
     
   END SUBROUTINE initialise_ice_model
   SUBROUTINE allocate_ice_model( grid, ice)  
@@ -814,13 +852,9 @@ CONTAINS
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx  , ice%dzeta_dy_a           , ice%wdzeta_dy_a           )    
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dzeta_dz_a           , ice%wdzeta_dz_a           )
     
-    ! Ice dynamics - basal conditions and driving stress
+    ! Ice dynamics - driving stress
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%taudx_cx             , ice%wtaudx_cx             )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%taudy_cy             , ice%wtaudy_cy             )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%phi_fric_a           , ice%wphi_fric_a           )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%tauc_a               , ice%wtauc_a               )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%alpha_sq_a           , ice%walpha_sq_a           )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%beta_sq_a            , ice%wbeta_sq_a            )
         
     ! Ice dynamics - physical terms in the SSA/DIVA
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx-1, ice%du_dx_b              , ice%wdu_dx_b              )

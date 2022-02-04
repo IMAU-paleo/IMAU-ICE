@@ -1,6 +1,6 @@
 MODULE forcing_module
 
-  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level, climate),
+  ! Contains all the routines for reading and calculating the model forcing (CO2, d18O, insolation, sea level),
   ! as well as the "forcing" structure which stores all the results from these routines (so that they
   ! can be accessed from all four ice-sheet models and the coupling routine).
  
@@ -677,6 +677,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
+      CALL sync
       CALL update_insolation_timeframes_from_file( time_applied)
     END IF
     

@@ -23,7 +23,8 @@ MODULE ice_velocity_module
                                              map_cx_to_a_2D, map_cy_to_a_2D, map_cx_to_a_3D, map_cy_to_a_3D, &
                                              map_cx_to_cy_2D, map_cy_to_cx_2D, map_a_to_cx_2D, map_a_to_cy_2D, &
                                              ddx_cx_to_cx_2D, ddy_cy_to_cx_2D, ddx_cx_to_cy_2D, ddy_cy_to_cy_2D, &
-                                             ddx_cx_to_a_2D, ddy_cx_to_a_2D, ddx_cy_to_a_2D, ddy_cy_to_a_2D
+                                             ddx_cx_to_a_2D, ddy_cx_to_a_2D, ddx_cy_to_a_2D, ddy_cy_to_a_2D, &
+                                             ddx_a_to_a_2D, ddy_a_to_a_2D
   USE basal_conditions_and_sliding_module, ONLY: calc_basal_conditions, calc_sliding_law
   USE general_ice_model_data_module,   ONLY: determine_grounded_fractions
 
@@ -323,7 +324,7 @@ CONTAINS
       
       ! Check if the viscosity iteration has converged
       CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
-      !IF (par%master) WRITE(0,*) '    DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV
+      !IF (par%master) WRITE(0,*) '   DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_vav_cx), ' - ', MAXVAL(ice%u_vav_cx), ']'
 
       has_converged = .FALSE.
       IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
@@ -497,17 +498,31 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                            :: i,j,k
-    REAL(dp)                                           :: dHb_dx, dHb_dy, u_base_a, v_base_a
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dx_a,  dHs_dy_a,  dHi_dx_a,  dHi_dy_a
+    INTEGER                                            :: wdHs_dx_a, wdHs_dy_a, wdHi_dx_a, wdHi_dy_a
+    REAL(dp)                                           :: dHbase_dx, dHbase_dy, u_base_a, v_base_a
     REAL(dp)                                           :: du_dx_k,   dv_dy_k
     REAL(dp)                                           :: du_dx_kp1, dv_dy_kp1
     REAL(dp)                                           :: w1, w2, w3, w4
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHs_dx_a, wdHs_dx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHs_dy_a, wdHs_dy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHi_dx_a, wdHi_dx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHi_dy_a, wdHi_dy_a)
+    
+    ! Calculate surface & ice thickness gradients
+    CALL ddx_a_to_a_2D( grid, ice%Hs_a, dHs_dx_a)
+    CALL ddy_a_to_a_2D( grid, ice%Hs_a, dHs_dy_a)
+    CALL ddx_a_to_a_2D( grid, ice%Hi_a, dHi_dx_a)
+    CALL ddy_a_to_a_2D( grid, ice%Hi_a, dHi_dy_a)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
-      ! Base-of-ice slopes (not the same as bedrock slope when ice is floating!)
-      dHb_dx = ice%dHs_dx_a( j,i) - ice%dHi_dx_a( j,i)
-      dHb_dy = ice%dHs_dy_a( j,i) - ice%dHi_dy_a( j,i)
+      ! Calculate the ice basal surface slope (not the same as bedrock slope when ice is floating!)
+      dHbase_dx = dHs_dx_a( j,i) - dHi_dx_a( j,i)
+      dHbase_dy = dHs_dy_a( j,i) - dHi_dy_a( j,i)
       
       ! Horizontal basal velocities
       IF     (i == 1) THEN
@@ -526,7 +541,11 @@ CONTAINS
       END IF
       
       ! Vertical velocity at the base
-      ice%w_3D_a( C%nz,j,i) = ice%dHb_dt_a( j,i) + u_base_a * dHb_dx + v_base_a * dHb_dy 
+      IF (ice%mask_sheet_a( j,i) == 1) THEN
+        ice%w_3D_a( C%nz,j,i) = (u_base_a * dHbase_dx) + (v_base_a * dHbase_dy) + ice%dHb_dt_a( j,i)
+      ELSE
+        ice%w_3D_a( C%nz,j,i) = (u_base_a * dHbase_dx) + (v_base_a * dHbase_dy)  ! Should this include the ice thinning rate?
+      END IF
                            
       ! The integrand is calculated half way the layer of integration at k+1/2. This integrant is multiplied with the layer thickness and added to the integral
       ! of all layers below, giving the integral up to and including this layer:
@@ -569,6 +588,12 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wdHs_dx_a)
+    CALL deallocate_shared( wdHs_dy_a)
+    CALL deallocate_shared( wdHi_dx_a)
+    CALL deallocate_shared( wdHi_dy_a)
     
   END SUBROUTINE calc_3D_vertical_velocities
 
@@ -2626,5 +2651,166 @@ CONTAINS
     END DO
     
   END SUBROUTINE initialise_SSADIVA_solution_matrix
+  SUBROUTINE initialise_ice_velocity_ISMIP_HOM( grid, ice)
+    ! Initialise ice velocity fields so that the ISMIP-HOM experiments converge faster
+      
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_ISMIP_HOM
+    INTEGER                                            :: wu_ISMIP_HOM
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: x, y, umin, umax
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_ISMIP_HOM, wu_ISMIP_HOM)
+      
+    umin = 0._dp
+    umax = 0._dp
+    
+    ! Calculate an approximation of the solution
+    IF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_A') THEN
+      
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 1.6_dp
+        umax = 108.84_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 1.75_dp
+        umax = 95.73_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 2.27_dp
+        umax = 74.45_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 4.49_dp
+        umax = 49.99_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 11.09_dp
+        umax = 32.74_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 18.38_dp
+        umax = 24.79_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_B') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 1.57_dp
+        umax = 111.41_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 1.69_dp
+        umax = 100.73_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 2.09_dp
+        umax = 82.3_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 3.92_dp
+        umax = 57.84_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 10.23_dp
+        umax = 35.2_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 17.22_dp
+        umax = 23.53_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_C') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 8.77_dp
+        umax = 143.45_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 9.8_dp
+        umax = 60.28_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 11.84_dp
+        umax = 28.57_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 14.55_dp
+        umax = 18.48_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 15.7_dp
+        umax = 16.06_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 13.38_dp
+        umax = 13.51_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_D') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 8.62_dp
+        umax = 227.23_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 9.65_dp
+        umax = 94.79_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 12.18_dp
+        umax = 40.06_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 15.28_dp
+        umax = 20.29_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 15.93_dp
+        umax = 16.25_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 14.43_dp
+        umax = 14.59_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    END IF
+    
+    ! Initialise velocity fields with the approximation
+    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = u_ISMIP_HOM( :,grid%i1:MIN(grid%nx-1,grid%i2))
+      CALL sync
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = u_ISMIP_HOM( :,grid%i1:MIN(grid%nx-1,grid%i2))
+      CALL sync
+    END IF
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wu_ISMIP_HOM)
+      
+  END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
   
 END MODULE ice_velocity_module

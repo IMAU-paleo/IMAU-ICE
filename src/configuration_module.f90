@@ -227,11 +227,9 @@ MODULE configuration_module
   ! Some parameters for numerically solving the SSA/DIVA
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
-  REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! The DIVA is not solved (i.e. velocities are assumed to be zero) for beta values larger than this
-  REAL(dp)            :: DIVA_err_lim_config                         = 1E-5_dp                          ! The DIVA is not refined (i.e. velocities are no longer updated with SOR) wherever successive velocity iterations change the velocity by less than this amount
-  REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value (u,v evaluated separately)
-  REAL(dp)            :: DIVA_vel_min_config                         = 1E-5_dp                          ! DIVA velocities below this value are set to zero (u,v evaluated separately)
+  REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! beta values     are limited to this value
+  REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_south_config             = 'infinite'
@@ -245,7 +243,7 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_SOR_tol_config                         = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
   REAL(dp)            :: DIVA_SOR_omega_config                       = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
   REAL(dp)            :: DIVA_PETSc_rtol_config                      = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  REAL(dp)            :: DIVA_PETSc_abstol_config                    = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
+  REAL(dp)            :: DIVA_PETSc_abstol_config                    = 2.5_dp                           ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -269,7 +267,7 @@ MODULE configuration_module
   REAL(dp)            :: dt_min_config                               = 0.01_dp                          ! Smallest allowed time step [yr]
   
   ! Ice thickness boundary conditions
-  CHARACTER(LEN=256)  :: ice_thickness_west_BC_config                = 'zero'                           ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "ISMIP_HOM_F"
+  CHARACTER(LEN=256)  :: ice_thickness_west_BC_config                = 'zero'                           ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "fixed"
   CHARACTER(LEN=256)  :: ice_thickness_east_BC_config                = 'zero' 
   CHARACTER(LEN=256)  :: ice_thickness_south_BC_config               = 'zero'
   CHARACTER(LEN=256)  :: ice_thickness_north_BC_config               = 'zero'
@@ -282,22 +280,49 @@ MODULE configuration_module
   ! ===========================================
   
   ! Sliding laws
-  CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005"
+  CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config         = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
   REAL(dp)            :: slid_delta_v_config                         = 1.0E-3_dp                        ! Normalisation parameter to prevent errors when velocity is zero
   REAL(dp)            :: slid_Weertman_m_config                      = 3._dp                            ! Exponent in Weertman sliding law
   REAL(dp)            :: slid_Coulomb_reg_q_plastic_config           = 0.3_dp                           ! Scaling exponent   in regularised Coulomb sliding law
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
+  REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
+  REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
   
-  ! Basal conditions
-  CHARACTER(LEN=256)  :: choice_basal_conditions_config              = 'Martin2011'                     ! Choice of basal conditions: "idealised", "Martin2011"
-  CHARACTER(LEN=256)  :: choice_idealised_basal_conditions_config    = ''                               ! "SSA_icestream", "MISMIP+"
-  REAL(dp)            :: Martin2011till_pwp_Hb_min_config            = 0._dp                            ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_pwp_Hb_max_config            = 1000._dp                         ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent pore-water pressure
-  REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) till model: low-end  Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) till model: high-end Hb  value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) till model: low-end  phi value of bedrock-dependent till friction angle
-  REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) till model: high-end phi value of bedrock-dependent till friction angle
+  ! Basal hydrology
+  CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
+  REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
+  REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
+  
+  ! Basal roughness / friction
+  CHARACTER(LEN=256)  :: choice_basal_roughness_config               = 'parameterised'                  ! "uniform"", parameterised", "prescribed"
+  REAL(dp)            :: uniform_Weertman_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Weertman sliding law
+  REAL(dp)            :: uniform_Coulomb_phi_fric_config             = 15._dp                           ! Uniform value for phi_fric in (regularised) Coulomb sliding law
+  REAL(dp)            :: uniform_Tsai2015_alpha_sq_config            = 0.5_dp                           ! Uniform value for alpha_sq in Tsai2015 sliding law
+  REAL(dp)            :: uniform_Tsai2015_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Tsai2015 sliding law
+  REAL(dp)            :: uniform_Schoof2005_alpha_sq_config          = 0.5_dp                           ! Uniform value for alpha_sq in Schoof2005 sliding law
+  REAL(dp)            :: uniform_Schoof2005_beta_sq_config           = 1.0E4_dp                         ! Uniform value for beta_sq  in Schoof2005 sliding law
+  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
+  REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
+  CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  
+  ! Basal inversion
+  LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
+  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
+  REAL(dp)            :: BIVgeo_PDC2012_dt_config                    = 5000._dp                         ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_Lipscomb2021_H0_config               = 100._dp                          ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_CISMplus_wH_config                   = 1._dp                            ! Weighting factor for ice thickness in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_CISMplus_wu_config                   = 1._dp                            ! Weighting factor for velocity      in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_CISMplus_tauc_config                 = 500._dp                          ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_CISMplus_H0_config                   = 100._dp                          ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
+  CHARACTER(LEN=256)  :: BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving
   ! ======================
@@ -590,56 +615,56 @@ MODULE configuration_module
   ! Which data fields will be written to the help_fields output file
   ! ================================================================
   
-  CHARACTER(LEN=256)  :: help_field_01_config                         = 'lat'
-  CHARACTER(LEN=256)  :: help_field_02_config                         = 'lon'
-  CHARACTER(LEN=256)  :: help_field_03_config                         = 'Hi'
-  CHARACTER(LEN=256)  :: help_field_04_config                         = 'Hb'
-  CHARACTER(LEN=256)  :: help_field_05_config                         = 'Hs'
-  CHARACTER(LEN=256)  :: help_field_06_config                         = 'dHs_dx'
-  CHARACTER(LEN=256)  :: help_field_07_config                         = 'dHs_dy'
-  CHARACTER(LEN=256)  :: help_field_08_config                         = 'mask'
-  CHARACTER(LEN=256)  :: help_field_09_config                         = 'uabs_surf'
-  CHARACTER(LEN=256)  :: help_field_10_config                         = 'uabs_base'
-  CHARACTER(LEN=256)  :: help_field_11_config                         = 'uabs_vav'
-  CHARACTER(LEN=256)  :: help_field_12_config                         = 'u_3D'
-  CHARACTER(LEN=256)  :: help_field_13_config                         = 'v_3D'
-  CHARACTER(LEN=256)  :: help_field_14_config                         = 'w_3D'
-  CHARACTER(LEN=256)  :: help_field_15_config                         = 'T2m_year'
-  CHARACTER(LEN=256)  :: help_field_16_config                         = 'Precip_year'
-  CHARACTER(LEN=256)  :: help_field_17_config                         = 'Albedo_year'
-  CHARACTER(LEN=256)  :: help_field_18_config                         = 'SMB_year'
-  CHARACTER(LEN=256)  :: help_field_19_config                         = 'BMB'
-  CHARACTER(LEN=256)  :: help_field_20_config                         = 'T2m'
-  CHARACTER(LEN=256)  :: help_field_21_config                         = 'Precip'
-  CHARACTER(LEN=256)  :: help_field_22_config                         = 'Albedo'
-  CHARACTER(LEN=256)  :: help_field_23_config                         = 'SMB'
-  CHARACTER(LEN=256)  :: help_field_24_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_25_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_26_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_27_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_28_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_29_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_30_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_31_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_32_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_33_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_34_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_35_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_36_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_37_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_38_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_39_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_40_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_41_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_42_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_43_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_44_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_45_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_46_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_47_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_48_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_49_config                         = 'none'
-  CHARACTER(LEN=256)  :: help_field_50_config                         = 'none'
+  CHARACTER(LEN=256)  :: help_field_01_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_02_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_03_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_04_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_05_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_06_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_07_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_08_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_09_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_10_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_11_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_12_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_13_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_14_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_15_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_16_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_17_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_18_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_19_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_20_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_21_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_22_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_23_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_24_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_25_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_26_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_27_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_28_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_29_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_30_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_31_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_32_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_33_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_34_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_35_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_36_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_37_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_38_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_39_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_40_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_41_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_42_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_43_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_44_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_45_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_46_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_47_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_48_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_49_config                        = 'none'
+  CHARACTER(LEN=256)  :: help_field_50_config                        = 'none'
 
 
   ! ==========================================================================
@@ -831,9 +856,7 @@ MODULE configuration_module
     INTEGER                             :: DIVA_visc_it_nit
     REAL(dp)                            :: DIVA_visc_it_relax
     REAL(dp)                            :: DIVA_beta_max
-    REAL(dp)                            :: DIVA_err_lim
     REAL(dp)                            :: DIVA_vel_max
-    REAL(dp)                            :: DIVA_vel_min
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_south
@@ -882,7 +905,7 @@ MODULE configuration_module
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-    
+  
     ! Sliding laws
     CHARACTER(LEN=256)                  :: choice_sliding_law
     CHARACTER(LEN=256)                  :: choice_idealised_sliding_law
@@ -890,17 +913,44 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Weertman_m
     REAL(dp)                            :: slid_Coulomb_reg_q_plastic
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
+    REAL(dp)                            :: slid_ZI_ut
+    REAL(dp)                            :: slid_ZI_p
     
-    ! Basal conditions
-    CHARACTER(LEN=256)                  :: choice_basal_conditions
-    CHARACTER(LEN=256)                  :: choice_idealised_basal_conditions
-    REAL(dp)                            :: Martin2011till_pwp_Hb_min
-    REAL(dp)                            :: Martin2011till_pwp_Hb_max
+    ! Basal hydrology
+    CHARACTER(LEN=256)                  :: choice_basal_hydrology
+    REAL(dp)                            :: Martin2011_hydro_Hb_min
+    REAL(dp)                            :: Martin2011_hydro_Hb_max
+
+    ! Basal roughness / friction
+    CHARACTER(LEN=256)                  :: choice_basal_roughness
+    REAL(dp)                            :: uniform_Weertman_beta_sq
+    REAL(dp)                            :: uniform_Coulomb_phi_fric
+    REAL(dp)                            :: uniform_Tsai2015_alpha_sq
+    REAL(dp)                            :: uniform_Tsai2015_beta_sq
+    REAL(dp)                            :: uniform_Schoof2005_alpha_sq
+    REAL(dp)                            :: uniform_Schoof2005_beta_sq
+    CHARACTER(LEN=256)                  :: choice_param_basal_roughness
     REAL(dp)                            :: Martin2011till_phi_Hb_min
     REAL(dp)                            :: Martin2011till_phi_Hb_max
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
+    CHARACTER(LEN=256)                  :: basal_roughness_filename
     
+    ! Basal inversion
+    LOGICAL                             :: do_BIVgeo
+    CHARACTER(LEN=256)                  :: choice_BIVgeo_method
+    REAL(dp)                            :: BIVgeo_PDC2012_dt
+    REAL(dp)                            :: BIVgeo_PDC2012_hinv
+    REAL(dp)                            :: BIVgeo_Lipscomb2021_tauc
+    REAL(dp)                            :: BIVgeo_Lipscomb2021_H0
+    REAL(dp)                            :: BIVgeo_CISMplus_wH
+    REAL(dp)                            :: BIVgeo_CISMplus_wu
+    REAL(dp)                            :: BIVgeo_CISMplus_tauc
+    REAL(dp)                            :: BIVgeo_CISMplus_H0
+    REAL(dp)                            :: BIVgeo_CISMplus_u0
+    CHARACTER(LEN=256)                  :: BIVgeo_CISMplus_target_filename
+    CHARACTER(LEN=256)                  :: BIVgeo_filename_output
+
     ! Ice dynamics - calving
     ! ======================
     
@@ -1493,7 +1543,7 @@ CONTAINS
     
     ! The NAMELIST that's used to read the external config file.
 
-    NAMELIST /CONFIG/start_time_of_run_config,                        &                
+    NAMELIST /CONFIG/start_time_of_run_config,                        &
                      end_time_of_run_config,                          &
                      dt_coupling_config,                              &
                      dt_max_config,                                   &
@@ -1611,9 +1661,7 @@ CONTAINS
                      DIVA_visc_it_nit_config,                         &
                      DIVA_visc_it_relax_config,                       &
                      DIVA_beta_max_config,                            &
-                     DIVA_err_lim_config,                             &
                      DIVA_vel_max_config,                             &
-                     DIVA_vel_min_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
                      DIVA_boundary_BC_u_east_config,                  &
                      DIVA_boundary_BC_u_south_config,                 &
@@ -1657,14 +1705,37 @@ CONTAINS
                      slid_Weertman_m_config,                          &
                      slid_Coulomb_reg_q_plastic_config,               &
                      slid_Coulomb_reg_u_threshold_config,             &
-                     choice_basal_conditions_config,                  &
-                     choice_idealised_basal_conditions_config,        &
-                     Martin2011till_pwp_Hb_min_config,                &
-                     Martin2011till_pwp_Hb_max_config,                &
+                     slid_ZI_ut_config,                               &
+                     slid_ZI_p_config,                                &
+                     choice_basal_hydrology_config,                   &
+                     Martin2011_hydro_Hb_min_config,                  &
+                     Martin2011_hydro_Hb_max_config,                  &
+                     choice_basal_roughness_config,                   &
+                     uniform_Weertman_beta_sq_config,                 &
+                     uniform_Coulomb_phi_fric_config,                 &
+                     uniform_Tsai2015_alpha_sq_config,                &
+                     uniform_Tsai2015_beta_sq_config,                 &
+                     uniform_Schoof2005_alpha_sq_config,              &
+                     uniform_Schoof2005_beta_sq_config,               &
+                     choice_param_basal_roughness_config,             &
                      Martin2011till_phi_Hb_min_config,                &
                      Martin2011till_phi_Hb_max_config,                &
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
+                     basal_roughness_filename_config,                 &
+                     do_BIVgeo_config,                                &
+                     choice_BIVgeo_method_config,                     &
+                     BIVgeo_PDC2012_dt_config,                        &
+                     BIVgeo_PDC2012_hinv_config,                      &
+                     BIVgeo_Lipscomb2021_tauc_config,                 &
+                     BIVgeo_Lipscomb2021_H0_config,                   &
+                     BIVgeo_CISMplus_wH_config,                       &
+                     BIVgeo_CISMplus_wu_config,                       &
+                     BIVgeo_CISMplus_tauc_config,                     &
+                     BIVgeo_CISMplus_H0_config,                       &
+                     BIVgeo_CISMplus_u0_config,                       &
+                     BIVgeo_CISMplus_target_filename_config,          &
+                     BIVgeo_filename_output_config,                   &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2120,9 +2191,7 @@ CONTAINS
     C%DIVA_visc_it_nit                         = DIVA_visc_it_nit_config
     C%DIVA_visc_it_relax                       = DIVA_visc_it_relax_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
-    C%DIVA_err_lim                             = DIVA_err_lim_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
-    C%DIVA_vel_min                             = DIVA_vel_min_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
     C%DIVA_boundary_BC_u_south                 = DIVA_boundary_BC_u_south_config
@@ -2171,7 +2240,7 @@ CONTAINS
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-    
+  
     ! Sliding laws
     C%choice_sliding_law                       = choice_sliding_law_config
     C%choice_idealised_sliding_law             = choice_idealised_sliding_law_config
@@ -2179,16 +2248,43 @@ CONTAINS
     C%slid_Weertman_m                          = slid_Weertman_m_config
     C%slid_Coulomb_reg_q_plastic               = slid_Coulomb_reg_q_plastic_config
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
+    C%slid_ZI_ut                               = slid_ZI_ut_config
+    C%slid_ZI_p                                = slid_ZI_p_config
     
-    ! Basal conditions
-    C%choice_basal_conditions                  = choice_basal_conditions_config
-    C%choice_idealised_basal_conditions        = choice_idealised_basal_conditions_config
-    C%Martin2011till_pwp_Hb_min                = Martin2011till_pwp_Hb_min_config
-    C%Martin2011till_pwp_Hb_max                = Martin2011till_pwp_Hb_max_config
+    ! Basal hydrology
+    C%choice_basal_hydrology                   = choice_basal_hydrology_config
+    C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
+    C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
+    
+    ! Basal roughness / friction
+    C%choice_basal_roughness                   = choice_basal_roughness_config
+    C%uniform_Weertman_beta_sq                 = uniform_Weertman_beta_sq_config
+    C%uniform_Coulomb_phi_fric                 = uniform_Coulomb_phi_fric_config
+    C%uniform_Tsai2015_alpha_sq                = uniform_Tsai2015_alpha_sq_config
+    C%uniform_Tsai2015_beta_sq                 = uniform_Tsai2015_beta_sq_config
+    C%uniform_Schoof2005_alpha_sq              = uniform_Schoof2005_alpha_sq_config
+    C%uniform_Schoof2005_beta_sq               = uniform_Schoof2005_beta_sq_config
+    C%choice_param_basal_roughness             = choice_param_basal_roughness_config
     C%Martin2011till_phi_Hb_min                = Martin2011till_phi_Hb_min_config
     C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
+    C%basal_roughness_filename                 = basal_roughness_filename_config
+  
+    ! Basal inversion
+    C%do_BIVgeo                                = do_BIVgeo_config
+    C%choice_BIVgeo_method                     = choice_BIVgeo_method_config
+    C%BIVgeo_PDC2012_dt                        = BIVgeo_PDC2012_dt_config
+    C%BIVgeo_PDC2012_hinv                      = BIVgeo_PDC2012_hinv_config
+    C%BIVgeo_Lipscomb2021_tauc                 = BIVgeo_Lipscomb2021_tauc_config
+    C%BIVgeo_Lipscomb2021_H0                   = BIVgeo_Lipscomb2021_H0_config
+    C%BIVgeo_CISMplus_wH                       = BIVgeo_CISMplus_wH_config
+    C%BIVgeo_CISMplus_wu                       = BIVgeo_CISMplus_wu_config
+    C%BIVgeo_CISMplus_tauc                     = BIVgeo_CISMplus_tauc_config
+    C%BIVgeo_CISMplus_H0                       = BIVgeo_CISMplus_H0_config
+    C%BIVgeo_CISMplus_u0                       = BIVgeo_CISMplus_u0_config
+    C%BIVgeo_CISMplus_target_filename          = BIVgeo_CISMplus_target_filename_config
+    C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
   
     ! Ice dynamics - calving
     ! ======================
