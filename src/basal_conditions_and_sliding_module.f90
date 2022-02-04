@@ -200,7 +200,31 @@ CONTAINS
     IF (C%choice_sliding_law == 'no_sliding' .OR. &
         C%choice_sliding_law == 'idealised') RETURN
     
-    IF (C%choice_basal_roughness == 'parameterised') THEN
+    IF (C%choice_basal_roughness == 'uniform') THEN
+      ! Apply a uniform bed roughness
+      
+      IF     (C%choice_sliding_law == 'no_sliding') THEN
+        IF (par%master) WRITE(0,*) 'initialise_basal_inversion - ERROR: cannot do basal inversion when no sliding is allowed!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+        ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Weertman_beta_sq
+      ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+              C%choice_sliding_law == 'Coulomb_regularised') THEN
+        ice%phi_fric_a(  :,grid%i1:grid%i2) = C%uniform_Coulomb_phi_fric
+      ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+        ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%uniform_Tsai2015_alpha_sq
+        ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Tsai2015_beta_sq
+      ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+        ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%uniform_Schoof2005_alpha_sq
+        ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Schoof2005_beta_sq
+      ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+        ice%phi_fric_a(  :,grid%i1:grid%i2) = C%uniform_Coulomb_phi_fric
+      ELSE
+        IF (par%master) WRITE(0,*) 'initialise_basal_inversion - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    
+    ELSEIF (C%choice_basal_roughness == 'parameterised') THEN
       ! Apply the chosen parameterisation of bed roughness
       
       IF     (C%choice_param_basal_roughness == 'Martin2011') THEN
@@ -1610,18 +1634,18 @@ CONTAINS
       IF (par%master) WRITE(0,*) 'initialise_basal_inversion - ERROR: cannot do basal inversion when no sliding is allowed!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%BIVgeo_init_Weertman_beta_sq
+      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Weertman_beta_sq
     ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
             C%choice_sliding_law == 'Coulomb_regularised') THEN
-      ice%phi_fric_a(  :,grid%i1:grid%i2) = C%BIVgeo_init_Coulomb_phi_fric
+      ice%phi_fric_a(  :,grid%i1:grid%i2) = C%uniform_Coulomb_phi_fric
     ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%BIVgeo_init_Tsai2015_alpha_sq
-      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%BIVgeo_init_Tsai2015_beta_sq
+      ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%uniform_Tsai2015_alpha_sq
+      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Tsai2015_beta_sq
     ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%BIVgeo_init_Schoof2005_alpha_sq
-      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%BIVgeo_init_Schoof2005_beta_sq
+      ice%alpha_sq_a(  :,grid%i1:grid%i2) = C%uniform_Schoof2005_alpha_sq
+      ice%beta_sq_a(   :,grid%i1:grid%i2) = C%uniform_Schoof2005_beta_sq
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ice%phi_fric_a(  :,grid%i1:grid%i2) = C%BIVgeo_init_Coulomb_phi_fric
+      ice%phi_fric_a(  :,grid%i1:grid%i2) = C%uniform_Coulomb_phi_fric
     ELSE
       IF (par%master) WRITE(0,*) 'initialise_basal_inversion - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)

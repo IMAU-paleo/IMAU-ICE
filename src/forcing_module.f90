@@ -677,6 +677,7 @@ CONTAINS
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time_applied < forcing%ins_t0 .OR. time_applied > forcing%ins_t1) THEN
+      CALL sync
       CALL update_insolation_timeframes_from_file( time_applied)
     END IF
     

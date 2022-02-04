@@ -194,7 +194,9 @@ CONTAINS
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
     IF     (C%choice_ice_dynamics == 'none') THEN
-      region%ice%dHi_dt_a( :,i1:i2) = 0._dp
+      region%ice%dHi_dt_a(     :,i1:i2) = 0._dp
+      region%ice%Hi_corr(      :,i1:i2) = region%ice%Hi_a( :,i1:i2)
+      region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
       IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
@@ -315,7 +317,6 @@ CONTAINS
     
     ! Calculate ice thickness at the end of this model loop
     region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_corr( :,i1:i2)
-    CALL sync
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     

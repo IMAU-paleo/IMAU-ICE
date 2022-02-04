@@ -227,7 +227,7 @@ MODULE configuration_module
   ! Some parameters for numerically solving the SSA/DIVA
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
-  REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.7_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
+  REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! beta values     are limited to this value
   REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
@@ -243,7 +243,7 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_SOR_tol_config                         = 2.5_dp                           ! DIVA SOR   solver - stop criterion, absolute difference
   REAL(dp)            :: DIVA_SOR_omega_config                       = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
   REAL(dp)            :: DIVA_PETSc_rtol_config                      = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  REAL(dp)            :: DIVA_PETSc_abstol_config                    = 0.01_dp                          ! DIVA PETSc solver - stop criterion, absolute difference
+  REAL(dp)            :: DIVA_PETSc_abstol_config                    = 2.5_dp                           ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -295,7 +295,13 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
   
   ! Basal roughness / friction
-  CHARACTER(LEN=256)  :: choice_basal_roughness_config               = 'parameterised'                  ! "parameterised", "prescribed"
+  CHARACTER(LEN=256)  :: choice_basal_roughness_config               = 'parameterised'                  ! "uniform"", parameterised", "prescribed"
+  REAL(dp)            :: uniform_Weertman_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Weertman sliding law
+  REAL(dp)            :: uniform_Coulomb_phi_fric_config             = 15._dp                           ! Uniform value for phi_fric in (regularised) Coulomb sliding law
+  REAL(dp)            :: uniform_Tsai2015_alpha_sq_config            = 0.5_dp                           ! Uniform value for alpha_sq in Tsai2015 sliding law
+  REAL(dp)            :: uniform_Tsai2015_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Tsai2015 sliding law
+  REAL(dp)            :: uniform_Schoof2005_alpha_sq_config          = 0.5_dp                           ! Uniform value for alpha_sq in Schoof2005 sliding law
+  REAL(dp)            :: uniform_Schoof2005_beta_sq_config           = 1.0E4_dp                         ! Uniform value for beta_sq  in Schoof2005 sliding law
   CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
   REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
@@ -317,13 +323,6 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
   CHARACTER(LEN=256)  :: BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
   CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
-  REAL(dp)            :: BIVgeo_init_Weertman_beta_sq_config         = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using a Weertman sliding law
-  REAL(dp)            :: BIVgeo_init_Coulomb_phi_fric_config         = 15._dp                           ! Initial guess for phi_fric in geometry-based basal inversion using a (regularised) Coulomb sliding law
-  REAL(dp)            :: BIVgeo_init_Tsai2015_alpha_sq_config        = 0.5_dp                           ! Initial guess for alpha_sq in geometry-based basal inversion using the Tsai2015 sliding law
-  REAL(dp)            :: BIVgeo_init_Tsai2015_beta_sq_config         = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using the Tsai2015 sliding law
-  REAL(dp)            :: BIVgeo_init_Schoof2005_alpha_sq_config      = 0.5_dp                           ! Initial guess for alpha_sq in geometry-based basal inversion using the Schoof2005 sliding law
-  REAL(dp)            :: BIVgeo_init_Schoof2005_beta_sq_config       = 1.0E4_dp                         ! Initial guess for beta_sq  in geometry-based basal inversion using the Schoof2005 sliding law
-  
 
   ! Ice dynamics - calving
   ! ======================
@@ -921,9 +920,15 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
     REAL(dp)                            :: Martin2011_hydro_Hb_min
     REAL(dp)                            :: Martin2011_hydro_Hb_max
-    
+
     ! Basal roughness / friction
     CHARACTER(LEN=256)                  :: choice_basal_roughness
+    REAL(dp)                            :: uniform_Weertman_beta_sq
+    REAL(dp)                            :: uniform_Coulomb_phi_fric
+    REAL(dp)                            :: uniform_Tsai2015_alpha_sq
+    REAL(dp)                            :: uniform_Tsai2015_beta_sq
+    REAL(dp)                            :: uniform_Schoof2005_alpha_sq
+    REAL(dp)                            :: uniform_Schoof2005_beta_sq
     CHARACTER(LEN=256)                  :: choice_param_basal_roughness
     REAL(dp)                            :: Martin2011till_phi_Hb_min
     REAL(dp)                            :: Martin2011till_phi_Hb_max
@@ -945,13 +950,7 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_CISMplus_u0
     CHARACTER(LEN=256)                  :: BIVgeo_CISMplus_target_filename
     CHARACTER(LEN=256)                  :: BIVgeo_filename_output
-    REAL(dp)                            :: BIVgeo_init_Weertman_beta_sq
-    REAL(dp)                            :: BIVgeo_init_Coulomb_phi_fric
-    REAL(dp)                            :: BIVgeo_init_Tsai2015_alpha_sq
-    REAL(dp)                            :: BIVgeo_init_Tsai2015_beta_sq
-    REAL(dp)                            :: BIVgeo_init_Schoof2005_alpha_sq
-    REAL(dp)                            :: BIVgeo_init_Schoof2005_beta_sq
-    
+
     ! Ice dynamics - calving
     ! ======================
     
@@ -1712,6 +1711,12 @@ CONTAINS
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
                      choice_basal_roughness_config,                   &
+                     uniform_Weertman_beta_sq_config,                 &
+                     uniform_Coulomb_phi_fric_config,                 &
+                     uniform_Tsai2015_alpha_sq_config,                &
+                     uniform_Tsai2015_beta_sq_config,                 &
+                     uniform_Schoof2005_alpha_sq_config,              &
+                     uniform_Schoof2005_beta_sq_config,               &
                      choice_param_basal_roughness_config,             &
                      Martin2011till_phi_Hb_min_config,                &
                      Martin2011till_phi_Hb_max_config,                &
@@ -1731,12 +1736,6 @@ CONTAINS
                      BIVgeo_CISMplus_u0_config,                       &
                      BIVgeo_CISMplus_target_filename_config,          &
                      BIVgeo_filename_output_config,                   &
-                     BIVgeo_init_Weertman_beta_sq_config,             &
-                     BIVgeo_init_Coulomb_phi_fric_config,             &
-                     BIVgeo_init_Tsai2015_alpha_sq_config,            &
-                     BIVgeo_init_Tsai2015_beta_sq_config,             &
-                     BIVgeo_init_Schoof2005_alpha_sq_config,          &
-                     BIVgeo_init_Schoof2005_beta_sq_config,           &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2259,13 +2258,19 @@ CONTAINS
     
     ! Basal roughness / friction
     C%choice_basal_roughness                   = choice_basal_roughness_config
+    C%uniform_Weertman_beta_sq                 = uniform_Weertman_beta_sq_config
+    C%uniform_Coulomb_phi_fric                 = uniform_Coulomb_phi_fric_config
+    C%uniform_Tsai2015_alpha_sq                = uniform_Tsai2015_alpha_sq_config
+    C%uniform_Tsai2015_beta_sq                 = uniform_Tsai2015_beta_sq_config
+    C%uniform_Schoof2005_alpha_sq              = uniform_Schoof2005_alpha_sq_config
+    C%uniform_Schoof2005_beta_sq               = uniform_Schoof2005_beta_sq_config
     C%choice_param_basal_roughness             = choice_param_basal_roughness_config
     C%Martin2011till_phi_Hb_min                = Martin2011till_phi_Hb_min_config
     C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
     C%basal_roughness_filename                 = basal_roughness_filename_config
-    
+  
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config
     C%choice_BIVgeo_method                     = choice_BIVgeo_method_config
@@ -2280,12 +2285,6 @@ CONTAINS
     C%BIVgeo_CISMplus_u0                       = BIVgeo_CISMplus_u0_config
     C%BIVgeo_CISMplus_target_filename          = BIVgeo_CISMplus_target_filename_config
     C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
-    C%BIVgeo_init_Weertman_beta_sq             = BIVgeo_init_Weertman_beta_sq_config
-    C%BIVgeo_init_Coulomb_phi_fric             = BIVgeo_init_Coulomb_phi_fric_config
-    C%BIVgeo_init_Tsai2015_alpha_sq            = BIVgeo_init_Tsai2015_alpha_sq_config
-    C%BIVgeo_init_Tsai2015_beta_sq             = BIVgeo_init_Tsai2015_beta_sq_config
-    C%BIVgeo_init_Schoof2005_alpha_sq          = BIVgeo_init_Schoof2005_alpha_sq_config
-    C%BIVgeo_init_Schoof2005_beta_sq           = BIVgeo_init_Schoof2005_beta_sq_config
   
     ! Ice dynamics - calving
     ! ======================
