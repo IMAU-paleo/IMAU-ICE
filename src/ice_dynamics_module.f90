@@ -19,7 +19,8 @@ MODULE ice_dynamics_module
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                                  SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
-  USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA
+  USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
+                                                 initialise_ice_velocity_ISMIP_HOM
   USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
                                                  remove_unconnected_shelves
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
@@ -656,6 +657,7 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j
     REAL(dp)                                           :: tauc_analytical
+    LOGICAL                                            :: is_ISMIP_HOM
     
     IF (par%master) WRITE(0,*) '  Initialising ice dynamics model...'
     
@@ -709,6 +711,17 @@ CONTAINS
       END DO
       CALL sync
     END IF
+    
+    ! Initialise the ISMIP-HOM experiments for faster convergence
+    is_ISMIP_HOM = .FALSE.
+    IF (C%choice_refgeo_init_ANT == 'idealised' .AND. &
+       (C%choice_refgeo_init_idealised == 'ISMIP_HOM_A' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_B' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_C' .OR. &
+        C%choice_refgeo_init_idealised == 'ISMIP_HOM_D')) THEN
+      is_ISMIP_HOM = .TRUE.
+    END IF
+    IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
     
   END SUBROUTINE initialise_ice_model
   SUBROUTINE allocate_ice_model( grid, ice)  

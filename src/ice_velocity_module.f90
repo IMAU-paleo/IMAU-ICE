@@ -211,7 +211,7 @@ CONTAINS
       
       ! Check if the viscosity iteration has converged
       CALL calc_visc_iter_UV_resid( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy, resid_UV)
-      !IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_SSA_cx), ' - ', MAXVAL(ice%u_SSA_cx), ']'
+      IF (par%master) WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_SSA_cx), ' - ', MAXVAL(ice%u_SSA_cx), ']'
       
       IF (par%master .AND. C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'SSA_icestream') &
         WRITE(0,*) '    SSA - viscosity iteration ', viscosity_iteration_i, ': err = ', ABS(1._dp - MAXVAL(ice%u_SSA_cx) / umax_analytical), ': resid_UV = ', resid_UV
@@ -2651,5 +2651,166 @@ CONTAINS
     END DO
     
   END SUBROUTINE initialise_SSADIVA_solution_matrix
+  SUBROUTINE initialise_ice_velocity_ISMIP_HOM( grid, ice)
+    ! Initialise ice velocity fields so that the ISMIP-HOM experiments converge faster
+      
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_ISMIP_HOM
+    INTEGER                                            :: wu_ISMIP_HOM
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: x, y, umin, umax
+    
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_ISMIP_HOM, wu_ISMIP_HOM)
+      
+    umin = 0._dp
+    umax = 0._dp
+    
+    ! Calculate an approximation of the solution
+    IF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_A') THEN
+      
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 1.6_dp
+        umax = 108.84_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 1.75_dp
+        umax = 95.73_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 2.27_dp
+        umax = 74.45_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 4.49_dp
+        umax = 49.99_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 11.09_dp
+        umax = 32.74_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 18.38_dp
+        umax = 24.79_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_B') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 1.57_dp
+        umax = 111.41_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 1.69_dp
+        umax = 100.73_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 2.09_dp
+        umax = 82.3_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 3.92_dp
+        umax = 57.84_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 10.23_dp
+        umax = 35.2_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 17.22_dp
+        umax = 23.53_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_C') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 8.77_dp
+        umax = 143.45_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 9.8_dp
+        umax = 60.28_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 11.84_dp
+        umax = 28.57_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 14.55_dp
+        umax = 18.48_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 15.7_dp
+        umax = 16.06_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 13.38_dp
+        umax = 13.51_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    ELSEIF (C%choice_refgeo_init_idealised == 'ISMIP_HOM_D') THEN
+    
+      IF     (C%ISMIP_HOM_L == 160000._dp) THEN
+        umin = 8.62_dp
+        umax = 227.23_dp
+      ELSEIF (C%ISMIP_HOM_L ==  80000._dp) THEN
+        umin = 9.65_dp
+        umax = 94.79_dp
+      ELSEIF (C%ISMIP_HOM_L ==  40000._dp) THEN
+        umin = 12.18_dp
+        umax = 40.06_dp
+      ELSEIF (C%ISMIP_HOM_L ==  20000._dp) THEN
+        umin = 15.28_dp
+        umax = 20.29_dp
+      ELSEIF (C%ISMIP_HOM_L ==  10000._dp) THEN
+        umin = 15.93_dp
+        umax = 16.25_dp
+      ELSEIF (C%ISMIP_HOM_L ==   5000._dp) THEN
+        umin = 14.43_dp
+        umax = 14.59_dp
+      END IF
+      
+      DO i = grid%i1, MIN( grid%nx-1, grid%i2)
+      DO j = 1, grid%ny
+        x = (grid%x( i) + grid%x( i+1)) / 2._dp
+        y = grid%y( j)
+        u_ISMIP_HOM( j,i) = umin + (umax - umin) * ( (1._dp - (SIN( x) * SIN( y))) / 2._dp)**2
+      END DO
+      END DO
+      CALL sync
+      
+    END IF
+    
+    ! Initialise velocity fields with the approximation
+    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = u_ISMIP_HOM( :,grid%i1:MIN(grid%nx-1,grid%i2))
+      CALL sync
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = u_ISMIP_HOM( :,grid%i1:MIN(grid%nx-1,grid%i2))
+      CALL sync
+    END IF
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wu_ISMIP_HOM)
+      
+  END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
   
 END MODULE ice_velocity_module

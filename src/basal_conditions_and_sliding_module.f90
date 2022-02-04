@@ -196,8 +196,9 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
-    ! If no sliding is allowed, don't calculate basal roughness
-    IF (C%choice_sliding_law == 'no_sliding') RETURN
+    ! In case of no sliding or "idealised" sliding (e.g. ISMIP-HOM experiments), no bed roughness is required
+    IF (C%choice_sliding_law == 'no_sliding' .OR. &
+        C%choice_sliding_law == 'idealised') RETURN
     
     IF (C%choice_basal_roughness == 'parameterised') THEN
       ! Apply the chosen parameterisation of bed roughness
