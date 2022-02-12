@@ -354,14 +354,14 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
     
     ! Local variables:
-    INTEGER                                            :: i,j,ii,jj,n
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_ext,  d_ext_smooth
-    INTEGER                                            :: wd_ext, wd_ext_smooth
+    INTEGER                                            :: i,j,n,k,ii,jj
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_smooth
+    INTEGER                                            :: wd_smooth
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: f
     
     n = CEILING( r / grid%dx) * 3  ! Number of cells to extend the data by (3 standard deviations is enough to capture the tails of the normal distribution)
     
-    ! Fill in the smoothing filters
+    ! Fill in the smoothing filter
     ALLOCATE( f( -n:n))
     f = 0._dp
     DO i = -n, n
@@ -369,79 +369,48 @@ CONTAINS
     END DO
     f = f / SUM(f)
     
-    ! Allocate temporary shared memory for the extended and smoothed data fields
-    CALL allocate_shared_dp_2D( grid%ny + 2*n, grid%nx + 2*n, d_ext,        wd_ext       )
-    CALL allocate_shared_dp_2D( grid%ny + 2*n, grid%nx + 2*n, d_ext_smooth, wd_ext_smooth)
-    
-    ! Copy data to the extended array and fill in the margins
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      d_ext( j+n,i+n) = d( j,i)
-    END DO
-    END DO
-    IF (par%master) THEN
-      ! West
-      d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
-      ! East
-      d_ext( n+1:n+grid%ny, grid%nx+2*n  ) = d( :      ,grid%nx)
-      ! South
-      d_ext( 1            , n+1:n+grid%nx) = d( 1      ,:      )
-      ! North
-      d_ext( grid%ny+2*n  , n+1:n+grid%nx) = d( grid%ny,:      )
-      ! Corners
-      d_ext( 1:n,                     1:n                    ) = d( 1      ,1      )
-      d_ext( 1:n,                     grid%nx+n+1:grid%nx+2*n) = d( 1      ,grid%nx)
-      d_ext( grid%ny+n+1:grid%ny+2*n, 1:n                    ) = d( grid%ny,1      )
-      d_ext( grid%ny+n+1:grid%ny+2*n, grid%nx+n+1:grid%nx+2*n) = d( grid%ny,grid%nx)
-    END IF
+    ! Allocate temporary shared memory for the smoothed data field
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_smooth, wd_smooth)
+    d_smooth( :,grid%i1:grid%i2) = 0._dp
     CALL sync
     
-    ! Convolute extended data with the smoothing filter
-    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
-    CALL sync
-    
+    ! Smooth in x-direction
     DO i = grid%i1, grid%i2
     DO j = 1,       grid%ny
-      DO jj = -n, n
-        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n+jj,i+n) * f(jj)
+      DO k = -n, n
+        ii = MAX( 1, MIN( grid%nx, i + k))
+        d_smooth( j,i) = d_smooth( j,i) + d( j,ii) * f(k)
       END DO
     END DO
     END DO
     CALL sync
     
-    d_ext( :,grid%i1+n:grid%i2+n) = d_ext_smooth( :,grid%i1+n:grid%i2+n)
+    ! Copy x-smoothed data
+    d( :,grid%i1:grid%i2) = d_smooth( :,grid%i1:grid%i2)
     CALL sync
     
-    DO j = grid%j1, grid%j2
-      d_ext( j,           1:          n) = d( j,1      )
-      d_ext( j, grid%nx+n+1:grid%nx+2*n) = d( j,grid%nx)
-    END DO
+    ! Reset smoothed data field
+    d_smooth( :,grid%i1:grid%i2) = 0._dp
     CALL sync
     
-    d_ext_smooth( :,grid%i1+n:grid%i2+n) = 0._dp
-    CALL sync
-    
-    DO j = grid%j1, grid%j2
-    DO i = 1,       grid%nx
-      DO ii = -n, n
-        d_ext_smooth( j+n,i+n) = d_ext_smooth( j+n,i+n) + d_ext( j+n,i+n+ii) * f(ii)
-      END DO
-    END DO
-    END DO
-    CALL sync
-    
-    ! Copy data back
+    ! Smooth in y-direction
     DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      d( j,i) = d_ext_smooth( j+n, i+n)
+    DO j = 1,       grid%ny
+      DO k = -n, n
+        jj = MAX( 1, MIN( grid%ny, j + k))
+        d_smooth( j,i) = d_smooth( j,i) + d( jj,i) * f(k)
+      END DO
     END DO
     END DO
+    CALL sync
+    
+    ! Copy smoothed data
+    d( :,grid%i1:grid%i2) = d_smooth( :,grid%i1:grid%i2)
     CALL sync
     
     ! Clean up after yourself
     DEALLOCATE( f)
-    CALL deallocate_shared( wd_ext)
-    CALL deallocate_shared( wd_ext_smooth)
+    CALL deallocate_shared( wd_smooth)
     
   END SUBROUTINE smooth_Gaussian_2D
   SUBROUTINE smooth_Gaussian_3D( grid, d, r, nz)
@@ -1990,13 +1959,10 @@ CONTAINS
     
   END SUBROUTINE remove_Lake_Vostok
   
-! == Gaussian extrapolation (used for ocean data)
+! == Gaussian extrapolation (used for e.g. ocean data and basal roughness inversion)
   SUBROUTINE extrapolate_Gaussian_floodfill( grid, mask, d, sigma, mask_filled)
     ! Extrapolate the data field d into the area designated by the mask,
     ! using Gaussian extrapolation of sigma
-    ! 
-    ! NOTE: not parallelised! This is done instead by dividing vertical
-    !       ocean layers over the processes.
     ! 
     ! Note about the mask:
     !    2 = data provided
@@ -2004,6 +1970,11 @@ CONTAINS
     !    0 = no fill allowed
     ! (so basically this routine extrapolates data from the area
     !  where mask == 2 into the area where mask == 1)
+    ! 
+    ! NOTE: Not parallelised! When using this routine to extrapolate ocean data,
+    !       parallelisation can be achieved by dividing the vertical layers over
+    !       the processes. Otherwise, be careful to only let the Master process
+    !       call this routine!
      
     IMPLICIT NONE
       
@@ -2112,6 +2083,15 @@ CONTAINS
         
         ! Fill in averaged value
         d( j,i) = sum_d / sum_w
+        
+      END DO ! DO k = 1, stackN2
+      
+      ! Mark all newly-filled grid cells as such
+      DO k = 1, stackN2
+        
+        ! Get grid cell indices
+        i = stack2( k,1)
+        j = stack2( k,2)
         
         ! Mark grid cell as filled
         map( j,i) = 2

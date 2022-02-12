@@ -147,6 +147,8 @@ CONTAINS
       CALL run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
     ELSEIF (C%choice_idealised_SMB == 'Bueler') THEN
       CALL run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
+    ELSEIF (C%choice_idealised_SMB == 'BIVMIP_B') THEN
+      CALL run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
     ELSE
       IF (par%master) WRITE(0,*) 'run_SMB_model_idealised - ERROR: unknown choice_idealised_SMB "', TRIM(C%choice_idealised_SMB), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -249,6 +251,43 @@ CONTAINS
     CALL sync
           
   END SUBROUTINE run_SMB_model_idealised_Bueler
+  SUBROUTINE run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
+    ! Almost the same as the EISMINT1 moving-margin experiment,
+    ! but slightly smaller so the ice lobe doesn't reach the domain border
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    
+    ! Local variables:
+    INTEGER                                            :: i,j
+    
+    REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
+    REAL(dp)                                           :: dist            ! distance to centre of circle
+    REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
+    REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
+    
+    ! Default EISMINT configuration
+    E         = 400000._dp
+    S_b       = 0.01_dp / 1000._dp 
+    M_max     = 0.5_dp
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 0) THEN
+        dist = SQRT(grid%x(i)**2+grid%y(j)**2)
+        SMB%SMB_year( j,i) = MIN( M_max, S_b * (E - dist))
+      ELSE
+        SMB%SMB_year( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+          
+  END SUBROUTINE run_SMB_model_idealised_BIVMIP_B
   
 ! == The IMAU-ITM SMB model
 ! =========================

@@ -41,7 +41,7 @@
   ! =======================================================================
   
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'MISMIP_mod/MISMIP_mod_DIVA'        ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'MISMIP_mod/results_MISMIP_mod_DIVA_sans'        ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -145,7 +145,7 @@
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
   choice_ice_margin_config                    = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
-  include_SSADIVA_crossterms_config           = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
+  include_SSADIVA_crossterms_config           = .FALSE.                          ! Whether or not to include the "cross-terms" of the SSA/DIVA
   do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
   do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)

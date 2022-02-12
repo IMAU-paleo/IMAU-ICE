@@ -151,7 +151,8 @@ CONTAINS
     ! ==============================
     
       IF (region%do_BIV) THEN
-        CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, region%dt)
+        !CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, region%dt)
+        CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, C%BIVgeo_dt)
       END IF
       
     ! Time step and output
@@ -483,7 +484,7 @@ CONTAINS
       region%do_ELRA        = .TRUE.
       
       region%t_last_BIV     = C%start_time_of_run
-      region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_PDC2012_dt
+      region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_dt
       region%do_BIV         = .FALSE.
       
       region%t_last_output  = C%start_time_of_run

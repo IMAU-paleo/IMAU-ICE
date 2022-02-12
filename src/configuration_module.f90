@@ -312,7 +312,7 @@ MODULE configuration_module
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
-  REAL(dp)            :: BIVgeo_PDC2012_dt_config                    = 5000._dp                         ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_dt_config                            = 5._dp                            ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_Lipscomb2021_H0_config               = 100._dp                          ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
@@ -939,7 +939,7 @@ MODULE configuration_module
     ! Basal inversion
     LOGICAL                             :: do_BIVgeo
     CHARACTER(LEN=256)                  :: choice_BIVgeo_method
-    REAL(dp)                            :: BIVgeo_PDC2012_dt
+    REAL(dp)                            :: BIVgeo_dt
     REAL(dp)                            :: BIVgeo_PDC2012_hinv
     REAL(dp)                            :: BIVgeo_Lipscomb2021_tauc
     REAL(dp)                            :: BIVgeo_Lipscomb2021_H0
@@ -1725,7 +1725,7 @@ CONTAINS
                      basal_roughness_filename_config,                 &
                      do_BIVgeo_config,                                &
                      choice_BIVgeo_method_config,                     &
-                     BIVgeo_PDC2012_dt_config,                        &
+                     BIVgeo_dt_config,                                &
                      BIVgeo_PDC2012_hinv_config,                      &
                      BIVgeo_Lipscomb2021_tauc_config,                 &
                      BIVgeo_Lipscomb2021_H0_config,                   &
@@ -2274,7 +2274,7 @@ CONTAINS
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config
     C%choice_BIVgeo_method                     = choice_BIVgeo_method_config
-    C%BIVgeo_PDC2012_dt                        = BIVgeo_PDC2012_dt_config
+    C%BIVgeo_dt                                = BIVgeo_dt_config
     C%BIVgeo_PDC2012_hinv                      = BIVgeo_PDC2012_hinv_config
     C%BIVgeo_Lipscomb2021_tauc                 = BIVgeo_Lipscomb2021_tauc_config
     C%BIVgeo_Lipscomb2021_H0                   = BIVgeo_Lipscomb2021_H0_config
