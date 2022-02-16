@@ -606,23 +606,12 @@ CONTAINS
       
       region%do_BIV     = .FALSE.
       IF (C%do_BIVgeo) THEN
-      !  IF     (C%choice_BIVgeo_method == 'PDC2012') THEN
-      !    ! The Pollard and DeConto (2012) inversion method has a separate time step
           IF (region%time == region%t_next_BIV) THEN
             region%do_BIV         = .TRUE.
             region%t_last_BIV     = region%time
             region%t_next_BIV     = region%t_last_BIV + C%BIVgeo_dt
           END IF
           t_next = MIN( t_next, region%t_next_BIV)
-      !  ELSEIF (C%choice_BIVgeo_method == 'Lipscomb2021' .OR. &
-      !          C%choice_BIVgeo_method == 'CISM+' .OR. &
-      !          C%choice_BIVgeo_method == 'Tijn') THEN
-      !    ! The Lipscomb et al. (2012) and CISM+ inversion methods are performed in every ice model time step
-      !    region%do_BIV = .TRUE.
-      !  ELSE
-      !    IF (par%master) WRITE(0,*) 'determine_timesteps_and_actions - ERROR: unknown choice_BIVgeo_method "', TRIM(C%choice_BIVgeo_method), '"!'
-      !    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      !  END IF
       END IF ! IF (C%do_BIVgeo) THEN
       
       region%do_output  = .FALSE.

@@ -269,7 +269,7 @@ PROGRAM IMAU_ICE_program
     CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, t_coupling)
     
     ! MISMIP+ flow factor tuning for GL position
-    IF (C%choice_refgeo_init_ANT == 'idealised' .AND. C%choice_refgeo_init_idealised == 'MISMIP+' .AND. C%MISMIPplus_do_tune_A_for_GL) THEN
+    IF (C%MISMIPplus_do_tune_A_for_GL) THEN
       Hprev = Hcur
       Hcur  = ANT%ice%Hs_a( CEILING( REAL(ANT%grid%ny,dp)/2._dp), 1)
       IF (par%master) WRITE(0,*) 'Hprev = ', Hprev, ', Hcur = ', Hcur

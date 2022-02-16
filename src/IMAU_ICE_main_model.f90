@@ -151,7 +151,6 @@ CONTAINS
     ! ==============================
     
       IF (region%do_BIV) THEN
-        !CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, region%dt)
         CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_init, C%BIVgeo_dt)
       END IF
       

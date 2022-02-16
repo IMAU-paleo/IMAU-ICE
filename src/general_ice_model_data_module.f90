@@ -1761,6 +1761,8 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    CALL MPI_BCAST( C%uniform_flow_factor, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    
   END SUBROUTINE MISMIPplus_adapt_flow_factor
 
 END MODULE general_ice_model_data_module

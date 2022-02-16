@@ -607,7 +607,7 @@ CONTAINS
       i2 = MIN(ntot, FLOOR(REAL(ntot * (i + 1) / n)))
     ELSE
       i1 = 0
-      i2 = 0
+      i2 = -1
       DO ii = 1, n
         IF (ii == i) THEN
           i1 = i

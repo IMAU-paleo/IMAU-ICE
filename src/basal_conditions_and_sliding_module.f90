@@ -380,7 +380,7 @@ CONTAINS
     ! Allocate memory - grid
     CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
     CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%beta_sq , BIV%wbeta_sq )
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
     
     ! Read grid & bed roughness data from file
     IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
@@ -432,7 +432,7 @@ CONTAINS
     ! Allocate memory - grid
     CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
     CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%phi_fric, BIV%wphi_fric)
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%phi_fric, BIV%wphi_fric)
     
     ! Read grid & bed roughness data from file
     IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
@@ -484,8 +484,8 @@ CONTAINS
     ! Allocate memory - grid
     CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
     CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%alpha_sq, BIV%walpha_sq)
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%beta_sq , BIV%wbeta_sq )
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%alpha_sq, BIV%walpha_sq)
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
     
     ! Read grid & bed roughness data from file
     IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
@@ -541,8 +541,8 @@ CONTAINS
     ! Allocate memory - grid
     CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
     CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%alpha_sq, BIV%walpha_sq)
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%beta_sq , BIV%wbeta_sq )
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%alpha_sq, BIV%walpha_sq)
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
     
     ! Read grid & bed roughness data from file
     IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
@@ -598,7 +598,7 @@ CONTAINS
     ! Allocate memory - grid
     CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
     CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%ny, BIV%nx, BIV%phi_fric, BIV%wphi_fric)
+    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%phi_fric, BIV%wphi_fric)
     
     ! Read grid & bed roughness data from file
     IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
@@ -830,7 +830,7 @@ CONTAINS
   SUBROUTINE calc_bed_roughness_BIVMIP_C( grid, ice)
     ! Determine the basal conditions underneath the ice
     ! 
-    ! Idealised case: BIVMIP experiment C (parameterised bed following Martin et al (2011), plus a narrow southward ice-stream region)
+    ! Idealised case: BIVMIP experiment C (uniform bed plus single eastward ice stream)
 
     IMPLICIT NONE
 
@@ -841,31 +841,32 @@ CONTAINS
     ! Local variables:
     INTEGER                                            :: i,j
     
-    REAL(dp), PARAMETER                                :: xc      =     0.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      = -1000.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =    75.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =   500.0E3_dp  ! Ice-stream half-width in y-direction
+    REAL(dp), PARAMETER                                :: xc      =  -50.0E3_dp  ! Ice-stream midpoint (x-coordinate)
+    REAL(dp), PARAMETER                                :: yc      =    0.0E3_dp  ! Ice-stream midpoint (y-coordinate)
+    REAL(dp), PARAMETER                                :: sigma_x =  150.0E3_dp  ! Ice-stream half-width in x-direction
+    REAL(dp), PARAMETER                                :: sigma_y =   15.0E3_dp  ! Ice-stream half-width in y-direction
+    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
+    REAL(dp), PARAMETER                                :: phi_min =  0.1_dp      ! Lowest  till friction angle at ice-stream midpoint
     
     IF     (C%choice_sliding_law == 'Coulomb' .OR. &
             C%choice_sliding_law == 'Coulomb_regularised' .OR. &
             C%choice_sliding_law == 'Zoet-Iverson') THEN
       ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-    
-      ! Start with the Martin et al. (2011) till parameterisation
-      CALL calc_bed_roughness_Martin2011( grid, ice)
-     
-      ! Then add the ice-stream region
+  
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        ice%phi_fric_a( j,i) = ice%phi_fric_a( j,i) * (1._dp - EXP( -0.5_dp * &
+        
+        ! Calculate till friction angle
+        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
           (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2)))
+           ((grid%y( j) - yc) / sigma_y)**2))
+        
       END DO
       END DO
       CALL sync
     
     ELSE
-      IF (par%master) WRITE(0,*) 'calc_bed_roughness_BIVMIP_C - ERROR: choice_sliding_law "', TRIM(C%choice_sliding_law), ' not implemented"!'
+      IF (par%master) WRITE(0,*) 'calc_bed_roughness_BIVMIP_B - ERROR: choice_sliding_law "', TRIM(C%choice_sliding_law), ' not implemented"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
@@ -1624,11 +1625,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  dCdt
     INTEGER                                            :: wdCdt
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_trace_up_Hi, w_trace_up_u, w_trace_down_Hi, w_trace_down_u
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_trace_up_Hs, w_trace_up_u, w_trace_down_Hs, w_trace_down_u
     INTEGER                                            :: i,j,ii,jj,n_up,n_down,k,it
     REAL(dp), DIMENSION(2)                             :: p, t, u
-    REAL(dp)                                           :: Hi_mod  , Hi_target  , u_mod  , u_target
-    REAL(dp)                                           :: Q_scale, Q_mod, R, w_Hi_up, w_Hi_down, w_u_up, w_u_down
+    REAL(dp)                                           :: Hs_mod, Hs_target, u_mod  , u_target
+    REAL(dp)                                           :: Q_scale, Q_mod, R, w_Hs_up, w_Hs_down, w_u_up, w_u_down
     REAL(dp)                                           :: sigma
     
     REAL(dp), PARAMETER                                :: dx_trace_rel    = 0.25_dp       ! Trace step size relative to grid resolution
@@ -1644,8 +1645,8 @@ CONTAINS
     ALLOCATE( trace_down(      2*MAX(grid%nx,grid%ny), 2))
     
     ! Allocate memory for the "response functions" that Hi and u must be convoluted with
-    ALLOCATE( w_trace_up_Hi(   2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_down_Hi( 2*MAX(grid%nx,grid%ny)   ))
+    ALLOCATE( w_trace_up_Hs(   2*MAX(grid%nx,grid%ny)   ))
+    ALLOCATE( w_trace_down_Hs( 2*MAX(grid%nx,grid%ny)   ))
     ALLOCATE( w_trace_up_u(    2*MAX(grid%nx,grid%ny)   ))
     ALLOCATE( w_trace_down_u(  2*MAX(grid%nx,grid%ny)   ))
     
@@ -1748,61 +1749,53 @@ CONTAINS
       END IF
       
       ! Calculate (normalised) response functions
-      w_trace_up_Hi = 0._dp
+      w_trace_up_Hs = 0._dp
       w_trace_up_u  = 0._dp
       DO k = 1, n_up
-        w_trace_up_Hi( k) = REAL( n_up + 1 - k)
-        w_trace_up_u(  k) = REAL( n_up + 1 - k)
+        w_trace_up_Hs( k) = REAL( n_up + 1 - k, dp)
+        w_trace_up_u(  k) = REAL( n_up + 1 - k, dp)
       END DO
-      w_trace_up_Hi = w_trace_up_Hi / SUM( w_trace_up_Hi)
+      w_trace_up_Hs = w_trace_up_Hs / SUM( w_trace_up_Hs)
       w_trace_up_u  = w_trace_up_u  / SUM( w_trace_up_u )
       
-      w_trace_down_Hi = 0._dp
+      w_trace_down_Hs = 0._dp
       w_trace_down_u  = 0._dp
       DO k = 1, n_down
-        w_trace_down_Hi( k) = REAL( n_down + 1 - k)
-        w_trace_down_u(  k) = REAL( n_down + 1 - k)
+        w_trace_down_Hs( k) = REAL( n_down + 1 - k, dp)
+        w_trace_down_u(  k) = REAL( n_down + 1 - k, dp)
       END DO
-      w_trace_down_Hi = w_trace_down_Hi / SUM( w_trace_down_Hi)
+      w_trace_down_Hs = w_trace_down_Hs / SUM( w_trace_down_Hs)
       w_trace_down_u  = w_trace_down_u  / SUM( w_trace_down_u )
       
       ! Calculate upstream line integrals, multiplied with normalised response function
-      w_Hi_up = 0._dp
+      w_Hs_up = 0._dp
       w_u_up  = 0._dp
       DO k = 1, n_up
       
         t = trace_up( k,:)
-        Hi_mod    = interp_bilin_2D( ice%Hi_tplusdt_a        , grid%x, grid%y, t(1), t(2))
-        Hi_target = interp_bilin_2D( refgeo_init%Hi          , grid%x, grid%y, t(1), t(2))
+        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, t(1), t(2))
+        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, t(1), t(2))
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
         
-        Q_mod   = u_mod   * Hi_mod
-        Q_scale = u_scale * Hi_scale
-        R = MAX( 0._dp, MIN( 1._dp, Q_mod / Q_scale ))
-        
-        w_Hi_up = w_Hi_up + (Hi_mod - Hi_target) * w_trace_up_Hi( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0) !* R
-        w_u_up  = w_u_up  - (u_mod  - u_target ) * w_trace_up_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0) !* R
+        w_Hs_up = w_Hs_up + (Hs_mod - Hs_target) * w_trace_up_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
+        w_u_up  = w_u_up  - (u_mod  - u_target ) * w_trace_up_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
         
       END DO
       
       ! Calculate downstream line integrals, multiplied with normalised response function
-      w_Hi_down = 0._dp
+      w_Hs_down = 0._dp
       w_u_down  = 0._dp
       DO k = 1, n_down
       
         t = trace_down( k,:)
-        Hi_mod    = interp_bilin_2D( ice%Hi_tplusdt_a        , grid%x, grid%y, t(1), t(2))
-        Hi_target = interp_bilin_2D( refgeo_init%Hi          , grid%x, grid%y, t(1), t(2))
+        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, t(1), t(2))
+        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, t(1), t(2))
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
         
-        Q_mod   = u_mod   * Hi_mod
-        Q_scale = u_scale * Hi_scale
-        R = MAX( 0._dp, MIN( 1._dp, Q_mod / Q_scale ))
-        
-        w_Hi_down = w_Hi_down - (Hi_mod - Hi_target) * w_trace_down_Hi( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0) !* R
-        w_u_down  = w_u_down  - (u_mod  - u_target ) * w_trace_down_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0) !* R
+        w_Hs_down = w_Hs_down - (Hs_mod - Hs_target) * w_trace_down_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
+        w_u_down  = w_u_down  - (u_mod  - u_target ) * w_trace_down_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
         
       END DO
       
@@ -1812,21 +1805,21 @@ CONTAINS
       Q_scale = u_scale               * Hi_scale
       R = MAX( 0._dp, MIN( 1._dp, Q_mod / Q_scale ))
       
-      w_Hi_up   = w_Hi_up   * R
-      w_Hi_down = w_Hi_down * R
+      w_Hs_up   = w_Hs_up   * R
+      w_Hs_down = w_Hs_down * R
       w_u_up    = w_u_up    * R
       w_u_down  = w_u_down  * R
       
       ! Calculate rate of change of bed roughness
-     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hi_up + w_Hi_down + w_u_up  + w_u_down )
-      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hi_up + w_u_up + w_u_down )
+     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_Hs_down + w_u_up  + w_u_down )
+      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_u_up + w_u_down )
       
-      ! DENK DROM
-      debug%dp_2D_01( j,i) = w_Hi_up
-      debug%dp_2D_02( j,i) = w_Hi_down
-      debug%dp_2D_03( j,i) = w_u_up
-      debug%dp_2D_04( j,i) = w_u_down
-      debug%dp_2D_05( j,i) = dCdt( j,i)
+!      ! DENK DROM
+!      debug%dp_2D_01( j,i) = w_Hs_up
+!      debug%dp_2D_02( j,i) = w_Hs_down
+!      debug%dp_2D_03( j,i) = w_u_up
+!      debug%dp_2D_04( j,i) = w_u_down
+!      debug%dp_2D_05( j,i) = dCdt( j,i)
       
     END DO
     END DO
@@ -1837,7 +1830,6 @@ CONTAINS
     
     ! Apply regularisation
     sigma = grid%dx / 1.5_dp
-!    sigma = 5000._dp
     CALL smooth_Gaussian_2D( grid, dCdt, sigma)
     
     ! Update bed roughness
@@ -1850,26 +1842,25 @@ CONTAINS
     
     ! Apply regularisation
     sigma = grid%dx / 4._dp
-!    sigma = 5000._dp
     CALL smooth_Gaussian_2D( grid, ice%phi_fric_a, sigma)
     
-    ! DENK DROM
-    IF (par%master) THEN
-      debug%dp_2D_06 = dCdt
-      debug%dp_2D_07 = ice%phi_fric_a
-      debug%dp_2D_08 = ice%uabs_surf_a
-      debug%dp_2D_09 = ice%BIV_uabs_surf_target
-      debug%dp_2D_10 = REAL( ice%mask_margin_a,dp)
-      CALL write_to_debug_file
-    END IF
-    CALL sync
-!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+!    ! DENK DROM
+!    IF (par%master) THEN
+!      debug%dp_2D_06 = dCdt
+!      debug%dp_2D_07 = ice%phi_fric_a
+!      debug%dp_2D_08 = ice%uabs_surf_a
+!      debug%dp_2D_09 = ice%BIV_uabs_surf_target
+!      debug%dp_2D_10 = REAL( ice%mask_margin_a,dp)
+!      CALL write_to_debug_file
+!    END IF
+!    CALL sync
+!!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     
     ! Clean up after yourself
     DEALLOCATE( trace_up       )
     DEALLOCATE( trace_down     )
-    DEALLOCATE( w_trace_up_Hi  )
-    DEALLOCATE( w_trace_down_Hi)
+    DEALLOCATE( w_trace_up_Hs  )
+    DEALLOCATE( w_trace_down_Hs)
     DEALLOCATE( w_trace_up_u   )
     DEALLOCATE( w_trace_down_u )
     CALL deallocate_shared( wdCdt)

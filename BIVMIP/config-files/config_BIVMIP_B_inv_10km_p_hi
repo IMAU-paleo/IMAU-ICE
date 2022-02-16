@@ -25,7 +25,7 @@
   ! =======================================================================
   
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'BIVMIP/BIVMIP_B_inv_40km_perfect'      ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'BIVMIP/BIVMIP_B_inv_10km_p_hi'      ! If not, create a directory with this name instead (stops the program if this directory already exists)
   do_write_regional_scalar_output_config      = .FALSE.
   do_write_global_scalar_output_config        = .TRUE.
   
@@ -42,15 +42,15 @@
   xmax_ANT_config                             =  700000.0                        ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -700000.0                        ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             =  700000.0                        ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 10000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
   
   ! Initial geometry
   choice_refgeo_init_ANT_config               = 'restart'             ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"    
-  filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Models/IMAU-ICE/BIVMIP/BIVMIP_B_perfect_40km/restart_ANT.nc'
-  time_to_restart_from_ANT_config             = 50000.0
+  filename_refgeo_init_ANT_config             = '/nethome/beren017/IMAU-ICE/BIVMIP/BIVMIP_B_perfect_10km/restart_ANT.nc'
+  time_to_restart_from_ANT_config             = 20000.0
   
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'idealised'           ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
@@ -142,7 +142,7 @@
   slid_Coulomb_reg_q_plastic_config           = 0.3                              ! Scaling exponent   in regularised Coulomb sliding law
   slid_Coulomb_reg_u_threshold_config         = 100.0                            ! Threshold velocity in regularised Coulomb sliding law
   slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-  slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
+  slid_ZI_p_config                            = 6.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
   
   ! Basal hydrology
   choice_basal_hydrology_config               = 'saturated'                      ! Choice of basal conditions: "saturated", "Martin2011"
@@ -173,7 +173,7 @@
   BIVgeo_CISMplus_tauc_config                 = 10.0                             ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   BIVgeo_CISMplus_H0_config                   = 100.0                            ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   BIVgeo_CISMplus_u0_config                   = 250.0                            ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_CISMplus_target_filename_config      = '/Users/berends/Documents/Models/IMAU-ICE/BIVMIP/BIVMIP_B_velocity_40km.nc'                    ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  BIVgeo_CISMplus_target_filename_config      = '/nethome/beren017/IMAU-ICE/BIVMIP/BIVMIP_B_velocity_10km.nc'                    ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
   BIVgeo_filename_output_config               = 'inverted_bed_roughness.nc'      ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving

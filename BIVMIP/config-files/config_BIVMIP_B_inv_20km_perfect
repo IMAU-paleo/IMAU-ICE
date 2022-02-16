@@ -49,7 +49,7 @@
   
   ! Initial geometry
   choice_refgeo_init_ANT_config               = 'restart'             ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"    
-  filename_refgeo_init_ANT_config             = '/nethome/beren017/IMAU-ICE/BIVMIP/BIVMIP_B_perfect_20km/restart_ANT.nc'
+  filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Models/IMAU-ICE/BIVMIP/BIVMIP_B_perfect_20km/restart_ANT.nc'
   time_to_restart_from_ANT_config             = 20000.0
   
   ! Present-day geometry
@@ -162,7 +162,7 @@
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  basal_roughness_filename_config             = '/nethome/beren017/IMAU-ICE/BIVMIP/BIVMIP_B_inv_40km_perfect/inverted_bed_roughness.nc'                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  basal_roughness_filename_config             = '/Users/berends/Documents/Models/IMAU-ICE/BIVMIP/BIVMIP_B_inv_40km_perfect/inverted_bed_roughness.nc'                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   
   ! Basal inversion
   do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
@@ -173,7 +173,7 @@
   BIVgeo_CISMplus_tauc_config                 = 10.0                             ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   BIVgeo_CISMplus_H0_config                   = 100.0                            ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   BIVgeo_CISMplus_u0_config                   = 250.0                            ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_CISMplus_target_filename_config      = '/nethome/beren017/IMAU-ICE/BIVMIP/BIVMIP_B_velocity_20km.nc'                    ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  BIVgeo_CISMplus_target_filename_config      = '/Users/berends/Documents/Models/IMAU-ICE/BIVMIP/BIVMIP_B_velocity_20km.nc'                    ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
   BIVgeo_filename_output_config               = 'inverted_bed_roughness.nc'      ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving
