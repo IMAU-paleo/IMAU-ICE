@@ -1,0 +1,19 @@
+# Compiler names:
+  F90 = mpifort
+
+# Setting the path for the netcdf libraries:  
+  NCLIB     = $(shell nf-config --flibs)
+  NCINC     = $(shell nf-config --fflags)
+
+# Compiler flags:
+  COMPILER_FLAGS_BASIC    = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp \
+                            -fimplicit-none -g
+  COMPILER_FLAGS_CHECK    = -fbounds-check -fcheck-array-temporaries
+
+  F90FLAGS                = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} \
+                            ${NCINC} -I${PETSC_DIR}/include
+
+# Linking flags of libaries:
+  LDFLAGS                 = -g ${NCLIB} \
+                            -lpetsc \
+                            -lopenblas
