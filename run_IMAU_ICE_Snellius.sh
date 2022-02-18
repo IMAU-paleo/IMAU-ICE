@@ -15,4 +15,4 @@ module load netCDF-Fortran/4.5.3-gompi-2021a
 module load PETSc/3.15.1-foss-2021a
 
 # Execute the program
-srun -n 16 IMAU_ICE_program config-files/config_test
+srun IMAU_ICE_program config-files/config_test

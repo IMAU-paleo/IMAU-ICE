@@ -1,4 +1,4 @@
-#!/bin/sh -f
+#!/bin/sh
 
 module purge
 
