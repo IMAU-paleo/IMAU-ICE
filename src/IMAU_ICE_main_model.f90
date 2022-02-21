@@ -483,8 +483,8 @@ CONTAINS
       region%do_ELRA        = .TRUE.
       
       region%t_last_BIV     = C%start_time_of_run
-      region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_dt
-      region%do_BIV         = .FALSE.
+      region%t_next_BIV     = C%start_time_of_run
+      region%do_BIV         = .TRUE.
       
       region%t_last_output  = C%start_time_of_run
       region%t_next_output  = C%start_time_of_run

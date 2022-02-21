@@ -1655,7 +1655,7 @@ CONTAINS
     
       ! Obviously can only be done where there's (grounded) ice
       IF (ice%mask_sheet_a( j,i) == 0 .OR. ice%mask_margin_a( j,i) == 1 .OR. ice%Hi_a( j,i) < 1._dp .OR. &
-          refgeo_init%Hi( j,i) < 1._dp .OR. ice%BIV_uabs_surf_target( j,i) == 0._dp) THEN
+          refgeo_init%Hi( j,i) < 1._dp .OR. ice%BIV_uabs_surf_target( j,i) == 0._dp .OR. ice%mask_gl_a( j,i) == 1) THEN
         mask( j,i) = 1
         CYCLE
       ELSE
@@ -1778,6 +1778,9 @@ CONTAINS
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
         
+        ! If no target velocity data is available, assume zero difference
+        IF (u_target /= u_target) u_target = u_mod
+        
         w_Hs_up = w_Hs_up + (Hs_mod - Hs_target) * w_trace_up_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
         w_u_up  = w_u_up  - (u_mod  - u_target ) * w_trace_up_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
         
@@ -1793,6 +1796,9 @@ CONTAINS
         Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, t(1), t(2))
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
+        
+        ! If no target velocity data is available, assume zero difference
+        IF (u_target /= u_target) u_target = u_mod
         
         w_Hs_down = w_Hs_down - (Hs_mod - Hs_target) * w_trace_down_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
         w_u_down  = w_u_down  - (u_mod  - u_target ) * w_trace_down_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
@@ -1835,7 +1841,7 @@ CONTAINS
     ! Update bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 30._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
+      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
     END DO
     END DO
     CALL sync
@@ -1851,10 +1857,17 @@ CONTAINS
 !      debug%dp_2D_08 = ice%uabs_surf_a
 !      debug%dp_2D_09 = ice%BIV_uabs_surf_target
 !      debug%dp_2D_10 = REAL( ice%mask_margin_a,dp)
+!      debug%dp_2D_11 = ice%u_surf_a
+!      debug%dp_2D_12 = ice%v_surf_a
 !      CALL write_to_debug_file
 !    END IF
 !    CALL sync
-!!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+
+!    ! Revert to initial topography
+!    ice%Hi_a(         :,grid%i1:grid%i2) = refgeo_init%Hi( :,grid%i1:grid%i2)
+!    ice%Hi_tplusdt_a( :,grid%i1:grid%i2) = refgeo_init%Hi( :,grid%i1:grid%i2)
+!    CALL sync
     
     ! Clean up after yourself
     DEALLOCATE( trace_up       )
@@ -1895,7 +1908,7 @@ CONTAINS
     CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_filled, wmask_filled)
     
     ! Perform the extrapolation
-    sigma = 10000._dp
+    sigma = 40000._dp
     IF (par%master) CALL extrapolate_Gaussian_floodfill( grid, mask, d, sigma, mask_filled)
     CALL sync
     
@@ -1972,10 +1985,14 @@ CONTAINS
     
     IF (par%master) CALL read_BIV_target_velocity( BIV_target)
     CALL sync
-  
-    ! Safety
-    CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf', 'initialise_basal_inversion_target_velocity')
-    CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf', 'initialise_basal_inversion_target_velocity')
+ 
+    ! NOTE: do not check for NaNs in the target velocity field. The Rignot 2011 Antarctica velocity product
+    !       has a lot of missing data points, indicated by NaN values. This is acceptable, the basal inversion
+    !       routine can handle that.
+     
+!    ! Safety
+!    CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf', 'initialise_basal_inversion_target_velocity')
+!    CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf', 'initialise_basal_inversion_target_velocity')
     
     ! Get absolute velocity
     CALL partition_list( BIV_target%nx, par%i, par%n, i1, i2)
@@ -1987,6 +2004,8 @@ CONTAINS
     CALL sync
     
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( BIV_target%u_surf   , BIV_target%wu_surf   )
+    CALL transpose_dp_2D( BIV_target%v_surf   , BIV_target%wv_surf   )
     CALL transpose_dp_2D( BIV_target%uabs_surf, BIV_target%wuabs_surf)
     
     ! Allocate shared memory

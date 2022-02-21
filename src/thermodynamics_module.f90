@@ -820,7 +820,7 @@ CONTAINS
     ELSEIF (region_name == 'EAS') THEN
       filename_restart     = C%filename_refgeo_init_EAS
       time_to_restart_from = C%time_to_restart_from_EAS
-    ELSEIF (region_name == 'GR:') THEN
+    ELSEIF (region_name == 'GRL') THEN
       filename_restart     = C%filename_refgeo_init_GRL
       time_to_restart_from = C%time_to_restart_from_GRL
     ELSEIF (region_name == 'ANT') THEN

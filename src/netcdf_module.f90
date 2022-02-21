@@ -233,6 +233,10 @@ CONTAINS
     ! Ice basins
     ELSEIF (field_name == 'basin_ID') THEN
       CALL write_data_to_file_int_2D( ncid, nx, ny,    id_var,               region%ice%basin_ID,       (/1, 1        /))
+      
+    ! Basal inversion target velocity
+    ELSEIF (field_name == 'BIV_target_velocity') THEN
+      CALL write_data_to_file_dp_2D( ncid,  nx, ny,    id_var,               region%ice%BIV_uabs_surf_target, (/1, 1        /))
 
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
@@ -1011,6 +1015,10 @@ CONTAINS
     ! Ice basins
     ELSEIF (field_name == 'basin_ID') THEN
       CALL create_int_var(    region%help_fields%ncid, 'basin_ID',                 [x, y      ], id_var, long_name='Basin ID')
+      
+    ! Basal inversion target velocity
+    ELSEIF (field_name == 'BIV_target_velocity') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BIV_target_velocity',      [x, y      ], id_var, long_name='Basal inversion target velocity', units='m yr^-1')
  
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
@@ -4125,6 +4133,10 @@ CONTAINS
     ! Input variables:
     TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
     
+    ! Local variables:
+    INTEGER                                       :: i
+    LOGICAL                                       :: is_Rignot2011
+    
     IF (.NOT. par%master) RETURN
         
     ! Open the netcdf file
@@ -4133,13 +4145,39 @@ CONTAINS
     ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
     CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_x, BIV_target%nx, BIV_target%netcdf%id_dim_x)
     CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_y, BIV_target%ny, BIV_target%netcdf%id_dim_y)
-
-    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_x,      (/ BIV_target%netcdf%id_dim_x                             /), BIV_target%netcdf%id_var_x     )
-    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_y,      (/                             BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_y     )
     
-    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_u_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_u_surf)
-    CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_v_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_v_surf)
+    ! Exception for the Rignot et al. (2011) velocity file (downloadable from https://nsidc.org/data/NSIDC-0484/versions/2)
+    is_Rignot2011 = .FALSE.
+    DO i = 1, 256-36
+      IF (BIV_target%netcdf%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
+        is_Rignot2011 = .TRUE.
+      END IF
+    END DO
+    
+    IF (is_Rignot2011) THEN
+      ! Exception for the Rignot et al. (2011) velocity file (downloadable from https://nsidc.org/data/NSIDC-0484/versions/2)
+
+      BIV_target%netcdf%name_var_u_surf = 'VX'
+      BIV_target%netcdf%name_var_v_surf = 'VY'
+      
+      ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_x,      (/ BIV_target%netcdf%id_dim_x                             /), BIV_target%netcdf%id_var_x     )
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_y,      (/                             BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_y     )
+      
+      CALL inquire_single_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_u_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_u_surf)
+      CALL inquire_single_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_v_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_v_surf)
+      
+    ELSE ! IF (is_Rignot2011) THEN
+      ! Generic velocity file
+      
+      ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_x,      (/ BIV_target%netcdf%id_dim_x                             /), BIV_target%netcdf%id_var_x     )
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_y,      (/                             BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_y     )
+      
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_u_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_u_surf)
+      CALL inquire_double_var( BIV_target%netcdf%ncid, BIV_target%netcdf%name_var_v_surf, (/ BIV_target%netcdf%id_dim_x, BIV_target%netcdf%id_dim_y /), BIV_target%netcdf%id_var_v_surf)
+      
+    END IF ! IF (is_Rignot2011) THEN
         
     ! Close the netcdf file
     CALL close_netcdf_file( BIV_target%netcdf%ncid)
@@ -4153,6 +4191,13 @@ CONTAINS
     ! In/output variables:
     TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
     
+    ! Local variables:
+    INTEGER                                       :: i,j
+    LOGICAL                                       :: is_Rignot2011
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: y_temp
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: u_temp, v_temp
+    REAL(dp)                                      :: NaN
+    
     IF (.NOT. par%master) RETURN
     
     ! Open the netcdf file
@@ -4164,6 +4209,51 @@ CONTAINS
     
     CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_u_surf, BIV_target%u_surf, start = (/ 1, 1 /) ))
     CALL handle_error(nf90_get_var( BIV_target%netcdf%ncid, BIV_target%netcdf%id_var_v_surf, BIV_target%v_surf, start = (/ 1, 1 /) ))
+    
+    ! Exception: for some reason, the Rignot 2011 data has the y-axis reversed...
+    is_Rignot2011 = .FALSE.
+    DO i = 1, 256-36
+      IF (BIV_target%netcdf%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
+        is_Rignot2011 = .TRUE.
+      END IF
+    END DO
+    IF (is_Rignot2011) THEN
+      
+      ! Allocate temporary memory for storing the upside-down data
+      ALLOCATE( y_temp( BIV_target%ny))
+      ALLOCATE( u_temp( BIV_target%nx, BIV_target%ny))
+      ALLOCATE( v_temp( BIV_target%nx, BIV_target%ny))
+      
+      ! Copy the upside-down data to temporary memory
+      y_temp = BIV_target%y
+      u_temp = BIV_target%u_surf
+      v_temp = BIV_target%v_surf
+      
+      ! Flip the data
+      DO j = 1, BIV_target%ny
+        BIV_target%y(        j) = y_temp(   BIV_target%ny + 1 - j)
+        BIV_target%u_surf( :,j) = u_temp( :,BIV_target%ny + 1 - j)
+        BIV_target%v_surf( :,j) = v_temp( :,BIV_target%ny + 1 - j)
+      END DO
+      
+      ! Deallocate temporary memory
+      DEALLOCATE( y_temp)
+      DEALLOCATE( u_temp)
+      DEALLOCATE( v_temp)
+      
+      ! Set missing values to NaN
+      NaN = 0._dp
+      NaN = 0._dp / NaN
+      DO i = 1, BIV_target%nx
+      DO j = 1, BIV_target%ny
+        IF (BIV_target%u_surf( i,j) == 0._dp .AND. BIV_target%v_surf( i,j) == 0._dp) THEN
+          BIV_target%u_surf( i,j) = NaN
+          BIV_target%v_surf( i,j) = NaN
+        END IF
+      END DO
+      END DO
+      
+    END IF ! IF (is_Rignot2011) THEN
         
     ! Close the netcdf file
     CALL close_netcdf_file( BIV_target%netcdf%ncid)

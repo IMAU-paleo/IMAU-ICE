@@ -899,9 +899,20 @@ CONTAINS
     DO i = i1, i2
     DO j = 1, ny_dst
       
-      d_dst(                j,i) = 0._dp
-      mask_dst_outside_src( j,i) = 0
-      Asum                       = 0._dp
+      d_dst( j,i) = 0._dp
+      Asum        = 0._dp
+      
+      ! If this dst cell lies (partly) outside of the src grid, mark it as such;
+      ! in that case, use nearest-neighbour extrapolation instead of conservative remapping
+      IF (x_dst( i) - dx_dst/2._dp < MINVAL( x_src) - dx_src/2._dp .OR. &
+          x_dst( i) + dx_dst/2._dp > MAXVAL( x_src) + dx_src/2._dp .OR. &
+          y_dst( j) - dx_dst/2._dp < MINVAL( y_src) - dx_src/2._dp .OR. &
+          y_dst( j) + dx_dst/2._dp > MAXVAL( y_src) + dx_src/2._dp) THEN
+        mask_dst_outside_src( j,i) = 1
+        CYCLE
+      ELSE
+        mask_dst_outside_src( j,i) = 0
+      END IF
       
       DO i_src = ir_src( i,1), ir_src( i,2)
       DO j_src = jr_src( j,1), jr_src( j,2)
@@ -933,7 +944,11 @@ CONTAINS
       END DO ! DO j_src = jr_src( j,1), jr_src( j,2)
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
       
-      IF (Asum < Ad) mask_dst_outside_src( j,i) = 1
+      ! Safety
+      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
+        WRITE(0,*) 'map_square_to_square_cons_2nd_order_2D - ERROR: dst grid cell [', i, ',', j, '] couldnt be completely filled!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
       
     END DO ! DO j = 1, ny_dst
     END DO ! DO i = i1, i2
