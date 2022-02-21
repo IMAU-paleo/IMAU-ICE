@@ -630,11 +630,11 @@ CONTAINS
       ! The time-dependent, step-wise changing uniform flow factor in the MISMIP_mod experiment
       
       A_flow_MISMIP = 1.0E-16_dp
-      IF     (time < 25000._dp) THEN
+      IF     (time < 15000._dp) THEN
         A_flow_MISMIP = 1.0E-16_dp
-      ELSEIF (time < 50000._dp) THEN
+      ELSEIF (time < 30000._dp) THEN
         A_flow_MISMIP = 1.0E-17_dp
-      ELSEIF (time < 75000._dp) THEN
+      ELSEIF (time < 45000._dp) THEN
         A_flow_MISMIP = 1.0E-16_dp
       END IF
         
@@ -820,7 +820,7 @@ CONTAINS
     ELSEIF (region_name == 'EAS') THEN
       filename_restart     = C%filename_refgeo_init_EAS
       time_to_restart_from = C%time_to_restart_from_EAS
-    ELSEIF (region_name == 'GR:') THEN
+    ELSEIF (region_name == 'GRL') THEN
       filename_restart     = C%filename_refgeo_init_GRL
       time_to_restart_from = C%time_to_restart_from_GRL
     ELSEIF (region_name == 'ANT') THEN

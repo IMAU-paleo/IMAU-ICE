@@ -710,17 +710,19 @@ CONTAINS
     
     ! West
     IF     (C%ice_thickness_west_BC == 'zero') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1) / dt
     ELSEIF (C%ice_thickness_west_BC == 'infinite') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%dHi_dt_a( grid%j1:grid%j2,2) - ice%dHi_dt_a( grid%j1:grid%j2,1)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2)
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,1) - ice%Hi_a( grid%j1:grid%j2,1)) / dt
     ELSEIF (C%ice_thickness_west_BC == 'periodic') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%dHi_dt_a( grid%j1:grid%j2,grid%nx-1) - ice%dHi_dt_a( grid%j1:grid%j2,1)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,1) - ice%Hi_a( grid%j1:grid%j2,1)) / dt
     ELSEIF (C%ice_thickness_west_BC == 'fixed') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = 0._dp
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,1)
+      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = 0._dp
+    ELSEIF (C%ice_thickness_west_BC == 'none') THEN
+      ! Free slip boundary; do nothing
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_west_BC "', TRIM(C%ice_thickness_west_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -728,17 +730,19 @@ CONTAINS
     
     ! East
     IF     (C%ice_thickness_east_BC == 'zero') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx) / dt
     ELSEIF (C%ice_thickness_east_BC == 'infinite') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%dHi_dt_a( grid%j1:grid%j2,grid%nx-1) - ice%dHi_dt_a( grid%j1:grid%j2,grid%nx)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx) - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
     ELSEIF (C%ice_thickness_east_BC == 'periodic') THEN
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%dHi_dt_a( grid%j1:grid%j2,2) - ice%dHi_dt_a( grid%j1:grid%j2,grid%nx)) / dt
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,2)
+      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx) - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
     ELSEIF (C%ice_thickness_east_BC == 'fixed') THEN
+      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx)
       ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = 0._dp
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx        )
+    ELSEIF (C%ice_thickness_east_BC == 'none') THEN
+      ! Free slip boundary; do nothing
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_east_BC "', TRIM(C%ice_thickness_east_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -746,17 +750,19 @@ CONTAINS
     
     ! South
     IF     (C%ice_thickness_south_BC == 'zero') THEN
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = -ice%Hi_a( 1,grid%i1:grid%i2) / dt
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = 0._dp
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = -ice%Hi_a( 1,grid%i1:grid%i2) / dt
     ELSEIF (C%ice_thickness_south_BC == 'infinite') THEN
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%dHi_dt_a( 2,grid%i1:grid%i2) - ice%dHi_dt_a( 1,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%Hi_tplusdt_a( 1,grid%i1:grid%i2) - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
     ELSEIF (C%ice_thickness_south_BC == 'periodic') THEN
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%dHi_dt_a( grid%ny-1,grid%i1:grid%i2) - ice%dHi_dt_a( 1,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
+      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%Hi_tplusdt_a( 1,grid%i1:grid%i2) - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
     ELSEIF (C%ice_thickness_south_BC == 'fixed') THEN
+      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = ice%Hi_a( 1,grid%i1:grid%i2)
       ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = 0._dp
-      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = ice%Hi_a( 1              ,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_south_BC == 'none') THEN
+      ! Free slip boundary; do nothing
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_south_BC "', TRIM(C%ice_thickness_south_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -764,17 +770,19 @@ CONTAINS
     
     ! North
     IF     (C%ice_thickness_north_BC == 'zero') THEN
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = -ice%Hi_a( grid%ny,grid%i1:grid%i2) / dt
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = -ice%Hi_a( grid%ny,grid%i1:grid%i2) / dt
     ELSEIF (C%ice_thickness_north_BC == 'infinite') THEN
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%dHi_dt_a( grid%ny-1,grid%i1:grid%i2) - ice%dHi_dt_a( grid%ny,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%Hi_tplusdt_a( grid%ny,grid%i1:grid%i2) - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
     ELSEIF (C%ice_thickness_north_BC == 'periodic') THEN
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%dHi_dt_a( 2,grid%i1:grid%i2) - ice%dHi_dt_a( grid%ny,grid%i1:grid%i2)) / dt
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
+      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%Hi_tplusdt_a( grid%ny,grid%i1:grid%i2) - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
     ELSEIF (C%ice_thickness_north_BC == 'fixed') THEN
+      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = ice%Hi_a( grid%ny,grid%i1:grid%i2)
       ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = 0._dp
-      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = ice%Hi_a( grid%ny        ,grid%i1:grid%i2)
+    ELSEIF (C%ice_thickness_north_BC == 'none') THEN
+      ! Free slip boundary; do nothing
     ELSE
       IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_north_BC "', TRIM(C%ice_thickness_north_BC), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
