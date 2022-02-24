@@ -3,7 +3,7 @@ MODULE bedrock_ELRA_module
   ! Contains all the routines of the ELRA bedrock model.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -32,7 +32,11 @@ CONTAINS
     TYPE(type_model_region),         INTENT(INOUT)     :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ELRA_model'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! If needed, update the bedrock deformation rate
     IF (region%do_ELRA) THEN
@@ -48,6 +52,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_ELRA_model
   SUBROUTINE calculate_ELRA_bedrock_deformation_rate( grid, grid_GIA, ice, refgeo_GIAeq)
     ! Use the ELRA model to update bedrock deformation rates.
@@ -61,10 +68,14 @@ CONTAINS
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_ELRA_bedrock_deformation_rate'
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  surface_load_icemodel_grid,  dHb_eq_GIA_grid
     INTEGER                                            :: wsurface_load_icemodel_grid, wdHb_eq_GIA_grid
     INTEGER                                            :: i,j,n,k,l
     REAL(dp)                                           :: Lr
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Influence radius of the lithospheric rigidity
     Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
@@ -159,6 +170,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calculate_ELRA_bedrock_deformation_rate
   SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, refgeo_GIAeq)
     ! Allocate and initialise the ELRA GIA model
@@ -172,10 +186,14 @@ CONTAINS
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ELRA_model'
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_topo_grid_GIA,  Hb_topo_grid_GIA
     INTEGER                                            :: wHi_topo_grid_GIA, wHb_topo_grid_GIA
     INTEGER                                            :: i,j,n,k,l
     REAL(dp)                                           :: Lr, r
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) '  Initialising ELRA GIA model...'
     
@@ -233,6 +251,9 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wHi_topo_grid_GIA)
     CALL deallocate_shared( wHb_topo_grid_GIA)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_ELRA_model
 

@@ -3,7 +3,7 @@ MODULE scalar_data_output_module
   ! Contains all the routines for writing to the scalar output NetCDF files.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -31,18 +31,25 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
-    INTEGER                                       :: i,j,m
-    REAL(dp)                                      :: T2m_mean
-    REAL(dp)                                      :: total_snowfall
-    REAL(dp)                                      :: total_rainfall
-    REAL(dp)                                      :: total_melt
-    REAL(dp)                                      :: total_refreezing
-    REAL(dp)                                      :: total_runoff
-    REAL(dp)                                      :: total_SMB
-    REAL(dp)                                      :: total_BMB
-    REAL(dp)                                      :: total_MB
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_regional_scalar_data'
+    INTEGER                                            :: i,j,m
+    REAL(dp)                                           :: T2m_mean
+    REAL(dp)                                           :: total_snowfall
+    REAL(dp)                                           :: total_rainfall
+    REAL(dp)                                           :: total_melt
+    REAL(dp)                                           :: total_refreezing
+    REAL(dp)                                           :: total_runoff
+    REAL(dp)                                           :: total_SMB
+    REAL(dp)                                           :: total_BMB
+    REAL(dp)                                           :: total_MB
     
-    IF (.NOT. C%do_write_regional_scalar_output) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. C%do_write_regional_scalar_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Region-wide annual mean surface temperature
     IF (C%choice_climate_model == 'none') THEN
@@ -144,12 +151,14 @@ CONTAINS
       CALL sync
     
     ELSE
-      IF (par%master) WRITE(0,*) 'write_regional_scalar_data - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
     
     ! Write to NetCDF file
     CALL write_to_regional_scalar_output_file( region, time)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE write_regional_scalar_data
   SUBROUTINE write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, time)
@@ -163,7 +172,16 @@ CONTAINS
     TYPE(type_forcing_data),             INTENT(IN)    :: forcing
     REAL(dp),                            INTENT(IN)    :: time
     
-    IF (.NOT. C%do_write_global_scalar_output) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_global_scalar_data'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. C%do_write_global_scalar_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
   
     IF (par%master) THEN
     
@@ -178,8 +196,7 @@ CONTAINS
         global_data%CO2_obs        = forcing%CO2_obs
         global_data%CO2_mod        = forcing%CO2_mod
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_global_scalar_data!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
       END IF
       
       ! d18O
@@ -238,6 +255,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE write_global_scalar_data
   
   SUBROUTINE initialise_global_scalar_data(   global_data)
@@ -246,6 +266,12 @@ CONTAINS
 
     ! Input variables:
     TYPE(type_global_scalar_data),       INTENT(INOUT) :: global_data
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_global_scalar_data'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     
@@ -265,8 +291,7 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
       CALL allocate_shared_dp_0D( global_data%CO2_mod       , global_data%wCO2_mod       )
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in initialise_global_scalar_data!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
     END IF
     
     ! d18O
@@ -298,8 +323,7 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
       CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in initialise_global_scalar_data!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
     END IF
     
     ! Temperature (surface and deep-water)
@@ -315,6 +339,9 @@ CONTAINS
     
     ! Create the netcdf file
     CALL create_global_scalar_output_file( global_data%netcdf)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_global_scalar_data
   

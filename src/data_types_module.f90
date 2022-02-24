@@ -14,7 +14,7 @@ MODULE data_types_module
                                          type_netcdf_direct_SMB_forcing_regional, type_netcdf_ocean_data, &
                                          type_netcdf_extrapolated_ocean_data, type_netcdf_scalars_global, &
                                          type_netcdf_scalars_regional, type_netcdf_BIV_target_velocity, &
-                                         type_netcdf_BIV_bed_roughness
+                                         type_netcdf_BIV_bed_roughness, type_netcdf_resource_tracker
 
   IMPLICIT NONE
   
@@ -1320,7 +1320,7 @@ MODULE data_types_module
     ! Output netcdf files
     TYPE(type_restart_data)                 :: restart
     TYPE(type_netcdf_help_fields)           :: help_fields
-    TyPE(type_netcdf_scalars_regional)      :: scalars
+    TYPE(type_netcdf_scalars_regional)      :: scalars
     
     ! Computation times for this region
     REAL(dp), POINTER                       :: tcomp_total

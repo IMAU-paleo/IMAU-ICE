@@ -3,7 +3,7 @@ MODULE SMB_module
   ! Contains all the routines for calculating the surface mass balance for the current climate.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -46,7 +46,11 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_SMB_model'
     INTEGER                                             :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     IF     (C%choice_SMB_model == 'uniform') THEN
       ! Apply a simple uniform SMB
@@ -84,9 +88,11 @@ CONTAINS
       CALL run_SMB_model_direct( grid, climate_matrix%SMB_direct, SMB, time, mask_noice)
       
     ELSE
-      IF (par%master) WRITE(0,*) 'run_SMB_model - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model
   SUBROUTINE initialise_SMB_model( grid, ice, SMB, region_name)
@@ -99,6 +105,12 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SMB_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) '  Initialising regional SMB model "', TRIM(C%choice_SMB_model), '"...'
     
@@ -118,9 +130,11 @@ CONTAINS
       CALL initialise_SMB_model_IMAU_ITM( grid, ice, SMB, region_name)
     
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_SMB_model - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_SMB_model
   
@@ -138,6 +152,12 @@ CONTAINS
     REAL(dp),                             INTENT(IN)    :: time
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_SMB_model_idealised'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     IF     (C%choice_idealised_SMB == 'EISMINT1_A' .OR. &
             C%choice_idealised_SMB == 'EISMINT1_B' .OR. &
             C%choice_idealised_SMB == 'EISMINT1_C' .OR. &
@@ -150,9 +170,11 @@ CONTAINS
     ELSEIF (C%choice_idealised_SMB == 'BIVMIP_B') THEN
       CALL run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
     ELSE
-      IF (par%master) WRITE(0,*) 'run_SMB_model_idealised - ERROR: unknown choice_idealised_SMB "', TRIM(C%choice_idealised_SMB), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_idealised_SMB "' // TRIM( C%choice_idealised_SMB) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_idealised
   SUBROUTINE run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
@@ -166,12 +188,16 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_idealised_EISMINT1'
     INTEGER                                            :: i,j
     
     REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
     REAL(dp)                                           :: dist            ! distance to centre of circle
     REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
     REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Default EISMINT configuration
     E         = 450000._dp
@@ -224,6 +250,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_idealised_EISMINT1
   SUBROUTINE run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
@@ -237,7 +266,11 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_idealised_Bueler'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -249,6 +282,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_idealised_Bueler
   SUBROUTINE run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
@@ -263,12 +299,16 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_idealised_BIVMIP_B'
     INTEGER                                            :: i,j
     
     REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
     REAL(dp)                                           :: dist            ! distance to centre of circle
     REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
     REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Default EISMINT configuration
     E         = 400000._dp
@@ -286,6 +326,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_idealised_BIVMIP_B
   
@@ -308,16 +351,18 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_IMAUITM'
     INTEGER                                             :: i,j,m
     INTEGER                                             :: mprev
     REAL(dp)                                            :: snowfrac, liquid_water, sup_imp_wat
     
-    ! Make sure this routine is called correctly
-    IF (.NOT. C%choice_SMB_model == 'IMAU-ITM') THEN
-      IF (par%master) WRITE(0,*) ' run_IMAUITM - ERROR: should only be called when choice_SMB_model == "IMAU-ITM"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
+    ! Safety
+    IF (.NOT. C%choice_SMB_model == 'IMAU-ITM') THEN
+      CALL crash('should only be called when choice_SMB_model == "IMAU-ITM"!')
+    END IF
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -397,19 +442,22 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       , 'run_IMAUITM')
-    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       , 'run_IMAUITM')
-    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        , 'run_IMAUITM')
-    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_IMAUITM')
-    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_IMAUITM')
+    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      )
+    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          )
+    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            )
+    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        )
+    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        )
+    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      )
+    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          )
+    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             )
+    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       )
+    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       )
+    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        )
+    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear')
+    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_IMAUITM
   SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing( grid, ice, climate, SMB, mask_noice)
@@ -427,17 +475,18 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_IMAUITM_wrongrefreezing'
     INTEGER                                             :: i,j,m
     INTEGER                                             :: mprev
     REAL(dp)                                            :: snowfrac, liquid_water, sup_imp_wat
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Make sure this routine is called correctly
     IF (.NOT. C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
-      IF (par%master) WRITE(0,*) ' run_IMAUITM_wrongrefreezing - ERROR: should only be called when choice_SMB_model == "IMAU-ITM_wrongrefreezing"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model == "IMAU-ITM_wrongrefreezing"!')
     END IF
-    
-    
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -508,19 +557,22 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        , 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear', 'run_IMAUITM_wrongrefreezing')
-    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     , 'run_IMAUITM_wrongrefreezing')
+    CALL check_for_NaN_dp_2D( SMB%AlbedoSurf      , 'SMB%AlbedoSurf'      )
+    CALL check_for_NaN_dp_3D( SMB%Albedo          , 'SMB%Albedo'          )
+    CALL check_for_NaN_dp_3D( SMB%Melt            , 'SMB%Melt'            )
+    CALL check_for_NaN_dp_3D( SMB%Snowfall        , 'SMB%Snowfall'        )
+    CALL check_for_NaN_dp_3D( SMB%Rainfall        , 'SMB%Rainfall'        )
+    CALL check_for_NaN_dp_3D( SMB%Refreezing      , 'SMB%Refreezing'      )
+    CALL check_for_NaN_dp_3D( SMB%Runoff          , 'SMB%Runoff'          )
+    CALL check_for_NaN_dp_3D( SMB%SMB             , 'SMB%SMB'             )
+    CALL check_for_NaN_dp_3D( SMB%AddedFirn       , 'SMB%AddedFirn'       )
+    CALL check_for_NaN_dp_3D( SMB%FirnDepth       , 'SMB%FirnDepth'       )
+    CALL check_for_NaN_dp_2D( SMB%SMB_year        , 'SMB%SMB_year'        )
+    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear')
+    CALL check_for_NaN_dp_2D( SMB%Albedo_year     , 'SMB%Albedo_year'     )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing
   SUBROUTINE initialise_SMB_model_IMAU_ITM( grid, ice, SMB, region_name)
@@ -534,9 +586,13 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SMB_model_IMAU_ITM'
     INTEGER                                            :: i,j
     CHARACTER(LEN=256)                                 :: SMB_IMAUITM_choice_init_firn
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) '  Initialising the IMAU-ITM SMB model...'
     
@@ -621,8 +677,7 @@ CONTAINS
       CALL initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
       
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_SMB_model_IMAU_ITM - ERROR: unknown SMB_IMAUITM_choice_init_firn "', TRIM(SMB_IMAUITM_choice_init_firn), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown SMB_IMAUITM_choice_init_firn "' // TRIM( SMB_IMAUITM_choice_init_firn) // '"!')
     END IF
     
     ! Initialise albedo
@@ -644,6 +699,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_SMB_model_IMAU_ITM
   SUBROUTINE initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
@@ -656,10 +714,14 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAU_ITM_firn_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
     TYPE(type_restart_data)                            :: restart
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Assume that SMB and geometry are read from the same restart file
     IF     (region_name == 'NAM') THEN
@@ -700,8 +762,8 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth',        'initialise_ice_temperature')
-    CALL check_for_NaN_dp_2D( restart%MeltPreviousYear, 'restart%MeltPreviousYear', 'initialise_ice_temperature')
+    CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth'       )
+    CALL check_for_NaN_dp_2D( restart%MeltPreviousYear, 'restart%MeltPreviousYear')
     
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
     CALL transpose_dp_3D( restart%FirnDepth,        restart%wFirnDepth       )
@@ -720,6 +782,9 @@ CONTAINS
     CALL deallocate_shared( restart%wtime            )
     CALL deallocate_shared( restart%wFirnDepth       )
     CALL deallocate_shared( restart%wMeltPreviousYear)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_IMAU_ITM_firn_restart
 
@@ -744,9 +809,13 @@ CONTAINS
     REAL(dp),                               INTENT(IN)    :: time
     INTEGER,  DIMENSION(:,:  ),             INTENT(IN)    :: mask_noice
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_direct'
     REAL(dp)                                           :: wt0, wt1
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Interpolate the two timeframes in time
     wt0 = (SMB_direct%t1 - time) / (SMB_direct%t1 - SMB_direct%t0)
@@ -762,6 +831,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_SMB_model_direct
   

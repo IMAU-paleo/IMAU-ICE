@@ -6,7 +6,7 @@ MODULE ice_dynamics_module
   !       routines for integrating the ice thickness equation have been moved to the ice_thickness_module.
 
   USE mpi
-  USE configuration_module,                ONLY: dp, C           
+  USE configuration_module,                ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                     ONLY: par, sync, cerr, ierr, &
                                                  allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -42,14 +42,22 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     REAL(dp),                            INTENT(IN)    :: t_end
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ice_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     IF (C%choice_timestepping == 'direct') THEN
       CALL run_ice_dynamics_direct( region, t_end)
     ELSEIF (C%choice_timestepping == 'pc') THEN
       CALL run_ice_dynamics_pc( region, t_end)
     ELSE
-      IF (par%master) WRITE(0,*) 'run_ice_model - ERROR: unknown choice_timestepping "', C%choice_timestepping, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_timestepping "' // TRIM(C%choice_timestepping) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_ice_model
   SUBROUTINE run_ice_dynamics_direct( region, t_end)
@@ -63,8 +71,12 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ice_dynamics_direct'
     INTEGER                                            :: i1,i2
     REAL(dp)                                           :: dt_crit_SIA, dt_crit_SSA
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     i1 = region%grid%i1
     i2 = region%grid%i2
@@ -149,10 +161,7 @@ CONTAINS
       END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
       
     ELSE ! IF     (C%choice_ice_dynamics == 'SIA') THEN
-    
-      IF (par%master) WRITE(0,*) 'run_ice_dynamics_direct - ERROR: "direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      
+      CALL crash('"direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!')
     END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
     
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
@@ -165,11 +174,17 @@ CONTAINS
     
     IF (C%choice_ice_dynamics == 'none') THEN
       ! Fixed ice geometry
-      region%ice%dHi_dt_a( :,i1:i2) = 0._dp
+      region%ice%dHi_dt_a(     :,i1:i2) = 0._dp
+      region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
+      CALL sync
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_ice_dynamics_direct
   SUBROUTINE run_ice_dynamics_pc( region, t_end)
@@ -183,9 +198,13 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ice_dynamics_pc'
     INTEGER                                            :: i1,i2
     LOGICAL                                            :: do_update_ice_velocity
     REAL(dp)                                           :: dt_from_pc, dt_crit_adv
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Abbreviations for cleaner code
     i1 = region%grid%i1
@@ -207,8 +226,7 @@ CONTAINS
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       IF (region%time == region%t_next_DIVA) do_update_ice_velocity = .TRUE.
     ELSE
-      IF (par%master) WRITE(0,*) 'run_ice_dynamics_pc - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
     END IF
     
     IF (do_update_ice_velocity) THEN
@@ -288,8 +306,7 @@ CONTAINS
         CALL sync
         
       ELSE
-        IF (par%master) WRITE(0,*) 'run_ice_dynamics_pc - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
       END IF
     
       ! Corrector step
@@ -320,6 +337,9 @@ CONTAINS
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_ice_dynamics_pc
   
 ! == Update the ice thickness at the end of a model time loop
@@ -331,6 +351,12 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_thickness'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Save the previous ice mask, for use in thermodynamics
     ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
@@ -371,6 +397,9 @@ CONTAINS
     
     CALL update_general_ice_model_data(      grid, ice)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_ice_thickness
   
 ! == Time stepping
@@ -385,9 +414,13 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: dt_crit_SIA
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_critical_timestep_SIA'
     INTEGER                                            :: i,j,k
     REAL(dp)                                           :: u_SIA_vav, v_SIA_vav, D_SIA, dt, u_a, v_a
     REAL(dp), PARAMETER                                :: dt_correction_factor = 0.9_dp ! Make actual applied time step a little bit smaller, just to be sure.
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     dt_crit_SIA = C%dt_max
     
@@ -440,6 +473,9 @@ CONTAINS
     
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_crit_SIA, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
     dt_crit_SIA = dt_crit_SIA * dt_correction_factor
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE calc_critical_timestep_SIA
   SUBROUTINE calc_critical_timestep_adv( grid, ice, dt_crit_adv)
@@ -453,9 +489,13 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: dt_crit_adv
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_critical_timestep_adv'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: dt 
     REAL(dp), PARAMETER                                :: dt_correction_factor = 0.9_dp ! Make actual applied time step a little bit smaller, just to be sure.
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     dt_crit_adv = 2._dp * C%dt_max
     
@@ -470,6 +510,9 @@ CONTAINS
     
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, dt_crit_adv, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
     dt_crit_adv = MIN(C%dt_max, dt_crit_adv * dt_correction_factor)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE calc_critical_timestep_adv
   SUBROUTINE calc_pc_truncation_error( grid, ice, dt, dt_prev)
@@ -483,8 +526,12 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: dt, dt_prev
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pc_truncation_error'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: zeta, eta_proc
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Ratio of time steps
     zeta = dt / dt_prev
@@ -517,6 +564,9 @@ CONTAINS
     END DO
     END DO
     CALL MPI_REDUCE( eta_proc, ice%pc_eta, 1, MPI_DOUBLE_PRECISION, MPI_MAX, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE calc_pc_truncation_error
   SUBROUTINE determine_timesteps_and_actions( region, t_end)
@@ -530,7 +580,11 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_timesteps_and_actions'
     REAL(dp)                                           :: t_next
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) THEN
       
@@ -553,8 +607,7 @@ CONTAINS
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
         t_next = MIN( t_next, region%t_next_DIVA)
       ELSE
-        WRITE(0,*) 'determine_timesteps_and_actions_direct - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
       END IF ! IF (C%choice_ice_dynamics == 'SIA') THEN
       
       ! Then the other model components
@@ -637,6 +690,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE determine_timesteps_and_actions
   
 ! == Administration: allocation and initialisation
@@ -655,9 +711,13 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: tauc_analytical
     LOGICAL                                            :: is_ISMIP_HOM
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE(0,*) '  Initialising ice dynamics model...'
     
@@ -723,6 +783,9 @@ CONTAINS
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_ice_model
   SUBROUTINE allocate_ice_model( grid, ice)  
       
@@ -731,6 +794,12 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_ice_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     ! Allocate memory
     ! ===============
@@ -888,8 +957,7 @@ CONTAINS
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       CALL initialise_implicit_ice_thickness_matrix_tables( grid, ice)
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_ice_integration_methodt "', TRIM(C%choice_ice_integration_method), '" not implemented in allocate_ice_model!'
-     CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_integration_method "' // TRIM(C%choice_ice_integration_method) // '"!')
     END IF
     
     ! Ice dynamics - calving
@@ -921,6 +989,9 @@ CONTAINS
     
     ! Isotopes
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_a_prev            , ice%wHi_a_prev            )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE allocate_ice_model
   

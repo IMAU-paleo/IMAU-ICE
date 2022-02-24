@@ -339,9 +339,6 @@ MODULE data_types_netcdf_module
     ! ID for NetCDF file:
     INTEGER :: ncid
     
-    ! Index of time frame to be written to
-    INTEGER :: ti
-    
   ! Dimensions
   ! ==========
     
@@ -481,6 +478,39 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_dp_2D_monthly_10 = 'dp_2D_monthly_10'
         
   END TYPE type_netcdf_debug
+  
+  TYPE type_netcdf_resource_tracker
+    ! Integers describing open ports to different variables in an opened NetCDF file,
+    ! plus character strings describing the names of those variables.
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+    ! Index of time frame to be written to
+    INTEGER :: ti
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_time
+    INTEGER :: id_dim_name_length
+  
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+    CHARACTER(LEN=256) :: name_dim_name_length           = 'name_length          '
+  
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    INTEGER, DIMENSION(:), ALLOCATABLE :: id_vars
+    INTEGER, DIMENSION(:), ALLOCATABLE :: id_var_names
+    
+  END TYPE type_netcdf_resource_tracker
     
   TYPE type_netcdf_reference_geometry
     ! For reading an input file describing a reference ice-sheet geometry on a Cartesian grid

@@ -3,7 +3,7 @@ MODULE thermodynamics_module
   ! Contains all the routines for calculating the englacial temperature field.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -41,8 +41,12 @@ CONTAINS
     LOGICAL,                              INTENT(IN)    :: do_solve_heat_equation
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_thermo_model'
     INTEGER                                             :: i,j
     REAL(dp)                                            :: T_surf_annual
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_thermo_model == 'none') THEN
       ! No need to do anything
@@ -101,15 +105,17 @@ CONTAINS
       IF (do_solve_heat_equation) CALL solve_3D_heat_equation( grid, ice, climate, ocean, SMB)
       
       ! Safety
-      CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'run_thermo_model')
+      CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a')
     
     ELSE
-      IF (par%master) WRITE(0,*) 'run_thermo_model - ERROR: unknown choice_thermo_model "', TRIM(C%choice_thermo_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_thermo_model "' // TRIM( C%choice_thermo_model) // '"!')
     END IF
     
     ! Calculate the ice flow factor for the new temperature solution
     CALL calc_ice_rheology( grid, ice, time)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_thermo_model
   
@@ -126,6 +132,7 @@ CONTAINS
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'solve_3D_heat_equation'
     INTEGER                                             :: i,j,k
     REAL(dp), DIMENSION(:,:,:), POINTER                 :: Ti_new
     INTEGER                                             :: wTi_new
@@ -141,6 +148,9 @@ CONTAINS
     REAL(dp)                                            :: depth
     REAL(dp), DIMENSION(:,:  ), POINTER                 ::  T_ocean_at_shelf_base
     INTEGER                                             :: wT_ocean_at_shelf_base
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D(       grid%ny, grid%nx, is_unstable, wis_unstable)
@@ -309,7 +319,7 @@ CONTAINS
           hasnan = .TRUE.
         END IF
       END DO
-      IF (MINVAL(Ti_new( :,j,i)) < 150._dp .OR. hasnan) THEN
+      IF (MINVAL( Ti_new( :,j,i)) < 150._dp .OR. hasnan) THEN
         is_unstable( j,i) = 1
         n_unstable  = n_unstable + 1
         !WRITE(0,*) 'instability detected; Hi = ', ice%Hi_a( j,i), ', dHi_dt = ', ice%dHi_dt_a( j,i)
@@ -324,7 +334,7 @@ CONTAINS
     
     ! Cope with instability
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_unstable, 1, MPI_INTEGER, MPI_SUM, MPI_COMM_WORLD, ierr)    
-    IF (n_unstable < CEILING(REAL(grid%nx*grid%ny) / 100._dp)) THEN
+    IF (n_unstable < CEILING( REAL( grid%nx*grid%ny) / 100._dp)) THEN
       ! Instability is limited to an acceptably small number (< 1%) of grid cells;
       ! replace the temperature profile in those cells with the Robin solution
       
@@ -337,10 +347,7 @@ CONTAINS
       
     ELSE
       ! An unacceptably large number of grid cells was unstable; throw an error.
-      
-      IF (par%master) WRITE(0,*) '   solve_heat_equation - ERROR:  heat equation solver unstable for more than 1% of grid cells!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      
+      CALL crash('heat equation solver unstable for more than 1% of grid cells!')
     END IF
     
     ! Move the new temperature field to the ice data structure
@@ -353,7 +360,10 @@ CONTAINS
     CALL deallocate_shared( wT_ocean_at_shelf_base)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'solve_heat_equation')
+    CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_3D_heat_equation
   
@@ -374,6 +384,7 @@ CONTAINS
     INTEGER,                              INTENT(IN)    :: i,j
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'replace_Ti_with_robin_solution'
     INTEGER                                             :: k
     REAL(dp)                                            :: Ts
     REAL(dp)                                            :: thermal_length_scale
@@ -391,6 +402,9 @@ CONTAINS
     
     REAL(dp)                                            :: depth
     REAL(dp)                                            :: T_ocean_at_shelf_base
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     thermal_conductivity_robin        = kappa_0_ice_conductivity * sec_per_year * EXP(-kappa_e_ice_conductivity * T0)  ! Thermal conductivity            [J m^-1 K^-1 y^-1]
     thermal_diffusivity_robin         = thermal_conductivity_robin / (ice_density * c_0_specific_heat)                 ! Thermal diffusivity             [m^2 y^-1]
@@ -436,6 +450,9 @@ CONTAINS
     DO k = 1, C%nz
       Ti( k,j,i) = MIN( Ti( k,j,i), ice%Ti_pmp_a( k,j,i))
     END DO
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE replace_Ti_with_robin_solution
 
@@ -449,8 +466,12 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_grid),                     INTENT(IN)    :: grid
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bottom_frictional_heating'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Exception for when no sliding can occur
     IF (C%choice_ice_dynamics == 'SIA' .OR. C%choice_sliding_law == 'no_sliding') THEN
@@ -469,6 +490,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_bottom_frictional_heating
   SUBROUTINE calc_heat_capacity( grid, ice)
@@ -481,7 +505,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_heat_capacity'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_ice_heat_capacity == 'uniform') THEN
       ! Apply a uniform value for the heat capacity
@@ -500,12 +528,14 @@ CONTAINS
       CALL sync
     
     ELSE
-      IF (par%master) WRITE(0,*) 'calc_heat_capacity - ERROR: unknown choice_ice_heat_capacity "', TRIM(C%choice_ice_heat_capacity), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_heat_capacity "' // TRIM( C%choice_ice_heat_capacity) // '"!')
     END IF
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%Cpi_a, 'ice%Cpi_a', 'calc_heat_capacity')
+    CALL check_for_NaN_dp_3D( ice%Cpi_a, 'ice%Cpi_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_heat_capacity
   SUBROUTINE calc_thermal_conductivity( grid, ice)
@@ -518,7 +548,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_thermal_conductivity'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_ice_thermal_conductivity == 'uniform') THEN
       ! Apply a uniform value for the thermal conductivity
@@ -537,12 +571,14 @@ CONTAINS
       CALL sync
     
     ELSE
-      IF (par%master) WRITE(0,*) 'calc_thermal_conductivity - ERROR: unknown choice_ice_thermal_conductivity "', TRIM(C%choice_ice_thermal_conductivity), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_thermal_conductivity "' // TRIM( C%choice_ice_thermal_conductivity) // '"!')
     END IF
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%Ki_a, 'ice%Ki_a', 'calc_thermal_conductivity')
+    CALL check_for_NaN_dp_3D( ice%Ki_a, 'ice%Ki_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_thermal_conductivity
   SUBROUTINE calc_pressure_melting_point( grid, ice)
@@ -555,7 +591,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pressure_melting_point'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -565,7 +605,10 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%Ti_pmp_a, 'ice%Ti_pmp_a', 'calc_pressure_melting_point')
+    CALL check_for_NaN_dp_3D( ice%Ti_pmp_a, 'ice%Ti_pmp_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_pressure_melting_point
   
@@ -581,6 +624,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_ice_rheology'
     INTEGER                                            :: i,j,k
     REAL(dp), DIMENSION(C%nZ)                          :: prof
     REAL(dp), PARAMETER                                :: A_low_temp  = 1.14E-05_dp   ! [Pa^-3 yr^-1] The constant a in the Arrhenius relationship
@@ -588,6 +632,9 @@ CONTAINS
     REAL(dp), PARAMETER                                :: Q_low_temp  = 6.0E+04_dp    ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
     REAL(dp), PARAMETER                                :: Q_high_temp = 13.9E+04_dp   ! [J mol^-1] Activation energy for creep in the Arrhenius relationship
     REAL(dp)                                           :: A_flow_MISMIP
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_ice_rheology == 'uniform') THEN
       ! Apply a uniform value for the ice flow factor
@@ -616,8 +663,7 @@ CONTAINS
               ! (even when there's technically no ice present)
               ice%A_flow_3D_a( k,j,i) = A_low_temp  * EXP(-Q_low_temp  / (R_gas * 263.15_dp))  
             ELSE
-              IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+              CALL crash('unknown choice_ice_margin "' // TRIM( C%choice_ice_margin) // '"!')
             END IF
           END IF
         END DO ! DO k = 1, C%nz
@@ -642,8 +688,7 @@ CONTAINS
       CALL sync
         
     ELSE
-      IF (par%master) WRITE(0,*) 'calc_ice_rheology - ERROR: unknown choice_ice_rheology "', TRIM(C%choice_ice_rheology), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_rheology "' // TRIM( C%choice_ice_rheology) // '"!')
     END IF
         
     ! Apply the flow enhancement factors
@@ -668,8 +713,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%A_flow_3D_a , 'ice%A_flow_3D_a' , 'ice_physical_properties')
-    CALL check_for_NaN_dp_2D( ice%A_flow_vav_a, 'ice%A_flow_vav_a', 'ice_physical_properties')
+    CALL check_for_NaN_dp_3D( ice%A_flow_3D_a , 'ice%A_flow_3D_a' )
+    CALL check_for_NaN_dp_2D( ice%A_flow_vav_a, 'ice%A_flow_vav_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_ice_rheology
   
@@ -687,6 +735,12 @@ CONTAINS
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     IF (par%master) WRITE (0,*) '  Initialising ice temperature profile "', TRIM(C%choice_initial_ice_temperature), '"...'
     
     IF     (C%choice_initial_ice_temperature == 'uniform') THEN
@@ -702,9 +756,11 @@ CONTAINS
       ! Initialise with the temperature field from the provided restart file
       CALL initialise_ice_temperature_restart( grid, ice, region_name)
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_ice_temperature - ERROR: unknown choice_initial_ice_temperature "', TRIM(C%choice_thermo_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_initial_ice_temperature "' // TRIM( C%choice_initial_ice_temperature) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_ice_temperature
   SUBROUTINE initialise_ice_temperature_uniform( grid, ice)
@@ -718,8 +774,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_uniform'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -734,6 +794,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_ice_temperature_uniform
   SUBROUTINE initialise_ice_temperature_linear( grid, ice, climate)
     ! Initialise the englacial ice temperature at the start of a simulation
@@ -747,9 +810,13 @@ CONTAINS
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
     TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_linear'
     INTEGER                                             :: i,j
     REAL(dp)                                            :: T_surf_annual, T_PMP_base
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -766,6 +833,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_ice_temperature_linear
   SUBROUTINE initialise_ice_temperature_Robin( grid, ice, climate, ocean, SMB)
     ! Initialise the englacial ice temperature at the start of a simulation
@@ -781,8 +851,12 @@ CONTAINS
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_Robin'
     INTEGER                                             :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
  
     ! Calculate Ti_pmp
     CALL calc_pressure_melting_point( grid, ice)
@@ -794,6 +868,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_ice_temperature_Robin
   SUBROUTINE initialise_ice_temperature_restart( grid, ice, region_name)
@@ -808,10 +885,14 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
     TYPE(type_restart_data)                            :: restart
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Assume that temperature and geometry are read from the same restart file
     IF     (region_name == 'NAM') THEN
@@ -853,7 +934,7 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti', 'initialise_ice_temperature')
+    CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti')
     
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
     CALL transpose_dp_3D( restart%Ti, restart%wTi)
@@ -871,6 +952,9 @@ CONTAINS
     CALL deallocate_shared( restart%wzeta            )
     CALL deallocate_shared( restart%wtime            )
     CALL deallocate_shared( restart%wTi              )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_ice_temperature_restart
   
