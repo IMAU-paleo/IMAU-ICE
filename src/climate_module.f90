@@ -3,7 +3,7 @@ MODULE climate_module
   ! Contains all the routines for calculating the climate forcing.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -48,6 +48,12 @@ CONTAINS
     TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix_global
     REAL(dp),                            INTENT(IN)    :: time
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     IF     (C%choice_climate_model == 'none') THEN
       ! Possibly a direct SMB is used? Otherwise no need to do anything.
       
@@ -90,9 +96,11 @@ CONTAINS
       CALL run_climate_model_direct_climate_regional( region%grid, region%climate_matrix, time)
       
     ELSE
-      IF (par%master) WRITE(0,*) 'run_climate_model - ERROR: unknown choice_climate_model "', TRIM(C%choice_climate_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_climate_model"' // TRIM(C%choice_climate_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model
   SUBROUTINE initialise_climate_model_global( climate_matrix)
@@ -102,6 +110,12 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_global'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) ' Initialising global climate model "', TRIM(C%choice_climate_model), '"...'
     
@@ -142,9 +156,11 @@ CONTAINS
       ! No need to initialise any global climate stuff
       
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_global - ERROR: unknown choice_climate_model "', TRIM(C%choice_climate_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_climate_model"' // TRIM(C%choice_climate_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_climate_model_global
   SUBROUTINE initialise_climate_model_regional( region, climate_matrix_global)
@@ -155,6 +171,12 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_climate_matrix_global),    INTENT(IN)    :: climate_matrix_global
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_regional'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) '  Initialising regional climate model "', TRIM(C%choice_climate_model), '"...'
     
@@ -200,9 +222,11 @@ CONTAINS
       CALL initialise_climate_model_direct_climate_regional( region%grid, region%climate_matrix, region%name)
       
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_regional - ERROR: unknown choice_climate_model "', TRIM(C%choice_climate_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_climate_model"' // TRIM(C%choice_climate_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_climate_model_regional
   
@@ -222,6 +246,12 @@ CONTAINS
     TYPE(type_climate_snapshot_regional), INTENT(INOUT) :: climate
     REAL(dp),                             INTENT(IN)    :: time
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_idealised'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     IF     (C%choice_idealised_climate == 'EISMINT1_A' .OR. &
             C%choice_idealised_climate == 'EISMINT1_B' .OR. &
             C%choice_idealised_climate == 'EISMINT1_C' .OR. &
@@ -230,9 +260,11 @@ CONTAINS
             C%choice_idealised_climate == 'EISMINT1_F') THEN
       CALL run_climate_model_idealised_EISMINT1( grid, ice, climate, time)
     ELSE
-      IF (par%master) WRITE(0,*) 'run_climate_model_idealised - ERROR: unknown choice_idealised_climate "', TRIM(C%choice_idealised_climate), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_idealised_climate"' // TRIM(C%choice_idealised_climate) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model_idealised
   SUBROUTINE run_climate_model_idealised_EISMINT1( grid, ice, climate, time)
@@ -241,16 +273,21 @@ CONTAINS
     USe parameters_module,           ONLY: T0, pi
     
     IMPLICIT NONE
-
+    
+    ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid   
     TYPE(type_ice_model),                INTENT(IN)    :: ice 
     TYPE(type_climate_snapshot_regional), INTENT(INOUT) :: climate
     REAL(dp),                            INTENT(IN)    :: time
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_idealised_EISMINT1'
     REAL(dp), PARAMETER                                :: lambda = -0.010_dp
-    
     INTEGER                                            :: i,j,m
     REAL(dp)                                           :: dT_lapse, d, dT
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Set precipitation to zero - SMB is parameterised anyway...
     climate%Precip( :,:,grid%i1:grid%i2) = 0._dp
@@ -291,8 +328,7 @@ CONTAINS
       END DO
       
     ELSE
-      IF (par%master) WRITE(0,*) 'run_climate_model_idealised_EISMINT1 - ERROR: unknown choice_idealised_climate "', TRIM(C%choice_idealised_climate), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_idealised_climate"' // TRIM(C%choice_idealised_climate) // '"!')
     END IF
     CALL sync
     
@@ -312,6 +348,9 @@ CONTAINS
     END IF
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_idealised_EISMINT1
   
 ! == Static present-day observed climate
@@ -329,7 +368,11 @@ CONTAINS
     TYPE(type_climate_matrix_regional),  INTENT(INOUT) :: climate_matrix
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_PD_obs'
     INTEGER                                            :: i,j,m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i2, grid%i2
     DO j = 1, grid%ny
@@ -344,6 +387,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_PD_obs
   SUBROUTINE initialise_climate_model_global_PD_obs( climate_matrix)
     ! Initialise the global climate model
@@ -355,8 +401,17 @@ CONTAINS
     ! In/output variables:
     TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_global_PD_obs'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Initialise the present-day observed global climate (e.g. ERA-40)
     CALL initialise_climate_PD_obs_global( climate_matrix%PD_obs, name = 'PD_obs')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_climate_model_global_PD_obs
   SUBROUTINE initialise_climate_model_regional_PD_obs( grid, climate_matrix_global, climate_matrix)
@@ -372,7 +427,11 @@ CONTAINS
     TYPE(type_climate_matrix_regional),  INTENT(INOUT) :: climate_matrix
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_regional_PD_obs'
     INTEGER                                            :: i,j,m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Initialise data structures for the regional ERA40 climate and the final applied climate
     CALL allocate_climate_snapshot_regional( grid, climate_matrix%PD_obs,  'PD_obs' )
@@ -395,6 +454,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_regional_PD_obs
 
 ! == Present-day observed climate plus a global temperature offset (de Boer et al., 2013)
@@ -415,14 +477,16 @@ CONTAINS
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_dT_glob'
     INTEGER                                            :: i,j,m
-    
     REAL(dp), DIMENSION(:,:  ), POINTER                :: dHs_dx_ref, dHs_dy_ref
     REAL(dp)                                           :: dT_lapse
     REAL(dp), DIMENSION(:,:,:), POINTER                :: Precip_RL_ref, Precip_RL_mod, dPrecip_RL
     INTEGER                                            :: wdHs_dx_ref, wdHs_dy_ref, wPrecip_RL_ref, wPrecip_RL_mod, wdPrecip_RL
-    
     REAL(dp), PARAMETER                                :: P_offset = 0.008_dp       ! Normalisation term in precipitation anomaly to avoid divide-by-nearly-zero
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dx_ref   , wdHs_dx_ref   )
@@ -483,8 +547,11 @@ CONTAINS
     CALL deallocate_shared( wdPrecip_RL)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( climate_matrix%applied%T2m   , 'climate_matrix%applied%T2m'   , 'run_climate_model_dT_glob')
-    CALL check_for_NaN_dp_3D( climate_matrix%applied%Precip, 'climate_matrix%applied%Precip', 'run_climate_model_dT_glob')
+    CALL check_for_NaN_dp_3D( climate_matrix%applied%T2m   , 'climate_matrix%applied%T2m'   )
+    CALL check_for_NaN_dp_3D( climate_matrix%applied%Precip, 'climate_matrix%applied%Precip')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model_dT_glob
 
@@ -507,7 +574,11 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_warm_cold'
     INTEGER                                            :: i,j,m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Update forcing at model time
     CALL get_insolation_at_time( grid, time, climate_matrix%applied%Q_TOA)
@@ -523,25 +594,35 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     DO m = 1, 12
-      IF (climate_matrix%applied%T2m( m,j,i) < 150._dp) THEN
-        WRITE(0,*) ' WARNING - run_climate_model_matrix_warm_cold: excessively low temperatures (<150K) detected!'
-      ELSEIF (climate_matrix%applied%T2m( m,j,i) < 0._dp) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: negative temperatures (<0K) detected!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ! Temperature errors
+      IF     (climate_matrix%applied%T2m( m,j,i) < 0._dp) THEN
+        CALL crash('negative temperature detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
       ELSEIF (climate_matrix%applied%T2m( m,j,i) /= climate_matrix%applied%T2m( m,j,i)) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: NaN temperatures  detected!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      ELSEIF (climate_matrix%applied%Precip( m,j,i) <= 0._dp) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: zero/negative precipitation detected!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('NaN temperature detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      ! Precipitation errors
+      IF     (climate_matrix%applied%Precip( m,j,i) <= 0._dp) THEN
+        CALL crash('zero/negative precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
       ELSEIF (climate_matrix%applied%Precip( m,j,i) /= climate_matrix%applied%Precip( m,j,i)) THEN
-        WRITE(0,*) ' ERROR - run_climate_model_matrix_warm_cold: NaN precipitation  detected!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('NaN precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      ! Temperature warnings
+      IF     (climate_matrix%applied%T2m( m,j,i) < 150._dp) THEN
+        CALL warning('excessively low temperature (< 150 K) detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      ELSEIF (climate_matrix%applied%T2m( m,j,i) > 350._dp) THEN
+        CALL warning('excessively high temperature (> 350 K) detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      ! Precipitation warnings
+      IF     (climate_matrix%applied%Precip( m,j,i) > 10._dp) THEN
+        CALL warning('excessively high precipitation (> 10 m/month) detected at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
       END IF
     END DO
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model_matrix_warm_cold
   SUBROUTINE run_climate_model_matrix_warm_cold_temperature( grid, ice, SMB, climate_matrix, region_name)
@@ -557,6 +638,7 @@ CONTAINS
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_warm_cold_temperature'
     INTEGER                                            :: i,j,m
     REAL(dp)                                           :: CO2, w_CO2
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_ins,  w_ins_smooth,  w_ice,  w_tot
@@ -568,6 +650,9 @@ CONTAINS
     
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
     REAL(dp), PARAMETER                                :: P_offset = 0.008_dp       ! Normalisation term in precipitation anomaly to avoid divide-by-nearly-zero
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_ins,        ww_ins         )
@@ -587,12 +672,10 @@ CONTAINS
       CO2 = forcing%CO2_mod
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - run_climate_model_matrix_warm_cold must only be called with the correct forcing method, check your code!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('must only be called with the correct forcing method, check your code!')
     ELSE
       CO2 = 0._dp
-      WRITE(0,*) '  ERROR - choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in run_climate_model_matrix_warm_cold!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method"' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
     w_CO2 = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) ))   ! Berends et al., 2018 - Eq. 1
@@ -680,7 +763,10 @@ CONTAINS
     CALL deallocate_shared( wlambda_GCM)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( climate_matrix%applied%T2m   , 'climate_matrix%applied%T2m'   , 'run_climate_model_matrix_warm_cold_temperature')
+    CALL check_for_NaN_dp_3D( climate_matrix%applied%T2m   , 'climate_matrix%applied%T2m')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model_matrix_warm_cold_temperature
   SUBROUTINE run_climate_model_matrix_warm_cold_precipitation( grid, ice, climate_matrix, region_name)
@@ -697,8 +783,9 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_matrix_regional),  INTENT(INOUT) :: climate_matrix
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    
+
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_warm_cold_precipitation'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_warm,  w_cold
     INTEGER                                            :: ww_warm, ww_cold
@@ -708,6 +795,9 @@ CONTAINS
     INTEGER                                            :: wT_ref_GCM, wP_ref_GCM, wHs_GCM
     
     REAL(dp), PARAMETER                                :: w_cutoff = 0.25_dp        ! Crop weights to [-w_cutoff, 1 + w_cutoff]
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, w_warm,         ww_warm        )
@@ -805,7 +895,10 @@ CONTAINS
     CALL deallocate_shared( wHs_GCM)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( climate_matrix%applied%Precip, 'climate_matrix%applied%Precip', 'run_climate_model_matrix_warm_cold_precipitation')
+    CALL check_for_NaN_dp_3D( climate_matrix%applied%Precip, 'climate_matrix%applied%Precip')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_climate_model_matrix_warm_cold_precipitation
 
@@ -819,6 +912,12 @@ CONTAINS
     ! In/output variables:
     TYPE(type_climate_matrix_global), INTENT(INOUT) :: climate_matrix_global
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix_global'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Initialise the present-day observed global climate (e.g. ERA-40)
     CALL initialise_climate_PD_obs_global(   climate_matrix_global%PD_obs,   name = 'PD_obs')
       
@@ -826,6 +925,9 @@ CONTAINS
     CALL initialise_climate_snapshot_global( climate_matrix_global%GCM_PI,   name = 'GCM_PI',   nc_filename = C%filename_climate_snapshot_PI,   CO2 = 280._dp,                 orbit_time = 0._dp                   )
     CALL initialise_climate_snapshot_global( climate_matrix_global%GCM_warm, name = 'GCM_warm', nc_filename = C%filename_climate_snapshot_warm, CO2 = C%matrix_high_CO2_level, orbit_time = C%matrix_warm_orbit_time)
     CALL initialise_climate_snapshot_global( climate_matrix_global%GCM_cold, name = 'GCM_cold', nc_filename = C%filename_climate_snapshot_cold, CO2 = C%matrix_low_CO2_level,  orbit_time = C%matrix_cold_orbit_time)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_climate_matrix_global  
   SUBROUTINE initialise_climate_PD_obs_global( PD_obs, name)
@@ -837,6 +939,12 @@ CONTAINS
     ! Input variables:
     TYPE(type_climate_snapshot_global), INTENT(INOUT) :: PD_obs
     CHARACTER(LEN=*),                   INTENT(IN)    :: name
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_PD_obs_global'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     PD_obs%name = name 
     PD_obs%netcdf%filename   = C%filename_PD_obs_climate
@@ -871,6 +979,9 @@ CONTAINS
     ! Determine process domains
     CALL partition_list( PD_obs%nlon, par%i, par%n, PD_obs%i1, PD_obs%i2)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_PD_obs_global   
   SUBROUTINE initialise_climate_snapshot_global( snapshot, name, nc_filename, CO2, orbit_time)
     ! Allocate shared memory for the data fields of a GCM snapshot (stored in the climate matrix),
@@ -886,8 +997,12 @@ CONTAINS
     REAL(dp),                           INTENT(IN)    :: orbit_time
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_snapshot_global'
     INTEGER                                           :: i,j,m
     REAL(dp), PARAMETER                               :: Precip_minval = 1E-5_dp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Metadata
     snapshot%name            = name 
@@ -940,25 +1055,36 @@ CONTAINS
     DO i = snapshot%i1, snapshot%i2
     DO j = 1, snapshot%nlat
     DO m = 1, 12
-      IF (snapshot%T2m( i,j,m) < 150._dp) THEN
-        WRITE(0,*) ' WARNING - initialise_snapshot: excessively low temperatures (<150K) detected in snapshot ', snapshot%name, '!'
-      ELSEIF (snapshot%T2m( i,j,m) < 0._dp) THEN
-        WRITE(0,*) ' ERROR - initialise_snapshot: negative temperatures (<0K) detected in snapshot ', snapshot%name, '!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      ! Temperature errors
+      IF     (snapshot%T2m( i,j,m) < 0._dp) THEN
+        CALL crash('negative temperature detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
       ELSEIF (snapshot%T2m( i,j,m) /= snapshot%T2m( i,j,m)) THEN
-        WRITE(0,*) ' ERROR - initialise_snapshot: NaN temperatures  detected in snapshot ', snapshot%name, '!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      ELSEIF (snapshot%Precip( i,j,m) <= 0._dp) THEN
-        WRITE(0,*) ' ERROR - initialise_snapshot: zero/negative precipitation detected in snapshot ', snapshot%name, '!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      ELSEIF (snapshot%Precip( i,j,m) /= snapshot%Precip( i,j,m)) THEN
-        WRITE(0,*) ' ERROR - initialise_snapshot: NaN precipitation  detected in snapshot ', snapshot%name, '!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('NaN temperature detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
       END IF
+      ! Precipitation errors
+      IF     (snapshot%Precip( i,j,m) <= 0._dp) THEN
+        CALL crash('zero/negative precipitation detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      ELSEIF (snapshot%Precip( i,j,m) /= snapshot%Precip( i,j,m)) THEN
+        CALL crash('NaN precipitation detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      ! Temperature warnings
+      IF     (snapshot%T2m( i,j,m) < 150._dp) THEN
+        CALL warning('excessively low temperature (< 150 K) detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      ELSEIF (snapshot%T2m( i,j,m) > 350._dp) THEN
+        CALL warning('excessively high temperature (< 350 K) detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      ! Precipitation warnings
+      IF     (snapshot%Precip( i,j,m) > 10._dp) THEN
+        CALL warning('excessively high precipitation (> 10 m/month) detected in snapshot ' // TRIM(snapshot%name) // ' at [{int_01},{int_02},{int_03}]', int_01 = m, int_02 = j, int_03 = i)
+      END IF
+      
     END DO
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_climate_snapshot_global
   
@@ -975,7 +1101,11 @@ CONTAINS
     TYPE(type_climate_matrix_global),    INTENT(IN)    :: climate_matrix_global
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_matrix_regional'
     INTEGER                                            :: i,j,m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Allocate memory for the regional ERA40 climate and the final applied climate
     CALL allocate_climate_snapshot_regional( region%grid, region%climate_matrix%PD_obs,   name = 'PD_obs'  )
@@ -1035,6 +1165,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_climate_matrix_regional  
   SUBROUTINE allocate_climate_snapshot_regional( grid, climate, name)
@@ -1046,6 +1179,12 @@ CONTAINS
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_climate_snapshot_regional), INTENT(INOUT) :: climate
     CHARACTER(LEN=*),                     INTENT(IN)    :: name
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_climate_snapshot_regional'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     climate%name = name
     
@@ -1073,6 +1212,9 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate%Albedo,         climate%wAlbedo        )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, climate%I_abs,          climate%wI_abs         )
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE allocate_climate_snapshot_regional
   SUBROUTINE calculate_GCM_bias( grid, climate_matrix)
     ! Calculate the GCM bias in temperature and precipitation
@@ -1087,8 +1229,12 @@ CONTAINS
     TYPE(type_climate_matrix_regional),  INTENT(INOUT) :: climate_matrix
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_GCM_bias'
     INTEGER                                            :: i,j,m
     REAL(dp)                                           :: T2m_SL_GCM, T2m_SL_obs
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, climate_matrix%GCM_bias_T2m,    climate_matrix%wGCM_bias_T2m   )
@@ -1114,6 +1260,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calculate_GCM_bias
   SUBROUTINE correct_GCM_bias( grid, climate_matrix, climate, do_correct_bias)
     ! Calculate bias-corrected climate for this snapshot
@@ -1127,7 +1276,11 @@ CONTAINS
     LOGICAL,                              INTENT(IN)    :: do_correct_bias
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'correct_GCM_bias'
     INTEGER                                             :: i,j,m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! If no bias correction should be applied, set T2m_corr = T2m and Precip_corr = Precip
     IF (.NOT. do_correct_bias) THEN
@@ -1153,6 +1306,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE correct_GCM_bias
   SUBROUTINE initialise_snapshot_spatially_variable_lapserate( grid, climate_PI, climate)
     ! Calculate the spatially variable lapse-rate (for non-PI GCM climates; see Berends et al., 2018)
@@ -1167,6 +1323,7 @@ CONTAINS
     TYPE(type_climate_snapshot_regional), INTENT(INOUT) :: climate
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_snapshot_spatially_variable_lapserate'
     INTEGER                                             :: i,j,m
     INTEGER,  DIMENSION(:,:  ), POINTER                 ::  mask_calc_lambda
     INTEGER                                             :: wmask_calc_lambda
@@ -1176,6 +1333,9 @@ CONTAINS
     
     REAL(dp), PARAMETER                                 :: lambda_min = 0.002_dp
     REAL(dp), PARAMETER                                 :: lambda_max = 0.05_dp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_calc_lambda, wmask_calc_lambda)
@@ -1267,6 +1427,9 @@ CONTAINS
     ! Clean up after yourself
     CALl deallocate_shared( wmask_calc_lambda)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_snapshot_spatially_variable_lapserate
   SUBROUTINE initialise_snapshot_absorbed_insolation( grid, climate, region_name, mask_noice)
     ! Calculate the yearly absorbed insolation for this (regional) GCM snapshot, to be used in the matrix interpolation
@@ -1280,10 +1443,14 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),           INTENT(IN)    :: mask_noice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_snapshot_absorbed_insolation'
     INTEGER                                             :: i,j,m
     TYPE(type_ice_model)                                :: ice_dummy
     TYPE(type_climate_matrix_regional)                  :: climate_dummy
     TYPE(type_SMB_model)                                :: SMB_dummy
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Get insolation at the desired time from the insolation NetCDF file
     ! ==================================================================
@@ -1434,6 +1601,9 @@ CONTAINS
     CALL deallocate_shared( SMB_dummy%wC_abl_Q)
     CALL deallocate_shared( SMB_dummy%wC_refr)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_snapshot_absorbed_insolation
 
 ! == Directly prescribed global climate
@@ -1452,14 +1622,17 @@ CONTAINS
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     REAL(dp),                                 INTENT(IN)    :: time
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_direct_climate_global'
     REAL(dp)                                           :: wt0, wt1
     INTEGER                                            :: i,j,m
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'run_climate_model_direct_climate_global - ERROR: choice_climate_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_global"!')
     END IF
     
     ! Check if the requested time is enveloped by the two timeframes;
@@ -1512,6 +1685,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_direct_climate_global
   SUBROUTINE update_direct_global_climate_timeframes_from_file( clim_glob, time)
     ! Read the NetCDF file containing the global climate forcing data. Only read the time
@@ -1522,19 +1698,21 @@ CONTAINS
     TYPE(type_direct_climate_forcing_global), INTENT(INOUT) :: clim_glob
     REAL(dp),                                 INTENT(IN)    :: time
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_direct_global_climate_timeframes_from_file'
     INTEGER                                            :: ti0, ti1
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - ERROR: choice_climate_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_global"!')
     END IF
     
     ! Check if data for model time is available
     IF (time < clim_glob%time(1)) THEN
-      WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - ERROR: climate data only available between ', MINVAL(clim_glob%time), ' yr and ', MAXVAL(clim_glob%time), ' yr'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('queried time out of range of direct transient climate forcing!')
     END IF
     
     ! Find time indices to be read
@@ -1542,7 +1720,7 @@ CONTAINS
     
       IF     (time < clim_glob%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - WARNING: using constant start-of-record climate when extrapolating!'
+        CALL warning('using constant start-of-record climate when extrapolating!')
         ti0 = 1
         ti1 = 1
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
@@ -1569,7 +1747,7 @@ CONTAINS
         
       ELSE ! IF     (time < clim_glob%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_global_climate_timeframes_from_file - WARNING: using constant end-of-record climate when extrapolating!'
+        CALL warning('using constant end-of-record climate when extrapolating!')
         ti0 = clim_glob%nyears
         ti1 = clim_glob%nyears
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
@@ -1583,6 +1761,9 @@ CONTAINS
     IF (par%master) CALL read_direct_global_climate_file_timeframes( clim_glob, ti0, ti1)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_direct_global_climate_timeframes_from_file
   SUBROUTINE initialise_climate_model_direct_climate_global( clim_glob)
     ! Initialise the global climate model
@@ -1594,10 +1775,15 @@ CONTAINS
     ! In/output variables:
     TYPE(type_direct_climate_forcing_global), INTENT(INOUT) :: clim_glob
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_direct_climate_global'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_climate_global - ERROR: choice_climate_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_global"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -1646,6 +1832,9 @@ CONTAINS
     IF (par%master) CALL read_direct_global_climate_file_time_latlon( clim_glob)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_climate_global
   SUBROUTINE initialise_climate_model_direct_climate_global_regional( grid, climate_matrix)
     ! Initialise the regional climate model
@@ -1658,10 +1847,15 @@ CONTAINS
     TYPE(type_grid),                          INTENT(IN)    :: grid
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_direct_climate_global_regional'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_climate_global_regional - ERROR: choice_climate_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_global"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -1693,6 +1887,9 @@ CONTAINS
     ! Lastly, allocate memory for the "applied" snapshot
     CALL allocate_climate_snapshot_regional( grid, climate_matrix%applied, name = 'applied')
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_climate_global_regional
 
 ! == Directly prescribed regional climate
@@ -1710,14 +1907,17 @@ CONTAINS
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     REAL(dp),                                 INTENT(IN)    :: time
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_direct_climate_regional'
     REAL(dp)                                           :: wt0, wt1
     INTEGER                                            :: i,j,m
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'run_climate_model_direct_climate_regional - ERROR: choice_climate_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_regional"!')
     END IF
     
     ! Check if the requested time is enveloped by the two timeframes;
@@ -1750,6 +1950,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_direct_climate_regional
   SUBROUTINE update_direct_regional_climate_timeframes_from_file( grid, clim_reg, time)
     ! Read the NetCDF file containing the regional climate forcing data. Only read the time
@@ -1761,19 +1964,21 @@ CONTAINS
     TYPE(type_direct_climate_forcing_regional), INTENT(INOUT) :: clim_reg
     REAL(dp),                                   INTENT(IN)    :: time
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_direct_regional_climate_timeframes_from_file'
     INTEGER                                            :: ti0, ti1
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - ERROR: choice_climate_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_regional"!')
     END IF
     
     ! Check if data for model time is available
     IF (time < clim_reg%time(1)) THEN
-      WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - ERROR: climate data only available between ', MINVAL(clim_reg%time), ' yr and ', MAXVAL(clim_reg%time), ' yr'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('queried time out of range of direct transient climate forcing!')
     END IF
     
     ! Find time indices to be read
@@ -1781,7 +1986,7 @@ CONTAINS
     
       IF     (time < clim_reg%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - WARNING: using constant start-of-record climate when extrapolating!'
+        CALL warning('using constant start-of-record climate when extrapolating!')
         ti0 = 1
         ti1 = 1
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
@@ -1808,7 +2013,7 @@ CONTAINS
         
       ELSE ! IF     (time < clim_reg%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_regional_climate_timeframes_from_file - WARNING: using constant end-of-record climate when extrapolating!'
+        CALL warning('using constant end-of-record climate when extrapolating!')
         ti0 = clim_reg%nyears
         ti1 = clim_reg%nyears
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
@@ -1834,6 +2039,9 @@ CONTAINS
     CALL map_square_to_square_cons_2nd_order_3D( clim_reg%nx_raw, clim_reg%ny_raw, clim_reg%x_raw, clim_reg%y_raw, grid%nx, grid%ny, grid%x, grid%y, clim_reg%Wind_SN0_raw, clim_reg%Wind_SN0)
     CALL map_square_to_square_cons_2nd_order_3D( clim_reg%nx_raw, clim_reg%ny_raw, clim_reg%x_raw, clim_reg%y_raw, grid%nx, grid%ny, grid%x, grid%y, clim_reg%Wind_SN1_raw, clim_reg%Wind_SN1)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_direct_regional_climate_timeframes_from_file
   SUBROUTINE initialise_climate_model_direct_climate_regional( grid, climate_matrix, region_name)
     ! Initialise the regional climate model
@@ -1848,12 +2056,15 @@ CONTAINS
     CHARACTER(LEN=3),                         INTENT(IN)    :: region_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_direct_climate_regional'
     INTEGER                                            :: nx, ny
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_climate_regional - ERROR: choice_climate_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_climate_model should be "direct_regional"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -1929,6 +2140,9 @@ CONTAINS
     ! Lastly, allocate memory for the "applied" snapshot
     CALL allocate_climate_snapshot_regional( grid, climate_matrix%applied, name = 'applied')
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_climate_regional
 
 ! == Directly prescribed global SMB
@@ -1947,14 +2161,17 @@ CONTAINS
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     REAL(dp),                                 INTENT(IN)    :: time
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_direct_SMB_global'
     REAL(dp)                                           :: wt0, wt1
     INTEGER                                            :: i,j,m
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'run_climate_model_direct_SMB_global - ERROR: choice_SMB_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_global"!')
     END IF
     
     ! Check if the requested time is enveloped by the two timeframes;
@@ -1993,6 +2210,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_direct_SMB_global
   SUBROUTINE update_direct_global_SMB_timeframes_from_file( clim_glob, time)
     ! Read the NetCDF file containing the global SMB forcing data. Only read the time
@@ -2003,19 +2223,21 @@ CONTAINS
     TYPE(type_direct_SMB_forcing_global),     INTENT(INOUT) :: clim_glob
     REAL(dp),                                 INTENT(IN)    :: time
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_direct_global_SMB_timeframes_from_file'
     INTEGER                                            :: ti0, ti1
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - ERROR: choice_SMB_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_global"!')
     END IF
     
     ! Check if data for model time is available
     IF (time < clim_glob%time(1)) THEN
-      WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - ERROR: SMB data only available between ', MINVAL(clim_glob%time), ' yr and ', MAXVAL(clim_glob%time), ' yr'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('queried time out of range of direct transient SMB forcing!')
     END IF
     
     ! Find time indices to be read
@@ -2023,7 +2245,7 @@ CONTAINS
     
       IF     (time < clim_glob%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - WARNING: using constant start-of-record SMB when extrapolating!'
+        CALL warning('using constant start-of-record SMB when extrapolating!')
         ti0 = 1
         ti1 = 1
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
@@ -2050,7 +2272,7 @@ CONTAINS
         
       ELSE ! IF     (time < clim_glob%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_global_SMB_timeframes_from_file - WARNING: using constant end-of-record SMB when extrapolating!'
+        CALL warning('using constant end-of-record SMB when extrapolating!')
         ti0 = clim_glob%nyears
         ti1 = clim_glob%nyears
         clim_glob%t0 = clim_glob%time( ti0) - 1._dp
@@ -2064,6 +2286,9 @@ CONTAINS
     IF (par%master) CALL read_direct_global_SMB_file_timeframes( clim_glob, ti0, ti1)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_direct_global_SMB_timeframes_from_file
   SUBROUTINE initialise_climate_model_direct_SMB_global( clim_glob)
     ! Initialise the global climate model
@@ -2075,10 +2300,15 @@ CONTAINS
     ! In/output variables:
     TYPE(type_direct_SMB_forcing_global), INTENT(INOUT) :: clim_glob
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_direct_SMB_global'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_SMB_global - ERROR: choice_SMB_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_global"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -2121,6 +2351,9 @@ CONTAINS
     IF (par%master) CALL read_direct_global_SMB_file_time_latlon( clim_glob)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_SMB_global
   SUBROUTINE initialise_climate_model_direct_SMB_global_regional( grid, climate_matrix)
     ! Initialise the regional climate model
@@ -2133,10 +2366,15 @@ CONTAINS
     TYPE(type_grid),                          INTENT(IN)    :: grid
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_direct_SMB_global_regional'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_SMB_global_regional - ERROR: choice_SMB_model should be "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_global"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -2162,6 +2400,9 @@ CONTAINS
     ! Lastly, allocate memory for the "applied" snapshot
     CALL allocate_climate_snapshot_regional( grid, climate_matrix%applied, name = 'applied')
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_SMB_global_regional
 
 ! == Directly prescribed regional SMB
@@ -2179,14 +2420,17 @@ CONTAINS
     TYPE(type_climate_matrix_regional),       INTENT(INOUT) :: climate_matrix
     REAL(dp),                                 INTENT(IN)    :: time
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'run_climate_model_direct_SMB_regional'
     REAL(dp)                                                :: wt0, wt1
     INTEGER                                                 :: i,j
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'run_climate_model_direct_SMB_regional - ERROR: choice_SMB_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_regional"!')
     END IF
     
     ! Check if the requested time is enveloped by the two timeframes;
@@ -2210,6 +2454,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_climate_model_direct_SMB_regional
   SUBROUTINE update_direct_regional_SMB_timeframes_from_file( grid, clim_reg, time)
     ! Read the NetCDF file containing the regional climate forcing data. Only read the time
@@ -2221,19 +2468,21 @@ CONTAINS
     TYPE(type_direct_SMB_forcing_regional),     INTENT(INOUT) :: clim_reg
     REAL(dp),                                   INTENT(IN)    :: time
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_direct_regional_SMB_timeframes_from_file'
     INTEGER                                            :: ti0, ti1
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - ERROR: choice_SMB_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_regional"!')
     END IF
     
     ! Check if data for model time is available
     IF (time < clim_reg%time(1)) THEN
-      WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - ERROR: SMB data only available between ', MINVAL(clim_reg%time), ' yr and ', MAXVAL(clim_reg%time), ' yr'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('queried time out of range of direct transient SMB forcing!')
     END IF
     
     ! Find time indices to be read
@@ -2241,7 +2490,7 @@ CONTAINS
     
       IF     (time < clim_reg%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - WARNING: using constant start-of-record SMB when extrapolating!'
+        CALL warning('using constant start-of-record SMB when extrapolating!')
         ti0 = 1
         ti1 = 1
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
@@ -2268,7 +2517,7 @@ CONTAINS
         
       ELSE ! IF     (time < clim_reg%time( 1)) THEN
       
-        IF (par%master) WRITE(0,*) 'update_direct_regional_SMB_timeframes_from_file - WARNING: using constant end-of-record SMB when extrapolating!'
+        CALL warning('using constant end-of-record SMB when extrapolating!')
         ti0 = clim_reg%nyears
         ti1 = clim_reg%nyears
         clim_reg%t0 = clim_reg%time( ti0) - 1._dp
@@ -2288,6 +2537,9 @@ CONTAINS
     CALL map_square_to_square_cons_2nd_order_2D( clim_reg%nx_raw, clim_reg%ny_raw, clim_reg%x_raw, clim_reg%y_raw, grid%nx, grid%ny, grid%x, grid%y, clim_reg%SMB_year0_raw, clim_reg%SMB_year0)
     CALL map_square_to_square_cons_2nd_order_2D( clim_reg%nx_raw, clim_reg%ny_raw, clim_reg%x_raw, clim_reg%y_raw, grid%nx, grid%ny, grid%x, grid%y, clim_reg%SMB_year1_raw, clim_reg%SMB_year1)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_direct_regional_SMB_timeframes_from_file
   SUBROUTINE initialise_climate_model_direct_SMB_regional( grid, climate_matrix, region_name)
     ! Initialise the regional climate model
@@ -2302,12 +2554,15 @@ CONTAINS
     CHARACTER(LEN=3),                         INTENT(IN)    :: region_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'initialise_climate_model_direct_SMB_regional'
     INTEGER                                                 :: nx, ny
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'initialise_climate_model_direct_SMB_regional - ERROR: choice_SMB_model should be "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('choice_SMB_model should be "direct_regional"!')
     END IF
         
     ! The times at which we have climate fields from input, between which we'll interpolate
@@ -2371,6 +2626,9 @@ CONTAINS
     ! Lastly, allocate memory for the "applied" snapshot
     CALL allocate_climate_snapshot_regional( grid, climate_matrix%applied, name = 'applied')
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_climate_model_direct_SMB_regional
   
 ! == Some generally useful tools
@@ -2388,9 +2646,13 @@ CONTAINS
     TYPE(type_climate_snapshot_regional), INTENT(INOUT) :: creg   ! grid   climate
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'map_snapshot_to_grid'
     INTEGER                                             :: i,j,m
     REAL(dp), DIMENSION(:,:,:), POINTER                 ::  logPrecip
     INTEGER                                             :: wlogPrecip
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! To make sure extrapolation never results in negative precipitation, take the logarithm and inter/extrapolate that
     CALL allocate_shared_dp_3D( cglob%nlon, cglob%nlat, 12, logPrecip, wlogPrecip)
@@ -2433,6 +2695,9 @@ CONTAINS
     
     ! Clean up after yourself
     CALL deallocate_shared( wlogPrecip)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE map_snapshot_to_grid
   
@@ -2456,10 +2721,14 @@ CONTAINS
     ! Output variables:         
     REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: Precip_GCM      ! Climate matrix precipitation
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_CC'
     INTEGER                                            :: i,j,m
     REAL(dp), DIMENSION(:,:,:), POINTER                ::  T_inv,  T_inv_ref
     INTEGER                                            :: wT_inv, wT_inv_ref
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, T_inv,     wT_inv    )
@@ -2501,13 +2770,15 @@ CONTAINS
       CALL sync
       
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR - adapt_precip_CC should only be used for Greenland and Antarctica!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('adapt_precip_CC should only be used for Greenland and Antarctica!')
     END IF
     
     ! Clean up after yourself
     CALL deallocate_shared( wT_inv)
     CALL deallocate_shared( wT_inv_ref)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE adapt_precip_CC
   SUBROUTINE adapt_precip_Roe( grid, Hs1, T2m1, Wind_LR1, Wind_DU1, Precip1, &
@@ -2526,6 +2797,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: Precip2
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_precip_Roe'
     INTEGER                                            :: i,j,m
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dx1,  dHs_dx2
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dy1,  dHs_dy2
@@ -2533,6 +2805,9 @@ CONTAINS
     INTEGER                                            :: wdHs_dy1, wdHs_dy2
     REAL(dp), DIMENSION(:,:,:), POINTER                ::  Precip_RL1,  Precip_RL2,  dPrecip_RL
     INTEGER                                            :: wPrecip_RL1, wPrecip_RL2, wdPrecip_RL
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, dHs_dx1,     wdHs_dx1   )
@@ -2577,6 +2852,9 @@ CONTAINS
     CALL deallocate_shared( wPrecip_RL2)
     CALL deallocate_shared( wdPrecip_RL)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE adapt_precip_Roe
   SUBROUTINE precipitation_model_Roe( T2m, dHs_dx, dHs_dy, Wind_LR, Wind_DU, Precip)
     ! Precipitation model of Roe (J. Glac, 2002), integration from Roe and Lindzen (J. Clim. 2001)
@@ -2592,6 +2870,7 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: Precip               ! Modelled precipitation
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'precipitation_model_Roe'
     REAL(dp)                                           :: upwind_slope         ! Upwind slope
     REAL(dp)                                           :: E_sat                ! Saturation vapour pressure as function of temperature [Pa]
     REAL(dp)                                           :: x0                   ! Integration parameter x0 [m s-1]
@@ -2604,6 +2883,9 @@ CONTAINS
     REAL(dp), PARAMETER                                :: a_par   = 2.5E-11_dp ! Constant a [m2 s  kg-1] (from Roe et al., J. Clim. 2001)
     REAL(dp), PARAMETER                                :: b_par   = 5.9E-09_dp ! Constant b [m  s2 kg-1] (from Roe et al., J. Clim. 2001)
     REAL(dp), PARAMETER                                :: alpha   = 100.0_dp   ! Constant alpha [s m-1]
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Calculate the upwind slope
     upwind_slope = MAX(0._dp, Wind_LR * dHs_dx + Wind_DU * dHs_dy)
@@ -2621,6 +2903,9 @@ CONTAINS
     ! Calculate precipitation rate as in Appendix of Roe et al. (J. Clim, 2001)
     Precip = ( b_par * E_sat ) * ( x0 / 2._dp + x0**2 * err_out / (2._dp * ABS(x0)) + &
                                          EXP (-alpha**2 * x0**2) / (2._dp * SQRT(pi) * alpha) ) * sec_per_year
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE precipitation_model_Roe
   
@@ -2640,8 +2925,12 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: wind_DU
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'rotate_wind_to_model_grid'
     INTEGER                                            :: i,j,m
     REAL(dp)                                           :: longitude_start, Uwind_x, Uwind_y, Vwind_x, Vwind_y
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! First find the first longitude which defines the start of quadrant I:
     longitude_start = grid%lambda_M - 90._dp
@@ -2666,6 +2955,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE rotate_wind_to_model_grid
 

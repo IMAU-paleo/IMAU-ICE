@@ -20,8 +20,10 @@ PROGRAM IMAU_ICE_program
 
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
-  USE configuration_module,            ONLY: dp, C, initialise_model_configuration, write_total_model_time_to_screen
-  USE data_types_module,               ONLY: type_model_region, type_climate_matrix_global, type_ocean_matrix_global, type_SELEN_global, type_global_scalar_data
+  USE configuration_module,            ONLY: dp, C, routine_path, crash, warning, initialise_model_configuration, write_total_model_time_to_screen, &
+                                             reset_computation_times
+  USE data_types_module,               ONLY: type_model_region, type_climate_matrix_global, type_ocean_matrix_global, type_SELEN_global, &
+                                             type_global_scalar_data, type_netcdf_resource_tracker
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
   USE forcing_module,                  ONLY: forcing, initialise_global_forcing, update_global_forcing, &
                                              update_global_mean_temperature_change_history, &
@@ -33,6 +35,7 @@ PROGRAM IMAU_ICE_program
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
   USE scalar_data_output_module,       ONLY: initialise_global_scalar_data, write_global_scalar_data
   USE general_ice_model_data_module,   ONLY: MISMIPplus_adapt_flow_factor
+  USE netcdf_module,                   ONLY: create_resource_tracking_file, write_to_resource_tracking_file
 
   IMPLICIT NONE
   
@@ -59,12 +62,15 @@ PROGRAM IMAU_ICE_program
   REAL(dp)                               :: t_coupling, t_end_models
   
   ! Computation time tracking
+  TYPE(type_netcdf_resource_tracker)     :: resources
   REAL(dp)                               :: tstart, tstop
   
   ! MISMIPplus flow factor tuning
   REAL(dp)                               :: Hprev, Hcur
   
   ! ======================================================================================
+  
+  routine_path = 'IMAU_ICE_program'
   
   ! MPI Initialisation
   ! ==================
@@ -114,6 +120,11 @@ PROGRAM IMAU_ICE_program
   
   CALL initialise_global_scalar_data( global_data)
   
+  ! ===== Create the resource tracking output file =====
+  ! ====================================================
+  
+  CALL create_resource_tracking_file( resources)
+  
   ! ===== Initialise the climate matrix =====
   ! =========================================
   
@@ -152,8 +163,7 @@ PROGRAM IMAU_ICE_program
   ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
     IF (par%master) global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
   ELSE
-    IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
-    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
   END IF
   CALL sync
   
@@ -194,6 +204,7 @@ PROGRAM IMAU_ICE_program
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,'(A,F9.3,A)') ' Coupling model: t = ', t_coupling/1000._dp, ' kyr'
     
+    
     ! Solve the SLE
     IF (t_coupling >= SELEN%t1_SLE .AND. (C%choice_GIA_model == 'SELEN' .OR. C%choice_sealevel_model == 'SELEN')) THEN
       CALL run_SELEN( SELEN, NAM, EAS, GRL, ANT, t_coupling, ocean_area, ocean_depth)
@@ -212,8 +223,7 @@ PROGRAM IMAU_ICE_program
     ELSEIF (C%choice_sealevel_model == 'SELEN') THEN
       ! Sea level fields are filled in the SELEN routines
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
     END IF
     
     ! Run all four model regions for 100 years
@@ -243,8 +253,7 @@ PROGRAM IMAU_ICE_program
     ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
       global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
     END IF
   
     ! Calculate contributions to global mean sea level and benthic d18O from the different ice sheets
@@ -261,8 +270,7 @@ PROGRAM IMAU_ICE_program
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'none') THEN
       ! No inverse routine is used in these forcing methods
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in IMAU_ICE_program!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
     ! Write global scalar data to output file
@@ -272,12 +280,15 @@ PROGRAM IMAU_ICE_program
     IF (C%MISMIPplus_do_tune_A_for_GL) THEN
       Hprev = Hcur
       Hcur  = ANT%ice%Hs_a( CEILING( REAL(ANT%grid%ny,dp)/2._dp), 1)
-      IF (par%master) WRITE(0,*) 'Hprev = ', Hprev, ', Hcur = ', Hcur
       IF (ABS(1._dp - Hcur/Hprev) < 5.0E-3_dp) THEN
         ! The model has converged to a steady state; adapt the flow factor
         CALL MISMIPplus_adapt_flow_factor( ANT%grid, ANT%ice)
       END IF
     END IF
+  
+    ! Write resource use to the resource tracking file
+    CALL write_to_resource_tracking_file( resources, t_coupling)
+    CALL reset_computation_times
       
   END DO ! DO WHILE (t_coupling < C%end_time_of_run)
   

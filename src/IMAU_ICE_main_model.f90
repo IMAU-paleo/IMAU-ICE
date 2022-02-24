@@ -3,7 +3,7 @@ MODULE IMAU_ICE_main_model
   ! Contains all the routines for initialising and running the IMAU-ICE regional ice-sheet model.
 
   USE mpi
-  USE configuration_module,                ONLY: dp, C           
+  USE configuration_module,                ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                     ONLY: par, sync, cerr, ierr, &
                                                  allocate_shared_int_0D, allocate_shared_dp_0D, &
                                                  allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -17,7 +17,7 @@ MODULE IMAU_ICE_main_model
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                                  inverse_oblique_sg_projection, surface_elevation
-  USE parameters_module,                   ONLY: seawater_density, ice_density, T0
+  USE parameters_module
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                                  create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
@@ -52,8 +52,14 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
     
     ! Local variables:
+    !CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_model'
+    CHARACTER(LEN=256)                                 :: routine_name
     REAL(dp)                                           :: tstart, tstop, t1, t2
     INTEGER                                            :: it
+    
+    ! Add routine to path
+    routine_name = 'run_model('  //  region%name  //  ')'
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,'(A,A3,A,A13,A,F9.3,A,F9.3,A)') '  Running model region ', region%name, ' (', TRIM(region%long_name), & 
@@ -90,8 +96,7 @@ CONTAINS
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR - choice_GIA_model "', C%choice_GIA_model, '" not implemented in run_model!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_GIA = region%tcomp_GIA + t2 - t1
@@ -195,6 +200,9 @@ CONTAINS
     ! Write to text output
     CALL write_regional_scalar_data( region, region%time)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_model
   
   ! Initialise the entire model region - read initial and PD data, initialise the ice dynamics, climate and SMB sub models
@@ -211,8 +219,14 @@ CONTAINS
     TYPE(type_ocean_matrix_global),   INTENT(INOUT)     :: ocean_matrix_global
     
     ! Local variables:
+    !CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_model'
+    CHARACTER(LEN=256)                                 :: routine_name
     CHARACTER(LEN=20)                                   :: short_filename
     INTEGER                                             :: n
+    
+    ! Add routine to path
+    routine_name = 'initialise_model('  //  name  //  ')'
+    CALL init_routine( routine_name)
     
     ! Region name
     region%name      = name    
@@ -254,7 +268,7 @@ CONTAINS
     DO n = 1, 256
       region%restart%netcdf%filename(n:n) = ' '
     END DO
-    region%restart%netcdf%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    region%restart%netcdf%filename = TRIM(C%output_dir) // TRIM(short_filename)
     
     ! Help fields file
     short_filename = 'help_fields_NAM.nc'
@@ -262,7 +276,7 @@ CONTAINS
     DO n = 1, 256
       region%help_fields%filename(n:n) = ' '
     END DO
-    region%help_fields%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    region%help_fields%filename = TRIM(C%output_dir) // TRIM(short_filename)
 
     ! Let the Master create the (empty) NetCDF files
     IF (par%master) CALL create_restart_file(     region, forcing)
@@ -324,8 +338,7 @@ CONTAINS
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
     ELSE
-      WRITE(0,*) '  ERROR - choice_GIA_model "', C%choice_GIA_model, '" not implemented in initialise_model!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF
     
     ! ===== The isotopes model =====
@@ -375,6 +388,9 @@ CONTAINS
     
     IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_model
   SUBROUTINE allocate_region_timers_and_scalars( region)
     ! Allocate shared memory for this region's timers (used for the asynchronous coupling between the
@@ -385,6 +401,12 @@ CONTAINS
     
     ! In/output variables:
     TYPE(type_model_region),         INTENT(INOUT)     :: region
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_region_timers_and_scalars'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Timers and time steps
     ! =====================
@@ -526,6 +548,9 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%tcomp_climate , region%wtcomp_climate )
     CALL allocate_shared_dp_0D( region%tcomp_GIA     , region%wtcomp_GIA     )
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE allocate_region_timers_and_scalars
   SUBROUTINE initialise_model_grid( region)
     ! Initialise the square grid for this model region
@@ -536,8 +561,12 @@ CONTAINS
     TYPE(type_model_region),         INTENT(INOUT)     :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_model_grid'
     INTEGER                                            :: nsx, nsy, i, j
     REAL(dp)                                           :: xmin, xmax, ymin, ymax, xmid, ymid
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Assign dummy values to suppress compiler warnings
     xmin = 0._dp
@@ -654,6 +683,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_model_grid
   SUBROUTINE initialise_GIA_model_grid( region)
   
@@ -663,11 +695,18 @@ CONTAINS
     TYPE(type_model_region),         INTENT(INOUT)     :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_GIA_model_grid'
     INTEGER                                            :: nsx, nsy, i, j
     REAL(dp)                                           :: xmin, xmax, ymin, ymax, xmid, ymid
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! If no GIA is used, no need to even create a grid for it
-    IF (C%choice_GIA_model == 'none') RETURN
+    IF (C%choice_GIA_model == 'none') THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Assign dummy values to suppress compiler warnings
     xmin = 0._dp
@@ -780,19 +819,26 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_GIA_model_grid
   
   ! Calculate this region's ice sheet's volume and area
   SUBROUTINE calculate_icesheet_volume_and_area( region)
-    
-    USE parameters_module,           ONLY: ocean_area, seawater_density, ice_density
   
     IMPLICIT NONE  
     
-    TYPE(type_model_region),    INTENT(INOUT)     :: region
+    ! In/output variables:
+    TYPE(type_model_region),    INTENT(INOUT)          :: region
     
-    INTEGER                                       :: i,j
-    REAL(dp)                                      :: ice_area, ice_volume, thickness_above_flotation, ice_volume_above_flotation
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_icesheet_volume_and_area'
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: ice_area, ice_volume, thickness_above_flotation, ice_volume_above_flotation
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ice_area                   = 0._dp
     ice_volume                 = 0._dp
@@ -824,17 +870,24 @@ CONTAINS
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calculate_icesheet_volume_and_area
   SUBROUTINE calculate_PD_sealevel_contribution( region)
-    
-    USE parameters_module,           ONLY: ocean_area, seawater_density, ice_density
   
     IMPLICIT NONE  
     
-    TYPE(type_model_region),    INTENT(INOUT)     :: region
+    ! In/output variables:
+    TYPE(type_model_region),    INTENT(INOUT)          :: region
     
-    INTEGER                                       :: i, j
-    REAL(dp)                                      :: ice_volume, thickness_above_flotation, ice_volume_above_flotation
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_PD_sealevel_contribution'
+    INTEGER                                            :: i, j
+    REAL(dp)                                           :: ice_volume, thickness_above_flotation, ice_volume_above_flotation
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ice_volume                 = 0._dp
     ice_volume_above_flotation = 0._dp
@@ -858,6 +911,9 @@ CONTAINS
     
     CALL MPI_REDUCE( ice_volume                , region%ice_volume_PD,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation_PD, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calculate_PD_sealevel_contribution
 

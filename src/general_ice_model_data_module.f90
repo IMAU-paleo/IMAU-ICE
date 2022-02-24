@@ -4,7 +4,7 @@ MODULE general_ice_model_data_module
   ! data fields, masks, physical properties, etc.)
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -35,8 +35,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_general_ice_model_data'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
@@ -69,6 +73,9 @@ CONTAINS
     CALL ddx_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dx_cy)
     CALL ddy_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dy_cy)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_general_ice_model_data
   
 ! == Routines for determining the model masks
@@ -79,12 +86,21 @@ CONTAINS
     
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice 
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_masks'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL determine_masks_landocean(   grid, ice)
     CALL determine_masks_ice(         grid, ice)
     CALL determine_masks_transitions( grid, ice)
     CALL determine_masks_total(       grid, ice)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE determine_masks
   SUBROUTINE determine_masks_landocean( grid, ice)
@@ -99,7 +115,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_masks_landocean'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Initialise: start with land everywhere.
     ice%mask_land_a(   :,grid%i1:grid%i2) = 1
@@ -122,6 +143,9 @@ CONTAINS
       CALL sync
     
     END IF ! IF (C%do_ocean_floodfill) THEN
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE determine_masks_landocean
   SUBROUTINE determine_masks_ice( grid, ice)
@@ -135,7 +159,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_masks_ice'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL determine_masks_landocean( grid, ice)
     
@@ -167,6 +196,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE determine_masks_ice
   SUBROUTINE determine_masks_transitions( grid, ice)
@@ -180,7 +212,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_masks_transitions'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL determine_masks_landocean( grid, ice)
     
@@ -238,6 +275,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE determine_masks_transitions
   SUBROUTINE determine_masks_total( grid, ice)
@@ -251,7 +291,12 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_masks_total'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -289,6 +334,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE determine_masks_total
   
@@ -306,9 +354,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  f_grnd_a_NW,  f_grnd_a_NE,  f_grnd_a_SW,  f_grnd_a_SE
     INTEGER                                            :: wf_grnd_a_NW, wf_grnd_a_NE, wf_grnd_a_SW, wf_grnd_a_SE
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny  , grid%nx  , f_grnd_a_NW, wf_grnd_a_NW)
@@ -351,10 +403,13 @@ CONTAINS
     CALL deallocate_shared( wf_grnd_a_SE)
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%f_grnd_a , 'ice%f_grnd_a' , 'determine_grounded_fractions')
-    CALL check_for_NaN_dp_2D( ice%f_grnd_cx, 'ice%f_grnd_cx', 'determine_grounded_fractions')
-    CALL check_for_NaN_dp_2D( ice%f_grnd_cy, 'ice%f_grnd_cy', 'determine_grounded_fractions')
-    CALL check_for_NaN_dp_2D( ice%f_grnd_b , 'ice%f_grnd_b' , 'determine_grounded_fractions')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_a , 'ice%f_grnd_a' )
+    CALL check_for_NaN_dp_2D( ice%f_grnd_cx, 'ice%f_grnd_cx')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_cy, 'ice%f_grnd_cy')
+    CALL check_for_NaN_dp_2D( ice%f_grnd_b , 'ice%f_grnd_b' )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE determine_grounded_fractions
   SUBROUTINE determine_grounded_fractions_CISM_quads( grid, ice, f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE)
@@ -370,11 +425,15 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions_CISM_quads'
     INTEGER                                            :: i,j,ii,jj
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  TAF_a_ext
     INTEGER                                            :: wTAF_a_ext
     REAL(dp)                                           :: f_NW, f_N, f_NE, f_W, f_m, f_E, f_SW, f_S, f_SE
     REAL(dp)                                           :: fq_NW, fq_NE, fq_SW, fq_SE
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny+2, grid%nx+2, TAF_a_ext, wTAF_a_ext)
@@ -449,6 +508,9 @@ CONTAINS
     
     ! Clean up after yourself
     CALL deallocate_shared( wTAF_a_ext)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE determine_grounded_fractions_CISM_quads
   SUBROUTINE calc_fraction_above_zero( f_NW, f_NE, f_SW, f_SE, phi)
@@ -634,18 +696,9 @@ CONTAINS
         phi = phi + ((bb*cc - aa*dd) * LOG(ABS(1._dp - (aa*dd)/(bb*cc))) + aa*dd) / (dd**2)
         
       ELSE
-        WRITE(0,*) 'determine_grounded_fractions_CISM_quads - calc_fraction_above_zero - ERROR: unknown scenario [', scen, ']!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown scenario {int_01}!', int_01 = scen)
       END IF
       
-    END IF
-    
-    IF (pi < -0.01_dp .OR. phi > 1.01_dp .OR. phi /= phi) THEN
-      WRITE(0,*) 'calc_fraction_above_zero - ERROR: phi = ', phi
-      WRITE(0,*) 'f = [', f_NWp, ',', f_NEp, ',', f_SWp, ',', f_SEp, ']'
-      WRITE(0,*) 'scen = ', scen
-      WRITE(0,*) 'aa = ', aa, ', bb = ', bb, ', cc = ', cc, ', dd = ', dd, ', f1 = ', f1, ',f2 = ', f2
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
     phi = MAX( 0._dp, MIN( 1._dp, phi))
@@ -697,8 +750,7 @@ CONTAINS
       END IF
       
       IF (nit > 4) THEN
-        IF (par%master) WRITE(0,*) 'determine_grounded_fractions_CISM_quads - rotate_quad_until_match - ERROR: couldnt find matching scenario!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('couldnt find matching scenario!')
       END IF
       
     END DO
@@ -734,9 +786,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_floating_margin_fraction'
     INTEGER                                            :: i,j,ii,jj
     LOGICAL                                            :: has_noncf_neighbours
     REAL(dp)                                           :: Hi_neighbour_max
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -795,8 +851,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%float_margin_frac_a, 'ice%float_margin_frac_a', 'determine_floating_margin_fraction')
-    CALL check_for_NaN_dp_2D( ice%Hi_eff_cf_a        , 'ice%Hi_eff_cf_a'        , 'determine_floating_margin_fraction')
+    CALL check_for_NaN_dp_2D( ice%float_margin_frac_a, 'ice%float_margin_frac_a')
+    CALL check_for_NaN_dp_2D( ice%Hi_eff_cf_a        , 'ice%Hi_eff_cf_a'        )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE determine_floating_margin_fraction
   
@@ -811,11 +870,16 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(INOUT) :: ice 
   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'ocean_floodfill'
     INTEGER                                            :: i,j,ii,jj
     INTEGER, DIMENSION( :,:  ), POINTER                :: map
     INTEGER, DIMENSION( :,:  ), POINTER                :: stack
     INTEGER                                            :: wmap, wstack
     INTEGER                                            :: stackN
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory for the map, because even though the flood-fill is done only
     ! by the Master, the other processes need access to the resulting filled map.
@@ -911,6 +975,9 @@ CONTAINS
     CALL deallocate_shared( wmap)
     CALL deallocate_shared( wstack)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ocean_floodfill
   
 ! == Routines for defining ice drainage basins from an external polygon file
@@ -926,6 +993,7 @@ CONTAINS
     CHARACTER(LEN=3)                                   :: region_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basins'
     INTEGER                                            :: i,j,vi,vj,bi
     CHARACTER(LEN=256)                                 :: choice_basin_scheme
     CHARACTER(LEN=256)                                 :: filename_basins
@@ -949,6 +1017,9 @@ CONTAINS
     INTEGER                                            :: wij_front
     INTEGER                                            :: ii,jj,k,i_nearest,j_nearest
     REAL(dp)                                           :: dist,dist_min
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Determine what to do for this region
     choice_basin_scheme = 'none'
@@ -981,7 +1052,7 @@ CONTAINS
       
       IF (region_name == 'ANT') THEN
         ! Antarctica: ant_full_drainagesystem_polygons.txt
-        ! Can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
+        ! Can be downloaded from: https: // earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
         ! A text file with 7 header lines, followed by three columns of data:
         !    Lat, Lon, basin ID
         
@@ -1003,13 +1074,9 @@ CONTAINS
         END DO
         
         IF ((.NOT. recognised_file) .AND. par%master) THEN
-          WRITE(0,*) ''
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) 'initialise_basins - WARNING: for Antarctica, we expect the file "ant_full_drainagesystem_polygons.txt"'
-          WRITE(0,*) '                             This can be downloaded from https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems'
-          WRITE(0,*) '                             If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins'
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) ''
+          CALL warning('for Antarctica, we expect the file "ant_full_drainagesystem_polygons.txt". ' // &
+                       'This can be downloaded from https: // earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems. ' // &
+                       'If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins.')
         END IF
         
         ! Allocate shared memory
@@ -1036,8 +1103,7 @@ CONTAINS
           DO vi = 1, n_vertices
             READ( UNIT = 1337, FMT=*, IOSTAT=ios) Vlat( vi), Vlon( vi), VID( vi)
             IF (ios /= 0) THEN
-              WRITE(0,*) ' initialise_basins - ERROR: length of text file "', TRIM( filename_basins), '" does not match n_vertices = ', n_vertices
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+              CALL crash('length of text file "' // TRIM( filename_basins) // '" does not match n_vertices = {int_01}!', int_01 = n_vertices)
             END IF
             
             DO vj = 1, n_skip-1
@@ -1059,7 +1125,7 @@ CONTAINS
         
       ELSEIF (region_name == 'GRL') THEN
         ! Greenland: grndrainagesystems_ekholm.txt
-        ! Can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
+        ! Can be downloaded from: https: // earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
         ! A text file with 7 header lines, followed by three columns of data:
         !    basin ID, Lat, Lon   (NOTE: here basin ID is a floating-point rather than an integer!)
         
@@ -1081,13 +1147,9 @@ CONTAINS
         END DO
         
         IF ((.NOT. recognised_file) .AND. par%master) THEN
-          WRITE(0,*) ''
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) 'initialise_basins - WARNING: for Greenland, we expect the file "grndrainagesystems_ekholm.txt"'
-          WRITE(0,*) '                             This can be downloaded from https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems'
-          WRITE(0,*) '                             If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins'
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) ''
+          CALL warning('for Greenland, we expect the file "grndrainagesystems_ekholm.txt". ' // &
+                       'This can be downloaded from https: // earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems. ' // &
+                       'If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins.')
         END IF
         
         ! Allocate shared memory
@@ -1114,8 +1176,7 @@ CONTAINS
           DO vi = 1, n_vertices
             READ( UNIT = 1337, FMT=*, IOSTAT=ios) VID_dp, Vlat( vi), Vlon( vi)
             IF (ios /= 0) THEN
-              WRITE(0,*) ' initialise_basins - ERROR: length of text file "', TRIM( filename_basins), '" does not match n_vertices = ', n_vertices
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+              CALL crash('length of text file "' // TRIM( filename_basins) // '" does not match n_vertices = {int_01}!', int_01 = n_vertices)
             END IF
             
             DO vj = 1, n_skip-1
@@ -1162,8 +1223,7 @@ CONTAINS
             ELSEIF ( viD_dp == 8.2_dp) THEN
               VID( vi) = 19
             ELSE
-              WRITE(0,*) 'initialise_basins - ERROR: unrecognised floating-point basin ID in file "', TRIM( filename_basins), '"!'
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+              CALL crash('unrecognised floating-point basin ID in file "' // TRIM( filename_basins) // '"!')
             END IF
             
           END DO
@@ -1339,9 +1399,11 @@ CONTAINS
       END IF
       
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_basins - ERROR: unknown choice_basin_scheme "', TRIM(choice_basin_scheme), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_basin_scheme "' // TRIM(choice_basin_scheme) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_basins
   SUBROUTINE merge_basins_ANT(  grid, basin_ID, nbasins)
@@ -1354,11 +1416,15 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: basin_ID
     INTEGER,                             INTENT(INOUT) :: nbasins
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'merge_basins_ANT'
     INTEGER                                            :: i,j,k
     INTEGER,  DIMENSION( 27)                           :: T
     INTEGER,  DIMENSION(:,:  ), POINTER                ::  basin_ID_old
     INTEGER                                            :: wbasin_ID_old
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D( grid%ny, grid%nx, basin_ID_old, wbasin_ID_old)
@@ -1407,9 +1473,11 @@ CONTAINS
     IF (par%master) nbasins = 17
     CALL sync
     
-    
     ! Clean up after yourself
     CALL deallocate_shared( wbasin_ID_old)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE merge_basins_ANT
   SUBROUTINE merge_basins_GRL(  grid, basin_ID, nbasins)
@@ -1422,11 +1490,15 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: basin_ID
     INTEGER,                             INTENT(INOUT) :: nbasins
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'merge_basins_GRL'
     INTEGER                                            :: i,j,k
     INTEGER,  DIMENSION( 19)                           :: T
     INTEGER,  DIMENSION(:,:  ), POINTER                ::  basin_ID_old
     INTEGER                                            :: wbasin_ID_old
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D( grid%ny, grid%nx, basin_ID_old, wbasin_ID_old)
@@ -1470,6 +1542,9 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wbasin_ID_old)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE merge_basins_GRL
   
 ! == The no-ice mask, to prevent ice growth in certain areas
@@ -1483,6 +1558,12 @@ CONTAINS
     
     ! In- and output variables
     TYPE(type_model_region),             INTENT(INOUT) :: region
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
@@ -1500,8 +1581,7 @@ CONTAINS
         ! Prevent ice growth in the Greenlandic part of the North America domain
         CALL initialise_mask_noice_NAM_remove_GRL( region%grid, region%mask_noice)
       ELSE
-        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_NAM "', TRIM(C%choice_mask_noice_NAM), '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_mask_noice_NAM "' // TRIM(C%choice_mask_noice_NAM) // '"!')
       END IF
       
     ELSEIF (region%name == 'EAS') THEN
@@ -1513,8 +1593,7 @@ CONTAINS
         ! Prevent ice growth in the Greenlandic part of the Eurasia domain
         CALL initialise_mask_noice_EAS_remove_GRL( region%grid, region%mask_noice)
       ELSE
-        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_EAS "', TRIM(C%choice_mask_noice_EAS), '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_mask_noice_EAS "' // TRIM(C%choice_mask_noice_EAS) // '"!')
       END IF
       
     ELSEIF (region%name == 'GRL') THEN
@@ -1526,8 +1605,7 @@ CONTAINS
         ! Prevent ice growth in the Ellesmere Island part of the Greenland domain
         CALL initialise_mask_noice_GRL_remove_Ellesmere( region%grid, region%mask_noice)
       ELSE
-        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_GRL "', TRIM(C%choice_mask_noice_GRL), '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_mask_noice_GRL "' // TRIM(C%choice_mask_noice_GRL) // '"!')
       END IF
       
     ELSEIF (region%name == 'ANT') THEN
@@ -1545,11 +1623,13 @@ CONTAINS
         ! Enforce a zero ice thickness BC at the domain boundary in the BIVMIP_A idealised geometry
         CALL initialise_mask_noice_BIVMIP_A( region%grid, region%mask_noice)
       ELSE
-        IF (par%master) WRITE(0,*) 'initialise_mask_noice - ERROR: unknown choice_mask_noice_ANT "', TRIM(C%choice_mask_noice_ANT), '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_mask_noice_ANT "' // TRIM(C%choice_mask_noice_ANT) // '"!')
       END IF
       
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice
   SUBROUTINE initialise_mask_noice_NAM_remove_GRL( grid, mask_noice)
@@ -1562,9 +1642,13 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_NAM_remove_GRL'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(2)                             :: pa, pb
     REAL(dp)                                           :: yl_ab
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     pa = [ 490000._dp, 1530000._dp]
     pb = [2030000._dp,  570000._dp]
@@ -1578,6 +1662,9 @@ CONTAINS
       END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_NAM_remove_GRL
   SUBROUTINE initialise_mask_noice_EAS_remove_GRL( grid, mask_noice)
@@ -1590,9 +1677,13 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_EAS_remove_GRL'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(2)                             :: pa, pb, pc, pd
     REAL(dp)                                           :: yl_ab, yl_bc, yl_cd
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     pa = [-2900000._dp, 1300000._dp]
     pb = [-1895000._dp,  900000._dp]
@@ -1613,6 +1704,9 @@ CONTAINS
       END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_EAS_remove_GRL
   SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere( grid, mask_noice)
@@ -1625,9 +1719,13 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_GRL_remove_Ellesmere'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(2)                             :: pa, pb
     REAL(dp)                                           :: yl_ab
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     pa = [-750000._dp,  900000._dp]
     pb = [-250000._dp, 1250000._dp]
@@ -1641,6 +1739,9 @@ CONTAINS
       END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_GRL_remove_Ellesmere
   SUBROUTINE initialise_mask_noice_MISMIP_mod( grid, mask_noice)
@@ -1653,7 +1754,11 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_MISMIP_mod'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Create a nice circular ice shelf
     DO i = grid%i1, grid%i2
@@ -1664,6 +1769,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_MISMIP_mod
   SUBROUTINE initialise_mask_noice_MISMIPplus( grid, mask_noice)
@@ -1676,7 +1784,11 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_MISMIPplus'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1687,6 +1799,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_MISMIPplus
   SUBROUTINE initialise_mask_noice_BIVMIP_A( grid, mask_noice)
@@ -1700,7 +1815,11 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
   
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_BIVMIP_A'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     DO i = grid%i1, grid%i2
       mask_noice( 1        ,i) = 1
@@ -1715,6 +1834,9 @@ CONTAINS
       mask_noice( j,grid%nx  ) = 1
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_BIVMIP_A
   
@@ -1728,9 +1850,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'MISMIPplus_adapt_flow_factor'
     INTEGER                                            :: i,jmid
     REAL(dp)                                           :: TAF1,TAF2,lambda_GL, x_GL
     REAL(dp)                                           :: A_flow_old, f, A_flow_new
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) THEN
       
@@ -1762,6 +1888,9 @@ CONTAINS
     CALL sync
     
     CALL MPI_BCAST( C%uniform_flow_factor, 1, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE MISMIPplus_adapt_flow_factor
 

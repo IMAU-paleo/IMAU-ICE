@@ -3,7 +3,7 @@ MODULE isotopes_module
   ! Contains all the routines for calculating the isotope content of the ice sheet.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -11,6 +11,7 @@ MODULE isotopes_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_model_region
+  USE parameters_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              surface_elevation
@@ -26,10 +27,14 @@ CONTAINS
     
     IMPLICIT NONE
     
-    ! In/output variables
+    ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_isotopes_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_ice_isotopes_model == 'none') THEN
       ! Do nothing
@@ -41,9 +46,11 @@ CONTAINS
       ! The ANICE_legacy englacial isotopes model
       CALL run_isotopes_model_ANICE_legacy( region)
     ELSE
-      IF (par%master) WRITE(0,*) 'run_isotopes_model - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_isotopes_model
   SUBROUTINE run_isotopes_model_ANICE_legacy( region)
@@ -63,7 +70,8 @@ CONTAINS
     ! In/output variables
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_isotopes_model_ANICE_legacy'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: Ts, Ts_ref, Hs, Hs_ref
     REAL(dp)                                           :: IsoMin,IsoMax    ! minimum and maximum value of IsoIce
@@ -71,6 +79,9 @@ CONTAINS
     REAL(dp)                                           :: dIso_xl, dIso_xr, dIso_yd, dIso_yu, VIso
     REAL(dp), DIMENSION(:,:), POINTER                  ::  dIso_dt,  IsoIce_new
     INTEGER                                            :: wdIso_dt, wIsoIce_new
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Initialise
     region%ice%IsoSurf( :,region%grid%i1:region%grid%i2) = 0._dp
@@ -191,17 +202,18 @@ CONTAINS
     CALL deallocate_shared( wIsoIce_new)
     
     ! Safety
-    CALL check_for_NaN_dp_2D( region%ice%IsoSurf, 'region%ice%IsoSurf', 'run_isotopes_model')
-    CALL check_for_NaN_dp_2D( region%ice%MB_iso , 'region%ice%MB_iso' , 'run_isotopes_model')
-    CALL check_for_NaN_dp_2D( region%ice%IsoIce , 'region%ice%IsoIce' , 'run_isotopes_model')
+    CALL check_for_NaN_dp_2D( region%ice%IsoSurf, 'region%ice%IsoSurf')
+    CALL check_for_NaN_dp_2D( region%ice%MB_iso , 'region%ice%MB_iso' )
+    CALL check_for_NaN_dp_2D( region%ice%IsoIce , 'region%ice%IsoIce' )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_isotopes_model_ANICE_legacy
   
 ! == Calculate the mean isotope content and benthic d18O contribution of this region's glacial ice
   SUBROUTINE calculate_isotope_content( grid, Hi, IsoIce, mean_isotope_content, d18O_contribution)
     ! Calculate mean isotope content of the whole ice sheet
-    
-    USE parameters_module, ONLY: ice_density, seawater_density, ocean_area, mean_ocean_depth
     
     IMPLICIT NONE
     
@@ -212,11 +224,15 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: mean_isotope_content
     REAL(dp),                            INTENT(OUT)   :: d18O_contribution
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_isotope_content'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: Hi_msle
     REAL(dp)                                           :: total_isotope_content
     REAL(dp)                                           :: total_ice_volume_msle
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Calculate total isotope content
     ! ===============================
@@ -253,6 +269,9 @@ CONTAINS
     ! Contribution to benthic d18O
     d18O_contribution = -1._dp * mean_isotope_content * total_ice_volume_msle / mean_ocean_depth
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calculate_isotope_content
   
 ! == Initialise the isotopes model (allocating shared memory)
@@ -261,10 +280,14 @@ CONTAINS
     
     IMPLICIT NONE
     
-    ! In/output variables
+    ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_isotopes_model'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (C%choice_ice_isotopes_model == 'none') THEN
       ! Do nothing
@@ -284,9 +307,11 @@ CONTAINS
       CALL initialise_isotopes_model_ANICE_legacy( region)
       
     ELSE
-      IF (par%master) WRITE(0,*) 'initialise_isotopes_model - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_isotopes_model
   SUBROUTINE initialise_isotopes_model_ANICE_legacy( region)
@@ -297,9 +322,13 @@ CONTAINS
     ! In/output variables
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_isotopes_model_ANICE_legacy'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: Ts, Ts_ref, Hs, Hs_ref
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,*) '  Initialising ANICE_legacy isotopes model ...'
     
@@ -377,6 +406,9 @@ CONTAINS
     
     ! Calculate mean isotope content of the whole ice sheet at the start of the simulation
     CALL calculate_isotope_content( region%grid, region%ice%Hi_a, region%ice%IsoIce, region%mean_isotope_content, region%d18O_contribution)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_isotopes_model_ANICE_legacy
 

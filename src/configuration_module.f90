@@ -23,6 +23,21 @@ MODULE configuration_module
   IMPLICIT NONE
   
   INTEGER, PARAMETER  :: dp  = KIND(1.0D0)  ! Kind of double precision numbers. Reals should be declared as: REAL(dp) :: example
+  
+  ! === Error messaging / debugging / profiling system ===
+  
+  CHARACTER(LEN=1024) :: routine_path
+  INTEGER             :: n_MPI_windows
+  
+  TYPE subroutine_resource_tracker
+    ! Track the resource use (computation time, memory) of a single subroutine
+    CHARACTER(LEN = 1024) :: routine_path
+    REAL(dp)              :: tstart, tcomp
+    INTEGER               :: n_MPI_windows_init, n_MPI_windows_final
+  END TYPE subroutine_resource_tracker
+  
+  TYPE( subroutine_resource_tracker), DIMENSION(:), ALLOCATABLE :: resource_tracker
+  
 
   ! ===================================================================================
   ! "_config  variables, which will be collected into a NAMELIST, and possibly replaced
@@ -79,7 +94,7 @@ MODULE configuration_module
   ! =========
   
   LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
-  LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values                           
+  LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
   
   ! Horizontal grid spacing and size for the four regions
   ! =====================================================
@@ -1331,6 +1346,7 @@ MODULE configuration_module
 
   END TYPE constants_type
   
+
   
   
   ! Since some of the TABOO routines have variables named C (thanks, Giorgio...),
@@ -1368,10 +1384,10 @@ CONTAINS
     CHARACTER(LEN=256),                  INTENT(IN)    :: version_number
     
     ! Local variables:
-    INTEGER                                            :: ierr, cerr, process_rank, number_of_processes, p
+    INTEGER                                            :: ierr, process_rank, number_of_processes, p
     LOGICAL                                            :: master
     CHARACTER(LEN=256)                                 :: config_filename, template_filename, variation_filename, config_mode
-    INTEGER                                            :: n
+    INTEGER                                            :: i,n
     CHARACTER(LEN=20)                                  :: output_dir_procedural
     LOGICAL                                            :: ex
   
@@ -1396,28 +1412,22 @@ CONTAINS
       config_mode           = ''
       
       IF     (iargc() == 0) THEN
-      
-        WRITE(0,*) ' ERROR: IMAU-ICE v', TRIM(version_number), ' needs at least one config file to run!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        
+        CALL crash('IMAU-ICE v' // TRIM( version_number) // ' needs at least one config file to run!')
       ELSEIF (iargc() == 1) THEN
-      
         ! Run the model with a single config file
+        
         CALL getarg( 1, config_filename)
         config_mode = 'single_config'
         
       ELSEIF (iargc() == 2) THEN
-      
         ! Run the model with two config files (template+variation)
+        
         CALL getarg( 1, template_filename )
         CALL getarg( 2, variation_filename)
         config_mode = 'template+variation'
         
       ELSE
-      
-        WRITE(0,*) ' ERROR: IMAU-ICE v', TRIM(version_number), ' can take either one or two config files to run!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        
+        CALL crash('IMAU-ICE v' // TRIM( version_number) // ' can take either one or two config files to run!')
       END IF
       
     END IF ! IF (master) THEN
@@ -1466,10 +1476,7 @@ CONTAINS
       END DO
       
     ELSE ! IF (config_mode == 'single_config') THEN
-      
-      IF (master) WRITE(0,*) 'initialise_model_configuration - ERROR: unknown config_mode "', TRIM(config_mode), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-        
+      CALL crash(' unknown config_mode "' // TRIM( config_mode) // '"!')
     END IF ! IF (config_mode == 'single_config') THEN
     
   ! ===== Set up the output directory =====
@@ -1497,8 +1504,7 @@ CONTAINS
       
       INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
       IF (ex) THEN
-        WRITE(0,*) ' ERROR: fixed_output_dir_config ', TRIM(C%output_dir), ' already exists!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
       END IF
       
     END IF
@@ -1520,11 +1526,24 @@ CONTAINS
         CALL system('cp ' // template_filename  // ' ' // TRIM(C%output_dir))
         CALL system('cp ' // variation_filename // ' ' // TRIM(C%output_dir))
       ELSE
-        WRITE(0,*) ' initialise_model_configuration - ERROR: unknown config_mode "', TRIM(config_mode), '"!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(' unknown config_mode "' // TRIM( config_mode) // '"!')
       END IF ! IF (config_mode == 'single_config') THEN
     END IF ! IF (master) THEN
     CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
+    
+    ! Set up the subroutine resource tracker
+    ! ======================================
+    
+    ! Allocate space to track up to 1,000 subroutines. That should be enough for a while...
+    n = 1000
+    ALLOCATE( resource_tracker( n))
+    
+    ! Initialise values
+    DO i = 1, n
+      resource_tracker( i)%routine_path = 'subroutine_placeholder'
+      resource_tracker( i)%tstart       = 0._dp
+      resource_tracker( i)%tcomp       = 0._dp
+    END DO
     
   END SUBROUTINE initialise_model_configuration
 
@@ -2925,6 +2944,411 @@ CONTAINS
     WRITE(0,'(A)') ''
     
   END SUBROUTINE write_total_model_time_to_screen
+  
+  ! Routines for the extended error messaging / debugging system
+  SUBROUTINE init_routine( routine_name)
+    ! Initialise an IMAU-ICE subroutine; update the routine path
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
+    
+    ! Local variables:
+    INTEGER                                            :: len_path_tot, len_path_used, len_name
+    INTEGER                                            :: ierr, cerr
+    INTEGER                                            :: i
+    
+    ! Check if routine_name has enough memory
+    len_path_tot  = LEN(      routine_path)
+    len_path_used = LEN_TRIM( routine_path)
+    len_name      = LEN_TRIM( routine_name)
+    
+    IF (len_path_used + 1 + len_name > len_path_tot) THEN
+      WRITE(0,*) 'init_routine - ERROR: routine_path = "', TRIM( routine_path), '", no more space to append routine_name = "', TRIM( routine_name), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Append this routine to the routine path
+    routine_path = TRIM( routine_path) // '/' // TRIM( routine_name)
+    
+    ! Initialise the computation time tracker
+    CALL find_subroutine_in_resource_tracker( i)
+    resource_tracker( i)%tstart = MPI_WTIME()
+    
+    ! Check maximum MPI window at the start of the routine
+    resource_tracker( i)%n_MPI_windows_init = n_MPI_windows
+    
+  END SUBROUTINE init_routine
+  SUBROUTINE finalise_routine( routine_name)
+    ! Finalise; remove the current routine name from the routine path
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
+    
+    ! Local variables:
+    INTEGER                                            :: len_path_tot, i, ii
+    INTEGER                                            :: ierr, cerr
+    REAL(dp)                                           :: dt
+    
+    ! Add computation time to the resource tracker
+    CALL find_subroutine_in_resource_tracker( i)
+    dt = MPI_WTIME() - resource_tracker( i)%tstart
+    resource_tracker( i)%tcomp = resource_tracker( i)%tcomp + dt
+    
+    ! Check maximum MPI window at the end of the routine
+    resource_tracker( i)%n_MPI_windows_final = n_MPI_windows
+    
+    ! If it is larger than at the start, mention this
+    ii = INDEX( routine_path, 'IMAU_ICE_program/initialise_')
+    IF (ii == 0 .AND. resource_tracker( i)%n_MPI_windows_final > resource_tracker( i)%n_MPI_windows_init) THEN
+      CALL warning('shared memory was allocated but not freed, possibly memory leak!')
+    END IF
+    
+    ! Find where in the string exactly the current routine name is located
+    len_path_tot = LEN( routine_path)
+    i = INDEX( routine_path, routine_name)
+    
+    IF (i == 0) THEN
+      WRITE(0,*) 'finalise_routine - ERROR: routine_name = "', TRIM( routine_name), '" not found in routine_path = "', TRIM( routine_path), '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+
+    ! Remove the current routine name from the routine path
+    routine_path( i-1:len_path_tot) = ' '
+    
+  END SUBROUTINE finalise_routine
+  SUBROUTINE find_subroutine_in_resource_tracker( i)
+    ! Find the current subroutine in the resource tracker. If it's not there yet, add it.
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    INTEGER,                             INTENT(OUT)   :: i
+    
+    ! Local variables:
+    INTEGER                                            :: n
+    
+    n = SIZE( resource_tracker)
+    
+    DO i = 1, n
+      IF     (resource_tracker( i)%routine_path == routine_path) THEN
+        ! The current subroutine is listed at this position in the resource tracker
+        RETURN
+      ELSEIF (resource_tracker( i)%routine_path == 'subroutine_placeholder') THEN
+        ! We've checked all listed subroutines and haven't found the current one; add it
+        resource_tracker( i)%routine_path = routine_path
+        RETURN
+      END IF
+    END DO
+    
+    ! If we've reached this point, then the resource tracker is overflowing
+    CALL crash('Resource tracker overflows! Allocate more memory for it in initialise_model_configuration.')
+    
+  END SUBROUTINE find_subroutine_in_resource_tracker
+  SUBROUTINE reset_computation_times
+    ! Reset the computation times in the resource tracker
+
+    IMPLICIT NONE
+    
+    ! Local variables:
+    INTEGER                                            :: i,n
+    
+    n = SIZE( resource_tracker)
+    
+    DO i = 1, n
+      resource_tracker( i)%tstart = 0._dp
+      resource_tracker( i)%tcomp  = 0._dp
+    END DO
+    
+  END SUBROUTINE reset_computation_times
+  SUBROUTINE crash( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
+                              dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
+    ! Crash the model, write the error message to the screen
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: err_msg
+    INTEGER,  INTENT(IN), OPTIONAL                     :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
+    REAL(dp), INTENT(IN), OPTIONAL                     ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
+    
+    ! Local variables:
+    CHARACTER(LEN=1024)                                :: err_msg_loc
+    INTEGER                                            :: ierr, cerr, pari, parn, nc
+    CHARACTER(LEN=9)                                   :: fmt
+    CHARACTER(LEN=:), ALLOCATABLE                      :: process_str
+    
+    ! Get local, edit-able copy of error message string
+    err_msg_loc = err_msg
+  
+    ! Get rank of current process and total number of processes
+    ! (needed because the configuration_module cannot access the par structure)
+    CALL MPI_COMM_RANK( MPI_COMM_WORLD, pari, ierr)
+    CALL MPI_COMM_SIZE( MPI_COMM_WORLD, parn, ierr)
+    
+    ! Set the process string (e.g. "05/16")
+    IF     (parn < 10) THEN
+      nc = 1
+    ELSEIF (parn < 100) THEN
+      nc = 2
+    ELSEIF (parn < 1000) THEN
+      nc = 3
+    ELSEIF (parn < 10000) THEN
+      nc = 4
+    ELSE
+      nc = 5
+    END IF
+    
+    WRITE( fmt,'(A,I1,A,I1,A)') '(I', nc, ',A,I', nc, ')'
+    ALLOCATE(CHARACTER(2*nc+1) :: process_str)
+    WRITE( process_str,fmt) pari, '/', parn
+    
+    ! Insert numbers into string if needed
+    IF (PRESENT( int_01)) CALL insert_val_into_string_int( err_msg_loc, '{int_01}', int_01)
+    IF (PRESENT( int_02)) CALL insert_val_into_string_int( err_msg_loc, '{int_02}', int_02)
+    IF (PRESENT( int_03)) CALL insert_val_into_string_int( err_msg_loc, '{int_03}', int_03)
+    IF (PRESENT( int_04)) CALL insert_val_into_string_int( err_msg_loc, '{int_04}', int_04)
+    IF (PRESENT( int_05)) CALL insert_val_into_string_int( err_msg_loc, '{int_05}', int_05)
+    IF (PRESENT( int_06)) CALL insert_val_into_string_int( err_msg_loc, '{int_06}', int_06)
+    IF (PRESENT( int_07)) CALL insert_val_into_string_int( err_msg_loc, '{int_07}', int_07)
+    IF (PRESENT( int_08)) CALL insert_val_into_string_int( err_msg_loc, '{int_08}', int_08)
+    IF (PRESENT( int_09)) CALL insert_val_into_string_int( err_msg_loc, '{int_09}', int_09)
+    IF (PRESENT( int_10)) CALL insert_val_into_string_int( err_msg_loc, '{int_10}', int_10)
+    
+    IF (PRESENT( dp_01 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_01}' , dp_01 )
+    IF (PRESENT( dp_02 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_02}' , dp_02 )
+    IF (PRESENT( dp_03 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_03}' , dp_03 )
+    IF (PRESENT( dp_04 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_04}' , dp_04 )
+    IF (PRESENT( dp_05 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_05}' , dp_05 )
+    IF (PRESENT( dp_06 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_06}' , dp_06 )
+    IF (PRESENT( dp_07 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_07}' , dp_07 )
+    IF (PRESENT( dp_08 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_08}' , dp_08 )
+    IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
+    IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
+    
+    ! Write the error to the screen
+    WRITE(0,'(A,A,A,A,A,A)') colour_string('ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+    
+    ! Stop the program
+    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    
+  END SUBROUTINE crash
+  SUBROUTINE warning( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
+                                dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
+    ! Write the warning message to the screen, but don't crash the model
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: err_msg
+    INTEGER,  INTENT(IN), OPTIONAL                     :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
+    REAL(dp), INTENT(IN), OPTIONAL                     ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
+    
+    ! Local variables:
+    CHARACTER(LEN=1024)                                :: err_msg_loc
+    INTEGER                                            :: ierr, pari, parn, nc
+    CHARACTER(LEN=9)                                   :: fmt
+    CHARACTER(LEN=:), ALLOCATABLE                      :: process_str
+    
+    ! Get local, edit-able copy of error message string
+    err_msg_loc = err_msg
+  
+    ! Get rank of current process and total number of processes
+    ! (needed because the configuration_module cannot access the par structure)
+    CALL MPI_COMM_RANK( MPI_COMM_WORLD, pari, ierr)
+    CALL MPI_COMM_SIZE( MPI_COMM_WORLD, parn, ierr)
+    
+    ! Set the process string (e.g. "05/16")
+    IF     (parn < 10) THEN
+      nc = 1
+    ELSEIF (parn < 100) THEN
+      nc = 2
+    ELSEIF (parn < 1000) THEN
+      nc = 3
+    ELSEIF (parn < 10000) THEN
+      nc = 4
+    ELSE
+      nc = 5
+    END IF
+    
+    WRITE( fmt,'(A,I1,A,I1,A)') '(I', nc, ',A,I', nc, ')'
+    ALLOCATE(CHARACTER(2*nc+1) :: process_str)
+    WRITE( process_str,fmt) pari, '/', parn
+    
+    ! Insert numbers into string if needed
+    IF (PRESENT( int_01)) CALL insert_val_into_string_int( err_msg_loc, '{int_01}', int_01)
+    IF (PRESENT( int_02)) CALL insert_val_into_string_int( err_msg_loc, '{int_02}', int_02)
+    IF (PRESENT( int_03)) CALL insert_val_into_string_int( err_msg_loc, '{int_03}', int_03)
+    IF (PRESENT( int_04)) CALL insert_val_into_string_int( err_msg_loc, '{int_04}', int_04)
+    IF (PRESENT( int_05)) CALL insert_val_into_string_int( err_msg_loc, '{int_05}', int_05)
+    IF (PRESENT( int_06)) CALL insert_val_into_string_int( err_msg_loc, '{int_06}', int_06)
+    IF (PRESENT( int_07)) CALL insert_val_into_string_int( err_msg_loc, '{int_07}', int_07)
+    IF (PRESENT( int_08)) CALL insert_val_into_string_int( err_msg_loc, '{int_08}', int_08)
+    IF (PRESENT( int_09)) CALL insert_val_into_string_int( err_msg_loc, '{int_09}', int_09)
+    IF (PRESENT( int_10)) CALL insert_val_into_string_int( err_msg_loc, '{int_10}', int_10)
+    
+    IF (PRESENT( dp_01 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_01}' , dp_01 )
+    IF (PRESENT( dp_02 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_02}' , dp_02 )
+    IF (PRESENT( dp_03 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_03}' , dp_03 )
+    IF (PRESENT( dp_04 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_04}' , dp_04 )
+    IF (PRESENT( dp_05 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_05}' , dp_05 )
+    IF (PRESENT( dp_06 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_06}' , dp_06 )
+    IF (PRESENT( dp_07 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_07}' , dp_07 )
+    IF (PRESENT( dp_08 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_08}' , dp_08 )
+    IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
+    IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
+    
+    ! Write the error to the screen
+    WRITE(0,'(A,A,A,A,A,A)') colour_string('WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
+      ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
+    
+    ! Clean up after yourself
+    DEALLOCATE( process_str)
+    
+  END SUBROUTINE warning
+  FUNCTION colour_string( str, col) RESULT( str_col)
+    ! Add colour to a string for writing to the terminal
+    
+    IMPLICIT NONE
+
+    ! Input variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: str, col
+
+    ! Result variables:
+    CHARACTER(LEN=:), ALLOCATABLE                      :: str_col
+
+    ALLOCATE(CHARACTER(LEN(str)+9) :: str_col)       ! The +9 is just enough to store the color characters
+
+    ! The 91m gives red, 0m sets the default back
+    ! Available colors: 90:gray, 91:red, 92:green, 93:yellow, 94:blue, 95:pink, 96:light blue
+    IF     (col == 'gray') THEN
+      str_col = achar(27)//'[90m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'red') THEN
+      str_col = achar(27)//'[91m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'green') THEN
+      str_col = achar(27)//'[92m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'yellow') THEN
+      str_col = achar(27)//'[93m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'blue') THEN
+      str_col = achar(27)//'[94m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'pink') THEN
+      str_col = achar(27)//'[95m'//str//achar(27)//'[0m'
+    ELSEIF (col == 'light blue') THEN
+      str_col = achar(27)//'[96m'//str//achar(27)//'[0m'
+    ELSE
+      WRITE(0,*) ''
+    END IF
+
+  END FUNCTION colour_string
+  SUBROUTINE insert_val_into_string_int( str, marker, val)
+    ! Replace marker in str with val (where val is an integer)
+    !
+    ! Example: str    = 'Johnny has {int_01} apples.'
+    !          marker = '{int_01}'
+    !          val    = 5
+    ! 
+    ! This returns: str = 'Johnny has 5 apples'
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(INOUT) :: str
+    CHARACTER(LEN=*),                    INTENT(IN)    :: marker
+    INTEGER,                             INTENT(IN)    :: val
+    
+    ! Local variables:
+    INTEGER                                            :: ci
+    INTEGER                                            :: nc
+    CHARACTER(LEN=4)                                   :: fmt
+    CHARACTER(LEN=:), ALLOCATABLE                      :: val_str
+    INTEGER                                            :: len_str, len_marker
+    
+    ! Find position ci in str where i_str occurs
+    ci = INDEX( str, marker)
+    
+    ! Safety
+    IF (ci == 0) CALL crash('insert_val_into_string_int: couldnt find marker "' // TRIM( marker) // '" in string "' // TRIM( str) // '"!')
+    
+    ! Write val to a string
+    IF     (ABS( val) < 10) THEN
+      nc = 1
+    ELSEIF (ABS( val) < 100) THEN
+      nc = 2
+    ELSEIF (ABS( val) < 1000) THEN
+      nc = 3
+    ELSEIF (ABS( val) < 10000) THEN
+      nc = 4
+    ELSEIF (ABS( val) < 100000) THEN
+      nc = 5
+    ELSEIF (ABS( val) < 1000000) THEN
+      nc = 6
+    ELSEIF (ABS( val) < 10000000) THEN
+      nc = 7
+    ELSEIF (ABS( val) < 100000000) THEN
+      nc = 8
+    ELSE
+      nc = 9
+    END IF
+    ! Add room for a minus sign if needed
+    IF (val < 0) nc = nc + 1
+    
+    WRITE( fmt,'(A,I1,A)') '(I', nc, ')'
+    ALLOCATE(CHARACTER(nc) :: val_str)
+    WRITE( val_str,fmt) val
+    
+    ! Find total string length right now
+    len_str    = LEN( str)
+    len_marker = LEN( marker)
+    
+    ! Insert the integer string into the string
+    str = str(1:ci-1) // val_str // str(ci+len_marker:len_str)
+    
+    ! Clean up after yourself
+    DEALLOCATE( val_str)
+    
+  END SUBROUTINE insert_val_into_string_int
+  SUBROUTINE insert_val_into_string_dp( str, marker, val)
+    ! Replace marker in str with val (where val is a double-precision number)
+    !
+    ! Example: str    = 'Johnny weighs {dp_01} kg.'
+    !          marker = '{dp_01}'
+    !          val    = 57.098
+    ! 
+    ! This returns: str = 'Johnny weighs 57.098 kg'
+
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(INOUT) :: str
+    CHARACTER(LEN=*),                    INTENT(IN)    :: marker
+    REAL(dp),                            INTENT(IN)    :: val
+    
+    ! Local variables:
+    INTEGER                                            :: ci
+    CHARACTER(LEN=11)                                  :: val_str
+    INTEGER                                            :: len_str, len_marker
+    
+    ! Find position ci in str where i_str occurs
+    ci = INDEX( str, marker)
+    
+    ! Safety
+    IF (ci == 0) CALL crash('insert_val_into_string_dp: couldnt find marker "' // TRIM( marker) // '" in string "' // TRIM( str) // '"!')
+    
+    ! Write val to a string
+    WRITE( val_str,'(E11.5)') val
+    
+    ! Find total string length right now
+    len_str    = LEN( str)
+    len_marker = LEN( marker)
+    
+    ! Insert the integer string into the string
+    str = str(1:ci-1) // val_str // str(ci+len_marker:len_str)
+    
+  END SUBROUTINE insert_val_into_string_dp
   
 
 END MODULE configuration_module

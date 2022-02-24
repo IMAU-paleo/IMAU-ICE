@@ -4,7 +4,7 @@ MODULE ice_velocity_module
   ! current modelled ice-sheet geometry.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -41,17 +41,20 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
       
-    ! Local variables:    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SIA'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: D_0
     REAL(dp), DIMENSION(C%nZ)                          :: D_deformation
     REAL(dp), DIMENSION(C%nZ)                          :: D_SIA_3D
     REAL(dp), PARAMETER                                :: D_uv_3D_cutoff = -1E5_dp
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Check that this routine is called correctly
     IF (.NOT. (C%choice_ice_dynamics == 'SIA' .OR. C%choice_ice_dynamics == 'SIA/SSA')) THEN
-      IF (par%master) WRITE(0,*) 'ERROR - solve_SIA should only be called when choice_ice_dynamics is set to SIA or SIA/SSA!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_ice_dynamics is set to "SIA" or "SIA/SSA"!')
     END IF
 
     ! Calculate 3D horizontal velocities
@@ -104,6 +107,9 @@ CONTAINS
     
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_SIA
   SUBROUTINE solve_SSA(  grid, ice)
@@ -117,6 +123,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SSA'
     INTEGER                                            :: i,j
     LOGICAL                                            :: set_velocities_to_zero
     LOGICAL                                            :: has_converged
@@ -124,10 +131,12 @@ CONTAINS
     REAL(dp)                                           :: resid_UV
     REAL(dp)                                           :: umax_analytical, tauc_analytical
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Check that this routine is called correctly
     IF (.NOT. (C%choice_ice_dynamics == 'SSA' .OR. C%choice_ice_dynamics == 'SIA/SSA')) THEN
-      IF (par%master) WRITE(0,*) 'ERROR - solve_SSA should only be called when choice_ice_dynamics is set to SSA or SIA/SSA!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_ice_dynamics is set to "SSA" or "SIA/SSA"!')
     END IF
     
     ! If there's no grounded ice anywhere, don't bother
@@ -232,6 +241,9 @@ CONTAINS
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE solve_SSA
   SUBROUTINE solve_DIVA( grid, ice)
     ! Calculate ice velocities using the DIVA. Velocities are calculated on the staggered
@@ -244,16 +256,19 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_DIVA'
     INTEGER                                            :: i,j
     LOGICAL                                            :: set_velocities_to_zero
     LOGICAL                                            :: has_converged
     INTEGER                                            :: viscosity_iteration_i
     REAL(dp)                                           :: resid_UV
     
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Check that this routine is called correctly
     IF (.NOT. C%choice_ice_dynamics == 'DIVA') THEN
-      IF (par%master) WRITE(0,*) 'ERROR - solve_DIVA should only be called when choice_ice_dynamics is set to DIVA!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_ice_dynamics is set to "DIVA"!')
     END IF
     
     ! If there's no grounded ice anywhere, don't bother
@@ -351,6 +366,9 @@ CONTAINS
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE solve_DIVA
   
   ! Calculate "secondary" velocities (surface, basal, vertically averaged, on the A-grid, etc.)
@@ -364,7 +382,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_secondary_velocities'
     INTEGER                                            :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (C%choice_ice_dynamics == 'SIA') THEN
       ! No SSA or sliding, just the SIA
@@ -460,10 +482,7 @@ CONTAINS
       CALL sync
       
     ELSE ! IF (C%choice_ice_dynamics == 'SIA')
-    
-      IF (par%master) WRITE(0,*) 'calc_secondary_velocities - ERROR: unknown choice_ice_dynamics "', C%choice_ice_dynamics, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      
+      CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
     END IF ! IF (C%choice_ice_dynamics == 'SIA')
       
     ! Get velocity components on the A-grid (only used for writing to output)
@@ -486,6 +505,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calc_secondary_velocities
   SUBROUTINE calc_3D_vertical_velocities( grid, ice)
     ! Use simple conservation of mass to calculate the vertical velocity w_3D
@@ -497,6 +519,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_vertical_velocities'
     INTEGER                                            :: i,j,k
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  dHs_dx_a,  dHs_dy_a,  dHi_dx_a,  dHi_dy_a
     INTEGER                                            :: wdHs_dx_a, wdHs_dy_a, wdHi_dx_a, wdHi_dy_a
@@ -504,6 +527,9 @@ CONTAINS
     REAL(dp)                                           :: du_dx_k,   dv_dy_k
     REAL(dp)                                           :: du_dx_kp1, dv_dy_kp1
     REAL(dp)                                           :: w1, w2, w3, w4
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHs_dx_a, wdHs_dx_a)
@@ -595,6 +621,9 @@ CONTAINS
     CALL deallocate_shared( wdHi_dx_a)
     CALL deallocate_shared( wdHi_dy_a)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calc_3D_vertical_velocities
 
   ! Calculating some physical terms (basal yield stress, effective viscosity, etc.)
@@ -608,9 +637,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_vertical_shear_strain_rates'
     INTEGER                                            :: i,j,k
     REAL(dp)                                           :: visc_eff_cx, visc_eff_cy
     REAL(dp), PARAMETER                                :: visc_min = 1E3_dp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -648,8 +681,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%du_dz_3D_cx, 'ice%du_dz_3D_cx', 'calc_vertical_shear_strain_rates')
-    CALL check_for_NaN_dp_3D( ice%dv_dz_3D_cy, 'ice%dv_dz_3D_cy', 'calc_vertical_shear_strain_rates')
+    CALL check_for_NaN_dp_3D( ice%du_dz_3D_cx, 'ice%du_dz_3D_cx')
+    CALL check_for_NaN_dp_3D( ice%dv_dz_3D_cy, 'ice%dv_dz_3D_cy')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_vertical_shear_strain_rates
   SUBROUTINE calc_effective_viscosity( grid, ice, u_cx, v_cy)
@@ -663,13 +699,17 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: u_cx
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: v_cy
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_effective_viscosity'
     INTEGER                                            :: i,j,k
     REAL(dp)                                           :: du_dz_a, dv_dz_a
     REAL(dp)                                           :: eps_sq, w
     REAL(dp), PARAMETER                                :: epsilon_sq_0                     = 1E-15_dp   ! Normalisation term so that zero velocity gives non-zero viscosity
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  du_dx_a,  du_dy_a,  dv_dx_a,  dv_dy_a
     INTEGER                                            :: wdu_dx_a, wdu_dy_a, wdv_dx_a, wdv_dy_a
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, du_dx_a, wdu_dx_a)
@@ -696,8 +736,7 @@ CONTAINS
         ! In the "infinite slab" case, calculate effective viscosity everywhere
         ! (even when there's technically no ice present)
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
       END IF
 
       DO k = 1, C%nz
@@ -784,8 +823,7 @@ CONTAINS
            ice%visc_eff_3D_a( :,j+1,i+1)) / 4._dp
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
       END IF
       
       ! Vertical integral
@@ -815,12 +853,15 @@ CONTAINS
     CALL deallocate_shared( wdv_dy_a)
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%visc_eff_3D_a,  'ice%visc_eff_3D_a' , 'calc_effective_viscosity')
-    CALL check_for_NaN_dp_3D( ice%visc_eff_3D_b,  'ice%visc_eff_3D_b' , 'calc_effective_viscosity')
-    CALL check_for_NaN_dp_2D( ice%visc_eff_int_a, 'ice%visc_eff_int_a', 'calc_effective_viscosity')
-    CALL check_for_NaN_dp_2D( ice%visc_eff_int_b, 'ice%visc_eff_int_b', 'calc_effective_viscosity')
-    CALL check_for_NaN_dp_2D( ice%N_a,            'ice%N_a'           , 'calc_effective_viscosity')
-    CALL check_for_NaN_dp_2D( ice%N_b,            'ice%N_b'           , 'calc_effective_viscosity')
+    CALL check_for_NaN_dp_3D( ice%visc_eff_3D_a,  'ice%visc_eff_3D_a' )
+    CALL check_for_NaN_dp_3D( ice%visc_eff_3D_b,  'ice%visc_eff_3D_b' )
+    CALL check_for_NaN_dp_2D( ice%visc_eff_int_a, 'ice%visc_eff_int_a')
+    CALL check_for_NaN_dp_2D( ice%visc_eff_int_b, 'ice%visc_eff_int_b')
+    CALL check_for_NaN_dp_2D( ice%N_a,            'ice%N_a'           )
+    CALL check_for_NaN_dp_2D( ice%N_b,            'ice%N_b'           )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_effective_viscosity
   SUBROUTINE calc_sliding_term_beta( grid, ice, u_cx, v_cy)
@@ -835,9 +876,13 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: v_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_sliding_term_beta'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_a,  v_a
     INTEGER                                            :: wu_a, wv_a
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_a, wu_a)
@@ -873,7 +918,10 @@ CONTAINS
     END IF
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%beta_a, 'ice%beta_a', 'calc_sliding_term_beta')
+    CALL check_for_NaN_dp_2D( ice%beta_a, 'ice%beta_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_sliding_term_beta
   SUBROUTINE calc_F_integral( grid, ice, n)
@@ -887,9 +935,13 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: n
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_F_integral'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: F_int_min
     REAL(dp), PARAMETER                                :: visc_min = 1E5_dp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Determine the minimum value of F_int, to assign when H_ice == 0,
     ! since F_int should be nonzero everywhere for numerics
@@ -911,8 +963,7 @@ CONTAINS
           ! (even when there's technically no ice present)
           ice%F2_a( j,i) = F_int_min
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_F_integral!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
         
       END IF
@@ -922,7 +973,10 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%F2_a, 'ice%F2_a', 'calc_F_integral')
+    CALL check_for_NaN_dp_2D( ice%F2_a, 'ice%F2_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_F_integral
   SUBROUTINE calc_beta_eff( grid, ice)
@@ -935,7 +989,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_beta_eff'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Calculate beta_eff on the a-grid
     IF (C%choice_sliding_law == 'no_sliding') THEN
@@ -977,9 +1035,12 @@ CONTAINS
     END IF
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%beta_eff_a , 'ice%beta_eff_a' , 'calc_beta_eff')
-    CALL check_for_NaN_dp_2D( ice%beta_eff_cx, 'ice%beta_eff_cx', 'calc_beta_eff')
-    CALL check_for_NaN_dp_2D( ice%beta_eff_cy, 'ice%beta_eff_cy', 'calc_beta_eff')
+    CALL check_for_NaN_dp_2D( ice%beta_eff_a , 'ice%beta_eff_a' )
+    CALL check_for_NaN_dp_2D( ice%beta_eff_cx, 'ice%beta_eff_cx')
+    CALL check_for_NaN_dp_2D( ice%beta_eff_cy, 'ice%beta_eff_cy')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_beta_eff
   SUBROUTINE calc_basal_stress( grid, ice)
@@ -992,7 +1053,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_stress'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1005,8 +1070,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%taub_cx, 'ice%taub_cx', 'calc_basal_stress')
-    CALL check_for_NaN_dp_2D( ice%taub_cy, 'ice%taub_cy', 'calc_basal_stress')
+    CALL check_for_NaN_dp_2D( ice%taub_cx, 'ice%taub_cx')
+    CALL check_for_NaN_dp_2D( ice%taub_cy, 'ice%taub_cy')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_basal_stress
   SUBROUTINE calc_basal_velocities( grid, ice)
@@ -1020,8 +1088,12 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_velocities'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: F2_stag
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     IF (C%choice_sliding_law == 'no_sliding') THEN
       ! Set basal velocities to zero 
@@ -1063,8 +1135,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%u_base_cx, 'ice%u_base_cx', 'calc_basal_velocities')
-    CALL check_for_NaN_dp_2D( ice%v_base_cy, 'ice%v_base_cy', 'calc_basal_velocities')
+    CALL check_for_NaN_dp_2D( ice%u_base_cx, 'ice%u_base_cx')
+    CALL check_for_NaN_dp_2D( ice%v_base_cy, 'ice%v_base_cy')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE calc_basal_velocities
   SUBROUTINE calc_3D_horizontal_velocities_DIVA( grid, ice)
@@ -1077,8 +1152,12 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_3D_horizontal_velocities_DIVA'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION( C%nz)                         :: F1_stag
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! First calculate F1 array on aa-nodes 
     ! (performing integral before staggering seems to improve result slightly)
@@ -1115,8 +1194,7 @@ CONTAINS
           ! (even when there's technically no ice present)
           F1_stag = 0.5_dp * (ice%F1_3D_a( :,j,i) + ice%F1_3D_a( :,j,i+1))
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
         ! Calculate velocity column 
@@ -1143,8 +1221,7 @@ CONTAINS
           ! (even when there's technically no ice present)
           F1_stag = 0.5_dp * (ice%F1_3D_a(:,j,i) + ice%F1_3D_a(:,j+1,i))
         ELSE
-          IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in calc_effective_viscosity!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
         ! Calculate velocity column
@@ -1157,8 +1234,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_3D( ice%u_3D_cx, 'ice%u_3D_cx', 'calc_3D_horizontal_velocities_DIVA')
-    CALL check_for_NaN_dp_3D( ice%v_3D_cy, 'ice%v_3D_cy', 'calc_3D_horizontal_velocities_DIVA')
+    CALL check_for_NaN_dp_3D( ice%u_3D_cx, 'ice%u_3D_cx')
+    CALL check_for_NaN_dp_3D( ice%v_3D_cy, 'ice%v_3D_cy')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_3D_horizontal_velocities_DIVA
   
@@ -1199,9 +1279,13 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
         
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'set_sico_masks'
     INTEGER                                            :: i, j, i1, i2, j1, j2 
     LOGICAL                                            :: is_float 
     LOGICAL, PARAMETER                                 :: disable_grounded_fronts = .TRUE. 
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! First determine general ice coverage mask 
     ! (land==1,ocean==2,floating_ice==3,grounded_ice==0)
@@ -1285,6 +1369,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE set_sico_masks
   SUBROUTINE apply_velocity_limits( grid, u_cx, v_cy)
@@ -1297,9 +1384,13 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: u_cx, v_cy
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_velocity_limits'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_cy,  v_cx,  uabs_cx,  uabs_cy
     INTEGER                                            :: wu_cy, wv_cx, wuabs_cx, wuabs_cy
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL allocate_shared_dp_2D( grid%ny  , grid%nx-1, v_cx,    wv_cx   )
     CALL allocate_shared_dp_2D( grid%ny-1, grid%nx  , u_cy,    wu_cy   )
@@ -1345,6 +1436,9 @@ CONTAINS
     CALL deallocate_shared( wu_cy   )
     CALL deallocate_shared( wuabs_cx)
     CALL deallocate_shared( wuabs_cy)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_velocity_limits
   SUBROUTINE relax_DIVA_visc_iterations( grid, ice, u_cx, v_cy, rel)
@@ -1360,7 +1454,11 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: rel
         
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'relax_DIVA_visc_iterations'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1369,6 +1467,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE relax_DIVA_visc_iterations
   SUBROUTINE calc_visc_iter_UV_resid( grid, ice, u_cx, v_cy, resid_UV)
@@ -1384,10 +1485,14 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: resid_UV
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_visc_iter_UV_resid'
     INTEGER                                            :: ierr
     INTEGER                                            :: i,j,ncx,ncy
     REAL(dp)                                           :: res1, res2
     REAL(dp), PARAMETER                                :: DIVA_vel_tolerance = 1e-6   ! [m/a] only consider points with velocity above this tolerance limit
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Calculate the L2 norm based on velocity solution between previous
     ! and current viscosity iteration (as in Yelmo/SICOPOLIS)
@@ -1434,6 +1539,9 @@ CONTAINS
       ! No points available for comparison, set residual equal to zero 
       resid_UV = 0._dp
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_visc_iter_UV_resid
   SUBROUTINE estimate_visc_iter_UV_errors( grid, ice, u_cx, v_cy)
@@ -1448,10 +1556,14 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: u_cx
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: v_cy
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'estimate_visc_iter_UV_errors'
     INTEGER                                            :: i,j
     REAL(dp), PARAMETER                                :: DIVA_vel_tolerance = 1e-6   ! [m/a] only consider points with velocity above this tolerance limit
     REAL(dp), PARAMETER                                :: tol = 1E-5_dp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Error in x-direction
     DO i = grid%i1, grid%i2
@@ -1478,6 +1590,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE estimate_visc_iter_UV_errors
   
@@ -1496,8 +1611,12 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: u
     REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: v
 
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_DIVA_stag_linearised'
     INTEGER                                            :: i, j, k, n
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Fill in the old SICOPOLIS masks (used to determine
     ! where to apply ice margin boundary conditions)
@@ -1547,8 +1666,7 @@ CONTAINS
         END DO ! DO n = 1, ice%DIVA_m_neq
         
       ELSE
-        IF (par%master) WRITE(0,*) '  ERROR: choice_ice_margin "', TRIM(C%choice_ice_margin), '" not implemented in solve_DIVA_stag_linearised!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
       END IF
       
     END IF ! IF (par%master) THEN
@@ -1579,8 +1697,11 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( u, 'u', 'solve_DIVA_stag_linearised')
-    CALL check_for_NaN_dp_2D( v, 'v', 'solve_DIVA_stag_linearised')
+    CALL check_for_NaN_dp_2D( u, 'u')
+    CALL check_for_NaN_dp_2D( v, 'v')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_DIVA_stag_linearised
   SUBROUTINE list_DIVA_matrix_coefficients_eq_1_with_BC(       grid, ice, u, k, n)
@@ -1824,8 +1945,7 @@ CONTAINS
       ! Northern boundary
       BC = C%DIVA_boundary_BC_u_north
     ELSE
-      WRITE(0,*) ' list_DIVA_matrix_coefficients_eq_1_boundary - ERROR: grid cell [',i,',',j,'] doesnt lie on the domain boundary!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('list_DIVA_matrix_coefficients_eq_1_boundary: grid cell [{int_01},{int_02}] doesnt lie on the domain boundary!', int_01 = j, int_02 = i)
     END IF
 
     ! Find indices of relevant grid cells
@@ -1880,8 +2000,7 @@ CONTAINS
       ice%DIVA_m%b( n) = 0._dp
       ice%DIVA_m%x( n) = u( j,i)
     ELSE
-      WRITE(0,*) ' list_DIVA_matrix_coefficients_eq_1_boundary - ERROR: unknown BC "', BC, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('list_DIVA_matrix_coefficients_eq_1_boundary: unknown BC "' // TRIM(BC) // '"')
     END IF
     
   END SUBROUTINE list_DIVA_matrix_coefficients_eq_1_boundary
@@ -1956,8 +2075,7 @@ CONTAINS
       ! Northern boundary
       BC = C%DIVA_boundary_BC_v_north
     ELSE
-      WRITE(0,*) ' list_DIVA_matrix_coefficients_eq_2_boundary - ERROR: grid cell [',i,',',j,'] doesnt lie on the domain boundary!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('list_DIVA_matrix_coefficients_eq_2_boundary: grid cell [{int_01},{int_02}] doesnt lie on the domain boundary!', int_01 = j, int_02 = i)
     END IF
 
     ! Find indices of relevant grid cells
@@ -2012,8 +2130,7 @@ CONTAINS
       ice%DIVA_m%b( n) = 0._dp
       ice%DIVA_m%x( n) = v( j,i)
     ELSE
-      WRITE(0,*) ' list_DIVA_matrix_coefficients_eq_2_boundary - ERROR: unknown BC "', BC, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('list_DIVA_matrix_coefficients_eq_2_boundary: unknown BC "' // TRIM(BC) // '"')
     END IF
     
   END SUBROUTINE list_DIVA_matrix_coefficients_eq_2_boundary
@@ -2433,7 +2550,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: u_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocity_from_cx_to_a_2D'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -2464,6 +2585,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_velocity_from_cx_to_a_2D
   SUBROUTINE map_velocity_from_cx_to_a_3D( grid, ice, u_cx, u_a)
     ! Map velocity components from the staggered cx/cy-grids to the regular a-grid.
@@ -2481,7 +2605,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: u_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocity_from_cx_to_a_3D'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -2512,6 +2640,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_velocity_from_cx_to_a_3D
   SUBROUTINE map_velocity_from_cy_to_a_2D( grid, ice, v_cy, v_a)
     ! Map velocity components from the staggered cx/cy-grids to the regular a-grid.
@@ -2529,7 +2660,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: v_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocity_from_cy_to_a_2D'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -2560,6 +2695,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_velocity_from_cy_to_a_2D
   SUBROUTINE map_velocity_from_cy_to_a_3D( grid, ice, v_cy, v_a)
     ! Map velocity components from the staggered cx/cy-grids to the regular a-grid.
@@ -2577,7 +2715,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: v_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_velocity_from_cy_to_a_3D'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -2608,6 +2750,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_velocity_from_cy_to_a_3D
   
   ! Allocate and initialise the matrix-based SSA/DIVA solver
@@ -2622,7 +2767,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SSADIVA_solution_matrix'
     INTEGER                                            :: i,j,neq,nnz_per_row_max,n
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     neq             = (grid%nx - 1) * grid%ny + grid%nx * (grid%ny - 1)
     nnz_per_row_max = 9
@@ -2650,6 +2799,9 @@ CONTAINS
     END DO
     END DO
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_SSADIVA_solution_matrix
   SUBROUTINE initialise_ice_velocity_ISMIP_HOM( grid, ice)
     ! Initialise ice velocity fields so that the ISMIP-HOM experiments converge faster
@@ -2661,10 +2813,14 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_velocity_ISMIP_HOM'
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_ISMIP_HOM
     INTEGER                                            :: wu_ISMIP_HOM
     INTEGER                                            :: i,j
     REAL(dp)                                           :: x, y, umin, umax
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_ISMIP_HOM, wu_ISMIP_HOM)
@@ -2810,6 +2966,9 @@ CONTAINS
     
     ! Clean up after yourself
     CALL deallocate_shared( wu_ISMIP_HOM)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
       
   END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
   

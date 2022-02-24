@@ -3,7 +3,7 @@ MODULE ice_thickness_module
   ! Contains the routines for solving the ice thickness equation
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -38,6 +38,12 @@ CONTAINS
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Use the specified time integration method to calculate the ice thickness at t+dt
     IF     (C%choice_ice_integration_method == 'none') THEN
       ice%dHi_dt_a( :,grid%i1:grid%i2) = 0._dp
@@ -47,12 +53,14 @@ CONTAINS
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       CALL calc_dHi_dt_semiimplicit( grid, ice, SMB, BMB, dt)
     ELSE
-      IF (par%master) WRITE(0,*) 'calc_dHi_dt - ERROR: unknown choice_ice_integration_method "', TRIM(C%choice_ice_integration_method), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_integration_method "' // TRIM(C%choice_ice_integration_method) // '"!')
     END IF
     
     ! Apply boundary conditions
     CALL apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_dHi_dt
   
@@ -69,11 +77,15 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_explicit'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB
     INTEGER                                            :: wdVi_MB
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Calculate ice fluxes on the Ac grids, with ice thickness
     ! defined on the Aa grid in the upwind direction 
@@ -282,9 +294,12 @@ CONTAINS
     CALL deallocate_shared( wdVi_MB)
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%Qx_cx   , 'ice%Qx_cx'   , 'calc_dHi_dt_explicit')
-    CALL check_for_NaN_dp_2D( ice%Qy_cy   , 'ice%Qx_cx'   , 'calc_dHi_dt_explicit')
-    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a', 'calc_dHi_dt_explicit')
+    CALL check_for_NaN_dp_2D( ice%Qx_cx   , 'ice%Qx_cx'   )
+    CALL check_for_NaN_dp_2D( ice%Qy_cy   , 'ice%Qx_cx'   )
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_dHi_dt_explicit
   SUBROUTINE calc_dHi_dt_semiimplicit( grid, ice, SMB, BMB, dt)
@@ -300,11 +315,15 @@ CONTAINS
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_semiimplicit'
     INTEGER                                            :: i,j,n,k,im1,ip1,jm1,jp1
     REAL(dp)                                           :: MB_net, Hi_tplusdt
     CHARACTER(LEN=256)                                 :: local_scheme_choice
     REAL(dp), PARAMETER                                :: fs = 2.5_dp           ! Semi-implicit scale factor (0 = explicit, 1 = implicit, 1/2 = Crank-Nicolson, >1 = over-implicit)
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Fill the sparse matrix
     ! ======================
@@ -435,7 +454,10 @@ CONTAINS
     CALL sync
     
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a', 'calc_dHi_dt_semiimplicit')
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a')
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_dHi_dt_semiimplicit
   SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_explicit(     grid, ice, MB_net, dt, i,j, k)
@@ -452,9 +474,13 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: i,j
     INTEGER,                             INTENT(INOUT) :: k
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_semiimplicit_add_matrix_coefficients_explicit'
     INTEGER                                            :: n
     REAL(dp)                                           :: Qw, Qe, Qs, Qn, Hi_tplusdt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Equation number
     n = ice%dHi_ij2n( j,i)
@@ -557,6 +583,9 @@ CONTAINS
     ice%dHi_m%b( n) = Hi_tplusdt
     ice%dHi_m%x( n) = Hi_tplusdt
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_explicit
   SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit( grid, ice, MB_net, dt, i,j, k, fs)
     ! Add matrix coefficients for the semi-implicit scheme
@@ -572,9 +601,13 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: k
     REAL(dp),                            INTENT(IN)    :: fs
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit'
     INTEGER                                            :: n
     REAL(dp)                                           :: u_west, u_east, v_south, v_north
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
         
     ! Equation number
     n = ice%dHi_ij2n( j,i)
@@ -689,6 +722,9 @@ CONTAINS
     ! Initial guess (= previous solution)
     ice%dHi_m%x( n) = ice%Hi_a( j,i)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit
     
   ! Some useful tools
@@ -706,7 +742,11 @@ CONTAINS
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_ice_thickness_BC'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! West
     IF     (C%ice_thickness_west_BC == 'zero') THEN
@@ -724,8 +764,7 @@ CONTAINS
     ELSEIF (C%ice_thickness_west_BC == 'none') THEN
       ! Free slip boundary; do nothing
     ELSE
-      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_west_BC "', TRIM(C%ice_thickness_west_BC), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown ice_thickness_west_BC "' // TRIM(C%ice_thickness_west_BC) // '"!')
     END IF
     
     ! East
@@ -744,8 +783,7 @@ CONTAINS
     ELSEIF (C%ice_thickness_east_BC == 'none') THEN
       ! Free slip boundary; do nothing
     ELSE
-      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_east_BC "', TRIM(C%ice_thickness_east_BC), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown ice_thickness_east_BC "' // TRIM(C%ice_thickness_east_BC) // '"!')
     END IF
     
     ! South
@@ -764,8 +802,7 @@ CONTAINS
     ELSEIF (C%ice_thickness_south_BC == 'none') THEN
       ! Free slip boundary; do nothing
     ELSE
-      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_south_BC "', TRIM(C%ice_thickness_south_BC), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown ice_thickness_south_BC "' // TRIM(C%ice_thickness_south_BC) // '"!')
     END IF
     
     ! North
@@ -784,8 +821,7 @@ CONTAINS
     ELSEIF (C%ice_thickness_north_BC == 'none') THEN
       ! Free slip boundary; do nothing
     ELSE
-      IF (par%master) WRITE(0,*) 'apply_ice_thickness_BC - ERROR: unknown ice_thickness_north_BC "', TRIM(C%ice_thickness_north_BC), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown ice_thickness_north_BC "' // TRIM(C%ice_thickness_north_BC) // '"!')
     END IF
     
     ! Remove ice in areas where no ice is allowed (e.g. Greenland in NAM and EAS, and Ellesmere Island in GRL)
@@ -839,6 +875,9 @@ CONTAINS
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE apply_ice_thickness_BC
   SUBROUTINE remove_unconnected_shelves( grid, ice)
     ! Use a flood-fill algorithm to find all shelves connected to sheets.
@@ -850,11 +889,15 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remove_unconnected_shelves'
     INTEGER                                            :: i,j
     INTEGER, DIMENSION(:,:  ), ALLOCATABLE             :: map
     INTEGER, DIMENSION(:,:  ), ALLOCATABLE             :: stack
     INTEGER                                            :: stackN
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) THEN
       
@@ -945,6 +988,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE remove_unconnected_shelves
   
   ! Initialise the sparse matrix lists and grid2vector translation tables needed for the matrix-based implicit solving scheme
@@ -959,7 +1005,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_implicit_ice_thickness_matrix_tables'
     INTEGER                                            :: i,j,n,neq,nnz_per_row_max
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Initialise the sparse matrix
     neq             = grid%nx * grid%ny
@@ -979,6 +1029,9 @@ CONTAINS
       END DO
     END IF
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_implicit_ice_thickness_matrix_tables
   

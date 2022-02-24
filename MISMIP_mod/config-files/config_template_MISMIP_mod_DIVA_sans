@@ -41,7 +41,7 @@
   ! =======================================================================
   
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'MISMIP_mod/MISMIP_mod_DIVA_sans'        ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'MISMIP_mod/MISMIP_mod_DIVA_sans'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -125,7 +125,7 @@
   filename_geothermal_heat_flux_config        = '/Users/berends/Documents/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
   ! Parameters for calculating modelled benthic d18O
-  do_calculate_benthic_d18O_config            = .FALSE.                          ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
+  do_calculate_benthic_d18O_config            = .FALSE.                           ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
   dT_deepwater_averaging_window_config        = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
   dT_deepwater_dT_surf_ratio_config           = 0.25                             ! Ratio between global mean surface temperature change and deep-water temperature change
   d18O_dT_deepwater_ratio_config              = -0.28                            ! Ratio between deep-water temperature change and benthic d18O change
@@ -145,7 +145,7 @@
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
   choice_ice_margin_config                    = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
-  include_SSADIVA_crossterms_config           = .FALSE.                          ! Whether or not to include the "cross-terms" of the SSA/DIVA
+  include_SSADIVA_crossterms_config           = .FALSE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
   do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
   do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
@@ -238,7 +238,7 @@
   ! Basal inversion
   do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
-  BIVgeo_PDC2012_dt_config                    = 5000.0                           ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
+  BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   BIVgeo_Lipscomb2021_tauc_config             = 500.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
   BIVgeo_Lipscomb2021_H0_config               = 100.0                            ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
@@ -276,8 +276,8 @@
   ! Climate
   ! =======
 
-  choice_climate_model_config                 = 'none'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
-  choice_idealised_climate_config             = ''
+  choice_climate_model_config                 = 'none'                           ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
+  choice_idealised_climate_config             = 'EISMINT1_A'
   
   ! NetCDF files containing direct global/regional climate forcing
   filename_direct_global_climate_config       = ''
@@ -358,7 +358,7 @@
   ! ====================
   
   choice_SMB_model_config                     = 'uniform'                        ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
-  choice_idealised_SMB_config                 = ''
+  choice_idealised_SMB_config                 = 'EISMINT1_A'
   SMB_uniform_config                          = 0.3                              ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
   
   ! NetCDF file containing direct global/regional climate forcing
@@ -492,7 +492,7 @@
   ! =================
   
   do_ocean_floodfill_config                   = .FALSE.                          ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
   filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
   sealevel_record_length_config               = 1

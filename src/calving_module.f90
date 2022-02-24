@@ -3,7 +3,7 @@ MODULE calving_module
   ! Contains all the routines for calving.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C           
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -33,15 +33,23 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_calving_law'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Apply the selected calving law
     IF     (C%choice_calving_law == 'none') THEN
       ! No calving at all
     ELSEIF (C%choice_calving_law == 'threshold_thickness') THEN
       CALL threshold_thickness_calving( grid, ice)
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_calving_law "', TRIM(C%choice_calving_law), '" not implemented in calculate_calving_flux!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_calving_law"' // TRIM(C%choice_calving_law) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE apply_calving_law
   
@@ -58,7 +66,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'threshold_thickness_calving'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Apply calving law
     DO i = grid%i1, grid%i2
@@ -69,6 +81,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE threshold_thickness_calving
   

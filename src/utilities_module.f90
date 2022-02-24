@@ -9,7 +9,7 @@ MODULE utilities_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE data_types_module,               ONLY: type_grid, type_sparse_matrix_CSR
@@ -354,6 +354,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_2D'
     INTEGER                                            :: i,j,n,k,ii,jj
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_smooth
     INTEGER                                            :: wd_smooth
@@ -425,6 +426,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: nz
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Gaussian_3D'
     INTEGER                                            :: k
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_2D
     INTEGER                                            :: wd_2D
@@ -453,6 +455,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: r      ! Smoothing radius in m
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Shepard_2D'
     INTEGER                                            :: i,j,k,l,n
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_ext,  d_ext_smooth
     INTEGER                                            :: wd_ext, wd_ext_smooth
@@ -540,6 +543,7 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: nz
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'smooth_Shepard_3D'
     INTEGER                                            :: k
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_2D
     INTEGER                                            :: wd_2D
@@ -574,10 +578,16 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: PETSc_rtol
     REAL(dp),                            INTENT(IN)    :: PETSc_abstol
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_CSR'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     ! Safety
-    CALL check_for_NaN_dp_1D(  CSR%A_val, 'CSR%A_val', 'solve_matrix_equation_CSR')
-    CALL check_for_NaN_dp_1D(  CSR%b,     'CSR%b',     'solve_matrix_equation_CSR')
-    CALL check_for_NaN_dp_1D(  CSR%x,     'CSR%x',     'solve_matrix_equation_CSR')
+    CALL check_for_NaN_dp_1D(  CSR%A_val, 'CSR%A_val')
+    CALL check_for_NaN_dp_1D(  CSR%b,     'CSR%b'    )
+    CALL check_for_NaN_dp_1D(  CSR%x,     'CSR%x'    )
     
     IF (choice_matrix_solver == 'SOR') THEN
       ! Use the old simple SOR solver
@@ -590,9 +600,11 @@ CONTAINS
       CALL solve_matrix_equation_CSR_PETSc( CSR, PETSc_rtol, PETSc_abstol)
     
     ELSE
-      IF (par%master) WRITE(0,*) 'solve_matrix_equation_CSR - ERROR: unknown choice_matrix_solver "', choice_matrix_solver, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_matrix_solver "' // TRIM( choice_matrix_solver) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE solve_matrix_equation_CSR
   SUBROUTINE solve_matrix_equation_CSR_SOR( CSR, nit, tol, omega)
@@ -608,8 +620,12 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: omega
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_CSR_SOR'
     INTEGER                                            :: i,j,k,it,i1,i2
     REAL(dp)                                           :: lhs, res, cij, res_max, omega_dyn
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Partition equations over the processors
     CALL partition_list( CSR%m, par%i, par%n, i1, i2)
@@ -656,12 +672,14 @@ CONTAINS
         CALL sync
         
         IF (omega_dyn <= 0.1_dp) THEN
-          IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - ERROR: divergence detected even with extremely low relaxation parameter!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('divergence detected even with extremely low relaxation parameter!')
         END IF
       END IF
       
     END DO SOR_iterate
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE solve_matrix_equation_CSR_SOR
   SUBROUTINE initialise_matrix_equation_CSR( CSR, m, n, nnz_per_row_max)
@@ -671,6 +689,9 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_sparse_matrix_CSR),        INTENT(INOUT) :: CSR
     INTEGER,                             INTENT(IN)    :: m,n,nnz_per_row_max
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_matrix_equation_CSR'
     
     CALL allocate_shared_int_0D( CSR%m,               CSR%wm              )
     CALL allocate_shared_int_0D( CSR%n,               CSR%wn              )
@@ -701,7 +722,11 @@ CONTAINS
     TYPE(type_sparse_matrix_CSR),        INTENT(IN)    :: CSR
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_CSR_for_double_entries'
     INTEGER                                            :: i,j,k,i1,i2,k2,j2
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Partition equations over the processors
     CALL partition_list( CSR%m, par%i, par%n, i1, i2)
@@ -715,14 +740,16 @@ CONTAINS
           IF (k2 == k) CYCLE
           j2 = CSR%A_index( k2)
           IF (j2 == j) THEN
-            WRITE(0,*) 'check_CSR_for_double_entries - ERROR: double entry detected!'
-            CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+            CALL crash('double entry detected!')
           END IF
         END DO
         
       END DO
       
-    END DO ! DO 
+    END DO
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE check_CSR_for_double_entries
   
@@ -766,8 +793,7 @@ CONTAINS
     CALL DGTSV(SIZE(diag), 1, ldiag_copy, diag_copy, udiag_copy, x, SIZE(diag), info)
     
     IF (info /= 0) THEN
-      WRITE(0,*) '  tridiagonal_solve - ERROR: LAPACK solver DGTSV returned error message info = ', info
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('tridiagonal_solve - ERROR: LAPACK solver DGTSV returned error message info = {int_01}', int_01 = info)
     END IF
     
   END FUNCTION tridiagonal_solve 
@@ -834,7 +860,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: d_src
     REAL(dp), DIMENSION(:,:  ),         INTENT(OUT)   :: d_dst
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_square_to_square_cons_2nd_order_2D'
     INTEGER                                           :: i,j,i_src,j_src,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
     REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst, xcmin, xcmax, ycmin, ycmax
     INTEGER,  DIMENSION(nx_dst,2)                     :: ir_src
@@ -845,6 +872,9 @@ CONTAINS
     INTEGER                                           :: wddx_src, wddy_src
     INTEGER,  DIMENSION(:,:  ), POINTER               ::  mask_dst_outside_src
     INTEGER                                           :: wmask_dst_outside_src
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(  ny_src, nx_src, ddx_src,              wddx_src             )
@@ -863,6 +893,7 @@ CONTAINS
       CALL partition_list( nx_dst, par%i, par%n, i1, i2)
       d_dst( :,i1:i2) = d_src( :,i1:i2)
       CALL sync
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
     
@@ -946,8 +977,7 @@ CONTAINS
       
       ! Safety
       IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
-        WRITE(0,*) 'map_square_to_square_cons_2nd_order_2D - ERROR: dst grid cell [', i, ',', j, '] couldnt be completely filled!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled!', int_01 = j, int_02 = i)
       END IF
       
     END DO ! DO j = 1, ny_dst
@@ -1023,6 +1053,9 @@ CONTAINS
     CALL deallocate_shared( wddx_src             )
     CALL deallocate_shared( wddy_src             )
     CALL deallocate_shared( wmask_dst_outside_src)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE map_square_to_square_cons_2nd_order_2D
   SUBROUTINE map_square_to_square_cons_2nd_order_3D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst)
@@ -1042,17 +1075,20 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),         INTENT(IN)    :: d_src
     REAL(dp), DIMENSION(:,:,:),         INTENT(OUT)   :: d_dst
     
-    ! Local variables
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_square_to_square_cons_2nd_order_3D'
     INTEGER                                           :: nz, k, i1_src, i2_src, i1_dst, i2_dst
     REAL(dp), DIMENSION(:,:  ), POINTER               ::  d_src_2D,  d_dst_2D
     INTEGER                                           :: wd_src_2D, wd_dst_2D
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nz = SIZE( d_src,1)
     
     ! Safety
     IF (SIZE(d_dst,1) /= nz) THEN
-      IF (par%master) WRITE(0,*) 'map_square_to_square_cons_2nd_order_3D - ERROR: nz_src /= nz_dst!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('(nz_src = {int_01}) /= (nz_dst = {int_02})', int_01 = nz, int_02 = SIZE( d_dst,1))
     END IF
     
     CALL partition_list( nx_src, par%i, par%n, i1_src, i2_src)
@@ -1072,6 +1108,9 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wd_src_2D)
     CALL deallocate_shared( wd_dst_2D)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE map_square_to_square_cons_2nd_order_3D
   FUNCTION line_integral_xdy(   p, q, tol_dist) RESULT( I_pq)
@@ -1178,8 +1217,12 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),      INTENT(OUT) :: d_grid
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_glob_to_grid_2D'
     INTEGER                                                :: i, j, il, iu, jl, ju
     REAL(dp)                                               :: wil, wiu, wjl, wju
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1218,6 +1261,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_glob_to_grid_2D
   SUBROUTINE map_glob_to_grid_3D( nlat, nlon, lat, lon, grid, d_glob, d_grid)
     ! Map a data field from a global lat-lon grid to the regional square grid
@@ -1234,8 +1280,12 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:),      INTENT(OUT) :: d_grid
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_glob_to_grid_3D'
     INTEGER                                      :: i, j, il, iu, jl, ju, k, nz
     REAL(dp)                                     :: wil, wiu, wjl, wju
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nz = SIZE( d_glob,3)
     
@@ -1282,6 +1332,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_glob_to_grid_3D
   
@@ -1470,9 +1523,13 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: wd
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'transpose_dp_2D'
     INTEGER                                      :: i,j,nx,ny,i1,i2
     REAL(dp), DIMENSION(:,:  ), POINTER          ::  d_temp
     INTEGER                                      :: wd_temp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nx = SIZE( d,1)
     ny = SIZE( d,2)
@@ -1506,6 +1563,9 @@ CONTAINS
     ! Deallocate temporary memory
     CALL deallocate_shared( wd_temp)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE transpose_dp_2D
   SUBROUTINE transpose_dp_3D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
@@ -1517,9 +1577,13 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: wd
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'transpose_dp_3D'
     INTEGER                                      :: i,j,k,nx,ny,nz,i1,i2
     REAL(dp), DIMENSION(:,:,:), POINTER          ::  d_temp
     INTEGER                                      :: wd_temp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nx = SIZE( d,1)
     ny = SIZE( d,2)
@@ -1558,6 +1622,9 @@ CONTAINS
     ! Deallocate temporary memory
     CALL deallocate_shared( wd_temp)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE transpose_dp_3D
   SUBROUTINE transpose_int_2D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
@@ -1569,9 +1636,13 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: wd
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'transpose_int_2D'
     INTEGER                                      :: i,j,nx,ny,i1,i2
     INTEGER,  DIMENSION(:,:  ), POINTER          ::  d_temp
     INTEGER                                      :: wd_temp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nx = SIZE( d,1)
     ny = SIZE( d,2)
@@ -1605,6 +1676,9 @@ CONTAINS
     ! Deallocate temporary memory
     CALL deallocate_shared( wd_temp)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE transpose_int_2D
   SUBROUTINE transpose_int_3D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
@@ -1616,9 +1690,13 @@ CONTAINS
     INTEGER,                             INTENT(INOUT) :: wd
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'transpose_int_3D'
     INTEGER                                      :: i,j,k,nx,ny,nz,i1,i2
     INTEGER,  DIMENSION(:,:,:), POINTER          ::  d_temp
     INTEGER                                      :: wd_temp
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     nx = SIZE( d,1)
     ny = SIZE( d,2)
@@ -1657,6 +1735,9 @@ CONTAINS
     ! Deallocate temporary memory
     CALL deallocate_shared( wd_temp)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE transpose_int_3D
   
 ! == Interpolate ocean column data to a queried depth
@@ -1679,28 +1760,21 @@ CONTAINS
     
     ! Safety
     IF (z_query < 0._dp) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '< 0; cannot extrapolate above the sea surface, obviously!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('interpolate_ocean_depth - ERROR: z_query = {dp_01} < 0; cannot extrapolate above the sea surface, obviously!', dp_01 = z_query)
     ELSEIF (z_query > 12000._dp) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> 12 km; the ocean is not that deep!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('interpolate_ocean_depth - ERROR: z_query = {dp_01} > 12 km;  the ocean is not that deep!', dp_01 = z_query)
     ELSEIF (SIZE(z_ocean,1) /= nz_ocean) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(z_ocean,1) = ', SIZE(z_ocean,1), ' /= nz_ocean = ', nz_ocean, '!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('interpolate_ocean_depth - ERROR: SIZE( z_ocean,1) = {int_01} /= nz_ocean = {int_02}!', int_01 = SIZE( z_ocean,1), int_02 = nz_ocean)
     ELSEIF (SIZE(f_ocean,1) /= nz_ocean) THEN
-      WRITE(0,*) '  interpolate_ocean_depth - ERROR: SIZE(f_ocean,1) = ', SIZE(f_ocean,1), ' /= nz_ocean = ', nz_ocean, '!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    ELSEIF (z_query > MAXVAL(z_ocean)) THEN
-      !WRITE(0,*) '  interpolate_ocean_depth - ERROR: z_query = ', z_query, '> MAXVAL(z_ocean) = ', MAXVAL(z_ocean), '!'
-      !CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      
+      CALL crash('interpolate_ocean_depth - ERROR: SIZE( f_ocean,1) = {int_01} /= nz_ocean = {int_02}!', int_01 = SIZE( f_ocean,1), int_02 = nz_ocean)
+    ELSEIF (z_query > MAXVAL( z_ocean)) THEN
       ! Nearest-neighbour extrapolation when querying data beneath the end of the ocean data column
       f_query = f_ocean( nz_ocean)
       RETURN
     END IF
     
     ! Exception for when z_query = 0 (the World Ocean Atlas depth starts at 1.25...)
-    IF (z_query < MINVAL(z_ocean)) THEN
+    IF (z_query < MINVAL( z_ocean)) THEN
       f_query = f_ocean(1)
       RETURN
     END IF
@@ -1711,13 +1785,13 @@ CONTAINS
     k_mid = INT( REAL(k_lo + k_hi,dp) / 2._dp)
     
     ! Exceptions
-    IF     (ABS(z_query - z_ocean( k_lo )) < 1E-4_dp) THEN
+    IF     (ABS( z_query - z_ocean( k_lo )) < 1E-4_dp) THEN
       f_query = f_ocean( k_lo)
       RETURN
-    ELSEIF (ABS(z_query - z_ocean( k_hi )) < 1E-4_dp) THEN
+    ELSEIF (ABS( z_query - z_ocean( k_hi )) < 1E-4_dp) THEN
       f_query = f_ocean( k_hi)
       RETURN
-    ELSEIF (ABS(z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
+    ELSEIF (ABS( z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
       f_query = f_ocean( k_mid)
       RETURN
     END IF
@@ -1726,11 +1800,11 @@ CONTAINS
     foundit = .FALSE.
     DO WHILE (.NOT. foundit)
     
-      IF (ABS(z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
+      IF (ABS( z_query - z_ocean( k_mid)) < 1E-4_dp) THEN
         ! Exception for when the queried depth is exactly at the midpoint index depth
         f_query = f_ocean( k_mid)
         RETURN
-      ELSEIF (z_query > z_ocean( k_mid)) THEN
+      ELSEIF ( z_query > z_ocean( k_mid)) THEN
         ! Queried depth lies to the right of the midpoint
         k_lo = k_mid
         k_mid = INT( REAL(k_lo + k_hi,dp) / 2._dp)
@@ -1900,8 +1974,7 @@ CONTAINS
         
         ! Safety
         IF (k_src_nearest_to_dst == 0) THEN
-          WRITE(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('remap_cons_2nd_order_1D: couldnt find nearest neighbour on source grid!')
         END IF
         
         d_dst( k_dst) = d_src( k_src_nearest_to_dst)
@@ -1934,6 +2007,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'remove_Lake_Vostok'
     INTEGER                                       :: i,j,nx,ny
     REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
     REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
@@ -2001,6 +2075,7 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_filled   ! 1 = successfully filled, 2 = failed to fill (region of to-be-filled pixels not connected to source data)
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'extrapolate_Gaussian_floodfill'
     INTEGER                                            :: i,j,k,ii,jj,it
     INTEGER                                            :: stackN1, stackN2
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: stack1, stack2
@@ -2009,6 +2084,9 @@ CONTAINS
     LOGICAL                                            :: has_filled_neighbours
     INTEGER                                            :: n
     REAL(dp)                                           :: sum_d, w, sum_w
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     n_search = 1 + CEILING( 2._dp * sigma / grid%dx)
     
@@ -2144,8 +2222,7 @@ CONTAINS
       
       ! Safety
       IF (it > 2 * MAX( grid%ny, grid%nx)) THEN
-        WRITE(0,*) '  extrapolate_Gaussian_floodfill - ERROR: flood-fill got stuck!'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash('flood-fill got stuck!')
       END IF
               
     END DO ! DO WHILE (stackN2 > 0)
@@ -2163,11 +2240,14 @@ CONTAINS
     DEALLOCATE( map   )
     DEALLOCATE( stack1)
     DEALLOCATE( stack2)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
   
   END SUBROUTINE extrapolate_Gaussian_floodfill
   
 ! == Debugging
-  SUBROUTINE check_for_NaN_dp_1D(  d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_1D(  d, d_name)
     ! Check if NaN values occur in the 1-D dp data field d
     ! NOTE: parallelised!
     
@@ -2175,11 +2255,11 @@ CONTAINS
     
     ! In/output variables:
     REAL(dp), DIMENSION(:    ),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,i,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2196,11 +2276,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2208,25 +2283,19 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( i) /= d( i)) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - NaN detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      ELSEIF (d (i) > HUGE( d( i))) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - Inf detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-      ELSEIF (d (i) < -HUGE( d( i))) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_dp_1D - -Inf detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( i) /= d( i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01}]' ), int_01 = i)
+      ELSEIF (d( i) > HUGE( d( i))) THEN
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01}]' ), int_01 = i)
+      ELSEIF (d( i)  < -HUGE( d( i))) THEN
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01}]'), int_01 = i)
       END IF
       
     END DO
     CALL sync
     
   END SUBROUTINE check_for_NaN_dp_1D
-  SUBROUTINE check_for_NaN_dp_2D(  d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_2D(  d, d_name)
     ! Check if NaN values occur in the 2-D dp data field d
     ! NOTE: parallelised!
     
@@ -2234,11 +2303,11 @@ CONTAINS
     
     ! In/output variables:
     REAL(dp), DIMENSION(:,:  ),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,ny,i,j,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2256,11 +2325,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2269,18 +2333,12 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( j,i) /= d( j,i)) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - NaN detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( j,i) /= d( j,i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       ELSEIF (d( j,i) > HUGE( d( j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - Inf detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       ELSEIF (d( j,i) < -HUGE( d( j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_2D - Inf detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       END IF
       
     END DO
@@ -2288,7 +2346,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_dp_2D
-  SUBROUTINE check_for_NaN_dp_3D(  d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_dp_3D(  d, d_name)
     ! Check if NaN values occur in the 3-D dp data field d
     ! NOTE: parallelised!
     
@@ -2296,11 +2354,11 @@ CONTAINS
     
     ! In/output variables:
     REAL(dp), DIMENSION(:,:,:),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,ny,nz,i,j,k,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2319,11 +2377,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2333,18 +2386,12 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( k,j,i) /= d( k,j,i)) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - NaN detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( k,j,i) /= d( k,j,i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       ELSEIF (d( k,j,i) > HUGE( d( k,j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - Inf detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       ELSEIF (d( k,j,i) < -HUGE( d( k,j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_dp_3D - -Inf detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       END IF
       
     END DO
@@ -2353,7 +2400,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_dp_3D
-  SUBROUTINE check_for_NaN_int_1D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_int_1D( d, d_name)
     ! Check if NaN values occur in the 1-D int data field d
     ! NOTE: parallelised!
     
@@ -2361,11 +2408,11 @@ CONTAINS
     
     ! In/output variables:
     INTEGER,  DIMENSION(:    ),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,i,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2382,11 +2429,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2394,25 +2436,19 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( i) /= d( i)) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - NaN detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( i) /= d( i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01}]' ), int_01 = i)
       ELSEIF (d( i) > HUGE( d( i))) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - Inf detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01}]' ), int_01 = i)
       ELSEIF (d( i) < -HUGE( d( i))) THEN
-        WRITE(0,'(A,I4,A,A,A,A,A,A)') 'check_for_NaN_int_1D - -Inf detected at [', i, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01}]'), int_01 = i)
       END IF
       
     END DO
     CALL sync
     
   END SUBROUTINE check_for_NaN_int_1D
-  SUBROUTINE check_for_NaN_int_2D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_int_2D( d, d_name)
     ! Check if NaN values occur in the 2-D int data field d
     ! NOTE: parallelised!
     
@@ -2420,11 +2456,11 @@ CONTAINS
     
     ! In/output variables:
     INTEGER,  DIMENSION(:,:  ),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,ny,i,j,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2442,11 +2478,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2455,18 +2486,12 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( j,i) /= d( j,i)) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - NaN detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( j,i) /= d( j,i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       ELSEIF (d( j,i) > HUGE( d( j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - Inf detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       ELSEIF (d( j,i) < -HUGE( d( j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_2D - -Inf detected at [', i, ',', j, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02}]'), int_01 = j, int_02 = i)
       END IF
       
     END DO
@@ -2474,7 +2499,7 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE check_for_NaN_int_2D
-  SUBROUTINE check_for_NaN_int_3D( d, d_name, routine_name)
+  SUBROUTINE check_for_NaN_int_3D( d, d_name)
     ! Check if NaN values occur in the 3-D int data field d
     ! NOTE: parallelised!
     
@@ -2482,11 +2507,11 @@ CONTAINS
     
     ! In/output variables:
     INTEGER,  DIMENSION(:,:,:),              INTENT(IN)    :: d
-    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name, routine_name
+    CHARACTER(LEN=*),           OPTIONAL,    INTENT(IN)    :: d_name
     
     ! Local variables:
     INTEGER                                                :: nx,ny,nz,i,j,k,i1,i2
-    CHARACTER(LEN=256)                                     :: d_name_loc, routine_name_loc
+    CHARACTER(LEN=256)                                     :: d_name_loc
     
     ! Only do this when so specified in the config
     IF (.NOT. C%do_check_for_NaN) RETURN
@@ -2505,11 +2530,6 @@ CONTAINS
     ELSE
       d_name_loc = '?'
     END IF
-    IF (PRESENT( routine_name)) THEN
-      routine_name_loc = TRIM(routine_name)
-    ELSE
-      routine_name_loc = '?'
-    END IF
     
     ! Inspect data field
     DO i = i1, i2
@@ -2519,18 +2539,12 @@ CONTAINS
       ! Strangely enough, Fortran doesn't have an "isnan" function; instead,
       ! you use the property that a NaN is never equal to anything, including itself...
       
-      IF (d( k,j,i) /= d( k,j,i)) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - NaN detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      IF     (d( k,j,i) /= d( k,j,i)) THEN
+        CALL crash(  ('detected NaN in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       ELSEIF (d( k,j,i) > HUGE( d( k,j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - Inf detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash(  ('detected Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       ELSEIF (d( k,j,i) < -HUGE( d( k,j,i))) THEN
-        WRITE(0,'(A,I4,A,I4,A,I4,A,A,A,A,A)') 'check_for_NaN_int_3D - -Inf detected at [', i, ',', j, ',', k, &
-          '] in variable "', TRIM(d_name_loc), '" from routine "', TRIM(routine_name_loc), '"'
-        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        CALL crash( ('detected -Inf in variable "' // TRIM( d_name_loc) // '" at [{int_01},{int_02},{int_03}]'), int_01 = k, int_02 = j, int_03 = i)
       END IF
       
     END DO

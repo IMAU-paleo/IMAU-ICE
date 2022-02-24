@@ -4,7 +4,7 @@ MODULE SELEN_sealevel_equation_module
   ! This is called from "run_SELEN" in the SELEN_main_module.
 
   USE mpi
-  USE configuration_module,              ONLY: dp, C
+  USE configuration_module,              ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                   ONLY: par, sync, cerr, ierr, &
                                                allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -36,6 +36,7 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: ocean_depth  ! Averaged depth of the Worlds oceans (m) to be used in Anice
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SLE'
     INTEGER                               :: i,j,k,p,iters,tdof_iteration
     REAL(dp)                              :: resh,imsh
     REAL(dp)                              :: RHOI_O_RHOE_X3, RHOW_O_RHOE_X3, RHOI_O_RHOW, NP_INV
@@ -123,6 +124,9 @@ CONTAINS
     
     ! Track progress of large loops for printing to terminal
     INTEGER                               :: progprev, prog
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate memory and bind pointers
     CALL allocate_memory_and_bind_pointers( SELEN, DM, X, ZE, SE, AAAA, AAAA_MOD, BBBB, BBBB_MOD, HHHH, KKKK, TTTT, IIII, &
@@ -715,6 +719,9 @@ CONTAINS
       DEALLOCATE( ES   )
       DEALLOCATE( EU   )
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_SLE
   
@@ -733,7 +740,11 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: newtopo
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'futopos'
     INTEGER                                            :: i,k,oj
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = C%SELEN_i1, C%SELEN_i2
     DO k = 0, C%SELEN_irreg_time_n
@@ -758,6 +769,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE futopos
   SUBROUTINE nextopo( SELEN, icethick, topo, slc, newtopo2, newet2)
     !  Same as futopos buth only for the current time step
@@ -773,7 +787,11 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), POINTER, INTENT(INOUT) :: newtopo2
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'nextopo'
     INTEGER                                            :: i,oj,fj
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = C%SELEN_i1, C%SELEN_i2
       
@@ -796,6 +814,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE nextopo
   
   SUBROUTINE update_ice_sh_and_load( SELEN, NAM, EAS, GRL, ANT, icethick, TTTT, IIII)
@@ -811,7 +832,11 @@ CONTAINS
     COMPLEX*16, DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: IIII
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_sh_and_load'
     INTEGER                                              :: ki 
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Compute spherical harmonics transformation of the ice loading history
     CALL sh_transform_all_regions_3D( NAM, EAS, GRL, ANT, icethick, TTTT)
@@ -827,6 +852,9 @@ CONTAINS
       END IF
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE update_ice_sh_and_load
   
@@ -844,7 +872,11 @@ CONTAINS
     COMPLEX*16, DIMENSION(:    ), POINTER, INTENT(INOUT) :: sh
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'sh_transform_all_regions_2D'
     COMPLEX*16, DIMENSION( C%SELEN_jmax)                   :: sh_core
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     sh_core = (0.,0.)
     
@@ -854,6 +886,9 @@ CONTAINS
     IF (C%do_ANT) CALL sh_transform_single_region_2D( ANT, d, sh_core)
     
     CALL MPI_REDUCE( sh_core, sh, C%SELEN_jmax, MPI_COMPLEX16, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE sh_transform_all_regions_2D
   SUBROUTINE sh_transform_all_regions_3D( NAM, EAS, GRL, ANT, d, sh)
@@ -870,7 +905,11 @@ CONTAINS
     COMPLEX*16, DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: sh
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'sh_transform_all_regions_3D'
     COMPLEX*16, DIMENSION( C%SELEN_jmax, 0:C%SELEN_irreg_time_n)    :: sh_core
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     sh_core = (0.,0.)
     
@@ -880,6 +919,9 @@ CONTAINS
     IF (C%do_ANT) CALL sh_transform_single_region_3D( ANT, d, sh_core)
     
     CALL MPI_REDUCE( sh_core, sh, C%SELEN_jmax * (C%SELEN_irreg_time_n+1), MPI_COMPLEX16, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE sh_transform_all_regions_3D
   SUBROUTINE sh_transform_single_region_2D( region, d, sh_core)
@@ -893,9 +935,13 @@ CONTAINS
     COMPLEX*16, DIMENSION( C%SELEN_jmax),  INTENT(INOUT) :: sh_core
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'sh_transform_single_region_2D'
     CHARACTER(LEN=256)                                   :: sh_filename
     COMPLEX*16, DIMENSION( C%SELEN_jmax)                 :: Ypx
     INTEGER                                              :: nblocks, bi, b1, b2, ir, ir1, ir2, i
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
   
     ! Determine how many blocks of 100 pixels there are, divide those over the processes
     nblocks = CEILING( REAL(region%SELEN%nr) / 100._dp)
@@ -941,6 +987,9 @@ CONTAINS
     END DO ! DO bi = b1, b2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE sh_transform_single_region_2D
   SUBROUTINE sh_transform_single_region_3D( region, d, sh_core)
     ! Here, the spherical harmonics are read from the external files and the actual transform is done.
@@ -953,10 +1002,14 @@ CONTAINS
     COMPLEX*16, DIMENSION( C%SELEN_jmax, 0:C%SELEN_irreg_time_n), INTENT(INOUT)   :: sh_core
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'sh_transform_single_region_3D'
     INTEGER                                              :: ki
     CHARACTER(LEN=256)                                   :: sh_filename
     COMPLEX*16, DIMENSION( C%SELEN_jmax)                 :: Ypx
     INTEGER                                              :: nblocks, bi, b1, b2, ir, ir1, ir2, i
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
   
     ! Determine how many blocks of 100 pixels there are, divide those over the processes
     nblocks = CEILING( REAL(region%SELEN%nr) / 100._dp)
@@ -1004,6 +1057,9 @@ CONTAINS
     END DO ! DO bi = b1, b2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE sh_transform_single_region_3D
   
   SUBROUTINE inverse_sh_transform_single_region_2D( region, sh, d)
@@ -1019,10 +1075,14 @@ CONTAINS
     REAL(dp),   DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: d
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inverse_sh_transform_single_region_2D'
     INTEGER                                              :: i,j
     CHARACTER(LEN=256)                                   :: sh_filename
     COMPLEX*16, DIMENSION( C%SELEN_jmax)                 :: Ypx
     INTEGER                                              :: li
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Go over all the columns assigned to this process
     DO i = region%grid_GIA%i1, region%grid_GIA%i2
@@ -1062,6 +1122,9 @@ CONTAINS
     END DO ! DO i = region%grid_GIA%i1, region%grid_GIA%i2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inverse_sh_transform_single_region_2D
   
   SUBROUTINE allocate_memory_and_bind_pointers( SELEN, DM, X, ZE, SE, AAAA, AAAA_MOD, BBBB, BBBB_MOD, HHHH, KKKK, TTTT, IIII, &
@@ -1072,7 +1135,8 @@ CONTAINS
   
     IMPLICIT NONE  
     
-    ! In/output variables:
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'allocate_memory_and_bind_pointers'
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     INTEGER,    DIMENSION(:    ), POINTER, INTENT(OUT) :: DM                  ! INTEGER,    DIMENSION( C%SELEN_jmax                ) :: DM
     REAL(dp),   DIMENSION(:,:  ), POINTER, INTENT(OUT) :: X                   ! REAL(dp),   DIMENSION( SELEN%mesh%nV,  0:C%SELEN_irreg_time_n  ) :: X
@@ -1125,6 +1189,9 @@ CONTAINS
     REAL(dp),   DIMENSION(:,:  ), POINTER, INTENT(OUT) :: ALF                 ! REAL(dp),   DIMENSION(:,:), ALLOCATABLE, SAVE :: ALF
     COMPLEX*16, DIMENSION(:,:  ), POINTER, INTENT(OUT) :: LONG_TABLE          ! COMPLEX*16, DIMENSION(:,:), ALLOCATABLE, SAVE :: LONG_TABLE
     REAL(dp),   DIMENSION(:    ), POINTER, INTENT(OUT) :: INIT_ICE            ! REAL(dp),   DIMENSION(:  ), ALLOCATABLE, SAVE :: INIT_ICE
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! First, shared memory is allocated in the SELEN structure.
     ! Then, the pointers (which are variables local to the sle_model) are associated
@@ -1258,14 +1325,21 @@ CONTAINS
     LONG_TABLE(         0:C%SELEN_n_harmonics, 1:SELEN%mesh%nV  ) => SELEN%dLONG_TABLE
     INIT_ICE(           1:SELEN%mesh%nV                         ) => SELEN%load_ref
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE allocate_memory_and_bind_pointers
   SUBROUTINE deallocate_memory_SELEN( SELEN)
     ! Deallocate shared memory for SELEN internal data
   
     IMPLICIT NONE  
     
-    ! In/output variables:
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_memory_SELEN'
     TYPE(type_SELEN_global),            INTENT(INOUT) :: SELEN
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL deallocate_shared( SELEN%wDM)
     CALL deallocate_shared( SELEN%wX)
@@ -1313,6 +1387,9 @@ CONTAINS
     CALL deallocate_shared( SELEN%wvarpreoc)
     CALL deallocate_shared( SELEN%wvaroc)
     CALL deallocate_shared( SELEN%wvaroc_inv)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE deallocate_memory_SELEN
 

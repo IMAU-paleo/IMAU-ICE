@@ -4,7 +4,7 @@ MODULE netcdf_module
   ! involved in the ice model.
 
   USE mpi
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, &
                                              allocate_shared_int_0D, allocate_shared_dp_0D, &
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
@@ -19,7 +19,7 @@ MODULE netcdf_module
                                              type_SELEN_global, type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data, &
                                              type_highres_ocean_data, type_direct_climate_forcing_global, type_direct_climate_forcing_regional, &
                                              type_direct_SMB_forcing_global, type_direct_SMB_forcing_regional, type_netcdf_BIV_bed_roughness, &
-                                             type_BIV_target_velocity, type_BIV_bed_roughness
+                                             type_BIV_target_velocity, type_BIV_bed_roughness, type_netcdf_resource_tracker
   IMPLICIT NONE
   
   TYPE(type_debug_fields) :: debug_NAM, debug_EAS, debug_GRL, debug_ANT, debug
@@ -37,11 +37,18 @@ CONTAINS
     TYPE(type_forcing_data),        INTENT(IN)    :: forcing
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_restart_file'
     INTEGER                                       :: ncid, nx, ny, nz, ti
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
-    WRITE(0,'(A,F8.2,A)') '   t = ', region%time/1E3, ' kyr - writing output...'
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing output...'
     
     ! Open the file for writing
     CALL open_netcdf_file( region%restart%netcdf%filename, region%restart%netcdf%ncid)
@@ -75,8 +82,7 @@ CONTAINS
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
     ELSE
-      IF (par%master) WRITE(0,*) 'write_to_restart_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
     
     ! Isotopes
@@ -86,8 +92,7 @@ CONTAINS
     ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_IsoIce,           region%ice%IsoIce,           (/1, 1,    ti/))
     ELSE
-      IF (par%master) WRITE(0,*) 'write_to_restart_file - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
     
     ! Inverse routine
@@ -103,8 +108,7 @@ CONTAINS
       CALL handle_error( nf90_put_var( ncid, region%restart%netcdf%id_var_dT_glob_history,         forcing%dT_glob_history,         start = (/1, ti/) ))
       CALL handle_error( nf90_put_var( ncid, region%restart%netcdf%id_var_CO2_inverse_history,     forcing%CO2_inverse_history,     start = (/1, ti/) ))
     ELSE
-      WRITE(0,*) 'write_to_restart_file - ERROR - unknown choice_forcing_method "', C%choice_forcing_method, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
     ! Close the file
@@ -112,6 +116,9 @@ CONTAINS
     
     ! Increase time frame counter
     region%restart%netcdf%ti = region%restart%netcdf%ti + 1
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_restart_file
   SUBROUTINE write_to_help_fields_file( region)
@@ -122,7 +129,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_model_region), INTENT(INOUT) :: region
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_help_fields_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the file for writing
     CALL open_netcdf_file( region%help_fields%filename, region%help_fields%ncid)
@@ -187,6 +203,9 @@ CONTAINS
     
     ! Increase time frame counter
     region%help_fields%ti = region%help_fields%ti + 1
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_help_fields_file
   SUBROUTINE write_help_field( region, id_var, field_name)
@@ -201,10 +220,17 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_help_field'
     INTEGER                                       :: ncid, nx, ny, ti, nz, nzo, i, j
     REAL(dp), DIMENSION( region%grid%ny, region%grid%nx) :: d_temp
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Placeholders for the dimension ID's, for shorter code
     ncid = region%help_fields%ncid
@@ -215,7 +241,6 @@ CONTAINS
     nzo  = C%nz_ocean
     
     IF (field_name == 'none') THEN
-      RETURN
       
     ! Fields with no time dimension
     ! =============================
@@ -488,9 +513,11 @@ CONTAINS
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%ocean_matrix%applied%S_ocean_corr_ext,  (/1, 1, 1, ti /))   
     ELSE
-      WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown help field "' // TRIM(field_name) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE write_help_field
   SUBROUTINE write_to_debug_file
@@ -499,11 +526,21 @@ CONTAINS
     IMPLICIT NONE
     
     ! Local variables:
-    INTEGER                                :: ncid, nx, ny
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_debug_file'
+    INTEGER                                       :: ncid, nx, ny
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
-    IF (.NOT. C%do_write_debug_data) RETURN
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    IF (.NOT. C%do_write_debug_data) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     nx = debug%nx
     ny = debug%ny
@@ -567,18 +604,259 @@ CONTAINS
 
     ! Close the file
     CALL close_netcdf_file( ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_debug_file
+  SUBROUTINE write_to_resource_tracking_file( netcdf, time)
+    ! Write to the resource tracking output file
+    
+    USE configuration_module, ONLY: resource_tracker
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_netcdf_resource_tracker), INTENT(INOUT) :: netcdf
+    REAL(dp),                           INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_to_resource_tracking_file'
+    INTEGER                                           :: i,n
+    INTEGER,  DIMENSION(1024)                         :: path_int_enc
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Open the file for writing
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+        
+    ! Time
+    CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_var_time, time, start = (/netcdf%ti/)))
+    
+    ! Actual variables
+    ! ================
+    
+    n = SIZE( resource_tracker)
+    
+    DO i = 1, n
+      
+      ! Subroutine name
+      CALL encode_subroutine_path_as_integer( resource_tracker( i)%routine_path, path_int_enc)
+      CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_var_names( i), path_int_enc ))
+    
+      ! Computation time
+      CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_vars( i), resource_tracker( i)%tcomp, start = (/ netcdf%ti /) ))
+      
+    END DO
+    
+    ! Close the file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Increase time frame counter
+    netcdf%ti = netcdf%ti + 1
+    
+  END SUBROUTINE write_to_resource_tracking_file
+  SUBROUTINE encode_subroutine_path_as_integer( subroutine_path, path_int_enc)
+    ! Encode the current subroutine path as an integer array so it can be saved as a NetCDF variable
+    ! 
+    ! Use the simplest possible encoding:
+    !
+    !  ' ' = -1 (empty character)
+    !
+    !    0 = 0
+    !    1 = 1
+    !    ...
+    !    9 = 9
+    !
+    !    a = 10
+    !    b = 11
+    !    c = 12
+    !    ...
+    !    z = 36
+    !
+    !    A = 37
+    !    B = 38
+    !    C = 39
+    !    ...
+    !    Z = 62
+    !
+    !    _ = 63 (underscore)
+    !    / = 64 (forward slash)
+    !    ( = 65 (left  bracket)
+    !    ) = 66 (right bracket)
+   
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    CHARACTER(LEN=1024),                INTENT(IN)    :: subroutine_path
+    INTEGER,  DIMENSION(1024),          INTENT(OUT)   :: path_int_enc
+    
+    ! Local variables:
+    INTEGER                                           :: i
+    
+    path_int_enc = 0
+    
+    DO i = 1, 1024
+      
+      SELECT CASE ( subroutine_path( i:i))
+      CASE( ' ')
+        path_int_enc( i) = -1
+      CASE( '0')
+        path_int_enc( i) = 0
+      CASE( '1')
+        path_int_enc( i) = 1
+      CASE( '2')
+        path_int_enc( i) = 2
+      CASE( '3')
+        path_int_enc( i) = 3
+      CASE( '4')
+        path_int_enc( i) = 4
+      CASE( '5')
+        path_int_enc( i) = 5
+      CASE( '6')
+        path_int_enc( i) = 6
+      CASE( '7')
+        path_int_enc( i) = 7
+      CASE( '8')
+        path_int_enc( i) = 8
+      CASE( '9')
+        path_int_enc( i) = 9
+      CASE( 'a')
+        path_int_enc( i) = 11
+      CASE( 'b')
+        path_int_enc( i) = 12
+      CASE( 'c')
+        path_int_enc( i) = 13
+      CASE( 'd')
+        path_int_enc( i) = 14
+      CASE( 'e')
+        path_int_enc( i) = 15
+      CASE( 'f')
+        path_int_enc( i) = 16
+      CASE( 'g')
+        path_int_enc( i) = 17
+      CASE( 'h')
+        path_int_enc( i) = 18
+      CASE( 'i')
+        path_int_enc( i) = 19
+      CASE( 'j')
+        path_int_enc( i) = 20
+      CASE( 'k')
+        path_int_enc( i) = 21
+      CASE( 'l')
+        path_int_enc( i) = 22
+      CASE( 'm')
+        path_int_enc( i) = 23
+      CASE( 'n')
+        path_int_enc( i) = 24
+      CASE( 'o')
+        path_int_enc( i) = 25
+      CASE( 'p')
+        path_int_enc( i) = 26
+      CASE( 'q')
+        path_int_enc( i) = 27
+      CASE( 'r')
+        path_int_enc( i) = 28
+      CASE( 's')
+        path_int_enc( i) = 29
+      CASE( 't')
+        path_int_enc( i) = 30
+      CASE( 'u')
+        path_int_enc( i) = 31
+      CASE( 'v')
+        path_int_enc( i) = 32
+      CASE( 'w')
+        path_int_enc( i) = 33
+      CASE( 'x')
+        path_int_enc( i) = 34
+      CASE( 'y')
+        path_int_enc( i) = 35
+      CASE( 'z')
+        path_int_enc( i) = 36
+      CASE( 'A')
+        path_int_enc( i) = 37
+      CASE( 'B')
+        path_int_enc( i) = 38
+      CASE( 'C')
+        path_int_enc( i) = 39
+      CASE( 'D')
+        path_int_enc( i) = 40
+      CASE( 'E')
+        path_int_enc( i) = 41
+      CASE( 'F')
+        path_int_enc( i) = 42
+      CASE( 'G')
+        path_int_enc( i) = 43
+      CASE( 'H')
+        path_int_enc( i) = 44
+      CASE( 'I')
+        path_int_enc( i) = 45
+      CASE( 'J')
+        path_int_enc( i) = 46
+      CASE( 'K')
+        path_int_enc( i) = 47
+      CASE( 'L')
+        path_int_enc( i) = 48
+      CASE( 'M')
+        path_int_enc( i) = 49
+      CASE( 'N')
+        path_int_enc( i) = 50
+      CASE( 'O')
+        path_int_enc( i) = 51
+      CASE( 'P')
+        path_int_enc( i) = 52
+      CASE( 'Q')
+        path_int_enc( i) = 53
+      CASE( 'R')
+        path_int_enc( i) = 54
+      CASE( 'S')
+        path_int_enc( i) = 55
+      CASE( 'T')
+        path_int_enc( i) = 56
+      CASE( 'U')
+        path_int_enc( i) = 57
+      CASE( 'V')
+        path_int_enc( i) = 58
+      CASE( 'W')
+        path_int_enc( i) = 59
+      CASE( 'X')
+        path_int_enc( i) = 60
+      CASE( 'Y')
+        path_int_enc( i) = 61
+      CASE( 'Z')
+        path_int_enc( i) = 62
+      CASE( '_')
+        path_int_enc( i) = 63
+      CASE( '/')
+        path_int_enc( i) = 64
+      CASE( '(')
+        path_int_enc( i) = 65
+      CASE( ')')
+        path_int_enc( i) = 66
+      CASE DEFAULT
+        CALL crash('unknown character in routine_path "' // TRIM( subroutine_path) // '"!')
+      END SELECT
+      
+    END DO
+    
+  END SUBROUTINE encode_subroutine_path_as_integer
   SUBROUTINE write_to_SELEN_output_file( SELEN, time)
     ! Write the current model state to the existing output file
    
     IMPLICIT NONE
     
-    ! Input variables:
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_SELEN_output_file'
     TYPE(type_SELEN_global),        INTENT(INOUT) :: SELEN
     REAL(dp),                       INTENT(IN)    :: time
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the file for writing
     CALL open_netcdf_file( SELEN%output%filename, SELEN%output%ncid)
@@ -598,6 +876,9 @@ CONTAINS
     
     ! Increase time frame counter
     SELEN%output%ti = SELEN%output%ti + 1
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_SELEN_output_file
   SUBROUTINE write_to_global_scalar_output_file( global_data, time)
@@ -609,7 +890,16 @@ CONTAINS
     TYPE(type_global_scalar_data),   INTENT(INOUT) :: global_data
     REAL(dp),                        INTENT(IN)    :: time
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_global_scalar_output_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     IF (.NOT. C%do_write_global_scalar_output) RETURN
     
@@ -635,8 +925,7 @@ CONTAINS
       CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_CO2_obs,          global_data%CO2_obs,        start = (/global_data%netcdf%ti/)))
       CALL handle_error( nf90_put_var( global_data%netcdf%ncid, global_data%netcdf%id_var_CO2_mod,          global_data%CO2_mod,        start = (/global_data%netcdf%ti/)))
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in write_to_global_scalar_output_file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
     ! d18O
@@ -664,6 +953,9 @@ CONTAINS
     
     ! Increase time frame counter
     global_data%netcdf%ti = global_data%netcdf%ti + 1
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_global_scalar_output_file
   SUBROUTINE write_to_regional_scalar_output_file( region, time)
@@ -675,7 +967,16 @@ CONTAINS
     TYPE(type_model_region),         INTENT(INOUT) :: region
     REAL(dp),                        INTENT(IN)    :: time
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_to_regional_scalar_output_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     IF (.NOT. C%do_write_regional_scalar_output) RETURN
     
@@ -708,8 +1009,7 @@ CONTAINS
       CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_refreezing,    region%int_refreezing,             start = (/region%scalars%ti/)))
       CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_runoff,        region%int_runoff,                 start = (/region%scalars%ti/)))
     ELSE
-      IF (par%master) WRITE(0,*) 'write_to_regional_scalar_output_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
     
     ! Close the file
@@ -717,6 +1017,9 @@ CONTAINS
     
     ! Increase time frame counter
     region%scalars%ti = region%scalars%ti + 1
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
         
   END SUBROUTINE write_to_regional_scalar_output_file
   
@@ -731,10 +1034,17 @@ CONTAINS
     TYPE(type_forcing_data),        INTENT(IN)    :: forcing
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_restart_file'
     LOGICAL                                       :: file_exists
     INTEGER                                       :: x, y, z, m, t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Set time frame index to 1
     region%restart%netcdf%ti = 1
@@ -743,8 +1053,7 @@ CONTAINS
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM( region%restart%netcdf%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM( region%restart%netcdf%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( region%restart%netcdf%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -798,8 +1107,7 @@ CONTAINS
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
     ELSE
-      IF (par%master) WRITE(0,*) 'create_restart_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
     
     ! Isotopes
@@ -809,8 +1117,7 @@ CONTAINS
     ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
       CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_IsoIce,           [x, y,       t], region%restart%netcdf%id_var_IsoIce,           long_name='Vertically averaged 18O content', units='per mille')
     ELSE
-      IF (par%master) WRITE(0,*) 'create_restart_file - ERROR: unknown choice_ice_isotopes_model "', TRIM(C%choice_ice_isotopes_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
     
     ! Inverse routine data
@@ -836,8 +1143,7 @@ CONTAINS
       CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_CO2_inverse_history,     [region%restart%netcdf%id_dim_nCO2_inverse_history,     t], region%restart%netcdf%id_var_CO2_inverse_history, long_name='CO2_inverse history')
       
     ELSE
-      WRITE(0,*) 'create_restart_file - ERROR - unknown choice_forcing_method "', C%choice_forcing_method, '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
   ! ===== End of fields definition =====
@@ -858,6 +1164,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( region%restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_restart_file
   SUBROUTINE create_help_fields_file( region)
     ! Create a new help fields file, containing secondary model output (not needed for a restart, but interesting to look at)
@@ -868,9 +1177,16 @@ CONTAINS
     TYPE(type_model_region),        INTENT(INOUT) :: region
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_help_fields_file'
     LOGICAL                                       :: file_exists
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Set time frame index to 1
     region%help_fields%ti = 1
@@ -879,8 +1195,7 @@ CONTAINS
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM( region%help_fields%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_help_fields_file - ERROR: ', TRIM( region%help_fields%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( region%help_fields%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -971,6 +1286,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( region%help_fields%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_help_fields_file
   SUBROUTINE create_help_field( region, id_var, field_name)
     ! Add a data field to the help_fields file
@@ -984,9 +1302,16 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_help_field'
     INTEGER                                       :: x, y, z, m, t, zo
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Placeholders for the dimension ID's, for shorter code
     x  = region%help_fields%id_dim_x
@@ -997,7 +1322,6 @@ CONTAINS
     zo = region%help_fields%id_dim_z_ocean
     
     IF (field_name == 'none') THEN
-      RETURN
       
     ! Fields with no time dimension
     ! =============================
@@ -1220,9 +1544,11 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
       
     ELSE
-      WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown field name "' // TRIM(field_name) // '"!')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE create_help_field
   SUBROUTINE create_debug_file( region)
@@ -1236,15 +1562,25 @@ CONTAINS
     TYPE(type_model_region),        INTENT(INOUT) :: region
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_debug_file'
     TYPE(type_netcdf_debug)                       :: debug_temp
     CHARACTER(LEN=20)                             :: short_filename
     INTEGER                                       :: n
     LOGICAL                                       :: file_exists
     INTEGER                                       :: x, y, z, m, ncid
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
-    IF (.NOT. C%do_write_debug_data) RETURN
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    IF (.NOT. C%do_write_debug_data) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Determine debug NetCDF filename for this model region
     short_filename = 'debug_NAM.nc'
@@ -1252,14 +1588,13 @@ CONTAINS
     DO n = 1, 256
       debug_temp%filename(n:n) = ' '
     END DO
-    debug_temp%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    debug_temp%filename = TRIM(C%output_dir) // TRIM(short_filename)
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(debug_temp%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_debug_file - ERROR: ', TRIM(debug_temp%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( debug_temp%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -1370,7 +1705,127 @@ CONTAINS
       debug_ANT%netcdf = debug_temp
     END IF
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_debug_file
+  SUBROUTINE create_resource_tracking_file( netcdf)
+    ! Create the resource tracking output file
+    
+    USE configuration_module, ONLY: resource_tracker
+   
+    IMPLICIT NONE
+    
+    ! Input variables:
+    TYPE(type_netcdf_resource_tracker), INTENT(INOUT) :: netcdf
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'create_resource_tracking_file'
+    LOGICAL                                           :: file_exists
+    INTEGER                                           :: t,nl
+    INTEGER                                           :: i,n
+    CHARACTER(LEN=256)                                :: var_name, long_name
+    
+    IF (.NOT. par%master) RETURN
+    
+    ! Set time frame index to 1
+    netcdf%ti = 1
+
+    ! Create a new file if none exists and, to prevent loss of data, 
+    ! stop with an error message if one already exists (not when differences are considered):
+    netcdf%filename = TRIM(C%output_dir) // '/resource_tracking.nc'
+    INQUIRE(EXIST=file_exists, FILE = TRIM(netcdf%filename))
+    IF (file_exists) THEN
+      CALL crash('file "' // TRIM( netcdf%filename) // '" already exists!')
+    END IF
+    
+    ! Create netCDF file
+    !WRITE(0,*) ' Creating new NetCDF output file at ', TRIM( netcdf%filename)
+    CALL handle_error( nf90_create( netcdf%filename, IOR( nf90_clobber, nf90_share), netcdf%ncid))
+        
+    ! Define dimensions:
+    CALL create_dim( netcdf%ncid, netcdf%name_dim_time       , nf90_unlimited, netcdf%id_dim_time       )
+    CALL create_dim( netcdf%ncid, netcdf%name_dim_name_length, 1024          , netcdf%id_dim_name_length)
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    t  = netcdf%id_dim_time
+    nl = netcdf%id_dim_name_length
+    
+    ! Define variables:
+    ! The order of the CALL statements for the different variables determines their
+    ! order of appearence in the netcdf file.
+    
+    ! Dimension variables: time
+    CALL create_double_var( netcdf%ncid, netcdf%name_var_time, [t], netcdf%id_var_time, long_name='Time', units='years'   )
+    
+    ! Actual variables
+    ! ================
+    
+    n = SIZE( resource_tracker)
+    
+    ALLOCATE( netcdf%id_vars(      n))
+    ALLOCATE( netcdf%id_var_names( n))
+    
+    DO i = 1, n
+      
+      ! Subroutine name
+      ! ===============
+      
+      ! Generate variable name (name_00001, name_00002, etc.)
+      var_name(  1:256) = ' '
+      long_name( 1:256) = ' '
+      IF     (i < 10) THEN
+        WRITE( var_name ,'(A,I1)') 'name_0000', i
+      ELSEIF (i < 100) THEN
+        WRITE( var_name,'(A,I2)') 'name_000', i
+      ELSEIF (i < 1000) THEN
+        WRITE( var_name,'(A,I3)') 'name_00', i
+      ELSEIF (i < 10000) THEN
+        WRITE( var_name,'(A,I4)') 'name_0', i
+      ELSEIF (i < 100000) THEN
+        WRITE( var_name,'(A,I5)') 'name_', i
+      END IF
+      
+      WRITE( long_name,'(A,I1)') 'Full name of subroutine #', i
+      
+      ! Create the variable in the NetCDF file
+      CALL create_int_var( netcdf%ncid, var_name, [nl], netcdf%id_var_names( i),  long_name = long_name)
+    
+      ! Computation time
+      ! ================
+      
+      ! Generate variable name (tcomp_00001, tcomp_00002, etc.)
+      var_name(  1:256) = ' '
+      long_name( 1:256) = ' '
+      IF     (i < 10) THEN
+        WRITE( var_name ,'(A,I1)') 'tcomp_0000', i
+      ELSEIF (i < 100) THEN
+        WRITE( var_name,'(A,I2)') 'tcomp_000', i
+      ELSEIF (i < 1000) THEN
+        WRITE( var_name,'(A,I3)') 'tcomp_00', i
+      ELSEIF (i < 10000) THEN
+        WRITE( var_name,'(A,I4)') 'tcomp_0', i
+      ELSEIF (i < 100000) THEN
+        WRITE( var_name,'(A,I5)') 'tcomp_', i
+      END IF
+      
+      WRITE( long_name,'(A,I1)') 'Computation time for subroutine #', i
+      
+      ! Create the variable in the NetCDF file
+      CALL create_double_var( netcdf%ncid, var_name, [t], netcdf%id_vars( i),  long_name = long_name, units = 's', missing_value = 0._dp)
+      
+    END DO
+    
+    ! Leave definition mode:
+    CALL handle_error(nf90_enddef( netcdf%ncid))
+        
+    ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+    CALL handle_error(nf90_sync( netcdf%ncid))
+    
+    ! Close the file
+    CALL close_netcdf_file(netcdf%ncid)
+    
+  END SUBROUTINE create_resource_tracking_file 
   SUBROUTINE create_SELEN_output_file( SELEN)
     ! Create a new NetCDF output file for SELEN (on the irregular global mesh)
    
@@ -1380,23 +1835,29 @@ CONTAINS
     TYPE(type_SELEN_global),        INTENT(INOUT) :: SELEN
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_SELEN_output_file'
     LOGICAL                                       :: file_exists
     INTEGER                                       :: vi, ti, ci, three, time
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Set time frame index to 1
     SELEN%output%ti = 1
 
     ! Set output filename
-    SELEN%output%filename = TRIM(C%output_dir)//'SELEN_output.nc'
+    SELEN%output%filename = TRIM(C%output_dir) // 'SELEN_output.nc'
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(SELEN%output%filename))
     IF(file_exists) THEN
-      WRITE(0,*) 'ERROR: ', TRIM(SELEN%output%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( SELEN%output%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -1465,6 +1926,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file(SELEN%output%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_SELEN_output_file
   SUBROUTINE create_global_scalar_output_file( netcdf)
     ! Create a new global scalar output file
@@ -1475,10 +1939,17 @@ CONTAINS
     TYPE(type_netcdf_scalars_global), INTENT(INOUT) :: netcdf
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_global_scalar_output_file'
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     IF (.NOT. C%do_write_global_scalar_output) RETURN
     
@@ -1487,11 +1958,10 @@ CONTAINS
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
-    netcdf%filename = TRIM(C%output_dir)//'/scalar_output_global.nc'
+    netcdf%filename = TRIM(C%output_dir) // '/scalar_output_global.nc'
     INQUIRE(EXIST=file_exists, FILE = TRIM(netcdf%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(netcdf%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( netcdf%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -1527,8 +1997,7 @@ CONTAINS
       CALL create_double_var( netcdf%ncid, netcdf%name_var_CO2_obs,       [t], netcdf%id_var_CO2_obs,       long_name='Observed atmospheric CO2 concentration', units='ppm')
       CALL create_double_var( netcdf%ncid, netcdf%name_var_CO2_mod,       [t], netcdf%id_var_CO2_mod,       long_name='Modelled atmospheric CO2 concentration', units='ppm')
     ELSE
-      IF (par%master) WRITE(0,*) '  ERROR: choice_forcing_method "', TRIM(C%choice_forcing_method), '" not implemented in create_global_scalar_output_file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
     
     ! d18O
@@ -1560,6 +2029,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file(netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_global_scalar_output_file
   SUBROUTINE create_regional_scalar_output_file( region)
     ! Create a new regional scalar output file
@@ -1570,10 +2042,17 @@ CONTAINS
     TYPE(type_model_region),          INTENT(INOUT) :: region
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_regional_scalar_output_file'
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     IF (.NOT. C%do_write_regional_scalar_output) RETURN
     
@@ -1581,14 +2060,13 @@ CONTAINS
     region%scalars%ti = 1
     
     ! Generate filename
-    region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
+    region%scalars%filename = TRIM(C%output_dir) // '/scalar_output_' // TRIM(regioN%name) // '.nc'
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(region%scalars%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(region%scalars%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( region%scalars%filename) // '" already exists!')
     END IF
     
     ! Create netCDF file
@@ -1630,8 +2108,7 @@ CONTAINS
       CALL create_double_var( region%scalars%ncid, region%scalars%name_var_refreezing,    [t], region%scalars%id_var_refreezing,    long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
       CALL create_double_var( region%scalars%ncid, region%scalars%name_var_runoff,        [t], region%scalars%id_var_runoff,        long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
     ELSE
-      IF (par%master) WRITE(0,*) 'create_regional_scalar_output_file - ERROR: unknown choice_SMB_model "', TRIM(C%choice_SMB_model), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
     
     ! Leave definition mode:
@@ -1642,6 +2119,9 @@ CONTAINS
     
     ! Close the file
     CALL close_netcdf_file( region%scalars%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE create_regional_scalar_output_file
   
@@ -1658,6 +2138,12 @@ CONTAINS
     
     ! Input variables:
     TYPE(type_model_region),        INTENT(IN)    :: region
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'associate_debug_fields'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Copy the netcdf ID's
     IF (par%master) THEN
@@ -1974,6 +2460,9 @@ CONTAINS
       
     END IF
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE associate_debug_fields
   SUBROUTINE initialise_debug_fields( region)
   
@@ -1981,6 +2470,12 @@ CONTAINS
     
     ! In/output variables:
     TYPE(type_model_region),         INTENT(INOUT)     :: region
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_debug_fields'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF     (region%name == 'NAM') THEN
       CALL initialise_debug_fields_region( debug_NAM, region%grid%nx, region%grid%ny)
@@ -1992,6 +2487,9 @@ CONTAINS
       CALL initialise_debug_fields_region( debug_ANT, region%grid%nx, region%grid%ny)
     END IF
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_debug_fields
   SUBROUTINE initialise_debug_fields_region( debug, nx, ny)
   
@@ -2000,6 +2498,12 @@ CONTAINS
     ! In/output variables:
     TYPE(type_debug_fields),         INTENT(INOUT)     :: debug
     INTEGER,                         INTENT(IN)        :: nx, ny
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_debug_fields_region'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Grid size
     CALL allocate_shared_int_0D( debug%nx, debug%wnx)
@@ -2066,6 +2570,9 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12,   ny, nx, debug%dp_2D_monthly_09, debug%wdp_2D_monthly_09)
     CALL allocate_shared_dp_3D( 12,   ny, nx, debug%dp_2D_monthly_10, debug%wdp_2D_monthly_10)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_debug_fields_region
   
 ! Read data to restart a run
@@ -2077,12 +2584,19 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_restart_data), INTENT(INOUT) :: restart
+    TYPE(type_restart_data),        INTENT(INOUT) :: restart
  
     ! Local variables:
-    INTEGER                                :: x, y, t
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_restart_file_geometry'
+    INTEGER                                       :: x, y, t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2114,6 +2628,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_restart_file_geometry
   SUBROUTINE inquire_restart_file_temperature( restart) 
     ! Check if the right dimensions and variables are present in the file.
@@ -2121,12 +2638,19 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_restart_data), INTENT(INOUT) :: restart
+    TYPE(type_restart_data), INTENT(INOUT)        :: restart
  
     ! Local variables:
-    INTEGER                                :: x, y, z, t
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_restart_file_temperature'
+    INTEGER                                       :: x, y, z, t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2157,6 +2681,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_restart_file_temperature
   SUBROUTINE inquire_restart_file_SMB(         restart) 
     ! Check if the right dimensions and variables are present in the file.
@@ -2164,12 +2691,19 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_restart_data), INTENT(INOUT) :: restart
+    TYPE(type_restart_data), INTENT(INOUT)        :: restart
  
     ! Local variables:
-    INTEGER                                :: x, y, m, t, int_dummy
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_restart_file_SMB'
+    INTEGER                                       :: x, y, m, t, int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2200,6 +2734,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_restart_file_SMB
   SUBROUTINE inquire_restart_file_isotopes(    restart) 
     ! Check if the right dimensions and variables are present in the file.
@@ -2207,12 +2744,19 @@ CONTAINS
     IMPLICIT NONE
     
     ! Input variables:
-    TYPE(type_restart_data), INTENT(INOUT) :: restart
+    TYPE(type_restart_data), INTENT(INOUT)        :: restart
  
     ! Local variables:
-    INTEGER                                :: x, y, t
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_restart_file_isotopes'
+    INTEGER                                       :: x, y, t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2240,6 +2784,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_restart_file_isotopes
   
   SUBROUTINE read_restart_file_geometry(       restart, time_to_restart_from)
@@ -2252,10 +2799,17 @@ CONTAINS
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_restart_file_geometry'
     INTEGER                                       :: ti, ti_min
     REAL(dp)                                      :: dt, dt_min
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2268,8 +2822,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
     
     IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
-      WRITE(0,*) 'read_restart_file_geometry - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('time_to_restart_from = {dp_01} outside range of restart file!', dp_01 = time_to_restart_from)
     END IF    
     
     ti_min = 0
@@ -2284,10 +2837,12 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
-      WRITE(0,*) 'read_restart_file_geometry - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+      CALL warning('no exact match for time_to_restart_from = {dp_01} yr in restart file! Reading closest match = {dp_02} yr instead.', &
+        dp_01 = time_to_restart_from, dp_02 = restart%time( ti))
     END IF
     IF (time_to_restart_from /= C%start_time_of_run) THEN
-      WRITE(0,*) 'read_restart_file_geometry - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+      CALL warning('starting run at t = {dp_01} yr with restart data at t = {dp_02} yr!', &
+        dp_01 = C%start_time_of_run, dp_02 = time_to_restart_from)
     END IF
     
     ! Read the data
@@ -2300,6 +2855,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_restart_file_geometry
   SUBROUTINE read_restart_file_temperature(    restart, time_to_restart_from)
     ! Read the restart netcdf file
@@ -2311,10 +2869,17 @@ CONTAINS
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_restart_file_temperature'
     INTEGER                                       :: ti, ti_min, k
     REAL(dp)                                      :: dt, dt_min
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2322,13 +2887,11 @@ CONTAINS
     ! Read zeta, check if it matches the config zeta
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_zeta, restart%zeta, start=(/1/) ))
     IF (restart%nz /= C%nz) THEN
-      WRITE(0,*) 'read_restart_file_temperature - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('vertical coordinate zeta in restart file doesnt match zeta in config!')
     ELSE
       DO k = 1, C%nz
         IF (ABS(C%zeta(k) - restart%zeta(k)) > 0.0001_dp) THEN
-      WRITE(0,*) 'read_restart_file_temperature - ERROR: vertical coordinate zeta in restart file doesnt match zeta in config!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('vertical coordinate zeta in restart file doesnt match zeta in config!')
         END IF
       END DO
     END IF
@@ -2341,8 +2904,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
     
     IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
-      WRITE(0,*) 'read_restart_file_temperature - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('time_to_restart_from = {dp_01} outside range of restart file!', dp_01 = time_to_restart_from)
     END IF    
     
     ti_min = 0
@@ -2357,10 +2919,12 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
-      WRITE(0,*) 'read_restart_file_temperature - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+      CALL warning('no exact match for time_to_restart_from = {dp_01} yr in restart file! Reading closest match = {dp_02} yr instead.', &
+        dp_01 = time_to_restart_from, dp_02 = restart%time( ti))
     END IF
     IF (time_to_restart_from /= C%start_time_of_run) THEN
-      WRITE(0,*) 'read_restart_file_temperature - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+      CALL warning('starting run at t = {dp_01} yr with restart data at t = {dp_02} yr!', &
+        dp_01 = C%start_time_of_run, dp_02 = time_to_restart_from)
     END IF
         
     ! Read the data
@@ -2368,6 +2932,9 @@ CONTAINS
     
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_restart_file_temperature
   SUBROUTINE read_restart_file_SMB(            restart, time_to_restart_from)
@@ -2380,10 +2947,17 @@ CONTAINS
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_restart_file_SMB'
     INTEGER                                       :: ti, ti_min
     REAL(dp)                                      :: dt, dt_min
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2396,8 +2970,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
     
     IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
-      WRITE(0,*) 'read_restart_file_SMB - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('time_to_restart_from = {dp_01} outside range of restart file!', dp_01 = time_to_restart_from)
     END IF    
     
     ti_min = 0
@@ -2412,10 +2985,12 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
-      WRITE(0,*) 'read_restart_file_SMB - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+      CALL warning('no exact match for time_to_restart_from = {dp_01} yr in restart file! Reading closest match = {dp_02} yr instead.', &
+        dp_01 = time_to_restart_from, dp_02 = restart%time( ti))
     END IF
     IF (time_to_restart_from /= C%start_time_of_run) THEN
-      WRITE(0,*) 'read_restart_file_SMB - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+      CALL warning('starting run at t = {dp_01} yr with restart data at t = {dp_02} yr!', &
+        dp_01 = C%start_time_of_run, dp_02 = time_to_restart_from)
     END IF
         
     ! Read the data
@@ -2424,6 +2999,9 @@ CONTAINS
     
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_restart_file_SMB
   SUBROUTINE read_restart_file_isotopes(       restart, time_to_restart_from)
@@ -2436,10 +3014,17 @@ CONTAINS
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_restart_file_isotopes'
     INTEGER                                       :: ti, ti_min
     REAL(dp)                                      :: dt, dt_min
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( restart%netcdf%filename, restart%netcdf%ncid)
@@ -2452,8 +3037,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( restart%netcdf%ncid, restart%netcdf%id_var_time, restart%time, start=(/1/) ))
     
     IF (time_to_restart_from < MINVAL(restart%time) .OR. time_to_restart_from > MAXVAL(restart%time)) THEN
-      WRITE(0,*) 'read_restart_file_isotopes - ERROR: time_to_restart_from ', time_to_restart_from, ' outside range of restart file!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('time_to_restart_from = {dp_01} outside range of restart file!', dp_01 = time_to_restart_from)
     END IF    
     
     ti_min = 0
@@ -2468,10 +3052,12 @@ CONTAINS
     ti = ti_min
     
     IF (dt_min > 0._dp) THEN
-      WRITE(0,*) 'read_restart_file_isotopes - WARNING: no exact match for time_to_restart_from ', time_to_restart_from, ' in restart file! Reading closest match ', restart%time( ti), ' instead.'
+      CALL warning('no exact match for time_to_restart_from = {dp_01} yr in restart file! Reading closest match = {dp_02} yr instead.', &
+        dp_01 = time_to_restart_from, dp_02 = restart%time( ti))
     END IF
     IF (time_to_restart_from /= C%start_time_of_run) THEN
-      WRITE(0,*) 'read_restart_file_isotopes - WARNING: starting run at t = ', C%start_time_of_run, ' with restart data at t = ', time_to_restart_from
+      CALL warning('starting run at t = {dp_01} yr with restart data at t = {dp_02} yr!', &
+        dp_01 = C%start_time_of_run, dp_02 = time_to_restart_from)
     END IF
         
     ! Read the data
@@ -2479,6 +3065,9 @@ CONTAINS
         
     ! Close the netcdf file
     CALL close_netcdf_file( restart%netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_restart_file_isotopes
   
@@ -2491,13 +3080,17 @@ CONTAINS
     TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
     CHARACTER(LEN=256),             INTENT(IN)    :: filename
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_inverse_routine_history_dT_glob'
     CHARACTER(LEN=256) :: dummy_char
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     dummy_char = forcing%netcdf_ins%filename
     dummy_char = filename
     
-    IF (par%master) WRITE(0,*) 'read_inverse_routine_history_dT_glob - ERROR: need to fix the inverse routine stuff to cope with restarting!'
-    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    CALL crash('need to fix the inverse routine stuff to cope with restarting!')
     
     ! Local variables:
 !    INTEGER                                       :: ncid, id_dim_nH, id_dim_time, nt, id_var_H, id_var_time
@@ -2506,7 +3099,10 @@ CONTAINS
 !    REAL(dp)                                      :: dt, dt_min
 !    REAL(dp), DIMENSION(:), ALLOCATABLE           :: time
 !    
-!    IF (.NOT. par%master) RETURN
+!    IF (.NOT. par%master) THEN
+!      CALL finalise_routine( routine_name)
+!      RETURN
+!    END IF
 !    
 !    WRITE(0,*) ' Reading inverse routine dT_glob_history from file "', TRIM(filename), '"...'
 !    
@@ -2563,6 +3159,9 @@ CONTAINS
 !    ! Close the netcdf file
 !    CALL close_netcdf_file( ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_inverse_routine_history_dT_glob
   SUBROUTINE read_inverse_routine_history_dT_glob_inverse( forcing, filename)
     ! Read the inverse routine history from the specified NetCDF file
@@ -2573,13 +3172,17 @@ CONTAINS
     TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
     CHARACTER(LEN=256),             INTENT(IN)    :: filename
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_inverse_routine_history_dT_glob_inverse'
     CHARACTER(LEN=256) :: dummy_char
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     dummy_char = forcing%netcdf_ins%filename
     dummy_char = filename
     
-    IF (par%master) WRITE(0,*) 'read_inverse_routine_history_dT_glob_inverse - ERROR: need to fix the inverse routine stuff to cope with restarting!'
-    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    CALL crash('need to fix the inverse routine stuff to cope with restarting!')
     
 !    ! Local variables:
 !    INTEGER                                       :: ncid, id_dim_nH, id_dim_time, nt, id_var_H, id_var_time
@@ -2588,7 +3191,10 @@ CONTAINS
 !    REAL(dp)                                      :: dt, dt_min
 !    REAL(dp), DIMENSION(:), ALLOCATABLE           :: time
 !    
-!    IF (.NOT. par%master) RETURN
+!    IF (.NOT. par%master) THEN
+!      CALL finalise_routine( routine_name)
+!      RETURN
+!    END IF
 !    
 !    WRITE(0,*) ' Reading inverse routine dT_glob_inverse_history from file "', TRIM(filename), '"...'
 !    
@@ -2645,6 +3251,9 @@ CONTAINS
 !    ! Close the netcdf file
 !    CALL close_netcdf_file( ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_inverse_routine_history_dT_glob_inverse
   SUBROUTINE read_inverse_routine_history_CO2_inverse(     forcing, filename)
     ! Read the inverse routine history from the specified NetCDF file
@@ -2655,13 +3264,17 @@ CONTAINS
     TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
     CHARACTER(LEN=256),             INTENT(IN)    :: filename
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_inverse_routine_history_CO2_inverse'
     CHARACTER(LEN=256) :: dummy_char
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     dummy_char = forcing%netcdf_ins%filename
     dummy_char = filename
     
-    IF (par%master) WRITE(0,*) 'read_inverse_routine_history_CO2_inverse - ERROR: need to fix the inverse routine stuff to cope with restarting!'
-    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    CALL crash('need to fix the inverse routine stuff to cope with restarting!')
     
 !    ! Local variables:
 !    INTEGER                                       :: ncid, id_dim_nH, id_dim_time, nt, id_var_H, id_var_time
@@ -2670,7 +3283,10 @@ CONTAINS
 !    REAL(dp)                                      :: dt, dt_min
 !    REAL(dp), DIMENSION(:), ALLOCATABLE           :: time
 !    
-!    IF (.NOT. par%master) RETURN
+!    IF (.NOT. par%master) THEN
+!      CALL finalise_routine( routine_name)
+!      RETURN
+!    END IF
 !    
 !    WRITE(0,*) ' Reading inverse routine CO2_inverse_history from file "', TRIM(filename), '"...'
 !    
@@ -2727,6 +3343,9 @@ CONTAINS
 !    ! Close the netcdf file
 !    CALL close_netcdf_file( ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_inverse_routine_history_CO2_inverse
   
 ! Read all kinds of input files
@@ -2741,7 +3360,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_reference_geometry_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( refgeo%netcdf%filename, refgeo%netcdf%ncid)
@@ -2760,6 +3388,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( refgeo%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_reference_geometry_file
   SUBROUTINE read_reference_geometry_file(    refgeo)
     ! Read reference geometry dat from a NetCDF file
@@ -2769,7 +3400,16 @@ CONTAINS
     ! In/output variables:
     TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_reference_geometry_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( refgeo%netcdf%filename, refgeo%netcdf%ncid)
@@ -2784,6 +3424,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( refgeo%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_reference_geometry_file
   
   ! Present-day observed global climate (e.g. ERA-40)
@@ -2796,9 +3439,16 @@ CONTAINS
     TYPE(type_climate_snapshot_global), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_PD_obs_global_climate_file'
     INTEGER                               :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( clim%netcdf%filename, clim%netcdf%ncid)
@@ -2820,6 +3470,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_PD_obs_global_climate_file
   SUBROUTINE read_PD_obs_global_climate_file(    clim)
    
@@ -2828,7 +3481,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_climate_snapshot_global), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_PD_obs_global_climate_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( clim%netcdf%filename, clim%netcdf%ncid)
@@ -2845,6 +3507,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_PD_obs_global_climate_file
   
   ! Present-day observed global ocean (e.g. WOA18)
@@ -2856,7 +3521,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_ocean_snapshot_global), INTENT(INOUT) :: ocn
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_PD_obs_global_ocean_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( ocn%netcdf%filename, ocn%netcdf%ncid)
@@ -2877,6 +3551,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( ocn%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_PD_obs_global_ocean_file
   SUBROUTINE read_PD_obs_global_ocean_file(    ocn)
    
@@ -2885,7 +3562,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_ocean_snapshot_global), INTENT(INOUT) :: ocn
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_PD_obs_global_ocean_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( ocn%netcdf%filename, ocn%netcdf%ncid)
@@ -2901,6 +3587,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( ocn%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_PD_obs_global_ocean_file
   
   ! GCM global climate (climate matrix snapshots)
@@ -2913,9 +3602,16 @@ CONTAINS
     TYPE(type_climate_snapshot_global), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_GCM_global_climate_file'
     INTEGER                                     :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( clim%netcdf%filename, clim%netcdf%ncid)
@@ -2937,6 +3633,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_GCM_global_climate_file
   SUBROUTINE read_GCM_global_climate_file(    clim)
   
@@ -2945,7 +3644,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_climate_snapshot_global), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_GCM_global_climate_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file(clim%netcdf%filename, clim%netcdf%ncid)
@@ -2962,6 +3670,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_GCM_global_climate_file
   
   ! GCM global ocean (ocean matrix snapshots)
@@ -2973,7 +3684,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_ocean_snapshot_global), INTENT(INOUT) :: ocn
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_GCM_global_ocean_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( ocn%netcdf%filename, ocn%netcdf%ncid)
@@ -2994,6 +3714,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( ocn%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_GCM_global_ocean_file
   SUBROUTINE read_GCM_global_ocean_file(    ocn)
    
@@ -3002,7 +3725,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_ocean_snapshot_global), INTENT(INOUT) :: ocn
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_GCM_global_ocean_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( ocn%netcdf%filename, ocn%netcdf%ncid)
@@ -3018,6 +3750,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( ocn%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_GCM_global_ocean_file  
   
   ! High-resolution geometry used for extrapolating ocean data
@@ -3029,7 +3764,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_hires_geometry_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( hires%netcdf_geo%filename, hires%netcdf_geo%ncid)
@@ -3047,6 +3791,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( hires%netcdf_geo%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_hires_geometry_file
   SUBROUTINE read_hires_geometry_file(    hires)
     ! Read the high-resolution geometry netcdf file
@@ -3056,7 +3803,16 @@ CONTAINS
     ! In/output variables:
     TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_hires_geometry_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( hires%netcdf_geo%filename, hires%netcdf_geo%ncid)
@@ -3069,6 +3825,9 @@ CONTAINS
         
     ! Close the netcdf file
     CALL close_netcdf_file( hires%netcdf_geo%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_hires_geometry_file
   
@@ -3083,10 +3842,17 @@ CONTAINS
     CHARACTER(LEN=256),                  INTENT(IN)    :: hires_ocean_filename
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_extrapolated_ocean_file'
     LOGICAL                                            :: file_exists
     INTEGER                                            :: x, y, z
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Create a new file and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
@@ -3094,8 +3860,7 @@ CONTAINS
     hires%netcdf%filename = hires_ocean_filename
     INQUIRE(EXIST=file_exists, FILE = TRIM( hires%netcdf%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM(hires%netcdf%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( hires%netcdf%filename) // '" already exists!')
     END IF
     
     ! Create hires%netcdf file
@@ -3142,6 +3907,9 @@ CONTAINS
     ! Close the file
     CALL close_netcdf_file( hires%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_extrapolated_ocean_file
   SUBROUTINE inquire_extrapolated_ocean_file( hires) 
     ! Check if the right dimensions and variables are present in the file.
@@ -3152,9 +3920,16 @@ CONTAINS
     TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_extrapolated_ocean_file'
     INTEGER                                      :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( hires%netcdf%filename, hires%netcdf%ncid)
@@ -3166,8 +3941,7 @@ CONTAINS
     
     ! Safety
     IF (int_dummy /= C%nz_ocean) THEN
-      WRITE(0,*) 'inquire_extrapolated_ocean_file - ERROR: nz_ocean in file "', TRIM( hires%netcdf%filename), '" doesnt match ice model settings!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('nz_ocean in file "' // TRIM( hires%netcdf%filename) // '" doesnt match ice model settings!')
     END IF
 
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
@@ -3181,6 +3955,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( hires%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_extrapolated_ocean_file
   SUBROUTINE read_extrapolated_ocean_file(    hires)
     ! Read the extrapolated ocean data netcdf file
@@ -3190,7 +3967,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_highres_ocean_data), INTENT(INOUT) :: hires
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_extrapolated_ocean_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( hires%netcdf%filename, hires%netcdf%ncid)
@@ -3205,6 +3991,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( hires%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_extrapolated_ocean_file
   
   ! Insolation solution (e.g. Laskar 2004)
@@ -3214,10 +4003,17 @@ CONTAINS
     ! Output variable
     TYPE(type_forcing_data), INTENT(INOUT) :: forcing
  
-    ! Local variables:  
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_insolation_file'
     INTEGER                                :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
             
     ! Open the netcdf file
     CALL open_netcdf_file(forcing%netcdf_ins%filename, forcing%netcdf_ins%ncid)
@@ -3236,6 +4032,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(forcing%netcdf_ins%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_insolation_file
   SUBROUTINE read_insolation_file_timeframes( forcing, ti0, ti1) 
     IMPLICIT NONE
@@ -3245,10 +4044,17 @@ CONTAINS
     INTEGER,                        INTENT(IN)    :: ti0, ti1
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_insolation_file_timeframes'
     INTEGER                                       :: mi, li
     REAL(dp), DIMENSION(:,:,:), ALLOCATABLE       :: Q_temp0, Q_temp1
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Temporary memory to store the data read from the netCDF file
     ALLOCATE( Q_temp0(1, 12, forcing%ins_nlat))
@@ -3271,6 +4077,9 @@ CONTAINS
     ! Clean up temporary memory
     DEALLOCATE(Q_temp0)
     DEALLOCATE(Q_temp1)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
    
   END SUBROUTINE read_insolation_file_timeframes
   SUBROUTINE read_insolation_file_time_lat( forcing) 
@@ -3279,7 +4088,16 @@ CONTAINS
     ! Output variable
     TYPE(type_forcing_data), INTENT(INOUT) :: forcing
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_insolation_file_time_lat'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file(forcing%netcdf_ins%filename, forcing%netcdf_ins%ncid)
@@ -3291,6 +4109,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(forcing%netcdf_ins%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_insolation_file_time_lat
   
   ! Geothermal heat flux
@@ -3300,7 +4121,16 @@ CONTAINS
     ! Output variable
     TYPE(type_forcing_data), INTENT(INOUT) :: forcing
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_geothermal_heat_flux_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Open the netcdf file
     CALL open_netcdf_file(forcing%netcdf_ghf%filename, forcing%netcdf_ghf%ncid)
@@ -3316,6 +4146,9 @@ CONTAINS
 
     ! Close the netcdf file
     CALL close_netcdf_file(forcing%netcdf_ghf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE inquire_geothermal_heat_flux_file
   SUBROUTINE read_geothermal_heat_flux_file( forcing)
@@ -3327,7 +4160,16 @@ CONTAINS
     ! In/output variables:
     TYPE(type_forcing_data),        INTENT(INOUT) :: forcing
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_geothermal_heat_flux_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Read data
     CALL open_netcdf_file(forcing%netcdf_ghf%filename, forcing%netcdf_ghf%ncid)
@@ -3338,6 +4180,9 @@ CONTAINS
 
     ! Convert from W m-2 (J m-2 s-1) to J m-2 yr-1
     forcing%ghf_ghf = forcing%ghf_ghf * sec_per_year
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_geothermal_heat_flux_file
 
@@ -3350,15 +4195,21 @@ CONTAINS
     TYPE(type_direct_climate_forcing_global), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_direct_global_climate_forcing_file'
     INTEGER                                :: lon,lat,t,m
     INTEGER                                :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'inquire_direct_global_climate_forcing_file - ERROR: should only be called when choice_climate_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_global"!')
     END IF
             
     ! Open the netcdf file
@@ -3388,6 +4239,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_direct_global_climate_forcing_file
   SUBROUTINE read_direct_global_climate_file_timeframes( clim, ti0, ti1)
   
@@ -3398,15 +4252,21 @@ CONTAINS
     INTEGER,                        INTENT(IN)    :: ti0, ti1
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_global_climate_file_timeframes'
     INTEGER                                       :: loni,lati,m
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: T2m_temp0, T2m_temp1, Precip_temp0, Precip_temp1
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_global_climate_file_timeframes - ERROR: should only be called when choice_climate_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_global"!')
     END IF
       
     ! Temporary memory to store the data read from the netCDF file
@@ -3444,6 +4304,9 @@ CONTAINS
     DEALLOCATE(    T2m_temp1)
     DEALLOCATE( Precip_temp0)
     DEALLOCATE( Precip_temp1)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
       
   END SUBROUTINE read_direct_global_climate_file_timeframes
   SUBROUTINE read_direct_global_climate_file_time_latlon( clim)
@@ -3453,12 +4316,20 @@ CONTAINS
     ! Output variable
     TYPE(type_direct_climate_forcing_global), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_global_climate_file_time_latlon'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_global_climate_file_time_latlon - ERROR: should only be called when choice_climate_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_global"!')
     END IF
     
     ! Open the netcdf file
@@ -3472,6 +4343,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_direct_global_climate_file_time_latlon
   
   ! Direct regional climate forcing
@@ -3483,15 +4357,21 @@ CONTAINS
     TYPE(type_direct_climate_forcing_regional), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_direct_regional_climate_forcing_file'
     INTEGER                                :: x,y,t,m
     INTEGER                                :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'inquire_direct_regional_climate_forcing_file - ERROR: should only be called when choice_climate_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_regional"!')
     END IF
             
     ! Open the netcdf file
@@ -3521,6 +4401,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_direct_regional_climate_forcing_file
   SUBROUTINE read_direct_regional_climate_file_timeframes( clim, ti0, ti1)
   
@@ -3531,15 +4414,21 @@ CONTAINS
     INTEGER,                        INTENT(IN)    :: ti0, ti1
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_regional_climate_file_timeframes'
     INTEGER                                       :: i,j,m
     REAL(dp), DIMENSION(:,:,:,:), ALLOCATABLE     :: T2m_temp0, T2m_temp1, Precip_temp0, Precip_temp1
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_regional_climate_file_timeframes - ERROR: should only be called when choice_climate_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_regional"!')
     END IF
       
     ! Temporary memory to store the data read from the netCDF file
@@ -3577,6 +4466,9 @@ CONTAINS
     DEALLOCATE(    T2m_temp1)
     DEALLOCATE( Precip_temp0)
     DEALLOCATE( Precip_temp1)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
       
   END SUBROUTINE read_direct_regional_climate_file_timeframes
   SUBROUTINE read_direct_regional_climate_file_time_xy( clim)
@@ -3586,12 +4478,20 @@ CONTAINS
     ! Output variable
     TYPE(type_direct_climate_forcing_regional), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_regional_climate_file_time_xy'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_climate_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_regional_climate_file_time_xy - ERROR: should only be called when choice_climate_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_climate_model = "direct_regional"!')
     END IF
     
     ! Open the netcdf file
@@ -3605,6 +4505,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_direct_regional_climate_file_time_xy
 
   ! Direct global SMB forcing
@@ -3616,14 +4519,20 @@ CONTAINS
     TYPE(type_direct_SMB_forcing_global), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_direct_global_SMB_forcing_file'
     INTEGER                                :: lon,lat,t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'inquire_direct_global_SMB_forcing_file - ERROR: should only be called when choice_SMB_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_global"!')
     END IF
             
     ! Open the netcdf file
@@ -3650,6 +4559,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_direct_global_SMB_forcing_file
   SUBROUTINE read_direct_global_SMB_file_timeframes( clim, ti0, ti1)
   
@@ -3660,15 +4572,21 @@ CONTAINS
     INTEGER,                        INTENT(IN)    :: ti0, ti1
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_global_SMB_file_timeframes'
     INTEGER                                       :: loni,lati
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE     :: T2m_temp0, T2m_temp1, SMB_temp0, SMB_temp1
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_global_SMB_file_timeframes - ERROR: should only be called when choice_SMB_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_global"!')
     END IF
       
     ! Temporary memory to store the data read from the netCDF file
@@ -3704,6 +4622,9 @@ CONTAINS
     DEALLOCATE( T2m_temp1)
     DEALLOCATE( SMB_temp0)
     DEALLOCATE( SMB_temp1)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
       
   END SUBROUTINE read_direct_global_SMB_file_timeframes
   SUBROUTINE read_direct_global_SMB_file_time_latlon( clim)
@@ -3713,12 +4634,20 @@ CONTAINS
     ! Output variable
     TYPE(type_direct_SMB_forcing_global), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_global_SMB_file_time_latlon'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_global') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_global_SMB_file_time_latlon - ERROR: should only be called when choice_SMB_model = "direct_global"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_global"!')
     END IF
     
     ! Open the netcdf file
@@ -3732,6 +4661,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_direct_global_SMB_file_time_latlon
   
   ! Direct regional SMB forcing
@@ -3743,14 +4675,20 @@ CONTAINS
     TYPE(type_direct_SMB_forcing_regional), INTENT(INOUT) :: clim
  
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_direct_regional_SMB_forcing_file'
     INTEGER                                :: x,y,t
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'inquire_direct_regional_SMB_forcing_file - ERROR: should only be called when choice_SMB_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_regional"!')
     END IF
             
     ! Open the netcdf file
@@ -3777,6 +4715,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_direct_regional_SMB_forcing_file
   SUBROUTINE read_direct_regional_SMB_file_timeframes( clim, ti0, ti1)
   
@@ -3787,15 +4728,21 @@ CONTAINS
     INTEGER,                        INTENT(IN)    :: ti0, ti1
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_regional_SMB_file_timeframes'
     INTEGER                                       :: i,j
     REAL(dp), DIMENSION(:,:,:  ), ALLOCATABLE     :: T2m_temp0, T2m_temp1, SMB_temp0, SMB_temp1
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'read_direct_regional_SMB_file_timeframes - ERROR: should only be called when choice_SMB_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_regional"!')
     END IF
       
     ! Temporary memory to store the data read from the netCDF file
@@ -3831,6 +4778,9 @@ CONTAINS
     DEALLOCATE( T2m_temp1)
     DEALLOCATE( SMB_temp0)
     DEALLOCATE( SMB_temp1)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
       
   END SUBROUTINE read_direct_regional_SMB_file_timeframes
   SUBROUTINE read_direct_regional_SMB_file_time_xy( clim)
@@ -3840,12 +4790,20 @@ CONTAINS
     ! Output variable
     TYPE(type_direct_SMB_forcing_regional), INTENT(INOUT) :: clim
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_direct_regional_SMB_file_time_xy'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Safety
     IF (.NOT. C%choice_SMB_model == 'direct_regional') THEN
-      IF (par%master) WRITE(0,*) 'type_direct_SMB_forcing_regional - ERROR: should only be called when choice_SMB_model = "direct_regional"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('should only be called when choice_SMB_model = "direct_regional"!')
     END IF
     
     ! Open the netcdf file
@@ -3859,6 +4817,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( clim%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_direct_regional_SMB_file_time_xy
   
   ! Global topography for SELEN
@@ -3870,9 +4831,16 @@ CONTAINS
     TYPE(type_SELEN_global),        INTENT(INOUT) :: SELEN
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_SELEN_global_topo_file'
     INTEGER                                       :: int_dummy
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( SELEN%netcdf_topo%filename, SELEN%netcdf_topo%ncid)
@@ -3898,6 +4866,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(SELEN%netcdf_topo%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_SELEN_global_topo_file
   SUBROUTINE read_SELEN_global_topo_file( SELEN)
     ! Read the init netcdf file
@@ -3907,7 +4878,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_SELEN_global),        INTENT(INOUT) :: SELEN
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_SELEN_global_topo_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file(SELEN%netcdf_topo%filename, SELEN%netcdf_topo%ncid)
@@ -3928,6 +4908,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file(SELEN%netcdf_topo%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_SELEN_global_topo_file
   
   ! Inverted basal roughness
@@ -3941,20 +4924,26 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_BIV_bed_roughness_file'
     TYPE(type_netcdf_BIV_bed_roughness)                :: netcdf
     LOGICAL                                            :: file_exists
     INTEGER                                            :: x, y
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
 
     ! Create a new file and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
     
-    netcdf%filename = TRIM(C%output_dir)//TRIM(C%BIVgeo_filename_output)
+    netcdf%filename = TRIM(C%output_dir) // TRIM(C%BIVgeo_filename_output)
     INQUIRE(EXIST=file_exists, FILE = TRIM( netcdf%filename))
     IF (file_exists) THEN
-      WRITE(0,*) '  create_restart_file - ERROR: ', TRIM( netcdf%filename), ' already exists!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('file "' // TRIM( netcdf%filename) // '" already exists!')
     END IF
     
     ! Create netcdf file
@@ -3980,8 +4969,7 @@ CONTAINS
     
     ! Bed roughness
     IF     (C%choice_sliding_law == 'no_sliding') THEN
-      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
       CALL create_double_var( netcdf%ncid, netcdf%name_var_beta_sq,  [x, y], netcdf%id_var_beta_sq,  long_name='Power-law friction coefficient', units='[Pa m^−1/3 yr^1/3]')
     ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
@@ -3996,8 +4984,7 @@ CONTAINS
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
       CALL create_double_var( netcdf%ncid, netcdf%name_var_phi_fric, [x, y], netcdf%id_var_phi_fric, long_name='Till friction angle', units='degrees')
     ELSE
-      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
 
     ! Leave definition mode:
@@ -4008,8 +4995,7 @@ CONTAINS
     CALL handle_error( nf90_put_var( netcdf%ncid, netcdf%id_var_y,        grid%y ))
     
     IF     (C%choice_sliding_law == 'no_sliding') THEN
-      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
       CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_beta_sq,  ice%beta_sq_a,  (/ 1,1 /) )
     ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
@@ -4024,8 +5010,7 @@ CONTAINS
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
       CALL write_data_to_file_dp_2D(  netcdf%ncid, grid%nx, grid%ny, netcdf%id_var_phi_fric, ice%phi_fric_a, (/ 1,1 /) )
     ELSE
-      IF (par%master) WRITE(0,*) 'create_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
         
     ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
@@ -4033,6 +5018,9 @@ CONTAINS
     
     ! Close the file
     CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE create_BIV_bed_roughness_file
   SUBROUTINE inquire_BIV_bed_roughness_file( BIV)
@@ -4043,7 +5031,16 @@ CONTAINS
     ! In/output variables:
     TYPE(type_BIV_bed_roughness),        INTENT(INOUT) :: BIV
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_BIV_bed_roughness_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( BIV%netcdf%filename, BIV%netcdf%ncid)
@@ -4057,7 +5054,7 @@ CONTAINS
     CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_y,       (/                        BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_y      )
     
     IF     (C%choice_sliding_law == 'no_sliding') THEN
-      IF (par%master) WRITE(0,*) 'inquire_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
+      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
       CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_beta_sq,  (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_beta_sq )
@@ -4073,12 +5070,14 @@ CONTAINS
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
       CALL inquire_double_var( BIV%netcdf%ncid, BIV%netcdf%name_var_phi_fric, (/ BIV%netcdf%id_dim_x, BIV%netcdf%id_dim_y /), BIV%netcdf%id_var_phi_fric)
     ELSE
-      IF (par%master) WRITE(0,*) 'inquire_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
         
     ! Close the netcdf file
     CALL close_netcdf_file( BIV%netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE inquire_BIV_bed_roughness_file
   SUBROUTINE read_BIV_bed_roughness_file(    BIV)
@@ -4089,7 +5088,16 @@ CONTAINS
     ! Input variables:
     TYPE(type_BIV_bed_roughness),        INTENT(INOUT) :: BIV
     
-    IF (.NOT. par%master) RETURN
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_BIV_bed_roughness_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( BIV%netcdf%filename, BIV%netcdf%ncid)
@@ -4099,8 +5107,7 @@ CONTAINS
     CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_y, BIV%y,  start = (/ 1 /) ))
     
     IF     (C%choice_sliding_law == 'no_sliding') THEN
-      IF (par%master) WRITE(0,*) 'read_BIV_bed_roughness_file - ERROR: not defined for choice_sliding_law = "no_sliding"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
       CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_beta_sq,  BIV%beta_sq,  start = (/ 1, 1 /) ))
     ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
@@ -4115,12 +5122,14 @@ CONTAINS
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
       CALL handle_error(nf90_get_var( BIV%netcdf%ncid, BIV%netcdf%id_var_phi_fric, BIV%phi_fric, start = (/ 1, 1 /) ))
     ELSE
-      IF (par%master) WRITE(0,*) 'read_BIV_bed_roughness_file - ERROR: unknown choice_sliding_law "', TRIM(C%choice_sliding_law), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
     END IF
         
     ! Close the netcdf file
     CALL close_netcdf_file( BIV%netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_BIV_bed_roughness_file
   
@@ -4134,10 +5143,17 @@ CONTAINS
     TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_BIV_target_velocity'
     INTEGER                                       :: i
     LOGICAL                                       :: is_Rignot2011
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
         
     ! Open the netcdf file
     CALL open_netcdf_file( BIV_target%netcdf%filename, BIV_target%netcdf%ncid)
@@ -4146,7 +5162,7 @@ CONTAINS
     CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_x, BIV_target%nx, BIV_target%netcdf%id_dim_x)
     CALL inquire_dim( BIV_target%netcdf%ncid, BIV_target%netcdf%name_dim_y, BIV_target%ny, BIV_target%netcdf%id_dim_y)
     
-    ! Exception for the Rignot et al. (2011) velocity file (downloadable from https://nsidc.org/data/NSIDC-0484/versions/2)
+    ! Exception for the Rignot et al. (2011) velocity file (downloadable from https: // nsidc.org/data/NSIDC-0484/versions/2)
     is_Rignot2011 = .FALSE.
     DO i = 1, 256-36
       IF (BIV_target%netcdf%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
@@ -4155,7 +5171,7 @@ CONTAINS
     END DO
     
     IF (is_Rignot2011) THEN
-      ! Exception for the Rignot et al. (2011) velocity file (downloadable from https://nsidc.org/data/NSIDC-0484/versions/2)
+      ! Exception for the Rignot et al. (2011) velocity file (downloadable from https: // nsidc.org/data/NSIDC-0484/versions/2)
 
       BIV_target%netcdf%name_var_u_surf = 'VX'
       BIV_target%netcdf%name_var_v_surf = 'VY'
@@ -4182,6 +5198,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( BIV_target%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE inquire_BIV_target_velocity
   SUBROUTINE read_BIV_target_velocity(    BIV_target)
     ! Read the target velocity NetCDF file
@@ -4192,13 +5211,20 @@ CONTAINS
     TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_BIV_target_velocity'
     INTEGER                                       :: i,j
     LOGICAL                                       :: is_Rignot2011
     REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: y_temp
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: u_temp, v_temp
     REAL(dp)                                      :: NaN
     
-    IF (.NOT. par%master) RETURN
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
     
     ! Open the netcdf file
     CALL open_netcdf_file( BIV_target%netcdf%filename, BIV_target%netcdf%ncid)
@@ -4258,6 +5284,9 @@ CONTAINS
     ! Close the netcdf file
     CALL close_netcdf_file( BIV_target%netcdf%ncid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_BIV_target_velocity
   
 ! Some general useful stuff
@@ -4276,8 +5305,12 @@ CONTAINS
     INTEGER,                    INTENT(IN)    :: nx, ny
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_data_to_file_int_2D'
     INTEGER                                   :: i,j
     REAL(dp), DIMENSION(nx,ny)                :: d_flip
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = 1, nx
     DO j = 1, ny
@@ -4286,6 +5319,9 @@ CONTAINS
     END DO
     
     CALL handle_error( nf90_put_var( ncid, var_id, d_flip, start=start_vec))
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE write_data_to_file_int_2D
   SUBROUTINE write_data_to_file_dp_2D(  ncid, nx, ny,     var_id, d, start_vec)
@@ -4300,8 +5336,12 @@ CONTAINS
     INTEGER,                    INTENT(IN)    :: nx, ny
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_data_to_file_dp_2D'
     INTEGER                                   :: i,j
     REAL(dp), DIMENSION(nx,ny)                :: d_flip
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = 1, nx
     DO j = 1, ny
@@ -4310,6 +5350,9 @@ CONTAINS
     END DO
     
     CALL handle_error( nf90_put_var( ncid, var_id, d_flip, start=start_vec))
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE write_data_to_file_dp_2D
   SUBROUTINE write_data_to_file_dp_3D(  ncid, nx, ny, nz, var_id, d, start_vec)
@@ -4324,8 +5367,12 @@ CONTAINS
     INTEGER,                       INTENT(IN)    :: nx, ny, nz
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'write_data_to_file_dp_3D'
     INTEGER                                      :: i,j,k
     REAL(dp), DIMENSION(nx,ny,nz)                :: d_flip
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = 1, nx
     DO j = 1, ny
@@ -4336,6 +5383,9 @@ CONTAINS
     END DO
     
     CALL handle_error( nf90_put_var( ncid, var_id, d_flip, start=start_vec))
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE write_data_to_file_dp_3D
 
@@ -4449,18 +5499,15 @@ CONTAINS
 
     CALL handle_error(nf90_inq_varid(ncid, var_name, id_var))
     CALL handle_error(nf90_inquire_variable(ncid, id_var, xtype=xtype,ndims=ndims,dimids=actual_id_dims))
-    IF(xtype /= nf90_int) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual type of variable "',var_name,'" is not nf90_int.'
-     STOP
+    IF (xtype /= nf90_int) THEN
+      CALL crash('Actual type of variable "' // TRIM( var_name) // '" is not nf90_int!')
     END IF
-    IF(ndims /= SIZE(id_dims)) THEN
-     WRITE(0,'(A,I5,3A,I5,A)') 'ERROR: Actual number of dimensions(', &
-            ndims,') of variable "',var_name,'": does not match required number of dimensions (',SIZE(id_dims),').'
-     STOP
+    IF (ndims /= SIZE( id_dims)) THEN
+      CALL crash('Actual number of dimensions = {int_01} of variable "' // TRIM( var_name) // '" does not match required number of dimensions = {int_02}', &
+        int_01 = ndims, int_02 = SIZE( id_dims))
     END IF
-    IF(ANY(actual_id_dims(1:ndims) /= id_dims)) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual dimensions of variable "',var_name,'" does not match required dimensions.'
-     STOP
+    IF (ANY( actual_id_dims( 1:ndims) /= id_dims)) THEN
+      CALL crash('Actual dimensions of variable "' // TRIM( var_name) // '" does not match required dimensions!')
     END IF
     
   END SUBROUTINE inquire_int_var
@@ -4483,18 +5530,15 @@ CONTAINS
 
     CALL handle_error(nf90_inq_varid(ncid, var_name, id_var))
     CALL handle_error(nf90_inquire_variable(ncid, id_var, xtype=xtype,ndims=ndims,dimids=actual_id_dims))
-    IF(xtype /= nf90_float) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual type of variable "',var_name,'" is not nf90_float.'
-     STOP
+    IF (xtype /= nf90_float) THEN
+      CALL crash('Actual type of variable "' // TRIM( var_name) // '" is not nf90_float!')
     END IF
-    IF(ndims /= SIZE(id_dims)) THEN
-     WRITE(0,'(A,I5,3A,I5,A)') 'ERROR: Actual number of dimensions(', &
-            ndims,') of variable "',var_name,'": does not match required number of dimensions (',SIZE(id_dims),').'
-     STOP
+    IF (ndims /= SIZE( id_dims)) THEN
+      CALL crash('Actual number of dimensions = {int_01} of variable "' // TRIM( var_name) // '" does not match required number of dimensions = {int_02}', &
+        int_01 = ndims, int_02 = SIZE( id_dims))
     END IF
-    IF(ANY(actual_id_dims(1:ndims) /= id_dims)) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual dimensions of variable "',var_name,'" does not match required dimensions.'
-     STOP
+    IF (ANY( actual_id_dims( 1:ndims) /= id_dims)) THEN
+      CALL crash('Actual dimensions of variable "' // TRIM( var_name) // '" does not match required dimensions!')
     END IF
     
   END SUBROUTINE inquire_single_var
@@ -4518,17 +5562,14 @@ CONTAINS
     CALL handle_error(nf90_inq_varid(ncid, var_name, id_var))
     CALL handle_error(nf90_inquire_variable(ncid, id_var, xtype=xtype,ndims=ndims,dimids=actual_id_dims))
     IF(xtype /= nf90_double) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual type of variable "',var_name,'" is not nf90_DOUBLE.'
-     STOP
+      CALL crash('Actual type of variable "' // TRIM( var_name) // '" is not nf90_double!')
     END IF
-    IF(ndims /= SIZE(id_dims)) THEN
-     WRITE(0,'(A,I5,3A,I5,A)') 'ERROR: Actual number of dimensions(', &
-            ndims,') of variable "',var_name,'": does not match required number of dimensions (',SIZE(id_dims),').'
-     STOP
+    IF (ndims /= SIZE( id_dims)) THEN
+      CALL crash('Actual number of dimensions = {int_01} of variable "' // TRIM( var_name) // '" does not match required number of dimensions = {int_02}', &
+        int_01 = ndims, int_02 = SIZE( id_dims))
     END IF
-    IF(ANY(actual_id_dims(1:ndims) /= id_dims)) THEN
-     WRITE(0,'(3A)') 'ERROR: Actual dimensions of variable "',var_name,'" does not match required dimensions.'
-     STOP
+    IF (ANY( actual_id_dims( 1:ndims) /= id_dims)) THEN
+      CALL crash('Actual dimensions of variable "' // TRIM( var_name) // '" does not match required dimensions!')
     END IF
     
   END SUBROUTINE inquire_double_var
@@ -4540,13 +5581,12 @@ CONTAINS
     INTEGER,                    INTENT(IN) :: stat
     CHARACTER(LEN=*), OPTIONAL, INTENT(IN) :: message
 
-    IF(stat /= nf90_noerr) THEN
-     IF(PRESENT(message)) THEN
-      WRITE(0,'(A,A,A,A)') 'ERROR: ', TRIM(nf90_strerror(stat)), ' concerning: ', message
-     ELSE
-      WRITE(0,'(A,A)')     'ERROR: ', TRIM(nf90_strerror(stat))
-     END IF
-     STOP
+    IF (stat /= nf90_noerr) THEN
+      IF (PRESENT( message)) THEN
+        CALL crash( message)
+      ELSE
+        CALL crash( 'netcdf error')
+      END IF
     END IF
     
   END SUBROUTINE handle_error
