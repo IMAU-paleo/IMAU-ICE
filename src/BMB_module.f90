@@ -2418,7 +2418,8 @@ CONTAINS
     INTEGER                                            :: n
     INTEGER                                            :: dpi,dpj,ip1,jp1,ip2,jp2
     REAL(dp)                                           :: dist
-    LOGICAL                                            :: reached_end
+    LOGICAL                                            :: reached_end, found_GL, found_IF
+    INTEGER                                            :: ii,jj,il,iu,jl,ju
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2436,6 +2437,8 @@ CONTAINS
     d_IF = d_GL
     
     ! Investigate all 16 search directions
+    found_GL = .FALSE.
+    found_IF = .FALSE.
     DO n = 1, 16
       
       ! The search direction vector
@@ -2452,7 +2455,7 @@ CONTAINS
       IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) CYCLE
       
       ! Search in this direction
-      reached_end  = .FALSE.
+      reached_end = .FALSE.
       
       DO WHILE (.NOT. reached_end)
         
@@ -2462,9 +2465,10 @@ CONTAINS
           EXIT
         END IF
         
-        ! If the pointer encounters open ocean, stop the search and update d_IF
+        ! If the pointer encounters grounded ice, stop the search and update d_GL
         IF (ice%mask_sheet_a( jp2,ip2) == 1) THEN
           reached_end  = .TRUE.
+          found_GL     = .TRUE.
           dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
           d_GL = MIN( d_GL, dist)
           EXIT
@@ -2473,6 +2477,7 @@ CONTAINS
         ! If the pointer encounters open ocean, stop the search and update d_IF
         IF (ice%mask_ocean_a( jp2,ip2) == 1 .AND. ice%mask_shelf_a( jp2,ip2) == 0) THEN
           reached_end  = .TRUE.
+          found_IF     = .TRUE.
           dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
           d_IF = MIN( d_IF, dist)
           EXIT
@@ -2487,6 +2492,121 @@ CONTAINS
       END DO ! DO WHILE (.NOT. reached_end)
       
     END DO ! DO n = 1, 16  
+    
+    ! If the 16-directions search didn't work, use a more expensive full outward search
+    IF (.NOT. found_GL) THEN
+      n = 0
+      DO WHILE (.NOT. found_GL)
+      
+        n = n+1
+        
+        ! South
+        jj = MAX( 1      , j-n)
+        il = MAX( 1      , i-n)
+        iu = MIN( grid%nx, i+n)
+        DO ii = il, iu
+          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+            found_GL = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_GL = MIN( d_GL, dist)
+          END IF
+        END DO
+        
+        ! North
+        jj = MIN( grid%ny, j+n)
+        il = MAX( 1      , i-n)
+        iu = MIN( grid%nx, i+n)
+        DO ii = il, iu
+          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+            found_GL = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_GL = MIN( d_GL, dist)
+          END IF
+        END DO
+        
+        ! West
+        ii = MAX( 1      , i-n)
+        jl = MAX( 1      , j-n)
+        ju = MIN( grid%ny, j+n)
+        DO jj = jl, ju
+          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+            found_GL = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_GL = MIN( d_GL, dist)
+          END IF
+        END DO
+        
+        ! East
+        ii = MIN( grid%nx, i+n)
+        jl = MAX( 1      , j-n)
+        ju = MIN( grid%ny, j+n)
+        DO jj = jl, ju
+          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+            found_GL = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_GL = MIN( d_GL, dist)
+          END IF
+        END DO
+        
+      END DO ! DO WHILE (.NOT. found_GL)
+    END IF ! IF (.NOT. found_GL) THEN
+    
+    IF (.NOT. found_IF) THEN
+      n = 0
+      DO WHILE (.NOT. found_IF)
+      
+        n = n+1
+        
+        ! South
+        jj = MAX( 1      , j-n)
+        il = MAX( 1      , i-n)
+        iu = MIN( grid%nx, i+n)
+        DO ii = il, iu
+          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
+            found_IF = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_IF = MIN( d_IF, dist)
+          END IF
+        END DO
+        
+        ! North
+        jj = MIN( grid%ny, j+n)
+        il = MAX( 1      , i-n)
+        iu = MIN( grid%nx, i+n)
+        DO ii = il, iu
+          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
+            found_IF = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_IF = MIN( d_IF, dist)
+          END IF
+        END DO
+        
+        ! West
+        ii = MAX( 1      , i-n)
+        jl = MAX( 1      , j-n)
+        ju = MIN( grid%ny, j+n)
+        DO jj = jl, ju
+          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
+            found_IF = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_IF = MIN( d_IF, dist)
+          END IF
+        END DO
+        
+        ! East
+        ii = MIN( grid%nx, i+n)
+        jl = MAX( 1      , j-n)
+        ju = MIN( grid%ny, j+n)
+        DO jj = jl, ju
+          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
+            found_IF = .TRUE.
+            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
+            d_IF = MIN( d_IF, dist)
+          END IF
+        END DO
+        
+      END DO ! DO WHILE (.NOT. found_IF)
+    END IF ! IF (.NOT. found_IF) THEN
     
     ! Reese et al. (2018), Eq. 10
     r = d_GL / (d_GL + d_IF)

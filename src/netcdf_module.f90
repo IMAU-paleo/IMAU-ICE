@@ -512,6 +512,10 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%ocean_matrix%applied%T_ocean_corr_ext,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%ocean_matrix%applied%S_ocean_corr_ext,  (/1, 1, 1, ti /))   
+    ELSEIF (field_name == 'PICO_boxes') THEN
+      CALL write_data_to_file_int_2D( ncid, nx, ny,     id_var,              region%BMB%PICO_k, (/ 1, 1,   ti /))
+      
+    
     ELSE
       CALL crash('unknown help field "' // TRIM(field_name) // '"!')
     END IF
@@ -1542,6 +1546,8 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'PICO_boxes') THEN
+      CALL create_int_var(    region%help_fields%ncid, 'PICO_boxes',               [x, y,    t], id_Var, long_name='PICO ocean boxes')
       
     ELSE
       CALL crash('unknown field name "' // TRIM(field_name) // '"!')
