@@ -13,11 +13,11 @@
   
   ! Basal roughness / friction
   choice_basal_roughness_config               = 'uniform'                        ! "uniform"", parameterised", "prescribed"
-  uniform_Weertman_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Weertman sliding law
+  uniform_Weertman_beta_sq_config             = 1.0E6                            ! Uniform value for beta_sq  in Weertman sliding law
   uniform_Coulomb_phi_fric_config             = 15.0                             ! Uniform value for phi_fric in (regularised) Coulomb sliding law
   uniform_Tsai2015_alpha_sq_config            = 0.2679                           ! Uniform value for alpha_sq in Tsai2015 sliding law
-  uniform_Tsai2015_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Tsai2015 sliding law
+  uniform_Tsai2015_beta_sq_config             = 1.0E6                            ! Uniform value for beta_sq  in Tsai2015 sliding law
   uniform_Schoof2005_alpha_sq_config          = 0.2679                           ! Uniform value for alpha_sq in Schoof2005 sliding law
-  uniform_Schoof2005_beta_sq_config           = 1.0E4                            ! Uniform value for beta_sq  in Schoof2005 sliding law
+  uniform_Schoof2005_beta_sq_config           = 1.0E6                            ! Uniform value for beta_sq  in Schoof2005 sliding law
   
 /

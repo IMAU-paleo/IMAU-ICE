@@ -1800,7 +1800,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    IF (par%master) WRITE(0,*) ' Initialising direct global climate forcing from ', TRIM( C%filename_direct_global_climate), '...'
+    IF (par%master) WRITE(0,*) '  Initialising direct global climate forcing from ', TRIM( C%filename_direct_global_climate), '...'
     
     ! Inquire into the direct global cliamte forcing netcdf file    
     CALL allocate_shared_int_0D( clim_glob%nyears, clim_glob%wnyears)
@@ -2097,7 +2097,7 @@ CONTAINS
       climate_matrix%direct%netcdf%filename = C%filename_direct_regional_climate_ANT
     END IF
     
-    IF (par%master) WRITE(0,*) ' Initialising direct regional climate forcing from ', TRIM( climate_matrix%direct%netcdf%filename), '...'
+    IF (par%master) WRITE(0,*) '  Initialising direct regional climate forcing from ', TRIM( climate_matrix%direct%netcdf%filename), '...'
     
     IF (par%master) CALL inquire_direct_regional_climate_forcing_file( climate_matrix%direct)
     CALL sync
@@ -2325,7 +2325,7 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
-    IF (par%master) WRITE(0,*) ' Initialising direct global SMB forcing from ', TRIM( C%filename_direct_global_SMB), '...'
+    IF (par%master) WRITE(0,*) '  Initialising direct global SMB forcing from ', TRIM( C%filename_direct_global_SMB), '...'
     
     ! Inquire into the direct global cliamte forcing netcdf file    
     CALL allocate_shared_int_0D( clim_glob%nyears, clim_glob%wnyears)
@@ -2595,7 +2595,7 @@ CONTAINS
       climate_matrix%SMB_direct%netcdf%filename = C%filename_direct_regional_SMB_ANT
     END IF
     
-    IF (par%master) WRITE(0,*) ' Initialising direct regional SMB forcing from ', TRIM( climate_matrix%SMB_direct%netcdf%filename), '...'
+    IF (par%master) WRITE(0,*) '  Initialising direct regional SMB forcing from ', TRIM( climate_matrix%SMB_direct%netcdf%filename), '...'
     
     IF (par%master) CALL inquire_direct_regional_SMB_forcing_file( climate_matrix%SMB_direct)
     CALL sync
