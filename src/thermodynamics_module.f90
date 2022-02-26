@@ -71,7 +71,7 @@ CONTAINS
     
     ! Prescribe a simple temperature profile to newly ice-covered grid cells.
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
+    DO j = 2, grid%ny-1
       
       IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ice_a_prev( j,i) == 0) THEN
         ! This grid cell is newly ice-covered
