@@ -29,3 +29,4 @@ calving_test*
 *.mat
 *.png
 BIVMIP/*
+MISMIP_mod/MISMIP_mod_*

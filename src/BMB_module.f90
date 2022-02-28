@@ -2311,7 +2311,7 @@ CONTAINS
         ! Reese et al. (2018), just before Eq. A6
         g1 = BMB%PICO_A( basin_i, 1) * C%BMB_PICO_GammaTstar
         g2 = g1 / (nu * lambda)
-        Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, 1) - Tk0
+        Tstar = aa * Sk0 + bb - cc * BMB%PICO_p( j,i) - Tk0
         
         ! Reese et al. (2018), just after Eq. A11
         s = Sk0 / (nu * lambda)
@@ -2358,8 +2358,7 @@ CONTAINS
           ! Reese et al. (2018), just before Eq. A6
           g1 = BMB%PICO_A( basin_i, k) * C%BMB_PICO_GammaTstar
           g2 = g1 / (nu * lambda)
-          !Tstar = aa * Sk0 + bb - cc * BMB%PICO_pk( basin_i, k-1) - BMB%PICO_Tk( basin_i, k-1)
-          Tstar = aa * BMB%PICO_Sk( basin_i, k-1) + bb - cc * BMB%PICO_pk( basin_i, k) - BMB%PICO_Tk( basin_i, k-1)
+          Tstar = aa * BMB%PICO_Sk( basin_i, k-1) + bb - cc * BMB%PICO_p( j,i) - BMB%PICO_Tk( basin_i, k-1)
           
           ! Reese et al. (2018), Eq. A13
           x = -g1 * Tstar / (q + g1 - g2 * aa * BMB%PICO_Sk( basin_i, k-1))

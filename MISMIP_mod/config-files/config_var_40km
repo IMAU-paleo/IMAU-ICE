@@ -1,0 +1,6 @@
+&CONFIG
+
+  fixed_output_dir_suffix_config              = '_40km'                          ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
+
+/
