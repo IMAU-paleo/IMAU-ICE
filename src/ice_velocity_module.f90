@@ -169,7 +169,7 @@ CONTAINS
     CALL determine_grounded_fractions( grid, ice)
     
     ! Find analytical solution for the SSA icestream experiment (used only to print numerical error to screen)
-    CALL SSA_Schoof2006_analytical_solution( 0.001_dp, 2000._dp, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
+    CALL SSA_Schoof2006_analytical_solution( C%SSA_icestream_tantheta, C%SSA_icestream_H, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
             
     ! Initially set error very high 
     ice%DIVA_err_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1E5_dp
@@ -640,7 +640,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_vertical_shear_strain_rates'
     INTEGER                                            :: i,j,k
     REAL(dp)                                           :: visc_eff_cx, visc_eff_cy
-    REAL(dp), PARAMETER                                :: visc_min = 1E3_dp
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -656,7 +655,6 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ 
             visc_eff_cx  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j,i+1), ice%Hi_a( j,i), ice%Hi_a( j,i+1))
-            visc_eff_cx  = MAX( visc_eff_cx, visc_min)    ! For safety 
             ice%du_dz_3D_cx( k,j,i) = (ice%taub_cx( j,i) / visc_eff_cx) * C%zeta( k)
           END DO
         END IF
@@ -670,7 +668,6 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ 
             visc_eff_cy  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j+1,i), ice%Hi_a( j,i), ice%Hi_a( j+1,i))
-            visc_eff_cy  = MAX( visc_eff_cy, visc_min)    ! For safety 
             ice%dv_dz_3D_cy( k,j,i) = (ice%taub_cy( j,i) / visc_eff_cy) * C%zeta( k)
           END DO
         END IF
@@ -704,7 +701,6 @@ CONTAINS
     INTEGER                                            :: i,j,k
     REAL(dp)                                           :: du_dz_a, dv_dz_a
     REAL(dp)                                           :: eps_sq, w
-    REAL(dp), PARAMETER                                :: epsilon_sq_0                     = 1E-15_dp   ! Normalisation term so that zero velocity gives non-zero viscosity
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  du_dx_a,  du_dy_a,  dv_dx_a,  dv_dy_a
     INTEGER                                            :: wdu_dx_a, wdu_dy_a, wdv_dx_a, wdv_dy_a
     
@@ -741,7 +737,7 @@ CONTAINS
 
       DO k = 1, C%nz
 
-        ! Un-stagger shear terms to central aa-nodes in horizontal
+        ! Calculate vertical shear terms on the a-grid
         IF     (i == 1) THEN
           du_dz_a = ice%du_dz_3D_cx( k,j,1)
         ELSEIF (i == grid%nx) THEN
@@ -763,17 +759,20 @@ CONTAINS
                  du_dx_a( j,i) * dv_dy_a( j,i) + &
                  0.25_dp * (du_dy_a( j,i) + dv_dx_a( j,i))**2 + &
                  0.25_dp * (du_dz_a**2 + dv_dz_a**2) + &
-                 epsilon_sq_0
+                 C%DIVA_epsilon_sq_0
         
-        ! Calculate effective viscosity on ab-nodes
+        ! Calculate effective viscosity
         ice%visc_eff_3D_a( k,j,i) = 0.5_dp * ice%A_flow_3D_a( k,j,i)**(-1._dp/C%n_flow) * (eps_sq)**((1._dp - C%n_flow)/(2._dp*C%n_flow))
+      
+        ! Safety
+        ice%visc_eff_3D_a( k,j,i) = MAX( ice%visc_eff_3D_a( k,j,i), C%DIVA_visc_eff_min)
 
       END DO ! DO k = 1, C%nz
       
       ! Vertical integral
       ice%visc_eff_int_a( j,i) = vertical_integrate( ice%visc_eff_3D_a( :,j,i))
       
-      ! Product term N = eta * H
+      ! Calculate the product term N = eta * H
       IF (C%choice_ice_margin == 'BC') THEN
         ice%N_a( j,i)  = ice%visc_eff_int_a( j,i) * ice%Hi_a( j,i)
       ELSEIF (C%choice_ice_margin == 'infinite_slab') THEN
@@ -902,7 +901,7 @@ CONTAINS
     ! Limit beta to improve stability
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%beta_a( j,i) = MIN( C%DIVA_beta_max, ice%beta_a( j,i))
+      ice%beta_a( j,i) = MIN( ice%beta_a( j,i), C%DIVA_beta_max)
     END DO
     END DO
     CALL sync
@@ -938,14 +937,13 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_F_integral'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: F_int_min
-    REAL(dp), PARAMETER                                :: visc_min = 1E5_dp
     
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Determine the minimum value of F_int, to assign when H_ice == 0,
     ! since F_int should be nonzero everywhere for numerics
-    F_int_min = vertical_integrate( (1._dp / visc_min) * C%zeta**n)
+    F_int_min = vertical_integrate( (1._dp / C%DIVA_visc_eff_min) * C%zeta**n)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny

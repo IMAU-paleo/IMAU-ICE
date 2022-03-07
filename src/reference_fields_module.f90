@@ -590,8 +590,8 @@ CONTAINS
       
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      refgeo%Hi( j,i) = 2000._dp
-      refgeo%Hb( j,i) = -0.001_dp * grid%x( i)
+      refgeo%Hi( j,i) = C%SSA_icestream_H
+      refgeo%Hb( j,i) = -C%SSA_icestream_tantheta * grid%x( i)
       refgeo%Hs( j,i) = refgeo%Hb( j,i) + refgeo%Hi( j,i)
     END DO
     END DO

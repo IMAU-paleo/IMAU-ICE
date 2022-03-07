@@ -2480,11 +2480,6 @@ CONTAINS
       CALL crash('choice_SMB_model should be "direct_regional"!')
     END IF
     
-    ! Check if data for model time is available
-    IF (time < clim_reg%time(1)) THEN
-      CALL crash('queried time out of range of direct transient SMB forcing!')
-    END IF
-    
     ! Find time indices to be read
     IF (par%master) THEN
     

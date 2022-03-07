@@ -137,6 +137,14 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Limit basal melt
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      BMB%BMB( j,i) = MAX( BMB%BMB( j,i), -C%BMB_max)
+    END DO
+    END DO
+    CALL sync
+    
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet')
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf')

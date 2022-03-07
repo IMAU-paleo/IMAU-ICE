@@ -1131,11 +1131,23 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
     
+    ! Determine the till yield stress
+    IF (C%choice_basal_roughness == 'parameterised' .AND. C%choice_param_basal_roughness == 'SSA_icestream') THEN
+      ! In this case, tauc has already been calculated
+    ELSE
+      ! Calculate the till yield stress from the till friction angle and the effective pressure
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ice%tauc_a( j,i) = TAN((pi / 180._dp) * ice%phi_fric_a( j,i)) * ice%Neff_a( j,i)
+      END DO
+      END DO
+      
+    END IF
+    
+    ! Calculate the basal friction coefficient
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    
-      ! Calculate the till yield stress from the till friction angle and the effective pressure
-      ice%tauc_a( j,i) = TAN((pi / 180._dp) * ice%phi_fric_a( j,i)) * ice%Neff_a( j,i)
       
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs_a = SQRT( C%slid_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)

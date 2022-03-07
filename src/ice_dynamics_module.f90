@@ -764,9 +764,10 @@ CONTAINS
       ! (since the solver converges very slowly for this one)
       DO i = grid%i1, MIN(grid%nx-1,grid%i2)
       DO j = 1, grid%ny
-        CALL SSA_Schoof2006_analytical_solution( 0.001_dp, 2000._dp, (3.7E8_dp ** (-C%n_flow)) * sec_per_year, grid%y(j), ice%u_vav_cx( j,i), tauc_analytical)
-        ice%u_vav_cx(  j,i) = ice%u_vav_cx( j,i) * (1._dp - 1E-7_dp)
+        CALL SSA_Schoof2006_analytical_solution( C%SSA_icestream_tantheta, C%SSA_icestream_H, C%SSA_icestream_A, grid%y(j), ice%u_vav_cx( j,i), tauc_analytical)
+        ice%u_vav_cx(  j,i) = ice%u_vav_cx( j,i) * 0.5_dp
         ice%u_base_cx( j,i) = ice%u_vav_cx( j,i)
+        ice%u_SSA_cx(  j,i) = ice%u_vav_cx( j,i)
       END DO
       END DO
       CALL sync

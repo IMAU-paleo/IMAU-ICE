@@ -71,13 +71,24 @@ MODULE configuration_module
   ! Benchmark experiments
   ! =====================
   
-  REAL(dp)            :: SSA_icestream_m_config                      = 1                                ! Values tested by Schoof are 1, 10, and 20
+  ! SSA_icestream (see Schoof 2006, and also Bueler and Brown 2009)
+  REAL(dp)            :: SSA_icestream_A_config                      = 1.0E-17_dp                       ! Glen's flow law factor (Pa yr^-1)
+  REAL(dp)            :: SSA_icestream_L_config                      = 100000._dp                       ! Ice-stream half-width (m)
+  REAL(dp)            :: SSA_icestream_m_config                      = 0.5_dp                           ! Determines the "smoothness" of the transition between the low-friction ice stream centre and the high-friction margin areas; low value (~0.5) = gradual, high value ( ~10) = sudden
+  REAL(dp)            :: SSA_icestream_tantheta_config               = 0.0003_dp                        ! Slope
+  REAL(dp)            :: SSA_icestream_H_config                      = 2000._dp                         ! Ice thickness (m)
+  
+  ! ISMIP-HOM (see Pattyn et al. 2008)
   REAL(dp)            :: ISMIP_HOM_L_config                          = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
   CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config          = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
+  
+  ! MISMIP+ (see Asay-Davis et al., 2016)
   LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config          = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
   REAL(dp)            :: MISMIPplus_xGL_target_config                = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config            = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   CHARACTER(LEN=256)  :: MISMIPplus_scenario_config                  = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
+  
+  ! MISOMIP1 (see Asay-Davis et al., 2016)
   CHARACTER(LEN=256)  :: MISOMIP1_scenario_config                    = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
@@ -243,7 +254,9 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
   REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! beta values     are limited to this value
+  REAL(dp)            :: DIVA_epsilon_sq_0_config                    = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
+  REAL(dp)            :: DIVA_visc_eff_min_config                    = 1E3_dp                           ! Minimum value for effective viscosity
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for basal friction coefficient
   REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -490,6 +503,7 @@ MODULE configuration_module
   REAL(dp)            :: BMB_sheet_uniform_config                    = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   LOGICAL             :: do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
+  REAL(dp)            :: BMB_max_config                              = 50._dp                           ! Maximum amount of allowed basal melt [mie/yr]
   
   CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config              = 'none'
@@ -717,19 +731,31 @@ MODULE configuration_module
     
     ! Benchmark experiments
     ! =====================
-    
+
+    ! SSA_icestream (see Schoof 2006, and also Bueler and Brown 2009)
+    REAL(dp)                            :: SSA_icestream_A
+    REAL(dp)                            :: SSA_icestream_L
     REAL(dp)                            :: SSA_icestream_m
+    REAL(dp)                            :: SSA_icestream_tantheta
+    REAL(dp)                            :: SSA_icestream_H
+
+    ! ISMIP-HOM (see Pattyn et al. 2008)
     REAL(dp)                            :: ISMIP_HOM_L
     CHARACTER(LEN=256)                  :: ISMIP_HOM_E_Arolla_filename
+
+    ! MISMIP+ (see Asay-Davis et al., 2016)
     LOGICAL                             :: MISMIPplus_do_tune_A_for_GL
     REAL(dp)                            :: MISMIPplus_xGL_target
     REAL(dp)                            :: MISMIPplus_A_flow_initial
     CHARACTER(LEN=256)                  :: MISMIPplus_scenario
+
+    ! MISOMIP1 (see Asay-Davis et al., 2016)
     CHARACTER(LEN=256)                  :: MISOMIP1_scenario
 
-    ! Whether or not to let IMAU_ICE dynamically create its own output folder
+    ! Whether or not to let IMAU_ICE dynamically create its own output folder.
+    ! This works fine locally, on LISA its better to use a fixed folder name.
     ! =======================================================================
-   
+
     LOGICAL                             :: create_procedural_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
@@ -870,6 +896,8 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_visc_it_norm_dUV_tol
     INTEGER                             :: DIVA_visc_it_nit
     REAL(dp)                            :: DIVA_visc_it_relax
+    REAL(dp)                            :: DIVA_epsilon_sq_0
+    REAL(dp)                            :: DIVA_visc_eff_min
     REAL(dp)                            :: DIVA_beta_max
     REAL(dp)                            :: DIVA_vel_max
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
@@ -1119,6 +1147,7 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     LOGICAL                             :: do_asynchronous_BMB
+    REAL(dp)                            :: BMB_max
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1578,7 +1607,11 @@ CONTAINS
                      do_EAS_config,                                   &
                      do_GRL_config,                                   &
                      do_ANT_config,                                   &
+                     SSA_icestream_A_config,                          &
+                     SSA_icestream_L_config,                          &
                      SSA_icestream_m_config,                          &
+                     SSA_icestream_tantheta_config,                   &
+                     SSA_icestream_H_config,                          &
                      ISMIP_HOM_L_config,                              &
                      ISMIP_HOM_E_Arolla_filename_config,              &
                      MISMIPplus_do_tune_A_for_GL_config,              &
@@ -1679,6 +1712,8 @@ CONTAINS
                      DIVA_visc_it_norm_dUV_tol_config,                &
                      DIVA_visc_it_nit_config,                         &
                      DIVA_visc_it_relax_config,                       &
+                     DIVA_epsilon_sq_0_config,                        &
+                     DIVA_visc_eff_min_config,                        &
                      DIVA_beta_max_config,                            &
                      DIVA_vel_max_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
@@ -1855,6 +1890,7 @@ CONTAINS
                      BMB_sheet_uniform_config,                        &
                      choice_BMB_subgrid_config,                       &
                      do_asynchronous_BMB_config,                      &
+                     BMB_max_config,                                  &
                      choice_basin_scheme_NAM_config,                  &
                      choice_basin_scheme_EAS_config,                  &
                      choice_basin_scheme_GRL_config,                  &
@@ -2055,14 +2091,25 @@ CONTAINS
     
     ! Benchmark experiments
     ! =====================
-    
+
+    ! SSA_icestream (see Schoof 2006, and also Bueler and Brown 2009)
+    C%SSA_icestream_A                          = SSA_icestream_A_config
+    C%SSA_icestream_L                          = SSA_icestream_L_config
     C%SSA_icestream_m                          = SSA_icestream_m_config
+    C%SSA_icestream_tantheta                   = SSA_icestream_tantheta_config
+    C%SSA_icestream_H                          = SSA_icestream_H_config
+
+    ! ISMIP-HOM (see Pattyn et al. 2008)
     C%ISMIP_HOM_L                              = ISMIP_HOM_L_config
     C%ISMIP_HOM_E_Arolla_filename              = ISMIP_HOM_E_Arolla_filename_config
+
+    ! MISMIP+ (see Asay-Davis et al., 2016)
     C%MISMIPplus_do_tune_A_for_GL              = MISMIPplus_do_tune_A_for_GL_config
     C%MISMIPplus_xGL_target                    = MISMIPplus_xGL_target_config
     C%MISMIPplus_A_flow_initial                = MISMIPplus_A_flow_initial_config
     C%MISMIPplus_scenario                      = MISMIPplus_scenario_config
+
+    ! MISOMIP1 (see Asay-Davis et al., 2016)
     C%MISOMIP1_scenario                        = MISOMIP1_scenario_config
     
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
@@ -2209,6 +2256,8 @@ CONTAINS
     C%DIVA_visc_it_norm_dUV_tol                = DIVA_visc_it_norm_dUV_tol_config
     C%DIVA_visc_it_nit                         = DIVA_visc_it_nit_config
     C%DIVA_visc_it_relax                       = DIVA_visc_it_relax_config
+    C%DIVA_epsilon_sq_0                        = DIVA_epsilon_sq_0_config
+    C%DIVA_visc_eff_min                        = DIVA_visc_eff_min_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
@@ -2456,6 +2505,7 @@ CONTAINS
     C%BMB_sheet_uniform                        = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                       = choice_BMB_subgrid_config
     C%do_asynchronous_BMB                      = do_asynchronous_BMB_config
+    C%BMB_max                                  = BMB_max_config
     
     C%choice_basin_scheme_NAM                  = choice_basin_scheme_NAM_config
     C%choice_basin_scheme_EAS                  = choice_basin_scheme_EAS_config

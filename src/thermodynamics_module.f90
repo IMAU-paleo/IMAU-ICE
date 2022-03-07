@@ -187,22 +187,34 @@ CONTAINS
     
     ! Find ocean temperature at the shelf base
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, T_ocean_at_shelf_base, wT_ocean_at_shelf_base)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
-        depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base( j,i))
-      ELSE
-        T_ocean_at_shelf_base( j,i) = 0._dp
-      END IF
+
+    IF (C%choice_ocean_model == 'none') THEN
+      ! No ocean data available; use constant PD value
       
-      ! NOTE: ocean data gives temperature in Celsius, thermodynamics wants Kelvin!
-      T_ocean_at_shelf_base( j,i) = T_ocean_at_shelf_base( j,i) + T0
+      T_ocean_at_shelf_base( :,grid%i1:grid%i2) = T0 + C%T_ocean_mean_PD_ANT
+      CALL sync
       
-    END DO
-    END DO
-    CALL sync
+    ELSE ! IF (C%choice_ocean_model == 'none') THEN
+      ! Calculate shelf base temperature from ocean data
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        IF (ice%mask_shelf_a( j,i) == 1) THEN
+          depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base( j,i))
+        ELSE
+          T_ocean_at_shelf_base( j,i) = 0._dp
+        END IF
+        
+        ! NOTE: ocean data gives temperature in Celsius, thermodynamics wants Kelvin!
+        T_ocean_at_shelf_base( j,i) = T_ocean_at_shelf_base( j,i) + T0
+        
+      END DO
+      END DO
+      CALL sync
+      
+    END IF ! IF (C%choice_ocean_model == 'none') THEN
     
     ! Solve the heat equation for all interior grid cells
     is_unstable( :,grid%i1:grid%i2) = 0
@@ -433,10 +445,21 @@ CONTAINS
       END IF
       
     ELSEIF( ice%mask_shelf_a( j,i) == 1) THEN
-    
       ! Use a linear profile between Ts and seawater temperature:
-      depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-      CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base)
+      
+      IF (C%choice_ocean_model == 'none') THEN
+        ! No ocean data available; use constant PD value
+        
+        T_ocean_at_shelf_base = T0 + C%T_ocean_mean_PD_ANT
+        
+      ELSE ! IF (C%choice_ocean_model == 'none') THEN
+        ! Calculate shelf base temperature from ocean data
+        
+        depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base)
+        
+      END IF
+    
       Ti( :,j,i) = Ts + C%zeta(:) * (T0 + T_ocean_at_shelf_base - Ts)
       
     ELSE

@@ -812,16 +812,15 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: tauc       ! Till yield stress
     
     ! Local variables:
-    REAL(dp)                                           :: m, B, f, W, ua, ub, uc, ud, ue
-    REAL(dp)                                           :: L = 40000._dp     ! Ice-stream width (m)
+    REAL(dp)                                           :: B, m, L, f, W, ua, ub, uc, ud, ue
     
+    ! Constants
+    B = A_flow**(-1._dp/C%n_flow)
     m = C%SSA_icestream_m
+    L = C%SSA_icestream_L
     
     ! Calculate the gravitational driving stress f
-    f = ice_density * grav * h0 * tantheta
-    
-    ! Calculate the ice hardness factor B
-    B = A_flow**(-1._dp/C%n_flow)
+    f = ice_density * grav * h0 * tantheta    
     
     ! Calculate the "ice stream half-width" W
     W = L * (m+1._dp)**(1._dp/m)
@@ -838,7 +837,7 @@ CONTAINS
     u = ua * (ub + uc + ud + ue)
     
     ! Outside the ice-stream, velocity is zero
-    IF (ABS(y) > w) U = 0._dp
+    IF (ABS(y) > w) u = 0._dp
     
   END SUBROUTINE SSA_Schoof2006_analytical_solution
   
