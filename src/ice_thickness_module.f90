@@ -846,7 +846,6 @@ CONTAINS
       END DO
       END DO
       CALL sync
-      RETURN
     END IF ! IF (C%do_remove_shelves) THEN
     
     ! If so specified, remove all floating ice beyond the present-day calving front
