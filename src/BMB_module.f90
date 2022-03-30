@@ -17,7 +17,6 @@ MODULE BMB_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              interpolate_ocean_depth, interp_bilin_2D
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
-
   IMPLICIT NONE
     
 CONTAINS
@@ -271,7 +270,7 @@ CONTAINS
       BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
       CALL sync
       
-    ELSEIF (C%MISMIPplus_scenario == 'ice1ra') THEN
+    ELSEIF (C%MISMIPplus_scenario == 'ice1r' .OR. C%MISMIPplus_scenario == 'ice1ra') THEN
       ! Increased melt for 100 yr, followed by zero melt for 100 yr
       
       IF (time < 0._dp) THEN
@@ -309,7 +308,7 @@ CONTAINS
         
       END IF ! IF (time < 0._dp) THEN
       
-    ELSEIF (C%MISMIPplus_scenario == 'ice1rr') THEN
+    ELSEIF (C%MISMIPplus_scenario == 'ice1r' .OR. C%MISMIPplus_scenario == 'ice1rr') THEN
       ! Increased melt forever
       
       IF (time < 0._dp) THEN
@@ -339,7 +338,7 @@ CONTAINS
         
       END IF ! IF (time < 0._dp) THEN
       
-    ELSEIF (C%MISMIPplus_scenario == 'ice2ra') THEN
+    ELSEIF (C%MISMIPplus_scenario == 'ice2r' .OR. C%MISMIPplus_scenario == 'ice2ra') THEN
       ! Increased "calving" for 100 yr, followed by zero "calving" for 100 yr
       
       IF (time < 0._dp) THEN
@@ -375,7 +374,7 @@ CONTAINS
         
       END IF ! IF (time < 0._dp) THEN
       
-    ELSEIF (C%MISMIPplus_scenario == 'ice2rr') THEN
+    ELSEIF (C%MISMIPplus_scenario == 'ice2r' .OR. C%MISMIPplus_scenario == 'ice2rr') THEN
       ! Increased "calving" forever
       
       IF (time < 0._dp) THEN
@@ -1612,10 +1611,105 @@ CONTAINS
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model_Lazeroms2018_plume'
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,basin_i
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  list_GL
+    INTEGER                                            :: wlist_GL
+    INTEGER,                    POINTER                ::  n_GL
+    INTEGER                                            :: wn_GL
     REAL(dp)                                           :: depth                               ! Ice-shelf base depth ("draft") [m]
     REAL(dp)                                           :: Ta                                  ! Ambient temperature at the ice-shelf base [degC]
     REAL(dp)                                           :: Sa                                  ! Ambient salinity    at the ice-shelf base [PSU]
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+      
+    ! Initialise
+    BMB%eff_plume_source_depth( :,grid%i1:grid%i2) = 0._dp
+    BMB%eff_basal_slope(        :,grid%i1:grid%i2) = 0._dp
+    BMB%BMB_shelf(              :,grid%i1:grid%i2) = 0._dp
+    CALL sync
+    
+    ! Calculate ocean temperature at the base of the shelf
+    CALL calc_ocean_temperature_at_shelf_base( grid, ice, ocean, BMB)
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%nx*grid%ny, 2, list_GL, wlist_GL)
+    CALL allocate_shared_int_0D(                     n_GL,     wn_GL    )
+    
+    ! The new look-for-plume-source approach needs to be run separately for each basin!
+    DO basin_i = 1, ice%nbasins
+      
+      ! List all grounding-line and ice-front grid cells
+      CALL list_GL_grid_cells_basin( grid, ice, ice%mask_sheet_a, ice%mask_shelf_a, basin_i, list_GL, n_GL)
+      
+      ! Determine the effective plume path to find the effective plume source depth and basal slope fo all shelf grid cells in this basin
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+          CALL find_effective_plume_path( grid, ice, BMB, list_GL, n_GL, i,j, BMB%eff_plume_source_depth( j,i), BMB%eff_basal_slope( j,i))
+        END IF
+      END DO
+      END DO
+      CALL sync
+      
+    END DO ! DO basin_i = 1, ice%nbasins
+      
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+        
+        ! Calculate the depth of the shelf base
+        depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+          
+        ! Find ambient temperature and salinity at the ice-shelf base
+        IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
+          ! Use the extrapolated ocean temperature+salinity fields
+        
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, Ta)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, Sa)
+          
+        ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
+          ! Use the results from the PICO ocean box model
+          
+          Ta = BMB%PICO_T( j,i)
+          Sa = BMB%PICO_S( j,i)
+          
+        ELSE
+          CALL crash('finding ambient temperature+salinity only defined for choice_BMB_shelf_model = "Lazeroms2018_plume" or "PICOP"!')
+        END IF
+        
+        ! Apply the plume model
+        CALL plume_model_Lazeroms2018( BMB%eff_plume_source_depth( j,i), depth, Ta, Sa, BMB%eff_basal_slope( j,i), BMB%BMB_shelf( j,i))
+        
+      END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wlist_GL)
+    CALL deallocate_shared( wn_GL    )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE run_BMB_model_Lazeroms2018_plume
+  SUBROUTINE plume_model_Lazeroms2018( plume_source_depth, depth, Ta, Sa, basal_slope, melt_rate)
+    ! Calculate basal melt using the quasi-2-D plume parameterisation by Lazeroms et al. (2018), following the equations in Appendix A
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    REAL(dp),                            INTENT(IN)    :: plume_source_depth    ! Water depth at the grounding-line plume source   [m]
+    REAL(dp),                            INTENT(IN)    :: depth                 ! Depth of the ice shelf base                      [m]
+    REAL(dp),                            INTENT(IN)    :: Ta                    ! Ambient temperature at the ice-shelf base        [degC]
+    REAL(dp),                            INTENT(IN)    :: Sa                    ! Ambient salinity    at the ice-shelf base        [PSU]
+    REAL(dp),                            INTENT(IN)    :: basal_slope           ! Basal slope                                      [m/m]
+    REAL(dp),                            INTENT(OUT)   :: melt_rate             ! Basal melt rate                                  [m/yr]
+    
+    ! Local variables:
     REAL(dp)                                           :: Tf_GL                               ! Freezing temperature at effective grounding-line plume source
     REAL(dp)                                           :: alpha                               ! Effective local angle ( = atan(slope))
     REAL(dp)                                           :: sinalpha                            ! sin( alpha) (appears so often that it's better to give it its own variable)
@@ -1638,84 +1732,40 @@ CONTAINS
     REAL(dp), PARAMETER                                :: gamma1          =  0.545_dp         ! Heat exchange parameter             [unitless]
     REAL(dp), PARAMETER                                :: gamma2          =  3.5E-5_dp        ! Heat exchange parameter             [m^-1]
     REAL(dp), PARAMETER                                :: x0              =  0.56_dp          ! Empirically derived dimensionless scaling factor
+        
+    ! Calculate alpha based on the effective basal slope
+    alpha    = ATAN( basal_slope)
+    sinalpha = SIN( alpha)
     
-    ! Add routine to path
-    CALL init_routine( routine_name)
+    ! Calculate freezing temperature at effective grounding-line plume source (Lazeroms et al., 2018, Eq. A7)
+    Tf_GL = lambda1 * Sa + lambda2 + lambda3 * plume_source_depth
     
-    ! Calculate ocean temperature at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base( grid, ice, ocean, BMB)
+    ! Calculate the effective heat exchange coefficient (Lazeroms et al., 2018, Eq. A8)
+    GammaTS = C%BMB_Lazeroms2018_GammaT * (gamma1 + gamma2 * ((Ta - Tf_GL) / lambda3) * ((E0 * sinalpha) / (sqrtCD_GammaTS0 + E0 * sinalpha)))
+    sqrtCd_GammaTS = SQRT( Cd) * GammaTS
     
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    ! Calculate the geometrical factor in the melt-rate expression (Lazeroms et al., 2018, Eq. A3)
+    g_alpha_term1 = SQRT(      sinalpha  / (Cd             + E0 * sinalpha))
+    g_alpha_term2 = SQRT( sqrtCd_GammaTS / (sqrtCd_GammaTS + E0 * sinalpha))
+    g_alpha_term3 =     ( E0 * sinalpha  / (sqrtCd_GammaTS + E0 * sinalpha))
+    g_alpha = g_alpha_term1 * g_alpha_term2 * g_alpha_term3
     
-      ! Initialise
-      BMB%eff_plume_source_depth( j,i) = 0._dp
-      BMB%eff_basal_slope(        j,i) = 0._dp
-      BMB%BMB_shelf(              j,i) = 0._dp
-      
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
-
-        ! Find ambient temperature and salinity at the ice-shelf base
-        IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
-          ! Use the extrapolated ocean temperature+salinity fields
-        
-          depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, Ta)
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, Sa)
-          
-        ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
-          ! Use the results from the PICO ocean box model
-          
-          Ta = BMB%PICO_T( j,i)
-          Sa = BMB%PICO_S( j,i)
-          
-        ELSE
-          CALL crash('finding ambient temperature+salinity only defined for choice_BMB_shelf_model = "Lazeroms2018_plume" or "PICOP"!')
-        END IF
-      
-        ! Determine the effective plume path to find the effective plume source depth and basal slope for this shelf grid cell
-        CALL find_effective_plume_path( grid, ice, BMB, i,j, BMB%eff_plume_source_depth( j,i), BMB%eff_basal_slope( j,i))
-        alpha = ATAN( BMB%eff_basal_slope( j,i))
-        sinalpha = SIN( alpha)
-        
-        ! Calculate freezing temperature at effective grounding-line plume source (Lazeroms et al., 2018, Eq. A7)
-        Tf_GL = lambda1 * Sa + lambda2 + lambda3 * BMB%eff_plume_source_depth( j,i)
-        
-        ! Calculate the effective heat exchange coefficient (Lazeroms et al., 2018, Eq. A8)
-        GammaTS = C%BMB_Lazeroms2018_GammaT * (gamma1 + gamma2 * ((Ta - Tf_GL) / lambda3) * ((E0 * sinalpha) / (sqrtCD_GammaTS0 + E0 * sinalpha)))
-        sqrtCd_GammaTS = SQRT( Cd) * GammaTS
-        
-        ! Calculate the geometrical factor in the melt-rate expression (Lazeroms et al., 2018, Eq. A3)
-        g_alpha_term1 = SQRT(      sinalpha  / (Cd             + E0 * sinalpha))
-        g_alpha_term2 = SQRT( sqrtCd_GammaTS / (sqrtCd_GammaTS + E0 * sinalpha))
-        g_alpha_term3 =     ( E0 * sinalpha  / (sqrtCd_GammaTS + E0 * sinalpha))
-        g_alpha = g_alpha_term1 * g_alpha_term2 * g_alpha_term3
-        
-        ! Calculate the empirically derived melt-rate scale (Lazeroms et al., 2018, Eq. A9)
-        M = M0 * g_alpha * (Ta - Tf_GL)**2
-        
-        ! Calculate the geometry- and temperature-dependent length scale (Lazeroms et al., 2018, Eq. A10)
-        l_geo = ((Ta - Tf_GL) / lambda3) * (x0 * sqrtCd_GammaTS + E0 * sinalpha) / (x0 * (sqrtCd_GammaTS + E0 * sinalpha))
-        
-        ! Calculate the dimensionless scaled distance along plume path (Lazeroms et al., 2018, Eq. A11),
-        !   and evaluate the dimensionless melt curve at that point
-        Xhat = MIN(1._dp, MAX(0._dp, (depth - BMB%eff_plume_source_depth( j,i)) / l_geo ))
-        Mhat = Lazeroms2018_dimensionless_melt_curve( Xhat)
-        
-        ! Finally, calculate the basal melt rate (Lazeroms et al., 2018, Eq. A12)
-        BMB%BMB_shelf( j,i) = -M * Mhat
-        
-      END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
-      
-    END DO
-    END DO
-    CALL sync
+    ! Calculate the empirically derived melt-rate scale (Lazeroms et al., 2018, Eq. A9)
+    M = M0 * g_alpha * (Ta - Tf_GL)**2
     
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    ! Calculate the geometry- and temperature-dependent length scale (Lazeroms et al., 2018, Eq. A10)
+    l_geo = ((Ta - Tf_GL) / lambda3) * (x0 * sqrtCd_GammaTS + E0 * sinalpha) / (x0 * (sqrtCd_GammaTS + E0 * sinalpha))
     
-  END SUBROUTINE run_BMB_model_Lazeroms2018_plume
-  SUBROUTINE find_effective_plume_path( grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Calculate the dimensionless scaled distance along plume path (Lazeroms et al., 2018, Eq. A11),
+    !   and evaluate the dimensionless melt curve at that point
+    Xhat = MIN(1._dp, MAX(0._dp, (depth - plume_source_depth) / l_geo ))
+    Mhat = Lazeroms2018_dimensionless_melt_curve( Xhat)
+    
+    ! Finally, calculate the basal melt rate (Lazeroms et al., 2018, Eq. A12)
+    melt_rate = -M * Mhat
+    
+  END SUBROUTINE plume_model_Lazeroms2018
+  SUBROUTINE find_effective_plume_path( grid, ice, BMB, stack_GL, n_GL, i,j, eff_plume_source_depth, eff_basal_slope)
     ! Find the effective plume source depth and basal slope for shelf grid cell [i,j]
     
     IMPLICIT NONE
@@ -1724,6 +1774,8 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: stack_GL
+    INTEGER,                             INTENT(IN)    :: n_GL
     INTEGER,                             INTENT(IN)    :: i,j
     REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
     REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
@@ -1735,9 +1787,11 @@ CONTAINS
     CALL init_routine( routine_name)
     
     IF     (C%BMB_Lazeroms2018_find_GL_scheme == 'GL_average') THEN
-      CALL find_effective_plume_path_GL_average(     grid, ice, BMB, i,j, eff_plume_source_depth, eff_basal_slope)
+      CALL find_effective_plume_path_GL_average(      grid, ice, BMB,            i,j, eff_plume_source_depth, eff_basal_slope)
     ELSEIF (C%BMB_Lazeroms2018_find_GL_scheme == 'along_ice_flow') THEN
-      CALL find_effective_plume_path_along_ice_flow( grid, ice,      i,j, eff_plume_source_depth, eff_basal_slope)
+      CALL find_effective_plume_path_along_ice_flow(  grid, ice,                 i,j, eff_plume_source_depth, eff_basal_slope)
+    ELSEIF (C%BMB_Lazeroms2018_find_GL_scheme == 'GL_average_Tijn') THEN
+      CALL find_effective_plume_path_GL_average_Tijn( grid, ice, stack_GL, n_GL, i,j, eff_plume_source_depth, eff_basal_slope)
     ELSE
       CALL crash('unknown BMB_Lazeroms2018_find_GL_scheme "' // TRIM(C%BMB_Lazeroms2018_find_GL_scheme) // '"!')
     END IF
@@ -2007,6 +2061,83 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE find_effective_plume_path_along_ice_flow
+  SUBROUTINE find_effective_plume_path_GL_average_Tijn( grid, ice, stack_GL, n_GL, i,j, eff_plume_source_depth, eff_basal_slope)
+    ! Find the effective plume source depth and basal slope for shelf grid cell [i,j]
+    ! 
+    ! New approach by Tijn Berends (March 2022): similar to the original approach by Lazeroms et al.,
+    ! but instead of averaging over GL points in only the 16 directions, which often leads to sharp discontinuities
+    ! in the resulting melt fields, just average over ALL (valid) grounding-line pixels.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: stack_GL
+    INTEGER,                             INTENT(IN)    :: n_GL
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: eff_plume_source_depth
+    REAL(dp),                            INTENT(OUT)   :: eff_basal_slope
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'find_effective_plume_path_GL_average_Tijn'
+    INTEGER                                            :: n,ii,jj
+    REAL(dp)                                           :: zb_shelf, plume_source_depth, dist, basal_slope, w
+    REAL(dp)                                           :: sum_plume_source_depths, sum_basal_slopes, sum_w
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Initialise
+    sum_plume_source_depths = 0._dp
+    sum_basal_slopes        = 0._dp
+    sum_w                   = 0._dp
+    
+    ! Calculate the shelf base depth (draft)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    
+    ! Average over all grounding-line cells
+    DO n = 1, n_GL
+      
+      ! The grounding-line grid cell
+      ii = stack_GL( n,1)
+      jj = stack_GL( n,2)
+      
+      ! Calculate the plume source depth and cavity slope
+      CALL calc_GL_depth( grid, ice, ii, jj, plume_source_depth)
+      !plume_source_depth = ice%Hb_a( jj,ii)
+      dist = MAX( grid%dx, SQRT( REAL( ii - i, dp)**2 + REAL( jj - j, dp)**2) * grid%dx)
+      basal_slope = (zb_shelf - plume_source_depth) / dist
+      
+      ! If this slope is negative, this plume is not valid
+      IF (basal_slope < 0._dp) CYCLE
+      
+      ! Weight factor based on inverse of square of distance and plume source depth
+      w = -plume_source_depth / dist**2
+      
+      ! Add to the sum
+      sum_w                   = sum_w                   + w
+      sum_plume_source_depths = sum_plume_source_depths + w * plume_source_depth
+      sum_basal_slopes        = sum_basal_slopes        + w * basal_slope
+      
+    END DO ! DO n = 1, 16
+    
+    ! Define the effective plume source depth and basal slope as the average
+    ! of those values for all valid plume paths
+    
+    IF (sum_w > 0._dp) THEN
+      eff_plume_source_depth = sum_plume_source_depths / sum_w
+      eff_basal_slope        = sum_basal_slopes        / sum_w
+    ELSE
+      ! Exception for when no valid plume sources were found
+      eff_plume_source_depth = zb_shelf
+      eff_basal_slope        = 1E-10_dp   ! Because the melt parameterisation yields NaN for a zero slope
+    END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE find_effective_plume_path_GL_average_Tijn
   FUNCTION Lazeroms2018_dimensionless_melt_curve( xhat) RESULT( Mhat)
     ! The dimensionless melt curve from Lazeroms et al. (2018), Appendix A, Eq. A13
     
@@ -2135,34 +2266,22 @@ CONTAINS
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'PICO_assign_ocean_boxes'
-    INTEGER                                            :: i,j,k
+    INTEGER                                            :: i,j,k,basin_i
     REAL(dp), DIMENSION(:    ), POINTER                ::  d_GL_D
     INTEGER                                            :: wd_GL_D
     REAL(dp)                                           :: d_max
-    INTEGER                                            :: basin_i
     INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: n_cells_per_box
     LOGICAL                                            :: do_reduce_n_D
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
-  ! Determine number of PICO boxes to be used for each basin
-  ! ========================================================
-    
-    CALL allocate_shared_dp_1D(  ice%nbasins, d_GL_D, wd_GL_D)
-    
-    ! Determine relative distance to grounding line for all shelf grid cells in the entire model domain
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      BMB%PICO_d_GL( j,i) = 0._dp
-      BMB%PICO_d_IF( j,i) = 0._dp
-      BMB%PICO_r(    j,i) = 0._dp
-      IF (ice%mask_shelf_a( j,i) == 1) CALL calc_dGL_dIF_r( grid, ice, BMB, i,j, BMB%PICO_d_GL( j,i), BMB%PICO_d_IF( j,i), BMB%PICO_r( j,i))
-    END DO
-    END DO
-    CALL sync
+    ! For each shelf grid cell, calculate the shortest linear distance to the grounding line d_GL,
+    ! and to the ice front d_IF, and the scaled flowline distance r (Reese et al. (2018), Eq. 10)
+    CALL PICO_calc_r( grid, ice, BMB%PICO_d_GL, BMB%PICO_d_IF, BMB%PICO_r)
     
     ! Calculate maximum distance to grounding line within each basin
+    CALL allocate_shared_dp_1D(  ice%nbasins, d_GL_D, wd_GL_D)
     DO basin_i = 1, ice%nbasins
       d_max = 0._dp
       DO i = grid%i1, grid%i2
@@ -2405,223 +2524,92 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_BMB_model_PICO_basin
-  SUBROUTINE calc_dGL_dIF_r( grid, ice, BMB, i,j, d_GL, d_IF, r)
-    ! For each shelf grid cell, calculate the distance to the grounding line dGL,
-    ! the distance to the ice front dIF, and the relative distance r (Reese et al. (2018), Eq. 10)
-    !
-    ! Determines d_GL and d_IF using the 16-directions search scheme.
+  SUBROUTINE PICO_calc_r( grid, ice, d_GL, d_IF, r)
+    ! For each shelf grid cell, calculate the shortest linear distance to the grounding line d_GL,
+    ! and to the ice front d_IF, and the scaled flowline distance r (Reese et al. (2018), Eq. 10)
     
     IMPLICIT NONE
     
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid 
     TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_BMB_model),                INTENT(IN)    :: BMB
-    INTEGER,                             INTENT(IN)    :: i,j
-    REAL(dp),                            INTENT(OUT)   :: d_GL, d_IF, r
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_GL, d_IF, r
     
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dGL_dIF_r'
-    INTEGER                                            :: n
-    INTEGER                                            :: dpi,dpj,ip1,jp1,ip2,jp2
-    REAL(dp)                                           :: dist
-    LOGICAL                                            :: reached_end, found_GL, found_IF
-    INTEGER                                            :: ii,jj,il,iu,jl,ju
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'PICO_calc_r'
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  mask_shelf
+    INTEGER                                            :: wmask_shelf
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  list_GL,  list_IF
+    INTEGER                                            :: wlist_GL, wlist_IF
+    INTEGER,                    POINTER                ::  n_GL,  n_IF
+    INTEGER                                            :: wn_GL, wn_IF
+    INTEGER                                            :: basin_i,i,j
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    ! Exception for when this grid cell isn't shelf
-    IF (ice%mask_shelf_a( j,i) == 0) THEN
-      d_GL = 0._dp
-      d_IF = 0._dp
-      r    = 0._dp
-      RETURN
-    END IF
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%ny, grid%nx,   mask_shelf, wmask_shelf)
+    CALL allocate_shared_int_2D( grid%nx*grid%ny, 2, list_GL   , wlist_GL   )
+    CALL allocate_shared_int_2D( grid%nx*grid%ny, 2, list_IF   , wlist_IF   )
+    CALL allocate_shared_int_0D(                     n_GL      , wn_GL      )
+    CALL allocate_shared_int_0D(                     n_IF      , wn_IF      )
     
-    ! Initialise
-    d_GL = REAL( MAX( grid%ny, grid%nx), dp) * grid%dx
-    d_IF = d_GL
+    ! Make temporary copy of the shelf mask
+    mask_shelf( :,grid%i1:grid%i2) = ice%mask_shelf_a( :,grid%i1:grid%i2)
     
-    ! Investigate all 16 search directions
-    found_GL = .FALSE.
-    found_IF = .FALSE.
-    DO n = 1, 16
-      
-      ! The search direction vector
-      dpi = BMB%search_directions( n,1)
-      dpj = BMB%search_directions( n,2)
-      
-      ! Initialise the search pointer at the shelf grid cell
-      ip1 = i
-      jp1 = j
-      ip2 = i + dpi
-      jp2 = j + dpj
-        
-      ! If the search direction already points out of the model domain, don't bother
-      IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) CYCLE
-      
-      ! Search in this direction
-      reached_end = .FALSE.
-      
-      DO WHILE (.NOT. reached_end)
-        
-        ! If the pointer exits the model domain, stop the search
-        IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) THEN
-          reached_end  = .TRUE.
-          EXIT
-        END IF
-        
-        ! If the pointer encounters grounded ice, stop the search and update d_GL
-        IF (ice%mask_sheet_a( jp2,ip2) == 1) THEN
-          reached_end  = .TRUE.
-          found_GL     = .TRUE.
-          dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
-          d_GL = MIN( d_GL, dist)
-          EXIT
-        END IF
-        
-        ! If the pointer encounters open ocean, stop the search and update d_IF
-        IF (ice%mask_ocean_a( jp2,ip2) == 1 .AND. ice%mask_shelf_a( jp2,ip2) == 0) THEN
-          reached_end  = .TRUE.
-          found_IF     = .TRUE.
-          dist = SQRT( REAL( ip2 - i,dp)**2 + REAL( jp2 - j,dp)**2) * grid%dx
-          d_IF = MIN( d_IF, dist)
-          EXIT
-        END IF
-        
-        ! If none of these exceptions were triggered, advance the pointer in the search direction
-        ip1 = ip2
-        jp1 = jp2
-        ip2 = ip1 + dpi
-        jp2 = jp1 + dpj
-        
-      END DO ! DO WHILE (.NOT. reached_end)
-      
-    END DO ! DO n = 1, 16  
+    ! Fill "holes" in the shelf mask (small open ocean pockets surrounded by shelf)
+    CALL fill_shelf_holes( grid, ice%mask_ocean_a, mask_shelf)
     
-    ! If the 16-directions search didn't work, use a more expensive full outward search
-    IF (.NOT. found_GL) THEN
-      n = 0
-      DO WHILE (.NOT. found_GL)
+    ! Treat every basin separately
+    DO basin_i = 1, ice%nbasins
       
-        n = n+1
-        
-        ! South
-        jj = MAX( 1      , j-n)
-        il = MAX( 1      , i-n)
-        iu = MIN( grid%nx, i+n)
-        DO ii = il, iu
-          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-            found_GL = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_GL = MIN( d_GL, dist)
-          END IF
-        END DO
-        
-        ! North
-        jj = MIN( grid%ny, j+n)
-        il = MAX( 1      , i-n)
-        iu = MIN( grid%nx, i+n)
-        DO ii = il, iu
-          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-            found_GL = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_GL = MIN( d_GL, dist)
-          END IF
-        END DO
-        
-        ! West
-        ii = MAX( 1      , i-n)
-        jl = MAX( 1      , j-n)
-        ju = MIN( grid%ny, j+n)
-        DO jj = jl, ju
-          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-            found_GL = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_GL = MIN( d_GL, dist)
-          END IF
-        END DO
-        
-        ! East
-        ii = MIN( grid%nx, i+n)
-        jl = MAX( 1      , j-n)
-        ju = MIN( grid%ny, j+n)
-        DO jj = jl, ju
-          IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-            found_GL = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_GL = MIN( d_GL, dist)
-          END IF
-        END DO
-        
-      END DO ! DO WHILE (.NOT. found_GL)
-    END IF ! IF (.NOT. found_GL) THEN
-    
-    IF (.NOT. found_IF) THEN
-      n = 0
-      DO WHILE (.NOT. found_IF)
+      ! List all grounding-line and ice-front grid cells
+      CALL list_GL_grid_cells_basin( grid, ice, ice%mask_sheet_a,     mask_shelf  , basin_i, list_GL, n_GL)
+      CALL list_IF_grid_cells_basin( grid, ice,     mask_shelf  , ice%mask_ocean_a, basin_i, list_IF, n_IF)
       
-        n = n+1
+      ! Calculate shortest linear distance to the grounding line and to
+      ! the ice front for all shelf grid cells within the specified basin
+      
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
         
-        ! South
-        jj = MAX( 1      , j-n)
-        il = MAX( 1      , i-n)
-        iu = MIN( grid%nx, i+n)
-        DO ii = il, iu
-          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
-            found_IF = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_IF = MIN( d_IF, dist)
-          END IF
-        END DO
-        
-        ! North
-        jj = MIN( grid%ny, j+n)
-        il = MAX( 1      , i-n)
-        iu = MIN( grid%nx, i+n)
-        DO ii = il, iu
-          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
-            found_IF = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_IF = MIN( d_IF, dist)
-          END IF
-        END DO
-        
-        ! West
-        ii = MAX( 1      , i-n)
-        jl = MAX( 1      , j-n)
-        ju = MIN( grid%ny, j+n)
-        DO jj = jl, ju
-          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
-            found_IF = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_IF = MIN( d_IF, dist)
-          END IF
-        END DO
-        
-        ! East
-        ii = MIN( grid%nx, i+n)
-        jl = MAX( 1      , j-n)
-        ju = MIN( grid%ny, j+n)
-        DO jj = jl, ju
-          IF (ice%mask_ocean_a( jj,ii) == 1 .AND. ice%mask_shelf_a( jj,ii) == 0) THEN
-            found_IF = .TRUE.
-            dist = SQRT( REAL( ii - i,dp)**2 + REAL( jj - j,dp)**2) * grid%dx
-            d_IF = MIN( d_IF, dist)
-          END IF
-        END DO
-        
-      END DO ! DO WHILE (.NOT. found_IF)
-    END IF ! IF (.NOT. found_IF) THEN
+        IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+          
+          ! Calculate shortest linear distance to the grounding line and the ice front
+          CALL calc_shortest_distance_to_GL( grid, list_GL, n_GL, i,j, d_GL( j,i))
+          CALL calc_shortest_distance_to_IF( grid, list_IF, n_IF, i,j, d_IF( j,i))
+          
+          ! Regularisation (to prevent divide-by-zero errors)
+          d_GL( j,i) = MAX( d_GL( j,i), grid%dx / 2._dp)
+          d_IF( j,i) = MAX( d_IF( j,i), grid%dx / 2._dp)
     
-    ! Reese et al. (2018), Eq. 10
-    r = d_GL / (d_GL + d_IF)
+          ! Calculate the scaled flowline distance r (Reese et al. (2018), Eq. 10)
+          r( j,i) = d_GL( j,i) / (d_GL( j,i) + d_IF( j,i))
+          
+        ELSEIF (ice%mask_shelf_a( j,i) == 0 .AND. ice%mask_ocean_a( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+          
+          r( j,i) = 1._dp
+          
+        END IF ! IF (ice%mask_shelf_a( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+        
+      END DO
+      END DO
+      CALL sync
+      
+    END DO ! DO basin_i = 1, ice%nbasins
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wmask_shelf)
+    CALL deallocate_shared( wlist_GL   )
+    CALL deallocate_shared( wlist_IF   )
+    CALL deallocate_shared( wn_GL      )
+    CALL deallocate_shared( wn_IF      )
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE calc_dGL_dIF_r
+  END SUBROUTINE PICO_calc_r
   SUBROUTINE PICO_calc_T0_S0( grid, ice, ocean, basin_i, Tk0, Sk0)
     ! Find temperature and salinity in box B0 (defined as mean ocean-floor value at the calving front)
     
@@ -2943,7 +2931,7 @@ CONTAINS
     IMPLICIT NONE
     
     ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     
@@ -3087,6 +3075,472 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE extrapolate_melt_from_FCMP_to_PMP
-  
+  SUBROUTINE fill_shelf_holes( grid, mask_ocean, mask_shelf)
+    ! Fill "holes" in masks (small open ocean pockets surrounded by shelf)
+    !
+    ! Only ocean that is connected via other open ocean pixels to the domain border
+    ! count as "true" open ocean
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_ocean
+    INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: mask_shelf
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'fill_shelf_holes'
+    INTEGER                                            :: i,j,ii,jj
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  map
+    INTEGER                                            :: wmap
+    INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: stack
+    INTEGER                                            :: stackN
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, map, wmap)
+    
+    ! Let the master do the work
+    IF (par%master) THEN
+      
+      ! Allocate memory for the stack
+      ALLOCATE( stack( grid%nx*grid%ny,2))
+      
+      ! Initialise the map and stack
+      map    = 0
+      stack  = 0
+      stackN = 0
+      
+      ! West
+      i = 1
+      DO j = 1, grid%ny
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      
+      ! East
+      i = grid%nx
+      DO j = 1, grid%ny
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      
+      ! South
+      j = 1
+      DO i = 1, grid%nx
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      
+      ! North
+      j = grid%ny
+      DO i = 1, grid%nx
+        stackN = stackN + 1
+        stack( stackN,:) = [i,j]
+        map( j,i) = 1
+      END DO
+      
+      ! Perform a flood fill
+      DO WHILE (stackN > 0)
+        
+        ! Take the last grid cell in the stack
+        i = stack( stackN,1)
+        j = stack( stackN,2)
+        map( j,i) = -1
+        stackN = stackN - 1
+        
+        IF (mask_ocean( j,i) == 1 .AND. mask_shelf( j,i) == 0) THEN
+          ! This grid cell is open ocean; mark it, and add its non-stacked neighbours to the stack
+          
+          map( j,i) = 2
+          DO ii = MAX( 1,i-1), MIN( grid%nx,i+1)
+          DO jj = MAX( 1,j-1), MIN( grid%ny,j+1)
+            IF (map( jj,ii) == 0) THEN
+              map( jj,ii) = 1
+              stackN = stackN + 1
+              stack( stackN,:) = [ii,jj]
+            END IF
+          END DO
+          END DO
+          
+        END IF
+        
+      END DO ! DO WHILE (stackN > 0)
+      
+      ! Clean up after yourself
+      DEALLOCATE( stack)
+      
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Remove ocean pockets
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      IF (mask_ocean( j,i) == 1 .AND. mask_shelf( j,i) == 0 .AND. map( j,i) == 0) THEN
+        ! This grid cell is technically ice-free, but since it has no connection to the
+        ! open ocean, let PICO pretend it's really shelf
+        mask_shelf( j,i) = 1
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+    ! Clean up after yourself
+    CALL deallocate_shared( wmap)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+    
+  END SUBROUTINE fill_shelf_holes
+  SUBROUTINE list_GL_grid_cells_basin( grid, ice, mask_sheet, mask_shelf, basin_i, list_GL, n_GL)
+    ! List the indices of all grounding-line grid cells within the specified basin
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_sheet
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_shelf
+    INTEGER,                             INTENT(IN)    :: basin_i
+    INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: list_GL
+    INTEGER,                             INTENT(INOUT) :: n_GL
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'list_GL_grid_cells_basin'
+    INTEGER                                            :: i,j,ii,jj
+    LOGICAL                                            :: is_GL
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (par%master) THEN
+    
+      ! Initialise
+      list_GL = 0
+      n_GL    = 0
+      
+      ! Find and list all grounding-line grid cells within the specified basin
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        
+        IF (mask_shelf( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+          
+          is_GL = .FALSE.
+          
+          DO ii = MAX( 1,i-1), MIN( grid%nx,i+1)
+          DO jj = MAX( 1,j-1), MIN( grid%ny,j+1)
+            IF (mask_sheet( jj,ii) == 1) THEN
+              ! This is a grounding-line grid cell
+              is_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_GL) EXIT
+          END DO
+          
+          IF (is_GL) THEN
+            n_GL = n_GL + 1
+            list_GL( n_GL,:) = [i,j]
+          END IF
+          
+        END IF ! IF (mask_shelf( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+        
+      END DO
+      END DO
+      
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE list_GL_grid_cells_basin
+  SUBROUTINE list_IF_grid_cells_basin( grid, ice, mask_shelf, mask_ocean, basin_i, list_IF, n_IF)
+    ! List the indices of all (floating) ice-front grid cells within the specified basin
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_shelf
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_ocean
+    INTEGER,                             INTENT(IN)    :: basin_i
+    INTEGER,  DIMENSION(:,:  ),          INTENT(INOUT) :: list_IF
+    INTEGER,                             INTENT(INOUT) :: n_IF
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'list_IF_grid_cells_basin'
+    INTEGER                                            :: i,j,ii,jj
+    LOGICAL                                            :: is_IF
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (par%master) THEN
+    
+      ! Initialise
+      list_IF = 0
+      n_IF    = 0
+      
+      ! Find and list all (floating) ice-front grid cells within the specified basin
+      DO i = 1, grid%nx
+      DO j = 1, grid%ny
+        
+        IF (mask_shelf( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+          
+          is_IF = .FALSE.
+          
+          DO ii = MAX( 1,i-1), MIN( grid%nx,i+1)
+          DO jj = MAX( 1,j-1), MIN( grid%ny,j+1)
+            IF (mask_shelf( jj,ii) == 0 .AND. mask_ocean( jj,ii) == 1) THEN
+              ! This is an ice-front grid cell
+              is_IF = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_IF) EXIT
+          END DO
+          
+          IF (is_IF) THEN
+            n_IF = n_IF + 1
+            list_IF( n_IF,:) = [i,j]
+          END IF
+          
+        END IF ! IF (mask_shelf( j,i) == 1 .AND. ice%basin_ID( j,i) == basin_i) THEN
+        
+      END DO
+      END DO
+      
+    END IF ! IF (par%master) THEN
+    CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE list_IF_grid_cells_basin
+  SUBROUTINE calc_shortest_distance_to_GL( grid, list_GL, n_GL, i,j, d_GL)
+    ! Calculate the shortest linear distance from grid cell i,j to the grounding line
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: list_GL
+    INTEGER,                             INTENT(IN)    :: n_GL
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: d_GL
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_shortest_distance_to_GL'
+    INTEGER                                            :: n,ii,jj
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Initialise
+    d_GL = REAL( MAX( grid%ny, grid%nx), dp) * grid%dx
+    
+    ! Find the shortest linear distance from grid cell i,j to the grounding line
+    DO n = 1, n_GL
+      ii = list_GL( n,1)
+      jj = list_GL( n,2)
+      d_GL = MIN( d_GL, SQRT( REAL( ii-i,dp)**2 + REAL( jj-j,dp)**2) * grid%dx)
+    END DO
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE calc_shortest_distance_to_GL
+  SUBROUTINE calc_shortest_distance_to_IF( grid, list_IF, n_IF, i,j, d_IF)
+    ! Calculate the shortest linear distance from grid cell i,j to the ice front
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: list_IF
+    INTEGER,                             INTENT(IN)    :: n_IF
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: d_IF
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_shortest_distance_to_IF'
+    INTEGER                                            :: n,ii,jj
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Initialise
+    d_IF = REAL( MAX( grid%ny, grid%nx), dp) * grid%dx
+    
+    ! Find the shortest linear distance from grid cell i,j to the ice front
+    DO n = 1, n_IF
+      ii = list_IF( n,1)
+      jj = list_IF( n,2)
+      d_IF = MIN( d_IF, SQRT( REAL( ii-i,dp)**2 + REAL( jj-j,dp)**2) * grid%dx)
+    END DO
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE calc_shortest_distance_to_IF
+  SUBROUTINE calc_GL_depth( grid, ice, i, j, Hb_GL)
+    ! Interpolate the water depth at the nearest exact GL position
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,                             INTENT(IN)    :: i,j
+    REAL(dp),                            INTENT(OUT)   :: Hb_GL
+    
+    ! Local variables:
+    REAL(dp)                                           :: Hb_GL_sum
+    REAL(dp)                                           :: w_sum
+    REAL(dp)                                           :: TAF1, TAF2, Hb1, Hb2, lambda_GL
+    
+    ! Safety
+    IF (ice%TAF_a( j,i) > 0._dp) THEN
+      CALL crash('only defined for shelf cells!')
+    END IF
+    
+    ! Initialise
+    Hb_GL_sum = 0._dp
+    w_sum     = 0._dp
+    
+    TAF1 = ice%TAF_a( j,i)
+    Hb1  = ice%Hb_a(  j,i)
+    
+    ! West
+    IF (i > 1) THEN
+      IF (ice%TAF_a( j,i-1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j,i-1)
+        Hb2  = ice%Hb_a(  j,i-1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! East
+    IF (i < grid%nx) THEN
+      IF (ice%TAF_a( j,i+1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j,i+1)
+        Hb2  = ice%Hb_a(  j,i+1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! South
+    IF (j > 1) THEN
+      IF (ice%TAF_a( j-1,i) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j-1,i)
+        Hb2  = ice%Hb_a(  j-1,i)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! North
+    IF (j < grid%ny) THEN
+      IF (ice%TAF_a( j+1,i) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j+1,i)
+        Hb2  = ice%Hb_a(  j+1,i)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! Southwest
+    IF (i > 1 .AND. j > 1) THEN
+      IF (ice%TAF_a( j-1,i-1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j-1,i-1)
+        Hb2  = ice%Hb_a(  j-1,i-1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! Southeast
+    IF (i < grid%nx .AND. j > 1) THEN
+      IF (ice%TAF_a( j-1,i+1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j-1,i+1)
+        Hb2  = ice%Hb_a(  j-1,i+1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! Northwest
+    IF (i > 1 .AND. j < grid%ny) THEN
+      IF (ice%TAF_a( j+1,i-1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j+1,i-1)
+        Hb2  = ice%Hb_a(  j+1,i-1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! Northeast
+    IF (i < grid%nx .AND. j < grid%ny) THEN
+      IF (ice%TAF_a( j+1,i+1) > 0._dp) THEN
+        
+        TAF2 = ice%TAF_a( j+1,i+1)
+        Hb2  = ice%Hb_a(  j+1,i+1)
+        
+        lambda_GL = TAF1 / (TAF1 - TAF2)
+        Hb_GL_sum = Hb_GL_sum + (1._dp - lambda_GL) * Hb1 + lambda_GL * Hb2
+        w_sum     = w_sum + 1._dp
+        
+      END IF
+    END IF
+    
+    ! Average
+    IF (w_sum > 0._dp) THEN
+      Hb_GL = Hb_GL_sum / w_sum
+    ELSE
+      CALL crash('whaa!')
+    END IF
+    
+  END SUBROUTINE calc_GL_depth
   
 END MODULE BMB_module

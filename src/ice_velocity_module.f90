@@ -150,6 +150,7 @@ CONTAINS
       ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
       ice%v_SSA_cy( :,grid%i1:              grid%i2 ) = 0._dp
       CALL sync
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
     
@@ -279,6 +280,7 @@ CONTAINS
       ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
       ice%v_vav_cy( :,grid%i1:              grid%i2 ) = 0._dp
       CALL sync
+      CALL finalise_routine( routine_name)
       RETURN
     END IF
     

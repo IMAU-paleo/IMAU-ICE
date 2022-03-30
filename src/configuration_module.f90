@@ -286,7 +286,7 @@ MODULE configuration_module
   REAL(dp)            :: dHi_PETSc_abstol_config                     = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
-  REAL(dp)            :: pc_epsilon_config                           = 3._dp                            ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+  REAL(dp)            :: pc_epsilon_config                           = 0.5_dp                           ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
   REAL(dp)            :: pc_k_I_config                               = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
   REAL(dp)            :: pc_k_p_config                               = 0.2_dp                           ! Exponent k_p in  Robinson et al., 2020, Eq. 33
   REAL(dp)            :: pc_eta_min_config                           = 1E-8_dp                          ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
@@ -532,7 +532,7 @@ MODULE configuration_module
   
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   REAL(dp)            :: BMB_Lazeroms2018_GammaT_config              = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
-  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config      = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
+  CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config      = 'GL_average_Tijn'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
   
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO

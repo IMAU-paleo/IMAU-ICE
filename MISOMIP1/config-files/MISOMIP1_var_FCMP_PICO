@@ -1,0 +1,9 @@
+&CONFIG
+  
+  fixed_output_dir_suffix_config              = '_FCMP_PICO'
+  choice_BMB_shelf_model_config               = 'PICO'
+  BMB_PICO_GammaTstar_config                  = 3.6131E-05
+  BMB_PICO_nboxes_config                      = 5
+  choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+
+/

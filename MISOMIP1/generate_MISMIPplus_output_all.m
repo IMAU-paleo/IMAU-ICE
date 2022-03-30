@@ -2,7 +2,7 @@ clc
 clear all
 close all
 
-ensemble_name = 'subgridmelt';
+ensemble_name = 'MISOMIP1';
 
 henk = dir;
 foldernames = {};

@@ -1,0 +1,8 @@
+&CONFIG
+  
+  fixed_output_dir_suffix_config              = '_FCMP_lin'
+  choice_BMB_shelf_model_config               = 'Favier2019_lin'                 ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+  BMB_Favier2019_lin_GammaT_config            = 3.3314E-05
+  choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+
+/

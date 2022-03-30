@@ -3,188 +3,220 @@
 cd ..
 ./compile_all.csh
 
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
 
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
 
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
 
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
 
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_2km_slid3_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid1_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid2_quad
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_Mplus
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICO
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_PICOP
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_lin
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_plume
-mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr   MISOMIP1/config-files/MISOMIP1_var_5km_slid3_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
 
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean0_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean1ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2rr_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_5km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Weertman     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Tsai2015     MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP
+
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_lin
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_quad
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_Mplus
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_plume
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   MISOMIP1/config-files/MISOMIP1_template_IceOcean2ra_2km_Schoof2005   MISOMIP1/config-files/MISOMIP1_var_FCMP_PICOP

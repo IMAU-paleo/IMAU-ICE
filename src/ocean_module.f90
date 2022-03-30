@@ -347,7 +347,8 @@ CONTAINS
       
       CALL run_ocean_model_idealised_MISMIPplus_COLD( grid, ocean)
       
-    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
+    ELSEIF (C%MISOMIP1_scenario == 'IceOcean1r' .OR. &
+            C%MISOMIP1_scenario == 'IceOcean1ra' .OR. &
             C%MISOMIP1_scenario == 'IceOcean2ra') THEN
       ! Cold ocean during spin-up; warm ocean for 100 years, then cold ocean again
       

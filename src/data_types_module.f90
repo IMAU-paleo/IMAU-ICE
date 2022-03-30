@@ -266,22 +266,16 @@ MODULE data_types_module
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
     REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_tau
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_fcb
     REAL(dp),                   POINTER     :: pc_eta
     REAL(dp),                   POINTER     :: pc_eta_prev
-    REAL(dp),                   POINTER     :: pc_beta1
-    REAL(dp),                   POINTER     :: pc_beta2
-    REAL(dp),                   POINTER     :: pc_beta3
-    REAL(dp),                   POINTER     :: pc_beta4
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_f1
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_f2
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_f3
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_f4
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hnm1_unm1
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hn_un
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hstarnp1_unp1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_old
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_pred
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_corr
-    INTEGER :: wpc_zeta, wpc_tau, wpc_fcb, wpc_eta, wpc_eta_prev, wpc_beta1, wpc_beta2, wpc_beta3, wpc_beta4
-    INTEGER :: wpc_f1, wpc_f2, wpc_f3, wpc_f4, wHi_old, wHi_pred, wHi_corr
+    INTEGER :: wpc_zeta, wpc_tau, wpc_eta, wpc_eta_prev
+    INTEGER :: wdHidt_Hnm1_unm1, wdHidt_Hn_un, wdHidt_Hstarnp1_unp1, wHi_old, wHi_pred, wHi_corr
     
     ! Thermodynamics
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_ice_a_prev        ! Ice mask from previous time step

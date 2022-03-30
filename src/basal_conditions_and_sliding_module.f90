@@ -267,7 +267,7 @@ CONTAINS
       ELSEIF (C%choice_param_basal_roughness == 'SSA_icestream') THEN
         ! The basal roughness parameterisation in the SSA_icestream idealised-geometry experiment
         CALL calc_bed_roughness_SSA_icestream( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'MISMIPplus') THEN
+      ELSEIF (C%choice_param_basal_roughness == 'MISMIP+') THEN
         ! The basal roughness parameterisation in the MISMIP+ idealised-geometry experiment
         CALL calc_bed_roughness_MISMIPplus( grid, ice)
       ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_A') THEN

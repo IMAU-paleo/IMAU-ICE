@@ -235,12 +235,9 @@ CONTAINS
       CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_adv)
       IF (par%master) THEN
         region%dt_crit_ice_prev = region%dt_crit_ice
-        region%ice%pc_eta_prev  = region%ice%pc_eta
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
         region%dt_crit_ice      = MAX(C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc]))
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
-        region%ice%pc_beta1     = 1._dp + region%ice%pc_zeta / 2._dp
-        region%ice%pc_beta2     =       - region%ice%pc_zeta / 2._dp
       END IF
       CALL sync
       
@@ -248,10 +245,12 @@ CONTAINS
       ! ==============
       
       ! Calculate new ice geometry
-      region%ice%pc_f2(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
-      region%ice%pc_f1(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a(     :,i1:i2) + region%dt_crit_ice * region%ice%dHi_dt_a( :,i1:i2))
+      region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      ! Robinson et al. (2020), Eq. 30)
+      region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
+        ((1._dp + region%ice%pc_zeta / 2._dp) * region%ice%dHidt_Hn_un( :,i1:i2) - (region%ice%pc_zeta / 2._dp) * region%ice%dHidt_Hnm1_unm1( :,i1:i2)))
       CALL sync
       
       ! Update step
@@ -311,29 +310,35 @@ CONTAINS
     
       ! Corrector step
       ! ==============
+      
+      ! Calculate dHi_dt for the predicted ice thickness and updated velocity
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
     
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
       ! and only go to new (corrected) ice thickness at the end of this time loop.
       region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(   :,i1:i2)
       CALL update_general_ice_model_data( region%grid, region%ice)
       
-      ! Calculate "corrected" ice thickness based on new velocities
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
-      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
-      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2)))
+      ! Calculate "corrected" ice thickness (Robinson et al. (2020), Eq. 31)
+      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt_crit_ice * &
+        (region%ice%dHidt_Hn_un( :,i1:i2) + region%ice%dHidt_Hstarnp1_unp1( :,i1:i2)))
       CALL sync
   
       ! Determine truncation error
-      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
+      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice)
     
     END IF ! IF (do_update_ice_velocity) THEN
+    
+    ! Calculate ice thickness at the end of this model loop
+    region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_corr( :,i1:i2)
+    region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_tplusdt_a( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
       
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
     CALL determine_timesteps_and_actions( region, t_end)
     
-    ! Calculate ice thickness at the end of this model loop
-    region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_corr( :,i1:i2)
+    ! Adjust ice thickness at the end of the model time loop
+    region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
@@ -515,7 +520,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
         
   END SUBROUTINE calc_critical_timestep_adv
-  SUBROUTINE calc_pc_truncation_error( grid, ice, dt, dt_prev)
+  SUBROUTINE calc_pc_truncation_error( grid, ice, dt)
     ! Calculate the truncation error in the ice thickness rate of change (Robinson et al., 2020, Eq. 32)
     
     IMPLICIT NONE
@@ -523,18 +528,18 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    REAL(dp),                            INTENT(IN)    :: dt, dt_prev
+    REAL(dp),                            INTENT(IN)    :: dt
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pc_truncation_error'
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: zeta, eta_proc
+    REAL(dp)                                           :: eta_proc
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    ! Ratio of time steps
-    zeta = dt / dt_prev
+    ! Save previous value of eta
+    ice%pc_eta_prev  = ice%pc_eta
         
     ! Find maximum truncation error
     eta_proc = C%pc_eta_min
@@ -543,7 +548,7 @@ CONTAINS
     DO j = 2, grid%ny-1
     
       ! Calculate truncation error (Robinson et al., 2020, Eq. 32)
-      ice%pc_tau( j,i) = ABS( zeta * (ice%Hi_corr( j,i) - ice%Hi_pred( j,i)) / ((3._dp * zeta + 3._dp) * dt))
+      ice%pc_tau( j,i) = ABS( ice%pc_zeta * (ice%Hi_corr( j,i) - ice%Hi_pred( j,i)) / ((3._dp * ice%pc_zeta + 3._dp) * dt))
     
 !      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
       IF (ice%mask_sheet_a( j,i) == 1 .AND. &
@@ -752,10 +757,6 @@ CONTAINS
       ice%pc_zeta        = 1._dp
       ice%pc_eta         = C%pc_epsilon
       ice%pc_eta_prev    = C%pc_epsilon
-      ice%pc_beta1       =  1.5_dp
-      ice%pc_beta2       = -0.5_dp
-      ice%pc_beta3       =  0.5_dp
-      ice%pc_beta4       =  0.5_dp
     END IF
     CALL sync
     
@@ -968,17 +969,11 @@ CONTAINS
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_tau               , ice%wpc_tau               )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_fcb               , ice%wpc_fcb               )
     CALL allocate_shared_dp_0D(                              ice%pc_eta               , ice%wpc_eta               )
     CALL allocate_shared_dp_0D(                              ice%pc_eta_prev          , ice%wpc_eta_prev          )
-    CALL allocate_shared_dp_0D(                              ice%pc_beta1             , ice%wpc_beta1             )
-    CALL allocate_shared_dp_0D(                              ice%pc_beta2             , ice%wpc_beta2             )
-    CALL allocate_shared_dp_0D(                              ice%pc_beta3             , ice%wpc_beta3             )
-    CALL allocate_shared_dp_0D(                              ice%pc_beta4             , ice%wpc_beta4             )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_f1                , ice%wpc_f1                )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_f2                , ice%wpc_f2                )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_f3                , ice%wpc_f3                )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_f4                , ice%wpc_f4                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hnm1_unm1      , ice%wdHidt_Hnm1_unm1      )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hn_un          , ice%wdHidt_Hn_un          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hstarnp1_unp1  , ice%wdHidt_Hstarnp1_unp1  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_old               , ice%wHi_old               )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_pred              , ice%wHi_pred              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_corr              , ice%wHi_corr              )

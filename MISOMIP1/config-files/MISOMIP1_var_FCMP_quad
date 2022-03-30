@@ -1,0 +1,8 @@
+&CONFIG
+  
+  fixed_output_dir_suffix_config              = '_FCMP_quad'
+  choice_BMB_shelf_model_config               = 'Favier2019_quad'
+  BMB_Favier2019_quad_GammaT_config           = 55E-5
+  choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+
+/
