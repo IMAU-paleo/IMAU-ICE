@@ -236,7 +236,7 @@ CONTAINS
       IF (par%master) THEN
         region%dt_crit_ice_prev = region%dt_crit_ice
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
-        region%dt_crit_ice      = MAX(C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc]))
+        region%dt_crit_ice      = MAX( C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc]))
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
       END IF
       CALL sync
@@ -323,21 +323,19 @@ CONTAINS
       ! Calculate "corrected" ice thickness (Robinson et al. (2020), Eq. 31)
       region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt_crit_ice * &
         (region%ice%dHidt_Hn_un( :,i1:i2) + region%ice%dHidt_Hstarnp1_unp1( :,i1:i2)))
-      CALL sync
+    
+      ! Calculate applied ice thickness rate of change
+      region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_corr( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
   
       ! Determine truncation error
       CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice)
     
     END IF ! IF (do_update_ice_velocity) THEN
-    
-    ! Calculate ice thickness at the end of this model loop
-    region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_corr( :,i1:i2)
-    region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_tplusdt_a( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
       
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
     CALL determine_timesteps_and_actions( region, t_end)
     
-    ! Adjust ice thickness at the end of the model time loop
+    ! Calculate ice thickness at the end of the model time loop
     region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
@@ -673,12 +671,12 @@ CONTAINS
       
       region%do_BIV     = .FALSE.
       IF (C%do_BIVgeo) THEN
-          IF (region%time == region%t_next_BIV) THEN
-            region%do_BIV         = .TRUE.
-            region%t_last_BIV     = region%time
-            region%t_next_BIV     = region%t_last_BIV + C%BIVgeo_dt
-          END IF
-          t_next = MIN( t_next, region%t_next_BIV)
+        IF (region%time == region%t_next_BIV) THEN
+          region%do_BIV         = .TRUE.
+          region%t_last_BIV     = region%time
+          region%t_next_BIV     = region%t_last_BIV + C%BIVgeo_dt
+        END IF
+        t_next = MIN( t_next, region%t_next_BIV)
       END IF ! IF (C%do_BIVgeo) THEN
       
       region%do_output  = .FALSE.

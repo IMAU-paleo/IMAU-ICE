@@ -339,7 +339,7 @@ MODULE configuration_module
   
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
-  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
+  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
   REAL(dp)            :: BIVgeo_dt_config                            = 5._dp                            ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
@@ -349,7 +349,12 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_CISMplus_tauc_config                 = 500._dp                          ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_CISMplus_H0_config                   = 100._dp                          ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  CHARACTER(LEN=256)  :: BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_Berends2022_tauc_config              = 500._dp                          ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_Berends2022_H0_config                = 100._dp                          ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Berends2022_u0_config                = 10._dp                           ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 3000._dp                         ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 300._dp                          ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving
@@ -991,9 +996,14 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_CISMplus_tauc
     REAL(dp)                            :: BIVgeo_CISMplus_H0
     REAL(dp)                            :: BIVgeo_CISMplus_u0
-    CHARACTER(LEN=256)                  :: BIVgeo_CISMplus_target_filename
+    REAL(dp)                            :: BIVgeo_Berends2022_tauc
+    REAL(dp)                            :: BIVgeo_Berends2022_H0
+    REAL(dp)                            :: BIVgeo_Berends2022_u0
+    REAL(dp)                            :: BIVgeo_Berends2022_Hi_scale
+    REAL(dp)                            :: BIVgeo_Berends2022_u_scale
+    CHARACTER(LEN=256)                  :: BIVgeo_target_velocity_filename
     CHARACTER(LEN=256)                  :: BIVgeo_filename_output
-
+    
     ! Ice dynamics - calving
     ! ======================
     
@@ -1788,7 +1798,12 @@ CONTAINS
                      BIVgeo_CISMplus_tauc_config,                     &
                      BIVgeo_CISMplus_H0_config,                       &
                      BIVgeo_CISMplus_u0_config,                       &
-                     BIVgeo_CISMplus_target_filename_config,          &
+                     BIVgeo_Berends2022_tauc_config,                  &
+                     BIVgeo_Berends2022_H0_config,                    &
+                     BIVgeo_Berends2022_u0_config,                    &
+                     BIVgeo_Berends2022_Hi_scale_config,              &
+                     BIVgeo_Berends2022_u_scale_config,               &
+                     BIVgeo_target_velocity_filename_config,          &
                      BIVgeo_filename_output_config,                   &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
@@ -2351,7 +2366,12 @@ CONTAINS
     C%BIVgeo_CISMplus_tauc                     = BIVgeo_CISMplus_tauc_config
     C%BIVgeo_CISMplus_H0                       = BIVgeo_CISMplus_H0_config
     C%BIVgeo_CISMplus_u0                       = BIVgeo_CISMplus_u0_config
-    C%BIVgeo_CISMplus_target_filename          = BIVgeo_CISMplus_target_filename_config
+    C%BIVgeo_Berends2022_tauc                  = BIVgeo_Berends2022_tauc_config
+    C%BIVgeo_Berends2022_H0                    = BIVgeo_Berends2022_H0_config
+    C%BIVgeo_Berends2022_u0                    = BIVgeo_Berends2022_u0_config
+    C%BIVgeo_Berends2022_Hi_scale              = BIVgeo_Berends2022_Hi_scale_config
+    C%BIVgeo_Berends2022_u_scale               = BIVgeo_Berends2022_u_scale_config
+    C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
     C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
   
     ! Ice dynamics - calving

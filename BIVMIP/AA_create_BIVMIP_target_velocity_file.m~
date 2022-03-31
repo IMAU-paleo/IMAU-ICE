@@ -1,0 +1,32 @@
+clc
+clear all
+close all
+
+filename_src = 'BIVMIP_A_perfect_40km/help_fields_ANT.nc';
+filename_dst = 'BIVMIP_A_perfect_40km/BIV_target_velocity.nc';
+
+%% Create NetCDF template
+f = ncinfo( filename_src);
+
+f.Dimensions = f.Dimensions(1:2);
+
+for vi = 1:length(f.Variables)
+  if     strcmpi(f.Variables(vi).Name,'u_surf')
+    var_u = f.Variables(vi);
+  elseif strcmpi(f.Variables(vi).Name,'v_surf')
+    var_v = f.Variables(vi);
+  end
+end
+
+var_u.Dimensions = f.Dimensions;
+var_v.Dimensions = f.Dimensions;
+var_u.Size = [f.Dimensions(1).Length, f.Dimensions(2).Length];
+var_v.Size = [f.Dimensions(1).Length, f.Dimensions(2).Length];
+
+f.Variables = f.Variables(1:2);
+f.Variables(end+1) = var_u;
+f.Variables(end+1) = var_v;
+
+%% Create file
+if exist(filename_dst,'file')
+  delete(fi
