@@ -1,0 +1,7 @@
+&CONFIG
+
+  fixed_output_dir_suffix_config              = '_32km'                          ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  dx_ANT_config                               = 32000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  filename_refgeo_init_ANT_config             = '/home/berends/IMAU-ICE/ABUMIP/ABUMIP_spinup_32km/restart_ANT.nc'
+
+/
