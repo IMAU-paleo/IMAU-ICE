@@ -4,8 +4,8 @@ close all
 
 foldername = 'BIVMIP_A_perfect_10km';
 
-cmap_phi = parula(16);
-clim_phi = [0,7];
+cmap_phi = parula(256);
+clim_phi = [0,6];
 
 filename_restart     = [foldername '/restart_ANT.nc'];
 filename_help_fields = [foldername '/help_fields_ANT.nc'];

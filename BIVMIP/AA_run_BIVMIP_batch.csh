@@ -30,8 +30,8 @@ rm -rf BIVMIP/BIVMIP_A_inv*
 #mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_perfect_10km
 
 # Perfect inversions
-#rm -rf BIVMIP/BIVMIP_B_inv*
-#mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_inv_40km_perfect
+rm -rf BIVMIP/BIVMIP_B_inv*
+mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_inv_40km_perfect
 mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_inv_20km_perfect
-mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_inv_10km_perfect
+#mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_B_inv_10km_perfect
 

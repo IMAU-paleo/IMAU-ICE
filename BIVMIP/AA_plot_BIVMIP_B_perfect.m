@@ -8,10 +8,10 @@ foldernames = {...
   'BIVMIP_B_inv_20km_perfect',...
   'BIVMIP_B_inv_10km_perfect'};
 
-cmap_phi = parula(16);
+cmap_phi = parula(256);
 cmap_Hs  = itmap(16);
 
-clim_phi = [0,7];
+clim_phi = [0,6];
 clim_Hs  = [0,2700];
 
 %% Read data

@@ -2,10 +2,10 @@ clc
 clear all
 close all
 
-foldername = 'BIVMIP_C_perfect_5km_tuneA';
+foldername = '../../BIVMIP/BIVMIP_C_perfect_5km_tuneA';
 
-cmap_phi = parula(16);
-clim_phi = [0,7];
+cmap_phi = parula(256);
+clim_phi = [0,6];
 
 filename_restart     = [foldername '/restart_ANT.nc'];
 filename_help_fields = [foldername '/help_fields_ANT.nc'];

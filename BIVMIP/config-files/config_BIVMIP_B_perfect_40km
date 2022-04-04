@@ -285,11 +285,11 @@
   BIVgeo_CISMplus_tauc_config                 = 500.0                            ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   BIVgeo_CISMplus_H0_config                   = 100.0                            ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   BIVgeo_CISMplus_u0_config                   = 10.0                             ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_Berends2022_tauc_config              = 10.0                             ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
+  BIVgeo_Berends2022_tauc_config              = 5.0                              ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
   BIVgeo_Berends2022_H0_config                = 100.0                            ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  BIVgeo_Berends2022_u0_config                = 10.0                             ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_Berends2022_Hi_scale_config          = 3000.0                           ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  BIVgeo_Berends2022_u_scale_config           = 300.0                            ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_Berends2022_u0_config                = 250.0                            ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_Berends2022_Hi_scale_config          = 300.0                            ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  BIVgeo_Berends2022_u_scale_config           = 3000.0                            ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
