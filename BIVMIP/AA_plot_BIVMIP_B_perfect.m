@@ -5,13 +5,14 @@ close all
 foldernames = {...
   'BIVMIP_B_perfect_10km',...
   'BIVMIP_B_inv_40km_perfect',...
+  'BIVMIP_B_inv_20km_perfect',...
   'BIVMIP_B_inv_10km_perfect'};
 
 cmap_phi = parula(16);
 cmap_Hs  = itmap(16);
 
 clim_phi = [0,7];
-clim_Hs  = [0,3000];
+clim_Hs  = [0,2700];
 
 %% Read data
 for fi = 1:length(foldernames)
@@ -37,10 +38,10 @@ end
 
 %% Set up GUI
 
-wa = 300;
-ha = 300;
+wa = 250;
+ha = 250;
 
-margins_hor = [25,25,25,120];
+margins_hor = [5,5,5,5,120];
 margins_ver = [25,25,50];
 
 nax = length(margins_hor)-1;
@@ -65,7 +66,7 @@ for i = 1:nax
   end
 end
 
-for j = 1:3
+for j = 1:4
   colormap(H.Ax(1,j),cmap_phi);
   set(H.Ax(1,j),'clim',clim_phi);
   
@@ -73,26 +74,28 @@ for j = 1:3
   set(H.Ax(2,j),'clim',clim_Hs);
 end
 
-xlabel( H.Ax(1,1),'Perfect (10 km)');
+xlabel( H.Ax(1,1),'Target (10 km)');
 xlabel( H.Ax(1,2),'Inverted (40 km)');
-xlabel( H.Ax(1,3),'Inverted (10 km)');
+xlabel( H.Ax(1,3),'Inverted (20 km)');
+xlabel( H.Ax(1,4),'Inverted (10 km)');
 
-pos = get(H.Ax(1,3),'position');
-H.Cbar1 = colorbar(H.Ax(1,3),'location','eastoutside');
-set(H.Ax(1,3),'position',pos);
+pos = get(H.Ax(1,4),'position');
+H.Cbar1 = colorbar(H.Ax(1,4),'location','eastoutside');
+set(H.Ax(1,4),'position',pos);
 ylabel( H.Cbar1,['Till friction angle (' char(176) ')'])
 
-pos = get(H.Ax(2,3),'position');
-H.Cbar2 = colorbar(H.Ax(2,3),'location','eastoutside');
-set(H.Ax(2,3),'position',pos);
+pos = get(H.Ax(2,4),'position');
+H.Cbar2 = colorbar(H.Ax(2,4),'location','eastoutside');
+set(H.Ax(2,4),'position',pos);
 ylabel( H.Cbar2,'Surface elevation (m)')
 
 %% Plot data
 
-for j = 1:3
+for j = 1:4
   
-  set(H.Ax(1,j),'xlim',[min(results(1).x),max(results(1).x)],'ylim',[min(results(1).y),max(results(1).y)]);
-  set(H.Ax(2,j),'xlim',[min(results(1).x),max(results(1).x)],'ylim',[min(results(1).y),max(results(1).y)]);
+  r = 0.86;
+  set(H.Ax(1,j),'xlim',[min(results(1).x),max(results(1).x)]*r,'ylim',[min(results(1).y),max(results(1).y)]*r);
+  set(H.Ax(2,j),'xlim',[min(results(1).x),max(results(1).x)]*r,'ylim',[min(results(1).y),max(results(1).y)]*r);
   
   x = results(j).x; dx = x(2) - x(1);
   y = results(j).y;

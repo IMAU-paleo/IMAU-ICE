@@ -2030,8 +2030,8 @@ CONTAINS
       w_u_down  = w_u_down  * R
       
       ! Calculate rate of change of bed roughness
-     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_Hs_down + w_u_up  + w_u_down )
-      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_u_up + w_u_down )
+     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_Berends2022_tauc * (w_Hs_up + w_Hs_down + w_u_up  + w_u_down )
+      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_Berends2022_tauc * (w_Hs_up + w_u_up + w_u_down )
       
       ! DENK DROM
       debug%dp_2D_01( j,i) = w_Hs_up

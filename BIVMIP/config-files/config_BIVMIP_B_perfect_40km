@@ -4,7 +4,7 @@
   ! ====================
   
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 20000.0                          ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 50000.0                          ! End   time (in years) of the simulations
   dt_coupling_config                          = 100.0                            ! Interval of coupling (in years) between the four ice-sheets  
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_thermo_config                            = 10.0                             ! Time step (in years) for updating thermodynamics
@@ -52,7 +52,7 @@
   ! =======================================================================
   
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'BIVMIP/BIVMIP_A_perfect_20km'   ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'BIVMIP/BIVMIP_B_perfect_40km'   ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -88,7 +88,7 @@
   xmax_ANT_config                             =   700000.0                       ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             =  -700000.0                       ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             =   700000.0                       ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 20000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -97,16 +97,16 @@
   choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_GRL_config               = 'realistic'                      ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  choice_refgeo_init_ANT_config               = 'idealised'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0  
   time_to_restart_from_GRL_config             = 0.0  
-  time_to_restart_from_ANT_config             = 50000.0  
+  time_to_restart_from_ANT_config             = 0.0  
   choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-  filename_refgeo_init_ANT_config             = 'BIVMIP/BIVMIP_A_perfect_40km/restart_ANT.nc'
+  filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
@@ -238,7 +238,7 @@
   choice_mask_noice_NAM_config                = 'NAM_remove_GRL'                 ! Choice of mask_noice configuration
   choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
   choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
-  choice_mask_noice_ANT_config                = 'BIVMIP_A'                       ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
+  choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -266,7 +266,7 @@
   uniform_Tsai2015_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Tsai2015 sliding law
   uniform_Schoof2005_alpha_sq_config          = 0.5                              ! Uniform value for alpha_sq in Schoof2005 sliding law
   uniform_Schoof2005_beta_sq_config           = 1.0E4                            ! Uniform value for beta_sq  in Schoof2005 sliding law
-  choice_param_basal_roughness_config         = 'BIVMIP_A'                       ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  choice_param_basal_roughness_config         = 'BIVMIP_B'                       ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
   Martin2011till_phi_Hb_min_config            = -1000.0                          ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
@@ -400,8 +400,8 @@
   ! Surface mass balance
   ! ====================
   
-  choice_SMB_model_config                     = 'uniform'                        ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
-  choice_idealised_SMB_config                 = 'EISMINT1_A'
+  choice_SMB_model_config                     = 'idealised'                      ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  choice_idealised_SMB_config                 = 'BIVMIP_B'
   SMB_uniform_config                          = 0.3                              ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
   
   ! NetCDF file containing direct global/regional climate forcing
