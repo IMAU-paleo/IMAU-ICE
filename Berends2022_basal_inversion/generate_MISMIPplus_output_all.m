@@ -2,7 +2,7 @@ clc
 clear all
 close all
 
-ensemble_name = 'BIVMIP_C_retreat';
+ensemble_name = 'exp_II_retreat';
 
 henk = dir;
 foldernames = {};

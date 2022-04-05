@@ -2,7 +2,7 @@ clc
 clear all
 close all
 
-foldername = '../../BIVMIP/BIVMIP_C_perfect_5km_tuneA';
+foldername = 'exp_II_target_5km';
 
 cmap_phi = parula(256);
 clim_phi = [0,6];

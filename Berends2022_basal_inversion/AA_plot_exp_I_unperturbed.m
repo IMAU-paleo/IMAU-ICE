@@ -3,12 +3,12 @@ clear all
 close all
 
 foldernames = {...
-  'BIVMIP_B_perfect_10km',...
-  'BIVMIP_B_inv_40km_perfect',...
-  'BIVMIP_B_inv_20km_perfect',...
-  'BIVMIP_B_inv_10km_perfect'};
+  'exp_I_target_10km',...
+  'exp_I_inv_40km_unperturbed',...
+  'exp_I_inv_20km_unperturbed',...
+  'exp_I_inv_10km_unperturbed'};
 
-cmap_phi = parula(16);
+cmap_phi = parula(256);
 cmap_Hs  = itmap(16);
 
 clim_phi = [0,6];
@@ -75,9 +75,9 @@ for j = 1:4
 end
 
 xlabel( H.Ax(1,1),'Target (10 km)');
-xlabel( H.Ax(1,2),'Inverted (40 km)');
-xlabel( H.Ax(1,3),'Inverted (20 km)');
-xlabel( H.Ax(1,4),'Inverted (10 km)');
+xlabel( H.Ax(1,2),'Unperturbed (40 km)');
+xlabel( H.Ax(1,3),'Unperturbed (20 km)');
+xlabel( H.Ax(1,4),'Unperturbed (10 km)');
 
 pos = get(H.Ax(1,4),'position');
 H.Cbar1 = colorbar(H.Ax(1,4),'location','eastoutside');

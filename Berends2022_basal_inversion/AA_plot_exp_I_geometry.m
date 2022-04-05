@@ -2,7 +2,7 @@ clc
 clear all
 close all
 
-foldername = 'BIVMIP_A_perfect_10km';
+foldername = 'exp_I_target_10km';
 
 cmap_phi = parula(256);
 clim_phi = [0,6];
@@ -40,12 +40,14 @@ H.Ax.ZAxis.Visible = 'off';
 zdata = Hs;
 [xg,yg] = meshgrid(x,y);
 zdata(yg<0) = NaN;
+zdata(Hi==0) = NaN;
 surface('parent',H.Ax,'xdata',x,'ydata',y,'zdata',zdata,'facecolor','w','edgecolor','k');
 
 % Nice black line for the surface edge
 imid = round(length(x)/2);
 jmid = round(length(y)/2);
 zdata = Hs(imid,:);
+zdata(zdata==0) = NaN;
 line('parent',H.Ax,'xdata',y,'ydata',zeros(size(x)),'zdata',zdata,'color','k','linewidth',3);
 
 % Colormap for bed roughness

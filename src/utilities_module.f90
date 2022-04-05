@@ -892,6 +892,9 @@ CONTAINS
       CALL partition_list( nx_dst, par%i, par%n, i1, i2)
       d_dst( :,i1:i2) = d_src( :,i1:i2)
       CALL sync
+      CALL deallocate_shared(  wddx_src             )
+      CALL deallocate_shared(  wddy_src             )
+      CALL deallocate_shared(  wmask_dst_outside_src)
       CALL finalise_routine( routine_name)
       RETURN
     END IF

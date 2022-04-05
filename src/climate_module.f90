@@ -2510,6 +2510,8 @@ CONTAINS
         clim_reg%t0 = clim_reg%time( ti0)
         clim_reg%t1 = clim_reg%time( ti1)
         
+        CALL warning('ti0 = {int_01}, ti1 = {int_02}, t0 = {dp_01}, t1 = {dp_02}', int_01 = ti0, int_02 = ti1, dp_01 = clim_reg%t0, dp_02 = clim_reg%t1)
+        
       ELSE ! IF     (time < clim_reg%time( 1)) THEN
       
         CALL warning('using constant end-of-record SMB when extrapolating!')

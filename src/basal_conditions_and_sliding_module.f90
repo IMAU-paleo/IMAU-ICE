@@ -106,7 +106,10 @@ CONTAINS
     ! Calculate pore water pressure using the chosen basal hydrology model
     ! ====================================================================
     
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
+    IF     (C%choice_basal_hydrology == 'dry') THEN
+      ! Assume zero subglacial water pressure, i.e. effective pressure is equal to overburden pressure everywhere
+      ice%pore_water_pressure_a( :,grid%i1:grid%i2) = 0._dp
+    ELSEIF (C%choice_basal_hydrology == 'saturated') THEN
       ! Assume all marine till is saturated (i.e. pore water pressure is equal to water pressure at depth everywhere)
       CALL calc_pore_water_pressure_saturated( grid, ice)
     ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
@@ -122,7 +125,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ice%overburden_pressure_a( j,i) = ice_density * grav * ice%Hi_a( j,i)
-      ice%Neff_a(                j,i) = MAX(0._dp, ice%overburden_pressure_a( j,i) - ice%pore_water_pressure_a( j,i))
+      ice%Neff_a(                j,i) = MAX( 0._dp, ice%overburden_pressure_a( j,i) - ice%pore_water_pressure_a( j,i))
     END DO
     END DO
     CALL sync
@@ -147,7 +150,11 @@ CONTAINS
     CALL init_routine( routine_name)
     
     ! Allocate shared memory
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
+    IF     (C%choice_basal_hydrology == 'dry') THEN
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%pore_water_pressure_a, ice%wpore_water_pressure_a)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%overburden_pressure_a, ice%woverburden_pressure_a)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%Neff_a               , ice%wNeff_a               )
+    ELSEIF (C%choice_basal_hydrology == 'saturated') THEN
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%pore_water_pressure_a, ice%wpore_water_pressure_a)
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%overburden_pressure_a, ice%woverburden_pressure_a)
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%Neff_a               , ice%wNeff_a               )
@@ -270,15 +277,6 @@ CONTAINS
       ELSEIF (C%choice_param_basal_roughness == 'MISMIP+') THEN
         ! The basal roughness parameterisation in the MISMIP+ idealised-geometry experiment
         CALL calc_bed_roughness_MISMIPplus( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_A') THEN
-        ! The basal roughness parameterisation in the BIVMIP_A idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_A( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_B') THEN
-        ! The basal roughness parameterisation in the BIVMIP_B idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_B( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_C') THEN
-        ! The basal roughness parameterisation in the BIVMIP_C idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_C( grid, ice)
       ELSE
         CALL crash('unknown choice_param_basal_roughness' // TRIM(C%choice_param_basal_roughness))
       END IF
@@ -865,156 +863,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_bed_roughness_MISMIPplus
-  SUBROUTINE calc_bed_roughness_BIVMIP_A( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment A (uniform bed plus single southward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_A'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =    0.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      = -700.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =   50.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =  400.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.0_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_A
-  SUBROUTINE calc_bed_roughness_BIVMIP_B( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment B (uniform bed plus single southward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_B'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =    0.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      = -400.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =   50.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =  300.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.1_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_B
-  SUBROUTINE calc_bed_roughness_BIVMIP_C( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment C (uniform bed plus single eastward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_C'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =  -50.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      =    0.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =  150.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =   15.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.1_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_C
   
 ! == Sliding laws
 ! ===============

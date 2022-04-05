@@ -1952,12 +1952,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    IF (.NOT. par%master) THEN
+    IF (.NOT. par%master .OR. .NOT. C%do_write_global_scalar_output) THEN
       CALL finalise_routine( routine_name)
       RETURN
     END IF
-    
-    IF (.NOT. C%do_write_global_scalar_output) RETURN
     
     ! Set time frame index to 1
     netcdf%ti = 1
@@ -2055,12 +2053,10 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    IF (.NOT. par%master) THEN
+    IF (.NOT. par%master .OR. .NOT. C%do_write_regional_scalar_output) THEN
       CALL finalise_routine( routine_name)
       RETURN
     END IF
-    
-    IF (.NOT. C%do_write_regional_scalar_output) RETURN
     
     ! Set time frame index to 1
     region%scalars%ti = 1

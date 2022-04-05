@@ -330,7 +330,7 @@ MODULE configuration_module
   REAL(dp)            :: uniform_Tsai2015_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Tsai2015 sliding law
   REAL(dp)            :: uniform_Schoof2005_alpha_sq_config          = 0.5_dp                           ! Uniform value for alpha_sq in Schoof2005 sliding law
   REAL(dp)            :: uniform_Schoof2005_beta_sq_config           = 1.0E4_dp                         ! Uniform value for beta_sq  in Schoof2005 sliding law
-  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+"
   REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle

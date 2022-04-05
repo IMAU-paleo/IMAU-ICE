@@ -752,6 +752,11 @@ CONTAINS
     IF     (C%ice_thickness_west_BC == 'zero') THEN
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
       ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1) / dt
+      IF (C%choice_ice_dynamics == 'DIVA') THEN
+        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,2              ) = 0._dp
+        ice%dHi_dt_a(     grid%j1:grid%j2,2              ) = -ice%Hi_a( grid%j1:grid%j2,2) / dt
+      END IF
     ELSEIF (C%ice_thickness_west_BC == 'infinite') THEN
       ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2)
       ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,1) - ice%Hi_a( grid%j1:grid%j2,1)) / dt
@@ -771,6 +776,11 @@ CONTAINS
     IF     (C%ice_thickness_east_BC == 'zero') THEN
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
       ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx) / dt
+      IF (C%choice_ice_dynamics == 'DIVA') THEN
+        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
+        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx-1      ) = 0._dp
+        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx-1      ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx-1) / dt
+      END IF
     ELSEIF (C%ice_thickness_east_BC == 'infinite') THEN
       ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
       ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx) - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
@@ -790,6 +800,11 @@ CONTAINS
     IF     (C%ice_thickness_south_BC == 'zero') THEN
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = 0._dp
       ice%dHi_dt_a(     1,              grid%i1:grid%i2) = -ice%Hi_a( 1,grid%i1:grid%i2) / dt
+      IF (C%choice_ice_dynamics == 'DIVA') THEN
+        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
+        ice%Hi_tplusdt_a( 2,              grid%i1:grid%i2) = 0._dp
+        ice%dHi_dt_a(     2,              grid%i1:grid%i2) = -ice%Hi_a( 2,grid%i1:grid%i2) / dt
+      END IF
     ELSEIF (C%ice_thickness_south_BC == 'infinite') THEN
       ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
       ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%Hi_tplusdt_a( 1,grid%i1:grid%i2) - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
@@ -809,6 +824,11 @@ CONTAINS
     IF     (C%ice_thickness_north_BC == 'zero') THEN
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
       ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = -ice%Hi_a( grid%ny,grid%i1:grid%i2) / dt
+      IF (C%choice_ice_dynamics == 'DIVA') THEN
+        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
+        ice%Hi_tplusdt_a( grid%ny-1,      grid%i1:grid%i2) = 0._dp
+        ice%dHi_dt_a(     grid%ny-1,      grid%i1:grid%i2) = -ice%Hi_a( grid%ny-1,grid%i1:grid%i2) / dt
+      END IF
     ELSEIF (C%ice_thickness_north_BC == 'infinite') THEN
       ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
       ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%Hi_tplusdt_a( grid%ny,grid%i1:grid%i2) - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
