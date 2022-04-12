@@ -157,6 +157,30 @@ CONTAINS
     TAF = Hi - MAX(0._dp, (SL - Hb) * (seawater_density / ice_density))
   
   END FUNCTION thickness_above_floatation
+  FUNCTION Hi_from_Hb_and_Hs( Hb, Hs, SL) RESULT( Hi)
+    ! Given Hb, Hs, and SL, calculate Hi
+      
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: Hb, Hs, SL
+    REAL(dp)                                           :: Hi
+    
+    ! Local variables:
+    REAL(dp)                                           :: Hs_float
+    
+    ! Calculate surface elevation if the ice were exactly at floating thickness
+    Hs_float = Hb + (SL - Hb) * seawater_density / ice_density
+    
+    IF (Hs > Hs_float) THEN
+      ! Grounded ice
+      Hi = Hs - Hb
+    ELSE
+      ! Floating ice
+      Hi = (Hs - SL) / (1._dp - ice_density / seawater_density)
+    END IF
+    
+  END FUNCTION Hi_from_Hb_and_Hs
   
 ! == The error function (used in the Roe&Lindzen precipitation model)
   SUBROUTINE error_function(X, ERR)

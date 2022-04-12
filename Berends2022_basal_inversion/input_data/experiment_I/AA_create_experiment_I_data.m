@@ -25,22 +25,23 @@ y_c         = -400*1e3;     % y-coordinate of ice-stream centre                 
 sigma_x     =   50*1e3;     % x-direction ice-stream half-width                         [m]
 sigma_y     =  300*1e3;     % y-direction ice-stream half-width                         [m]
 
-% Topography parameters
-A_topo_hi   =  250;         % High-perturbed bed elevation error at the ice divide      [m]
-A_topo_lo   = -250;         % Low -perturbed bed elevation error at the ice divide      [m]
-sigma_topo  = 450*1e3;      % Radius of bed elevation error                             [m]
-
 % SMB parameters
 M_max       = 0.5;          % Maximum accumulation rate                                 [m/yr]
 E           = 400*1e3;      % Radius of accumulation zone                               [m]
-S           = 1e5;          % Melt rate increase over radial distance from grid centre  [yr]
-f_SMB_hi    = 1.1;          % Multiplication factor for high perturbed SMB              [-]
-f_SMB_lo    = 0.9;          % Multiplication factor for low  perturbed SMB              [-]
+S           = 1e-5;         % Melt rate increase over radial distance from grid centre  [yr]
+f_SMB_hi    = 1.05;         % Multiplication factor for high perturbed SMB              [-]
+f_SMB_lo    = 0.95;         % Multiplication factor for low  perturbed SMB              [-]
+
+% SMB retreat phase parameters
+M_max2      = 0.5;          % Maximum accumulation rate                                 [m/yr]
+E2          = 200*1e3;      % Radius of accumulation zone                               [m]
+S2          = 1e-5;         % Melt rate increase over radial distance from grid centre  [yr]
 
 % File names
-filename_bed_roughness  = 'exp_I_bed_roughness';  % Will be extended with the resolution and file type, e.g. "exp_I_bed_roughness_40km.nc"
-filename_bed_topography = 'exp_I_bed_topography'; % In the case of topography and SMB, an additional extension for the two perturbed versions
-filename_SMB            = 'exp_I_SMB';            % will be added, e.g. "exp_I_SMB_40km_hi.nc".
+filename_bed_roughness  = 'exp_I_bed_roughness';
+filename_bed_topography = 'exp_I_topography';
+filename_SMB            = 'exp_I_SMB';
+filename_SMB2           = 'exp_I_SMB_retreat';
 
 for ri = 1:length( resolutions)
   
@@ -66,31 +67,17 @@ for ri = 1:length( resolutions)
     end
   end
   
-  % Bed topography
-  b    = zeros( grid.nx, grid.ny);
-  b_hi = zeros( grid.nx, grid.ny);
-  b_lo = zeros( grid.nx, grid.ny);
+  % Bed topography: flat earth
+  b = zeros( grid.nx, grid.ny);
   
-  for i = 1: grid.nx
-    for j = 1: grid.ny
-      
-      % Regular version: just a flat earth
-      b( i,j) = 0;
-      
-      % Perturbed versions
-      db_hi = calc_topography_error_exp_I( A_topo_hi, sigma_topo, grid.x( i), grid.y( j));
-      db_lo = calc_topography_error_exp_I( A_topo_lo, sigma_topo, grid.x( i), grid.y( j));
-      
-      b_hi( i,j) = b( i,j) + db_hi;
-      b_lo( i,j) = b( i,j) + db_lo;
-      
-    end
-  end
+  % Surface elevation
+  s = max( 0, b);
   
   % Surface mass balance
   SMB    = zeros( grid.nx, grid.ny);
   SMB_hi = zeros( grid.nx, grid.ny);
   SMB_lo = zeros( grid.nx, grid.ny);
+  SMB2   = zeros( grid.nx, grid.ny);
   
   for i = 1: grid.nx
     for j = 1: grid.ny
@@ -101,6 +88,9 @@ for ri = 1:length( resolutions)
       % Perturbed versions
       SMB_hi( i,j) = SMB( i,j) * f_SMB_hi;
       SMB_lo( i,j) = SMB( i,j) * f_SMB_lo;
+      
+      % Retreat phase version
+      SMB2( i,j) = calc_SMB_exp_I( M_max2, E2, S2, grid.x( i), grid.y( j));
       
     end
   end
@@ -133,60 +123,34 @@ for ri = 1:length( resolutions)
   % ===== Bed topography =====
   % ==========================
   
-  filename    = [filename_bed_topography str_res '.nc'];
-  filename_hi = [filename_bed_topography str_res '_hi.nc'];
-  filename_lo = [filename_bed_topography str_res '_lo.nc'];
+  filename = [filename_bed_topography str_res '.nc'];
   
   % Delete existing files
   if exist( filename,'file')
     delete( filename)
-  end
-  if exist( filename_hi,'file')
-    delete( filename_hi)
-  end
-  if exist( filename_lo,'file')
-    delete( filename_lo)
   end
   
   % NetCDF templates
   f = create_NetCDF_template_bed_topography( grid, filename);
   
-  f_hi = f;
-  f_lo = f;
-  f_hi.Filename = filename_hi;
-  f_lo.Filename = filename_lo;
-  
   % Create files
-  ncwriteschema( filename   , f   );
-  ncwriteschema( filename_hi, f_hi);
-  ncwriteschema( filename_lo, f_lo);
+  ncwriteschema( filename, f);
   
   % Write data
-  ncwrite( filename   ,'x'       ,grid.x);
-  ncwrite( filename   ,'y'       ,grid.y);
-  ncwrite( filename   ,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename   ,'Hb'      ,b     );
-  ncwrite( filename   ,'Hs'      ,zeros( grid.nx, grid.ny));
-  
-  ncwrite( filename_hi,'x'       ,grid.x);
-  ncwrite( filename_hi,'y'       ,grid.y);
-  ncwrite( filename_hi,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename_hi,'Hb'      ,b     );
-  ncwrite( filename_hi,'Hs'      ,zeros( grid.nx, grid.ny));
-  
-  ncwrite( filename_lo,'x'       ,grid.x);
-  ncwrite( filename_lo,'y'       ,grid.y);
-  ncwrite( filename_lo,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename_lo,'Hb'      ,b     );
-  ncwrite( filename_lo,'Hs'      ,zeros( grid.nx, grid.ny));
+  ncwrite( filename,'x'       ,grid.x);
+  ncwrite( filename,'y'       ,grid.y);
+  ncwrite( filename,'Hi'      ,zeros( grid.nx, grid.ny));
+  ncwrite( filename,'Hb'      ,b     );
+  ncwrite( filename,'Hs'      ,s     );
   
   % ================================
   % ===== Surface mass balance =====
   % ================================
   
-  filename    = [filename_SMB str_res '.nc'];
-  filename_hi = [filename_SMB str_res '_hi.nc'];
-  filename_lo = [filename_SMB str_res '_lo.nc'];
+  filename    = [filename_SMB       str_res '.nc'];
+  filename_hi = [filename_SMB '_hi' str_res '.nc'];
+  filename_lo = [filename_SMB '_lo' str_res '.nc'];
+  filename2   = [filename_SMB2      str_res '.nc'];
   
   % Delete existing files
   if exist( filename,'file')
@@ -197,6 +161,9 @@ for ri = 1:length( resolutions)
   end
   if exist( filename_lo,'file')
     delete( filename_lo)
+  end
+  if exist( filename2,'file')
+    delete( filename2)
   end
   
   % NetCDF templates
@@ -204,23 +171,28 @@ for ri = 1:length( resolutions)
   
   f_hi = f;
   f_lo = f;
+  f2   = f;
   f_hi.Filename = filename_hi;
   f_lo.Filename = filename_lo;
+  f2.Filename   = filename2;
   
   % Create files
   ncwriteschema( filename   , f   );
   ncwriteschema( filename_hi, f_hi);
   ncwriteschema( filename_lo, f_lo);
+  ncwriteschema( filename2  , f2  );
   
   % For IMAU-ICE, an SMB forcing file needs a time dimension
   time = [-1e6,1e6];
   SMB_time    = zeros( grid.nx, grid.ny, 2);
   SMB_hi_time = zeros( grid.nx, grid.ny, 2);
   SMB_lo_time = zeros( grid.nx, grid.ny, 2);
+  SMB_time2   = zeros( grid.nx, grid.ny, 2);
   for ti = 1:2
     SMB_time(    :,:,ti) = SMB;
     SMB_hi_time( :,:,ti) = SMB_hi;
     SMB_lo_time( :,:,ti) = SMB_lo;
+    SMB_time2(   :,:,ti) = SMB2;
   end
   
   % It also needs temperature, even though in these experiments it's not
@@ -246,6 +218,12 @@ for ri = 1:length( resolutions)
   ncwrite( filename_lo,'time'    ,time       );
   ncwrite( filename_lo,'SMB'     ,SMB_lo_time);
   ncwrite( filename_lo,'T2m'     ,T2m        );
+  
+  ncwrite( filename2  ,'x'       ,grid.x     );
+  ncwrite( filename2  ,'y'       ,grid.y     );
+  ncwrite( filename2  ,'time'    ,time       );
+  ncwrite( filename2  ,'SMB'     ,SMB_time2  );
+  ncwrite( filename2  ,'T2m'     ,T2m        );
   
 end
 
@@ -286,20 +264,6 @@ function phi  = calc_bed_roughness( phi_min, phi_max, x_c, y_c, sigma_x, sigma_y
   phi = phi_max - (phi_max - phi_min) * exp( -0.5 * (((x - x_c) / sigma_x)^2 + ((y - y_c) / sigma_y)^2));
   
 end
-function db   = calc_topography_error_exp_I( A, sigma, x, y)
-  % Calculate the introduced bedrock elevation error
-  % 
-  % A single sinus-shaped bump (so that the error is zero outside the ice margin)
-
-  r = sqrt( x^2 + y^2);
-
-  if r > sigma
-    db = 0;
-  else
-    db = A * 0.5 * (1 + cos( r * pi / sigma));
-  end
-
-end
 function SMB  = calc_SMB_exp_I( M_max, E, S, x, y)
   % Calculate the surface mass balance
   %
@@ -308,7 +272,7 @@ function SMB  = calc_SMB_exp_I( M_max, E, S, x, y)
   
   r = sqrt( x^2 + y^2);
   
-  SMB = min( M_max, (E - r) / S);
+  SMB = min( M_max, S * (E - r));
   
 end
 function f    = create_NetCDF_template_bed_roughness(  grid, filename)

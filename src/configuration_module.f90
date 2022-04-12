@@ -351,9 +351,9 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
   REAL(dp)            :: BIVgeo_Berends2022_tauc_config              = 10._dp                           ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_Berends2022_H0_config                = 100._dp                          ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  REAL(dp)            :: BIVgeo_Berends2022_u0_config                = 10._dp                           ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
-  REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 3000._dp                         ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 300._dp                          ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  REAL(dp)            :: BIVgeo_Berends2022_u0_config                = 250._dp                          ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 300._dp                          ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 3000._dp                         ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 

@@ -40,6 +40,9 @@ for ti = 1:length(time)
     i2 = 1;
     while TAF(i2,j)>0; i2 = i2+1; end
     i1 = i2-1;
+    if i1==0
+      disp('beep')
+    end
     lambda = TAF(i1,j) / (TAF(i1,j)-TAF(i2,j));
     xGL( ti,j) = lambda * x(i2) + (1-lambda) * x(i1);
   end

@@ -38,15 +38,15 @@
   
   ! Initial geometry
   choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_bed_topography_40km.nc'
+  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_topography_40km.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  filename_refgeo_PD_ANT_config               = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_bed_topography_40km.nc'
+  filename_refgeo_PD_ANT_config               = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_topography_40km.nc'
   
   ! GIA equilibrium geometry
   choice_refgeo_GIAeq_ANT_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  filename_refgeo_GIAeq_ANT_config            = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_bed_topography_40km.nc'
+  filename_refgeo_GIAeq_ANT_config            = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_topography_40km.nc'
   
   remove_Lake_Vostok_config                   = .FALSE.
   

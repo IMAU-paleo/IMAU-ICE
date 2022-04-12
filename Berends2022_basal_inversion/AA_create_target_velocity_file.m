@@ -2,8 +2,8 @@ clc
 clear all
 close all
 
-filename_src = 'BIVMIP_B_perfect_10km/help_fields_ANT.nc';
-filename_dst = 'BIVMIP_B_perfect_10km/BIV_target_velocity.nc';
+filename_src = 'exp_II_target_2km/help_fields_ANT.nc';
+filename_dst = 'exp_II_target_2km/BIV_target_velocity.nc';
 
 %% Create NetCDF template
 f = ncinfo( filename_src);

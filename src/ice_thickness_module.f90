@@ -16,7 +16,7 @@ MODULE ice_thickness_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              initialise_matrix_equation_CSR, solve_matrix_equation_CSR, check_CSR_for_double_entries, &
-                                             is_floating
+                                             is_floating, surface_elevation, Hi_from_Hb_and_Hs
 
   IMPLICIT NONE
   
@@ -744,105 +744,192 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_ice_thickness_BC'
     INTEGER                                            :: i,j
+    REAL(dp)                                           :: Hs_neighbour_tplusdt
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
-    ! West
-    IF     (C%ice_thickness_west_BC == 'zero') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = 0._dp
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = -ice%Hi_a( grid%j1:grid%j2,1) / dt
-      IF (C%choice_ice_dynamics == 'DIVA') THEN
-        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,2              ) = 0._dp
-        ice%dHi_dt_a(     grid%j1:grid%j2,2              ) = -ice%Hi_a( grid%j1:grid%j2,2) / dt
-      END IF
-    ELSEIF (C%ice_thickness_west_BC == 'infinite') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2)
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,1) - ice%Hi_a( grid%j1:grid%j2,1)) / dt
-    ELSEIF (C%ice_thickness_west_BC == 'periodic') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,1) - ice%Hi_a( grid%j1:grid%j2,1)) / dt
-    ELSEIF (C%ice_thickness_west_BC == 'fixed') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,1)
-      ice%dHi_dt_a(     grid%j1:grid%j2,1              ) = 0._dp
-    ELSEIF (C%ice_thickness_west_BC == 'none') THEN
-      ! Free slip boundary; do nothing
-    ELSE
-      CALL crash('unknown ice_thickness_west_BC "' // TRIM(C%ice_thickness_west_BC) // '"!')
-    END IF
+    ! Apply boundary conditions at the domain border
+    IF (par%master) THEN
     
-    ! East
-    IF     (C%ice_thickness_east_BC == 'zero') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx) / dt
-      IF (C%choice_ice_dynamics == 'DIVA') THEN
+      ! ===== West =====
+      ! ================
+      
+      IF     (C%ice_thickness_west_BC == 'zero') THEN
+        ! Set ice thickness to zero
+      
+        ice%Hi_tplusdt_a( :,1) = 0._dp
+        ice%dHi_dt_a(     :,1) = -ice%Hi_a( :,1) / dt
+        IF (C%choice_ice_dynamics == 'DIVA') THEN
         ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
-        ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx-1      ) = 0._dp
-        ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx-1      ) = -ice%Hi_a( grid%j1:grid%j2,grid%nx-1) / dt
+        ice%Hi_tplusdt_a( :,2) = 0._dp
+        ice%dHi_dt_a(     :,2) = -ice%Hi_a( :,2) / dt
+        END IF
+        
+      ELSEIF (C%ice_thickness_west_BC == 'infinite') THEN
+        ! Neumann boundary condition; set surface slope to zero
+        ! (NOTE: based on surface elevation, not ice thickness!)
+        
+        DO j = 1, grid%ny
+          Hs_neighbour_tplusdt   = surface_elevation( ice%Hi_tplusdt_a( j,2), ice%Hb_a( j,2), ice%SL_a( j,2))
+          ice%Hi_tplusdt_a( j,1) = Hi_from_Hb_and_Hs( ice%Hb_a( j,1), Hs_neighbour_tplusdt, ice%SL_a( j,1))
+          ice%dHi_dt_a(     j,1) = (ice%Hi_tplusdt_a( j,1) - ice%Hi_a( j,1)) / dt
+        END DO
+        
+      ELSEIF (C%ice_thickness_west_BC == 'periodic') THEN
+        ! Periodic boundary condition: set ice thickness equal to next-to-eastern-border
+        
+        ice%Hi_tplusdt_a( :,1) = ice%Hi_a( :,grid%nx-1)
+        ice%dHi_dt_a(     :,1) = (ice%Hi_tplusdt_a( :,1) - ice%Hi_a( :,1)) / dt
+        
+      ELSEIF (C%ice_thickness_west_BC == 'fixed') THEN
+        ! Keep ice thickness unchanged
+        
+        ice%Hi_tplusdt_a( :,1) = ice%Hi_a( :,1)
+        ice%dHi_dt_a(     :,1) = 0._dp
+        
+      ELSEIF (C%ice_thickness_west_BC == 'none') THEN
+        ! Free slip boundary; do nothing
+        ! NOTE: doesn't seem to work?
+        
+      ELSE
+        CALL crash('unknown ice_thickness_west_BC "' // TRIM(C%ice_thickness_west_BC) // '"!')
       END IF
-    ELSEIF (C%ice_thickness_east_BC == 'infinite') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx-1)
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx) - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
-    ELSEIF (C%ice_thickness_east_BC == 'periodic') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,2)
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = (ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx) - ice%Hi_a( grid%j1:grid%j2,grid%nx)) / dt
-    ELSEIF (C%ice_thickness_east_BC == 'fixed') THEN
-      ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = ice%Hi_a( grid%j1:grid%j2,grid%nx)
-      ice%dHi_dt_a(     grid%j1:grid%j2,grid%nx        ) = 0._dp
-    ELSEIF (C%ice_thickness_east_BC == 'none') THEN
-      ! Free slip boundary; do nothing
-    ELSE
-      CALL crash('unknown ice_thickness_east_BC "' // TRIM(C%ice_thickness_east_BC) // '"!')
-    END IF
     
-    ! South
-    IF     (C%ice_thickness_south_BC == 'zero') THEN
-      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = 0._dp
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = -ice%Hi_a( 1,grid%i1:grid%i2) / dt
-      IF (C%choice_ice_dynamics == 'DIVA') THEN
+      ! ===== East =====
+      ! ================
+      
+      IF     (C%ice_thickness_east_BC == 'zero') THEN
+        ! Set ice thickness to zero
+      
+        ice%Hi_tplusdt_a( :,grid%nx) = 0._dp
+        ice%dHi_dt_a(     :,grid%nx) = -ice%Hi_a( :,grid%nx) / dt
+        IF (C%choice_ice_dynamics == 'DIVA') THEN
         ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
-        ice%Hi_tplusdt_a( 2,              grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a(     2,              grid%i1:grid%i2) = -ice%Hi_a( 2,grid%i1:grid%i2) / dt
+        ice%Hi_tplusdt_a( :,grid%nx-1) = 0._dp
+        ice%dHi_dt_a(     :,grid%nx-1) = -ice%Hi_a( :,grid%nx-1) / dt
+        END IF
+        
+      ELSEIF (C%ice_thickness_east_BC == 'infinite') THEN
+        ! Neumann boundary condition; set surface slope to zero
+        ! (NOTE: based on surface elevation, not ice thickness!)
+        
+        DO j = 1, grid%ny
+          Hs_neighbour_tplusdt   = surface_elevation( ice%Hi_tplusdt_a( j,grid%nx-1), ice%Hb_a( j,grid%nx-1), ice%SL_a( j,grid%nx-1))
+          ice%Hi_tplusdt_a( j,grid%nx) = Hi_from_Hb_and_Hs( ice%Hb_a( j,grid%nx), Hs_neighbour_tplusdt, ice%SL_a( j,grid%nx))
+          ice%dHi_dt_a(     j,grid%nx) = (ice%Hi_tplusdt_a( j,grid%nx) - ice%Hi_a( j,grid%nx)) / dt
+        END DO
+        
+      ELSEIF (C%ice_thickness_east_BC == 'periodic') THEN
+        ! Periodic boundary condition: set ice thickness equal to next-to-western-border
+        
+        ice%Hi_tplusdt_a( :,grid%nx) = ice%Hi_a( :,2)
+        ice%dHi_dt_a(     :,grid%nx) = (ice%Hi_tplusdt_a( :,grid%nx) - ice%Hi_a( :,grid%nx)) / dt
+        
+      ELSEIF (C%ice_thickness_east_BC == 'fixed') THEN
+        ! Keep ice thickness unchanged
+        
+        ice%Hi_tplusdt_a( :,grid%nx) = ice%Hi_a( :,grid%nx)
+        ice%dHi_dt_a(     :,grid%nx) = 0._dp
+        
+      ELSEIF (C%ice_thickness_east_BC == 'none') THEN
+        ! Free slip boundary; do nothing
+        ! NOTE: doesn't seem to work?
+        
+      ELSE
+        CALL crash('unknown ice_thickness_east_BC "' // TRIM(C%ice_thickness_east_BC) // '"!')
       END IF
-    ELSEIF (C%ice_thickness_south_BC == 'infinite') THEN
-      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%Hi_tplusdt_a( 1,grid%i1:grid%i2) - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
-    ELSEIF (C%ice_thickness_south_BC == 'periodic') THEN
-      ice%Hi_tplusdt_a( 1,              grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
-      ice%dHi_dt_a(     1,              grid%i1:grid%i2) = (ice%Hi_tplusdt_a( 1,grid%i1:grid%i2) - ice%Hi_a( 1,grid%i1:grid%i2)) / dt
-    ELSEIF (C%ice_thickness_south_BC == 'fixed') THEN
-      ice%Hi_tplusdt_a( 1              ,grid%i1:grid%i2) = ice%Hi_a( 1,grid%i1:grid%i2)
-      ice%dHi_dt_a(     1              ,grid%i1:grid%i2) = 0._dp
-    ELSEIF (C%ice_thickness_south_BC == 'none') THEN
-      ! Free slip boundary; do nothing
-    ELSE
-      CALL crash('unknown ice_thickness_south_BC "' // TRIM(C%ice_thickness_south_BC) // '"!')
-    END IF
     
-    ! North
-    IF     (C%ice_thickness_north_BC == 'zero') THEN
-      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = -ice%Hi_a( grid%ny,grid%i1:grid%i2) / dt
-      IF (C%choice_ice_dynamics == 'DIVA') THEN
+      ! ===== South =====
+      ! ================
+      
+      IF     (C%ice_thickness_south_BC == 'zero') THEN
+        ! Set ice thickness to zero
+      
+        ice%Hi_tplusdt_a( 1,:) = 0._dp
+        ice%dHi_dt_a(     1,:) = -ice%Hi_a( 1,:) / dt
+        IF (C%choice_ice_dynamics == 'DIVA') THEN
         ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
-        ice%Hi_tplusdt_a( grid%ny-1,      grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a(     grid%ny-1,      grid%i1:grid%i2) = -ice%Hi_a( grid%ny-1,grid%i1:grid%i2) / dt
+        ice%Hi_tplusdt_a( 2,:) = 0._dp
+        ice%dHi_dt_a(     2,:) = -ice%Hi_a( 2,:) / dt
+        END IF
+        
+      ELSEIF (C%ice_thickness_south_BC == 'infinite') THEN
+        ! Neumann boundary condition; set surface slope to zero
+        ! (NOTE: based on surface elevation, not ice thickness!)
+        
+        DO i = 1, grid%nx
+          Hs_neighbour_tplusdt   = surface_elevation( ice%Hi_tplusdt_a( 2,i), ice%Hb_a( 2,i), ice%SL_a( 2,i))
+          ice%Hi_tplusdt_a( 1,i) = Hi_from_Hb_and_Hs( ice%Hb_a( 1,i), Hs_neighbour_tplusdt, ice%SL_a( 1,i))
+          ice%dHi_dt_a(     1,i) = (ice%Hi_tplusdt_a( 1,i) - ice%Hi_a( 1,i)) / dt
+        END DO
+        
+      ELSEIF (C%ice_thickness_south_BC == 'periodic') THEN
+        ! Periodic boundary condition: set ice thickness equal to next-to-northern-border
+        
+        ice%Hi_tplusdt_a( 1,:) = ice%Hi_a( grid%ny-1,:)
+        ice%dHi_dt_a(     1,:) = (ice%Hi_tplusdt_a( 1,:) - ice%Hi_a( 1,:)) / dt
+        
+      ELSEIF (C%ice_thickness_south_BC == 'fixed') THEN
+        ! Keep ice thickness unchanged
+        
+        ice%Hi_tplusdt_a( 1,:) = ice%Hi_a( 1,:)
+        ice%dHi_dt_a(     1,:) = 0._dp
+        
+      ELSEIF (C%ice_thickness_south_BC == 'none') THEN
+        ! Free slip boundary; do nothing
+        ! NOTE: doesn't seem to work?
+        
+      ELSE
+        CALL crash('unknown ice_thickness_south_BC "' // TRIM(C%ice_thickness_south_BC) // '"!')
       END IF
-    ELSEIF (C%ice_thickness_north_BC == 'infinite') THEN
-      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,grid%i1:grid%i2)
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%Hi_tplusdt_a( grid%ny,grid%i1:grid%i2) - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
-    ELSEIF (C%ice_thickness_north_BC == 'periodic') THEN
-      ice%Hi_tplusdt_a( grid%ny,        grid%i1:grid%i2) = ice%Hi_a( 2,grid%i1:grid%i2)
-      ice%dHi_dt_a(     grid%ny,        grid%i1:grid%i2) = (ice%Hi_tplusdt_a( grid%ny,grid%i1:grid%i2) - ice%Hi_a( grid%ny,grid%i1:grid%i2)) / dt
-    ELSEIF (C%ice_thickness_north_BC == 'fixed') THEN
-      ice%Hi_tplusdt_a( grid%ny        ,grid%i1:grid%i2) = ice%Hi_a( grid%ny,grid%i1:grid%i2)
-      ice%dHi_dt_a(     grid%ny        ,grid%i1:grid%i2) = 0._dp
-    ELSEIF (C%ice_thickness_north_BC == 'none') THEN
-      ! Free slip boundary; do nothing
-    ELSE
-      CALL crash('unknown ice_thickness_north_BC "' // TRIM(C%ice_thickness_north_BC) // '"!')
-    END IF
+    
+      ! ===== North =====
+      ! ================
+      
+      IF     (C%ice_thickness_north_BC == 'zero') THEN
+        ! Set ice thickness to zero
+      
+        ice%Hi_tplusdt_a( grid%ny,:) = 0._dp
+        ice%dHi_dt_a(     grid%ny,:) = -ice%Hi_a( grid%ny,:) / dt
+        IF (C%choice_ice_dynamics == 'DIVA') THEN
+        ! Additionally set ice thickness in the second outermost row to zero, otherwise it doesn't work with the DIVA
+        ice%Hi_tplusdt_a( grid%ny-1,:) = 0._dp
+        ice%dHi_dt_a(     grid%ny-1,:) = -ice%Hi_a( grid%ny-1,:) / dt
+        END IF
+        
+      ELSEIF (C%ice_thickness_north_BC == 'infinite') THEN
+        ! Neumann boundary condition; set surface slope to zero
+        ! (NOTE: based on surface elevation, not ice thickness!)
+        
+        DO i = 1, grid%nx
+          Hs_neighbour_tplusdt   = surface_elevation( ice%Hi_tplusdt_a( grid%ny-1,i), ice%Hb_a( grid%ny-1,i), ice%SL_a( grid%ny-1,i))
+          ice%Hi_tplusdt_a( grid%ny,i) = Hi_from_Hb_and_Hs( ice%Hb_a( grid%ny,i), Hs_neighbour_tplusdt, ice%SL_a( grid%ny,i))
+          ice%dHi_dt_a(     grid%ny,i) = (ice%Hi_tplusdt_a( grid%ny,i) - ice%Hi_a( grid%ny,i)) / dt
+        END DO
+        
+      ELSEIF (C%ice_thickness_north_BC == 'periodic') THEN
+        ! Periodic boundary condition: set ice thickness equal to next-to-southern-border
+        
+        ice%Hi_tplusdt_a( grid%ny,:) = ice%Hi_a( 2,:)
+        ice%dHi_dt_a(     grid%ny,:) = (ice%Hi_tplusdt_a( grid%ny,:) - ice%Hi_a( grid%ny,:)) / dt
+        
+      ELSEIF (C%ice_thickness_north_BC == 'fixed') THEN
+        ! Keep ice thickness unchanged
+        
+        ice%Hi_tplusdt_a( grid%ny,:) = ice%Hi_a( grid%ny,:)
+        ice%dHi_dt_a(     grid%ny,:) = 0._dp
+        
+      ELSEIF (C%ice_thickness_north_BC == 'none') THEN
+        ! Free slip boundary; do nothing
+        ! NOTE: doesn't seem to work?
+        
+      ELSE
+        CALL crash('unknown ice_thickness_north_BC "' // TRIM(C%ice_thickness_north_BC) // '"!')
+      END IF
+      
+    END IF ! IF (par%master)
+    CALL sync
     
     ! Remove ice in areas where no ice is allowed (e.g. Greenland in NAM and EAS, and Ellesmere Island in GRL)
     DO i = grid%i1, grid%i2

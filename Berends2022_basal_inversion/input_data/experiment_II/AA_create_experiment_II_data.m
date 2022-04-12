@@ -18,25 +18,16 @@ ymin        =  -40*1e3;     % y-coordinate of southern domain border            
 ymax        =   40*1e3;     % y-coordinate of northern domain border                    [m]
 
 % Bed roughness parameters
-phi_min     = 0.1;          % Till friction angle in the centre of the ice stream       [degrees]
+phi_min     = 1.0;          % Till friction angle in the centre of the ice stream       [degrees]
 phi_max     = 5.0;          % Till friction angle outside of the ice stream             [degrees]
 x_c         = -50;          % x-coordinate of ice-stream centre                         [m]
 y_c         = 0;            % y-coordinate of ice-stream centre                         [m]
 sigma_x     = 150*1e3;      % x-direction ice-stream half-width                         [m]
 sigma_y     =  15*1e3;      % y-direction ice-stream half-width                         [m]
 
-% Topography parameters
-A_topo_hi   =  100;         % High-perturbed bed elevation error at the ice divide      [m]
-A_topo_lo   = -100;         % Low -perturbed bed elevation error at the ice divide      [m]
-x_c_topo    = -50;          % x-coordinate of ice-stream centre                         [m]
-y_c_topo    = 0;            % y-coordinate of ice-stream centre                         [m]
-sigma_x_topo= 150*1e3;      % x-direction ice-stream half-width                         [m]
-sigma_y_topo=  15*1e3;      % y-direction ice-stream half-width                         [m]
-
 % File names
-filename_bed_roughness  = 'exp_II_bed_roughness';  % Will be extended with the resolution and file type, e.g. "exp_II_bed_roughness_40km.nc"
-filename_bed_topography = 'exp_II_bed_topography'; % In the case of topography, an additional extension for the two perturbed versions
-                                                   % will be added, e.g. "exp_I_bed_topography_40km_hi.nc".
+filename_bed_roughness  = 'exp_II_bed_roughness';
+filename_bed_topography = 'exp_II_topography';
 
 for ri = 1:length( resolutions)
   
@@ -62,29 +53,18 @@ for ri = 1:length( resolutions)
     end
   end
   
+  % Start with uniform 100 m ice thickness (this really speeds things up,
+  % otherwise the first 300 years will take a long time since the velocity
+  % solver will be very slow)
+  H = zeros( grid.nx, grid.ny) + 100;
+  
   % Bed topography from MISMIP+
   b = calc_bed_topography_MISMIPplus( grid);
   
-  % Perturbed versions
-  b_hi = zeros( grid.nx, grid.ny);
-  b_lo = zeros( grid.nx, grid.ny);
-  
-  for i = 1: grid.nx
-    for j = 1: grid.ny
-      
-      db_hi = calc_topography_error_exp_II( A_topo_hi, x_c_topo, y_c_topo, sigma_x_topo, sigma_y_topo, grid.x( i), grid.y( j));
-      db_lo = calc_topography_error_exp_II( A_topo_lo, x_c_topo, y_c_topo, sigma_x_topo, sigma_y_topo, grid.x( i), grid.y( j));
-      
-      b_hi( i,j) = b( i,j) + db_hi;
-      b_lo( i,j) = b( i,j) + db_lo;
-      
-    end
-  end
-  
   % Surface elevation
-  s    = max( 0, b   );
-  s_hi = max( 0, b_hi);
-  s_lo = max( 0, b_lo);
+  ice_density      =  910.0;
+  seawater_density = 1028.0;
+  s = H + max( -ice_density / seawater_density * H, b);
   
   %% Create and write to NetCDF files
   
@@ -114,52 +94,25 @@ for ri = 1:length( resolutions)
   % ===== Bed topography =====
   % ==========================
   
-  filename    = [filename_bed_topography str_res '.nc'];
-  filename_hi = [filename_bed_topography str_res '_hi.nc'];
-  filename_lo = [filename_bed_topography str_res '_lo.nc'];
+  filename = [filename_bed_topography str_res '.nc'];
   
-  % Delete existing files
+  % Delete existing file
   if exist( filename,'file')
     delete( filename)
   end
-  if exist( filename_hi,'file')
-    delete( filename_hi)
-  end
-  if exist( filename_lo,'file')
-    delete( filename_lo)
-  end
   
-  % NetCDF templates
+  % NetCDF template
   f = create_NetCDF_template_bed_topography( grid, filename);
   
-  f_hi = f;
-  f_lo = f;
-  f_hi.Filename = filename_hi;
-  f_lo.Filename = filename_lo;
-  
-  % Create files
-  ncwriteschema( filename   , f   );
-  ncwriteschema( filename_hi, f_hi);
-  ncwriteschema( filename_lo, f_lo);
+  % Create file
+  ncwriteschema( filename, f);
   
   % Write data
-  ncwrite( filename   ,'x'       ,grid.x);
-  ncwrite( filename   ,'y'       ,grid.y);
-  ncwrite( filename   ,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename   ,'Hb'      ,b     );
-  ncwrite( filename   ,'Hs'      ,s);
-  
-  ncwrite( filename_hi,'x'       ,grid.x);
-  ncwrite( filename_hi,'y'       ,grid.y);
-  ncwrite( filename_hi,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename_hi,'Hb'      ,b_hi);
-  ncwrite( filename_hi,'Hs'      ,s_hi);
-  
-  ncwrite( filename_lo,'x'       ,grid.x);
-  ncwrite( filename_lo,'y'       ,grid.y);
-  ncwrite( filename_lo,'Hi'      ,zeros( grid.nx, grid.ny));
-  ncwrite( filename_lo,'Hb'      ,b_lo);
-  ncwrite( filename_lo,'Hs'      ,s_lo);
+  ncwrite( filename,'x'       ,grid.x);
+  ncwrite( filename,'y'       ,grid.y);
+  ncwrite( filename,'Hi'      ,H);
+  ncwrite( filename,'Hb'      ,b);
+  ncwrite( filename,'Hs'      ,s);
   
 end
 
@@ -231,15 +184,6 @@ function b    = calc_bed_topography_MISMIPplus( grid)
     end
   end
   
-end
-function db   = calc_topography_error_exp_II( A, x_c, y_c, sigma_x, sigma_y, x, y)
-  % Calculate the introduced bedrock elevation error for experiment II
-  % 
-  % Similar to the bed roughness: a single "trough" with configurable
-  % dimensions
-
-  db = A * exp( -0.5 * (((x - x_c) / sigma_x)^2 + ((y - y_c) / sigma_y)^2));
-
 end
 function f    = create_NetCDF_template_bed_roughness(  grid, filename)
   % Create a template for the bed roughness NetCDF file
