@@ -2,10 +2,10 @@ clc
 clear all
 close all
 
-filename_src       = '../../exp_II_target_2km/restart_ANT.nc';
-filename_src_topo  = 'exp_II_topography_2km.nc';
-filename_dst_hi    = 'exp_II_topography_hi_2km.nc';
-filename_dst_lo    = 'exp_II_topography_lo_2km.nc';
+filename_src       = '../../exp_II_target_5km/restart_ANT.nc';
+filename_src_topo  = 'exp_II_topography_5km.nc';
+filename_dst_hi    = 'exp_II_topography_hi_5km.nc';
+filename_dst_lo    = 'exp_II_topography_lo_5km.nc';
 
 % Topography parameters
 f_TAF = 0.1;

@@ -8,8 +8,7 @@ cd ..
 # =========================
 
 # Tune flow factor to achieve stable grounding-line position at x = 450 km
-rm -rf Berends2022_basal_inversion/exp_II_tuneA_5km
-mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_tuneA_5km
+#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_tuneA_5km
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_tuneA_2km
 
 # NOTE: The "tuneA" runs use a little iterative procedure to tune the flow factor A to achieve
@@ -37,23 +36,30 @@ mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_visc_lo
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_SMB_hi
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_SMB_lo
+#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_BMB_hi
+#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_BMB_lo
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_topo_hi
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_topo_lo
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_ut_hi
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_ut_lo
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_p_hi
 #mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_p_lo
+#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_inv_5km_noneq
 
 # Retreat runs
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_target
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_unperturbed
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_visc_hi
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_visc_lo
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_SMB_hi
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_SMB_lo
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_topo_hi
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_topo_lo
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_ut_hi
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_ut_lo
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_p_hi
-#mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_p_lo
+rm -rf Berends2022_basal_inversion/exp_II_retreat_5km_*
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_target
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_unperturbed
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_visc_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_visc_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_SMB_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_SMB_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_BMB_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_BMB_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_topo_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_topo_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_ut_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_ut_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_p_hi
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_p_lo
+mpiexec -n 2 IMAU_ICE_program   Berends2022_basal_inversion/config-files/config_exp_II_retreat_5km_noneq

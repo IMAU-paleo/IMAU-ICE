@@ -7,7 +7,7 @@
   end_time_of_run_config                      = 100000.0                         ! End   time (in years) of the simulations
   dt_coupling_config                          = 10000.0                          ! Interval of coupling (in years) between the four ice-sheets  
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
-  dt_output_config                            = 10.0                           ! Time step (in years) for writing output
+  dt_output_config                            = 5000.0                           ! Time step (in years) for writing output
   
   ! Benchmark experiments
   ! =====================
@@ -15,7 +15,7 @@
   ! MISMIP+ (see Asay-Davis et al., 2016)
   MISMIPplus_do_tune_A_for_GL_config          = .TRUE.                           ! Whether or not the flow factor A should be tuned for the GL position
   MISMIPplus_xGL_target_config                = 450000.0                         ! Mid-channel GL position to tune the flow factor A for
-  MISMIPplus_A_flow_initial_config            = 4.0E-17                          ! Initial flow factor before tuning (or throughout the run when tuning is not used)
+  MISMIPplus_A_flow_initial_config            = 5.0E-17                          ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   MISMIPplus_scenario_config                  = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
@@ -47,9 +47,8 @@
   ! ================================================================
   
   ! Initial geometry
-  choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  time_to_restart_from_ANT_config             = 100000.0
-  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/exp_II_tuneA_5km/restart_ANT.nc'
+  choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/input_data/experiment_II/exp_II_topography_2km.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
@@ -94,7 +93,7 @@
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
-  DIVA_visc_it_norm_dUV_tol_config            = 1E-2                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  DIVA_visc_it_norm_dUV_tol_config            = 1E-3                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
   DIVA_visc_it_relax_config                   = 0.4                              ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
@@ -171,7 +170,7 @@
   choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-  uniform_flow_factor_config                  = 4.0E-17                          ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  uniform_flow_factor_config                  = 5.0E-17                          ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
   
   ! Climate
   ! =======

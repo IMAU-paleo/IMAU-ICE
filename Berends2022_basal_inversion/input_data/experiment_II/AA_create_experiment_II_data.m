@@ -9,7 +9,7 @@ close all
 %% Define parameters
 
 % The resolutions at which we want to have the data
-resolutions = [5,2] * 1e3;
+resolutions = [5,2.5] * 1e3;
 
 % Domain size
 xmin        = -400*1e3;     % x-coordinate of western  domain border                    [m]
@@ -37,7 +37,13 @@ for ri = 1:length( resolutions)
   resolution = resolutions( ri);
   
   % The resolution filename extension
-  str_res = ['_' num2str( resolution / 1e3) 'km'];
+  if resolution == 5000
+    str_res = '_5km';
+  elseif resolution == 2500
+    str_res = '_2p5km';
+  else
+    error('undefined resolution!')
+  end
   
   % Create the grid
   grid = create_grid( xmin, xmax, ymin, ymax, resolution);

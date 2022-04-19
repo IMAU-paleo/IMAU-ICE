@@ -37,8 +37,8 @@ Hib( abs(Hib - Hb) < 1) = NaN;
 wa = 700;
 ha = 405;
 
-margins_hor = [25,100];
-margins_ver = [25,25];
+margins_hor = [100,300];
+margins_ver = [25,100];
 
 wf = margins_hor(1) + wa + margins_hor(2);
 hf = margins_ver(1) + ha + margins_ver(2);
@@ -88,6 +88,28 @@ H.Ax2 = axes('parent',H.Fig,'units','pixels','position',pos,'fontsize',24,'color
 colormap(H.Ax2,cmap_phi);
 H.Ax2.XAxis.Visible = 'off';
 H.Ax2.YAxis.Visible = 'off';
-H.Cbar = colorbar(H.Ax2,'location','eastoutside');
+H.Cbar = colorbar(H.Ax2,'location','westoutside');
 set(H.Ax2,'position',pos);
 ylabel(H.Cbar,['Till friction angle (' char(176) ')']);
+pos = get(H.Cbar,'position');
+pos(1) = 0.07;
+set(H.Cbar,'position',pos);
+
+%% Second axis for transect
+wa2 = 380;
+ha2 = 240;
+H.Ax2 = axes('units','pixels','position',[margins_hor(1)+wa/2+250,margins_ver(1)+ha/2+45,wa2,ha2],...
+  'fontsize',24,'xlim',[0,800],'ylim',[-1000,3000],'xgrid','on','ygrid','on');
+xlabel(H.Ax2,'x (km)');
+ylabel(H.Ax2,'z (m)');
+
+x = ncread(filename_restart,'x');
+y = ncread(filename_restart,'y');
+jmid = find(y==0);
+Hi  = ncread(filename_restart,'Hi',[1,jmid,ti],[Inf,1,1]);
+Hb  = ncread(filename_restart,'Hb',[1,jmid,ti],[Inf,1,1]);
+Hs  = ncread(filename_restart,'Hs',[1,jmid,ti],[Inf,1,1]);
+Hib = Hs - Hi;
+line('parent',H.Ax2,'xdata',400+x/1e3,'ydata',Hb ,'linewidth',3);
+line('parent',H.Ax2,'xdata',400+x/1e3,'ydata',Hs ,'linewidth',3);
+line('parent',H.Ax2,'xdata',400+x/1e3,'ydata',Hib,'linewidth',3);
