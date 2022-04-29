@@ -1388,8 +1388,8 @@ CONTAINS
     CALL sync
     
     ! Convert hi-resolution basin ID field back to integer precision
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
+    DO i = hires%grid%i1, hires%grid%i2
+    DO j = 1, hires%grid%ny
       hires%basin_ID( j,i) = NINT( basin_ID_dp_hires_ext( j,i))
     END DO
     END DO
