@@ -2101,7 +2101,7 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_filled   ! 1 = successfully filled, 2 = failed to fill (region of to-be-filled pixels not connected to source data)
     
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'extrapolate_Gaussian_floodfill'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'extrapolate_Gaussian_floodfill'
     INTEGER                                            :: i,j,k,ii,jj,it
     INTEGER                                            :: stackN1, stackN2
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: stack1, stack2

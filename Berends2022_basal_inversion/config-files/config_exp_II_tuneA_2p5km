@@ -4,10 +4,10 @@
   ! ====================
   
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 100000.0                         ! End   time (in years) of the simulations
-  dt_coupling_config                          = 10000.0                          ! Interval of coupling (in years) between the four ice-sheets  
+  end_time_of_run_config                      = 50000.0                          ! End   time (in years) of the simulations
+  dt_coupling_config                          = 2000.0                           ! Interval of coupling (in years) between the four ice-sheets  
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
-  dt_output_config                            = 5000.0                           ! Time step (in years) for writing output
+  dt_output_config                            = 1000.0                           ! Time step (in years) for writing output
   
   ! Benchmark experiments
   ! =====================
@@ -15,7 +15,7 @@
   ! MISMIP+ (see Asay-Davis et al., 2016)
   MISMIPplus_do_tune_A_for_GL_config          = .TRUE.                           ! Whether or not the flow factor A should be tuned for the GL position
   MISMIPplus_xGL_target_config                = 450000.0                         ! Mid-channel GL position to tune the flow factor A for
-  MISMIPplus_A_flow_initial_config            = 5.0E-17                          ! Initial flow factor before tuning (or throughout the run when tuning is not used)
+  MISMIPplus_A_flow_initial_config            = 2.0E-17                          ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   MISMIPplus_scenario_config                  = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
@@ -47,8 +47,9 @@
   ! ================================================================
   
   ! Initial geometry
-  choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/input_data/experiment_II/exp_II_topography_2p5km.nc'
+  choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  time_to_restart_from_ANT_config             = 100000.0
+  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/exp_II_target_5km/restart_ANT.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
@@ -93,8 +94,8 @@
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
-  DIVA_visc_it_norm_dUV_tol_config            = 1E-3                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
-  DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
+  DIVA_visc_it_norm_dUV_tol_config            = 1E-4                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  DIVA_visc_it_nit_config                     = 100                               ! Maximum number of effective viscosity iterations
   DIVA_visc_it_relax_config                   = 0.4                              ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
   DIVA_visc_eff_min_config                    = 1E3                              ! Minimum value for effective viscosity
@@ -112,8 +113,8 @@
   DIVA_SOR_nit_config                         = 10000                            ! DIVA SOR   solver - maximum number of iterations
   DIVA_SOR_tol_config                         = 2.5                              ! DIVA SOR   solver - stop criterion, absolute difference
   DIVA_SOR_omega_config                       = 1.3                              ! DIVA SOR   solver - over-relaxation parameter
-  DIVA_PETSc_rtol_config                      = 0.01                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  DIVA_PETSc_abstol_config                    = 0.1                              ! DIVA PETSc solver - stop criterion, absolute difference
+  DIVA_PETSc_rtol_config                      = 0.001                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  DIVA_PETSc_abstol_config                    = 0.01                              ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -128,13 +129,13 @@
   dHi_PETSc_abstol_config                     = 0.001                            ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
-  pc_epsilon_config                           = 0.5                              ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+  pc_epsilon_config                           = 0.05                              ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
   pc_k_I_config                               = 0.2                              ! Exponent k_I in  Robinson et al., 2020, Eq. 33
   pc_k_p_config                               = 0.2                              ! Exponent k_p in  Robinson et al., 2020, Eq. 33
   pc_eta_min_config                           = 1E-8                             ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
   pc_max_timestep_iterations_config           = 5                                ! Maximum number of iterations of each time step
   pc_redo_tol_config                          = 10.0                             ! Maximum allowed truncation error (any higher and the timestep is decreased)
-  dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
+  dt_min_config                               = 0.001                             ! Smallest allowed time step [yr]
   
   ! Ice thickness boundary conditions
   ice_thickness_west_BC_config                = 'infinite'                       ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "fixed"
@@ -170,7 +171,7 @@
   choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-  uniform_flow_factor_config                  = 5.0E-17                          ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  uniform_flow_factor_config                  = 2.0E-17                          ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
   
   ! Climate
   ! =======

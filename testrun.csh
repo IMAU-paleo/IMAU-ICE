@@ -2,7 +2,7 @@
 
 ./compile_all.csh
 
-rm -rf results_202*
+rm -rf results_20*
+rm -rf extrapolated_ocean_files/*
 
-mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_A_inv_20km_perfect
-mpiexec -n 2 IMAU_ICE_program   BIVMIP/config-files/config_BIVMIP_A_inv_10km_perfect
+mpiexec -n 2 IMAU_ICE_program   config-files/config_ANT_relax_100yr_40km

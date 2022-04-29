@@ -729,7 +729,7 @@ CONTAINS
     
   ! Some useful tools
   SUBROUTINE apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
-    ! Apply ice thickness boundary conditions (at the domain boundary, and through the mask_noice)
+    ! Apply numerical ice thickness boundary conditions at the domain border
     
     IMPLICIT NONE
     
@@ -930,56 +930,6 @@ CONTAINS
       
     END IF ! IF (par%master)
     CALL sync
-    
-    ! Remove ice in areas where no ice is allowed (e.g. Greenland in NAM and EAS, and Ellesmere Island in GRL)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      IF (mask_noice(     j,i) == 1) THEN
-        ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-        ice%Hi_tplusdt_a( j,i) = 0._dp
-      END IF
-    END DO
-    END DO
-    CALL sync
-    
-    ! If so specified, remove all floating ice
-    IF (C%do_remove_shelves) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (is_floating( ice%Hi_tplusdt_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-          ice%Hi_tplusdt_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-    END IF ! IF (C%do_remove_shelves) THEN
-    
-    ! If so specified, remove all floating ice beyond the present-day calving front
-    IF (C%remove_shelves_larger_than_PD) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
-          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-          ice%Hi_tplusdt_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-    END IF ! IF (C%remove_shelves_larger_than_PD) THEN
-    
-    ! If so specified, remove all floating ice crossing the continental shelf edge
-    IF (C%continental_shelf_calving) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
-          ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
-          ice%Hi_tplusdt_a( j,i) = 0._dp
-        END IF
-      END DO
-      END DO
-      CALL sync
-    END IF ! IF (C%continental_shelf_calving) THEN
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -18,7 +18,7 @@ MODULE ice_dynamics_module
   USE netcdf_module,                       ONLY: debug, write_to_debug_file
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                                 SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
+                                                 SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation, is_floating
   USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
                                                  initialise_ice_velocity_ISMIP_HOM
   USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
@@ -236,7 +236,7 @@ CONTAINS
       IF (par%master) THEN
         region%dt_crit_ice_prev = region%dt_crit_ice
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
-        region%dt_crit_ice      = MAX( C%dt_min, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc]))
+        region%dt_crit_ice      = MAX( C%dt_min, MAX( 0.5_dp * region%dt_crit_ice_prev, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc])))
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
       END IF
       CALL sync
@@ -346,7 +346,7 @@ CONTAINS
   END SUBROUTINE run_ice_dynamics_pc
   
 ! == Update the ice thickness at the end of a model time loop
-  SUBROUTINE update_ice_thickness( grid, ice)
+  SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_PD, refgeo_GIAeq)
     ! Update the ice thickness at the end of a model time loop
     
     IMPLICIT NONE
@@ -354,9 +354,13 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_thickness'
+    INTEGER                                            :: i,j
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -398,7 +402,53 @@ CONTAINS
       CALL remove_unconnected_shelves(         grid, ice)      
     END IF
     
-    CALL update_general_ice_model_data(      grid, ice)
+    ! Remove ice in areas where no ice is allowed (e.g. Greenland in NAM and EAS, and Ellesmere Island in GRL)
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 1) THEN
+        ice%Hi_a( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+    
+    ! If so specified, remove all floating ice
+    IF (C%do_remove_shelves) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+        ice%Hi_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%do_remove_shelves) THEN
+    
+    ! If so specified, remove all floating ice beyond the present-day calving front
+    IF (C%remove_shelves_larger_than_PD) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
+          ice%Hi_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%remove_shelves_larger_than_PD) THEN
+    
+    ! If so specified, remove all floating ice crossing the continental shelf edge
+    IF (C%continental_shelf_calving) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
+          ice%Hi_a( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF ! IF (C%continental_shelf_calving) THEN
+    
+    CALL update_general_ice_model_data( grid, ice)
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)

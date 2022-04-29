@@ -170,7 +170,7 @@ CONTAINS
       END IF
 
       ! Update ice geometry and advance region time
-      CALL update_ice_thickness( region%grid, region%ice)
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
@@ -418,6 +418,11 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%dt_crit_SSA,      region%wdt_crit_SSA     )
     CALL allocate_shared_dp_0D(   region%dt_crit_ice,      region%wdt_crit_ice     )
     CALL allocate_shared_dp_0D(   region%dt_crit_ice_prev, region%wdt_crit_ice_prev)
+    
+    region%dt               = C%dt_min
+    region%dt_prev          = C%dt_min
+    region%dt_crit_ice      = C%dt_min
+    region%dt_crit_ice_prev = C%dt_min
     
     CALL allocate_shared_dp_0D(   region%t_last_SIA,       region%wt_last_SIA      )
     CALL allocate_shared_dp_0D(   region%t_next_SIA,       region%wt_next_SIA      )
