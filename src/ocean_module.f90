@@ -1388,8 +1388,8 @@ CONTAINS
     CALL sync
     
     ! Convert hi-resolution basin ID field back to integer precision
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
+    DO i = hires%grid%i1, hires%grid%i2
+    DO j = 1, hires%grid%ny
       hires%basin_ID( j,i) = NINT( basin_ID_dp_hires_ext( j,i))
     END DO
     END DO
@@ -1434,7 +1434,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER                ::  T_ocean_ext,  S_ocean_ext
     INTEGER                                            :: wT_ocean_ext, wS_ocean_ext
     
-    LOGICAL,  PARAMETER                                :: verbose = .FALSE.
+    LOGICAL,  PARAMETER                                :: verbose = .TRUE.
     
     ! Add routine to path
     CALL init_routine( routine_name)
