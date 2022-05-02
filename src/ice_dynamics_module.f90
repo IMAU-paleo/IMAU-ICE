@@ -360,7 +360,8 @@ CONTAINS
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_thickness'
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,ii,jj
+    LOGICAL                                            :: is_shelf_or_GL, is_sheet_or_GL, is_GL
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -373,9 +374,27 @@ CONTAINS
     IF (C%fixed_shelf_geometry) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
+      
+        is_shelf_or_GL = .FALSE.
+        
         IF (ice%mask_shelf_a( j,i) == 1) THEN
+          is_shelf_or_GL = .TRUE.
+        ELSEIF (ice%mask_sheet_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
+              is_shelf_or_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_shelf_or_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_shelf_or_GL) THEN
           ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
         END IF
+        
       END DO
       END DO
       CALL sync
@@ -385,9 +404,65 @@ CONTAINS
     IF (C%fixed_sheet_geometry) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
+      
+        is_sheet_or_GL = .FALSE.
+        
         IF (ice%mask_sheet_a( j,i) == 1) THEN
+          is_sheet_or_GL = .TRUE.
+        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+              is_sheet_or_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_sheet_or_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_sheet_or_GL) THEN
           ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
         END IF
+        
+      END DO
+      END DO
+      CALL sync
+    END IF
+    
+    ! If so specified, keep GL position fixed
+    IF (C%fixed_grounding_line) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        is_GL = .FALSE.
+        
+        IF (ice%mask_sheet_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
+              is_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_GL) EXIT
+          END DO
+        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+              is_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_GL) THEN
+          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
+        END IF
+        
       END DO
       END DO
       CALL sync
