@@ -136,7 +136,7 @@ CONTAINS
     ! Limit basal melt
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      BMB%BMB( j,i) = MAX( BMB%BMB( j,i), -C%BMB_max)
+      BMB%BMB( j,i) = MIN( C%BMB_max, MAX( -C%BMB_max, BMB%BMB( j,i) ))
     END DO
     END DO
     CALL sync
@@ -3574,16 +3574,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
-    ! DENK DROM
-    IF (par%master) THEN
-      debug%dp_2D_01 = (ice%Hi_a - refgeo_init%Hi) / H0
-      debug%dp_2D_02 = ice%dHi_dt_a / dHdt0
-      debug%dp_2D_03 = BMB%BMB_shelf
-      CALL write_to_debug_file
-    END IF
-    CALL sync
-    !CALL crash('beep')
     
   END SUBROUTINE inverse_BMB_shelf_geometry
   
