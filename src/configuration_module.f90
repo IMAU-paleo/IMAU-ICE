@@ -303,6 +303,11 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
   CHARACTER(LEN=256)  :: choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   CHARACTER(LEN=256)  :: choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
+  
+  ! Partially fixed geometry, useful for initialisation and inversion runs
+  LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
+  LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
+  LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -316,6 +321,8 @@ MODULE configuration_module
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
   REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
+  LOGICAL             :: include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
+  REAL(dp)            :: deltaT_basal_freezing_config                = 2._dp                            ! See above.
   
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
@@ -951,6 +958,11 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_mask_noice_GRL
     CHARACTER(LEN=256)                  :: choice_mask_noice_ANT
 
+    ! Partially fixed geometry, useful for initialisation and inversion runs
+    LOGICAL                             :: fixed_shelf_geometry
+    LOGICAL                             :: fixed_sheet_geometry
+    LOGICAL                             :: fixed_grounding_line
+
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
   
@@ -963,6 +975,8 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
     REAL(dp)                            :: slid_ZI_ut
     REAL(dp)                            :: slid_ZI_p
+    LOGICAL                             :: include_basal_freezing
+    REAL(dp)                            :: deltaT_basal_freezing
     
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
@@ -1763,6 +1777,9 @@ CONTAINS
                      choice_mask_noice_EAS_config,                    &
                      choice_mask_noice_GRL_config,                    &
                      choice_mask_noice_ANT_config,                    &
+                     fixed_shelf_geometry_config,                     &
+                     fixed_sheet_geometry_config,                     &
+                     fixed_grounding_line_config,                     &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -1771,6 +1788,8 @@ CONTAINS
                      slid_Coulomb_reg_u_threshold_config,             &
                      slid_ZI_ut_config,                               &
                      slid_ZI_p_config,                                &
+                     include_basal_freezing_config,                   &
+                     deltaT_basal_freezing_config,                    &
                      choice_basal_hydrology_config,                   &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
@@ -2321,6 +2340,11 @@ CONTAINS
     C%choice_mask_noice_GRL                    = choice_mask_noice_GRL_config
     C%choice_mask_noice_ANT                    = choice_mask_noice_ANT_config
 
+    ! Partially fixed geometry, useful for initialisation and inversion runs
+    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
+    C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
+    C%fixed_grounding_line                     = fixed_grounding_line_config
+
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
   
@@ -2333,6 +2357,8 @@ CONTAINS
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
     C%slid_ZI_ut                               = slid_ZI_ut_config
     C%slid_ZI_p                                = slid_ZI_p_config
+    C%include_basal_freezing                   = include_basal_freezing_config
+    C%deltaT_basal_freezing                    = deltaT_basal_freezing_config
     
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
