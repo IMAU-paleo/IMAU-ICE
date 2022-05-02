@@ -136,7 +136,7 @@ CONTAINS
     ! Limit basal melt
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      BMB%BMB( j,i) = MIN( C%BMB_max, MAX( -C%BMB_max, BMB%BMB( j,i) ))
+      BMB%BMB( j,i) = MIN( C%BMB_min, MAX( -C%BMB_max, BMB%BMB( j,i) ))
     END DO
     END DO
     CALL sync
