@@ -2117,9 +2117,9 @@ CONTAINS
     n_search = 1 + CEILING( 2._dp * sigma / grid%dx)
     
     ! Allocate map and stacks
-    ALLOCATE( map(       grid%ny,  grid%nx))
-    ALLOCATE( stack1( 4*(grid%ny + grid%nx),2))
-    ALLOCATE( stack2( 4*(grid%ny + grid%nx),2))
+    ALLOCATE( map(    grid%ny,  grid%nx   ))
+    ALLOCATE( stack1( grid%ny * grid%nx, 2))
+    ALLOCATE( stack2( grid%ny * grid%nx, 2))
       
     map         = 0
     stack1      = 0

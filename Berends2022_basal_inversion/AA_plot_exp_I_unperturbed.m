@@ -26,7 +26,7 @@ clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
-clim_du   = [-100,100];
+clim_du   = [-250,250];
 
 %% Read data
 for fi = 1:length(foldernames)
@@ -206,18 +206,18 @@ for j = 1:3
   % Top row: till friction angle
   cdata = results(jr).dphi_fric';
   adata = zeros(size(cdata));
-  adata( results(jr).Hi'>0) = 1;
+  adata( results(jr).Hi'>10) = 1;
   image('parent',H.Ax(1,ja),'xdata',x,'ydata',y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
   % Middle row: surface elevation
   cdata = results(jr).dHs';
   adata = zeros(size(cdata));
-  adata( results(jr).Hi'>0) = 1;
+  adata( results(jr).Hi'>10) = 1;
   image('parent',H.Ax(2,ja),'xdata',x,'ydata',y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
   % Bottom row: surface velocity
   cdata = results(jr).du';
   adata = zeros(size(cdata));
-  adata( results(jr).Hi'>0) = 1;
+  adata( results(jr).Hi'>10) = 1;
   image('parent',H.Ax(3,ja),'xdata',x,'ydata',y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 end

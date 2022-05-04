@@ -24,7 +24,7 @@ clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1,1000];
-clim_du   = [-100,100];
+clim_du   = [-250,250];
 
 %% Read data
 for fi = 1:length(foldernames)
@@ -56,9 +56,9 @@ end
 
 % Calculate errors
 for fi = 3:4
-  results(fi).dHs       = results(fi).Hs       - results(fi-2).Hs;
   results(fi).dphi_fric = results(fi).phi_fric ./ results(fi-2).phi_fric;
-  results(fi).du        = results(fi).uabs     - results(fi-2).uabs;
+  results(fi).dHs       = results(fi).Hs       -  results(fi-2).Hs;
+  results(fi).du        = results(fi).uabs     -  results(fi-2).uabs;
 end
 
 %% Set up GUI
