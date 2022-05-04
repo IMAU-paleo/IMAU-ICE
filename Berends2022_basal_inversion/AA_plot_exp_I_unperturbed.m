@@ -22,7 +22,7 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
@@ -48,7 +48,7 @@ end
 
 for fi = 4:6
   results(fi).dHs       = results(fi).Hs       - results(fi-3).Hs;
-  results(fi).dphi_fric = results(fi).phi_fric - results(fi-3).phi_fric;
+  results(fi).dphi_fric = results(fi).phi_fric ./ results(fi-3).phi_fric;
   results(fi).du        = results(fi).uabs     - results(fi-3).uabs;
 end
 
@@ -95,7 +95,7 @@ end
 
 for j = 2:4
   colormap(H.Ax(1,j),cmap_dphi);
-  set(H.Ax(1,j),'clim',clim_dphi);
+  set(H.Ax(1,j),'clim',clim_dphi,'colorscale','log');
   
   colormap(H.Ax(2,j),cmap_dHs);
   set(H.Ax(2,j),'clim',clim_dHs);

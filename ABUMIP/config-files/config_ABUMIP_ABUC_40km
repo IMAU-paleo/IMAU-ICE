@@ -6,7 +6,7 @@
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
   end_time_of_run_config                      = 500.0                            ! End   time (in years) of the simulations
   dt_coupling_config                          = 1.0                              ! Interval of coupling (in years) between the four ice-sheets  
-  dt_max_config                               = 0.1                              ! Maximum time step (in years) of the ice model
+  dt_max_config                               = 0.5                              ! Maximum time step (in years) of the ice model
   dt_thermo_config                            = 10.0                             ! Time step (in years) for updating thermodynamics
   dt_climate_config                           = 10.0                             ! Time step (in years) for updating the climate
   dt_ocean_config                             = 10.0                             ! Time step (in years) for updating the ocean
@@ -14,7 +14,7 @@
   dt_BMB_config                               = 10.0                             ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
-  dt_output_config                            = 50.0                             ! Time step (in years) for writing output
+  dt_output_config                            = 10.0                             ! Time step (in years) for writing output
   
   ! Which ice sheets do we simulate?
   ! ================================
@@ -60,7 +60,7 @@
   ! Debugging
   ! =========
   
-  do_write_debug_data_config                  = .TRUE.                          ! Whether or not the debug NetCDF file should be created and written to
+  do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
   
   ! Horizontal grid spacing and size for the four regions
@@ -101,12 +101,12 @@
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0  
   time_to_restart_from_GRL_config             = 0.0  
-  time_to_restart_from_ANT_config             = 10000.0  
+  time_to_restart_from_ANT_config             = 100000.0  
   choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   filename_refgeo_init_NAM_config             = '/home/berends/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = '/home/berends/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_init_GRL_config             = '/home/berends/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-  filename_refgeo_init_ANT_config             = 'ABUMIP/ABUMIP_spinup_40km/restart_ANT.nc'
+  filename_refgeo_init_ANT_config             = 'ABUMIP/relax_fixedshelf_100kyr_40km/restart_ANT.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
@@ -178,8 +178,8 @@
   
   choice_ice_dynamics_config                  = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   n_flow_config                               = 3.0                              ! Exponent in Glen's flow law
-  m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
-  m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
+  m_enh_sheet_config                          = 0.5                              ! Ice flow enhancement factor for grounded ice
+  m_enh_shelf_config                          = 0.3                              ! Ice flow enhancement factor for floating ice
   choice_ice_margin_config                    = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
   include_SSADIVA_crossterms_config           = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
   do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
@@ -241,7 +241,7 @@
   choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
   
   ! Partially fixed geometry, useful for initialisation and inversion runs
-  fixed_shelf_geometry_config                 = .FALSE.                           ! Keep geometry of floating ice fixed
+  fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
   fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
@@ -274,8 +274,8 @@
   choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+"
   Martin2011till_phi_Hb_min_config            = -1000.0                          ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
-  Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
-  Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
+  Martin2011till_phi_min_config               = 10.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
+  Martin2011till_phi_max_config               = 40.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   
   ! Basal inversion
@@ -311,7 +311,7 @@
   ! Thermodynamics and rheology
   ! ===========================
   
-  choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  choice_initial_ice_temperature_config       = 'restart'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   uniform_ice_temperature_config              = 270.0                            ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -449,7 +449,8 @@
   BMB_sheet_uniform_config                    = 0.0                              ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
-  BMB_max_config                              = 50.0                             ! Maximum amount of allowed basal melt [mie/yr]
+  BMB_max_config                              = 50.0                             ! Maximum amount of allowed basal melt     [mie/yr]
+  BMB_min_config                              = 5.0                              ! Maximum amount of allowed basal freezing [mie/yr]
   
   choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   choice_basin_scheme_EAS_config              = 'none'

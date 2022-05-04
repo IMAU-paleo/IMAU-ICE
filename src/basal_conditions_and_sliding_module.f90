@@ -1747,8 +1747,9 @@ CONTAINS
   END SUBROUTINE update_bed_roughness_CISMplus_Coulomb
   
   SUBROUTINE update_bed_roughness_Berends2022( grid, ice, refgeo_init, dt)
-    ! A geometry+velocity-based inversion, where the rate of change of the bed roughness is
-    ! calculated by integrating the difference between modelled vs. target geometry+velocity
+    ! The geometry+velocity-based inversion from Berends et al. (2022)
+    ! Here, the rate of change of the bed roughness is calculated
+    ! by integrating the difference between modelled vs. target geometry+velocity
     ! along the flowline (both upstream and downstream).
     
     IMPLICIT NONE
@@ -1763,33 +1764,32 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_bed_roughness_Tijn'
     INTEGER,  DIMENSION(:,:  ), POINTER                ::  mask
     INTEGER                                            :: wmask
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dCdt
-    INTEGER                                            :: wdCdt
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dphi_dt
+    INTEGER                                            :: wdphi_dt
     REAL(dp), PARAMETER                                :: dx_trace_rel    = 0.25_dp       ! Trace step size relative to grid resolution
     REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_trace_up_Hs, w_trace_up_u, w_trace_down_Hs, w_trace_down_u
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_up, w_down
     INTEGER                                            :: i,j,n_up,n_down,k
     REAL(dp), DIMENSION(2)                             :: p,pt
-    REAL(dp)                                           :: Hs_mod, Hs_target, u_mod  , u_target
-    REAL(dp)                                           :: Q_scale, Q_mod, R, w_Hs_up, w_Hs_down, w_u_up, w_u_down
+    REAL(dp)                                           :: Hs_mod, Hs_target, u_mod, u_target
+    REAL(dp)                                           :: I1, I2, I3, I_tot
+    REAL(dp)                                           :: R
     REAL(dp)                                           :: sigma
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
     ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dCdt, wdCdt)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask   , wmask   )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dphi_dt, wdphi_dt)
     
     ! Allocate memory for the up- and downstream traces
     ALLOCATE( trace_up(        2*MAX(grid%nx,grid%ny), 2))
     ALLOCATE( trace_down(      2*MAX(grid%nx,grid%ny), 2))
     
-    ! Allocate memory for the "response functions" that Hi and u must be convoluted with
-    ALLOCATE( w_trace_up_Hs(   2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_down_Hs( 2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_up_u(    2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_down_u(  2*MAX(grid%nx,grid%ny)   ))
+    ! Allocate memory for the linear scaling functions
+    ALLOCATE( w_up(   2*MAX(grid%nx,grid%ny)   ))
+    ALLOCATE( w_down( 2*MAX(grid%nx,grid%ny)   ))
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1803,137 +1803,102 @@ CONTAINS
         mask( j,i) = 2
       END IF
       
+      ! The point p
       p = [grid%x( i), grid%y( j)]
       
-      ! Trace the flowline upstream and downstream
+      ! Trace the flowline upstream and downstream (Berends et al., 2022, Eqs. 2)
       CALL trace_flowline_upstream(   grid, ice, p, dx_trace_rel, trace_up  , n_up               )
       CALL trace_flowline_downstream( grid, ice, p, dx_trace_rel, trace_down, n_down, refgeo_init)
       
-      ! Calculate (normalised) response functions
-      w_trace_up_Hs = 0._dp
-      w_trace_up_u  = 0._dp
+      ! Calculate linear scaling functions (Berends et al., Eqs. 5)
+      w_up = 0._dp
       DO k = 1, n_up
-        w_trace_up_Hs( k) = REAL( n_up + 1 - k, dp)
-        w_trace_up_u(  k) = REAL( n_up + 1 - k, dp)
+        w_up( k) = REAL( n_up + 1 - k, dp)
       END DO
-      w_trace_up_Hs = w_trace_up_Hs / SUM( w_trace_up_Hs)
-      w_trace_up_u  = w_trace_up_u  / SUM( w_trace_up_u )
+      w_up = w_up / SUM( w_up)
       
-      w_trace_down_Hs = 0._dp
-      w_trace_down_u  = 0._dp
+      w_down = 0._dp
       DO k = 1, n_down
-        w_trace_down_Hs( k) = REAL( n_down + 1 - k, dp)
-        w_trace_down_u(  k) = REAL( n_down + 1 - k, dp)
+        w_down( k) = REAL( n_down + 1 - k, dp)
       END DO
-      w_trace_down_Hs = w_trace_down_Hs / SUM( w_trace_down_Hs)
-      w_trace_down_u  = w_trace_down_u  / SUM( w_trace_down_u )
+      w_down = w_down / SUM( w_down)
       
-      ! Calculate upstream line integrals, multiplied with normalised response function
-      w_Hs_up = 0._dp
-      w_u_up  = 0._dp
+      ! Calculate upstream line integrals
+      I1 = 0._dp
+      I3 = 0._dp
       DO k = 1, n_up
       
         pt = trace_up( k,:)
-        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, pt(1), pt(2))
-        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, pt(1), pt(2))
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, pt(1), pt(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, pt(1), pt(2))
+        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, pt(1), pt(2))
+        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, pt(1), pt(2))
         
         ! If no target velocity data is available, assume zero difference
         IF (u_target /= u_target) u_target = u_mod
         
-        w_Hs_up = w_Hs_up + (Hs_mod - Hs_target) * w_trace_up_Hs( k) / C%BIVgeo_Berends2022_H0
-        w_u_up  = w_u_up  - (u_mod  - u_target ) * w_trace_up_u(  k) / C%BIVgeo_Berends2022_u0
+        I1 = I1 - ( u_mod -  u_target) * w_up( k) / C%BIVgeo_Berends2022_u0    ! Berends et al., (2022), Eq. 4a
+        I3 = I3 + (Hs_mod - Hs_target) * w_up( k) / C%BIVgeo_Berends2022_H0    ! Berends et al., (2022), Eq. 4c
         
       END DO
       
-      ! Calculate downstream line integrals, multiplied with normalised response function
-      w_Hs_down = 0._dp
-      w_u_down  = 0._dp
+      ! Calculate downstream line integral
+      I2 = 0._dp
       DO k = 1, n_down
       
         pt = trace_down( k,:)
-        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, pt(1), pt(2))
-        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, pt(1), pt(2))
         u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, pt(1), pt(2))
         u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, pt(1), pt(2))
         
         ! If no target velocity data is available, assume zero difference
         IF (u_target /= u_target) u_target = u_mod
         
-        w_Hs_down = w_Hs_down - (Hs_mod - Hs_target) * w_trace_down_Hs( k) / C%BIVgeo_Berends2022_H0
-        w_u_down  = w_u_down  - (u_mod  - u_target ) * w_trace_down_u(  k) / C%BIVgeo_Berends2022_u0
+        I2 = I2 - ( u_mod -  u_target) * w_down( k) / C%BIVgeo_Berends2022_u0  ! Berends et al., (2022), Eq. 4b
         
       END DO
       
       ! Scale weights with local ice thickness * velocity
       ! (thinner and/or ice experiences less basal friction, so the solution is less sensitive to changes in bed roughness there)
-      Q_mod   = ice%uabs_surf_a( j,i)        * ice%Hi_a( j,i)
-      Q_scale = C%BIVgeo_Berends2022_u_scale * C%BIVgeo_Berends2022_Hi_scale
-      R = MAX( 0._dp, MIN( 1._dp, Q_mod / Q_scale ))
       
-      w_Hs_up   = w_Hs_up   * R
-      w_Hs_down = w_Hs_down * R
-      w_u_up    = w_u_up    * R
-      w_u_down  = w_u_down  * R
+      ! Berends et al. (2022), Eq. 7
+      R = MAX( 0._dp, MIN( 1._dp, ((ice%uabs_surf_a( j,i) * ice%Hi_a( j,i)) / (C%BIVgeo_Berends2022_u_scale * C%BIVgeo_Berends2022_Hi_scale)) ))
+      ! Berends et al. (2022), Eq. 6
+      I_tot = (I1 + I2 + I3) * R
       
-      ! Calculate rate of change of bed roughness
-     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_Berends2022_tauc * (w_Hs_up + w_Hs_down + w_u_up  + w_u_down )
-      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_Berends2022_tauc * (w_Hs_up + w_u_up + w_u_down )
-      
-      ! DENK DROM
-      debug%dp_2D_01( j,i) = w_Hs_up
-      debug%dp_2D_02( j,i) = w_Hs_down
-      debug%dp_2D_03( j,i) = w_u_up
-      debug%dp_2D_04( j,i) = w_u_down
-      debug%dp_2D_05( j,i) = dCdt( j,i)
+      ! Calculate rate of change of bed roughness (Berends et al. (2022), Eq. 8)
+      dphi_dt( j,i) = -ice%phi_fric_a( j,i) * I_tot / C%BIVgeo_Berends2022_tauc
       
     END DO
     END DO
     CALL sync
     
     ! Extrapolate new values outside the ice sheet
-    CALL extrapolate_updated_bed_roughness( grid, mask, dCdt)
+    CALL extrapolate_updated_bed_roughness( grid, mask, dphi_dt)
     
-    ! Apply regularisation
+    ! Update bed roughness (Berends et al. (2022), Eq. 9)
+    
+    ! First regularisation step (function F1 in Berends et al. (2022), Eq. 9)
     sigma = grid%dx / 1.5_dp
-    CALL smooth_Gaussian_2D( grid, dCdt, sigma)
+    CALL smooth_Gaussian_2D( grid, dphi_dt, sigma)
     
-    ! Update bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
+      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dphi_dt( j,i) * dt ))
     END DO
     END DO
     CALL sync
     
-    ! Apply regularisation
+    ! Second regularisation step (function F2 in Berends et al. (2022), Eq. 9)
     sigma = grid%dx / 4._dp
     CALL smooth_Gaussian_2D( grid, ice%phi_fric_a, sigma)
     
-    ! DENK DROM
-    IF (par%master) THEN
-      debug%dp_2D_06 = dCdt
-      debug%dp_2D_07 = ice%phi_fric_a
-      debug%dp_2D_08 = ice%uabs_surf_a
-      debug%dp_2D_09 = ice%BIV_uabs_surf_target
-      debug%dp_2D_10 = REAL( ice%mask_margin_a,dp)
-      debug%dp_2D_11 = ice%u_surf_a
-      debug%dp_2D_12 = ice%v_surf_a
-      CALL write_to_debug_file
-    END IF
-    CALL sync
-!    CALL crash( 'burp')
-    
     ! Clean up after yourself
-    DEALLOCATE( trace_up       )
-    DEALLOCATE( trace_down     )
-    DEALLOCATE( w_trace_up_Hs  )
-    DEALLOCATE( w_trace_down_Hs)
-    DEALLOCATE( w_trace_up_u   )
-    DEALLOCATE( w_trace_down_u )
-    CALL deallocate_shared( wdCdt)
-    CALL deallocate_shared( wmask)
+    DEALLOCATE( trace_up  )
+    DEALLOCATE( trace_down)
+    DEALLOCATE( w_up      )
+    DEALLOCATE( w_down    )
+    CALL deallocate_shared( wmask   )
+    CALL deallocate_shared( wdphi_dt)
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)

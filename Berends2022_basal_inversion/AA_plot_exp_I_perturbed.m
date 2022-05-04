@@ -28,7 +28,7 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
@@ -68,7 +68,7 @@ for fi = 1:length(foldernames)
   results(fi).v         = ncread( filename_help_fields,'v_surf'  ,[1,1,ti],[Inf,Inf,1]);
   results(fi).uabs      = sqrt( results(fi).u.^2 + results(fi).v.^2);
   
-  results(fi).dphi_fric = results(fi).phi_fric - target.phi_fric;
+  results(fi).dphi_fric = results(fi).phi_fric ./ target.phi_fric;
   results(fi).dHs       = results(fi).Hs       - target.Hs;
   results(fi).du        = results(fi).uabs     - target.uabs;
 end
@@ -109,8 +109,8 @@ end
 for j = 1:nax
   colormap(H.Ax(1,j),cmap_dphi);
   colormap(H.Ax(2,j),cmap_dphi);
-  set(H.Ax(1,j),'clim',clim_dphi);
-  set(H.Ax(2,j),'clim',clim_dphi);
+  set(H.Ax(1,j),'clim',clim_dphi,'colorscale','log');
+  set(H.Ax(2,j),'clim',clim_dphi,'colorscale','log');
 
   colormap(H.Ax(3,j),cmap_dHs);
   colormap(H.Ax(4,j),cmap_dHs);
@@ -146,7 +146,7 @@ yhi = pos1(2)+pos1(4);
 H.Axcbar1 = axes('parent',H.Fig,'units','pixels','position',[xlo,ylo,xhi-xlo,yhi-ylo],'fontsize',24);
 H.Axcbar1.XAxis.Visible = 'off';
 H.Axcbar1.YAxis.Visible = 'off';
-set(H.Axcbar1,'clim',clim_dphi);
+set(H.Axcbar1,'clim',clim_dphi,'colorscale','log');
 colormap(H.Axcbar1,cmap_dphi);
 pos = get(H.Axcbar1,'position');
 H.Cbar1 = colorbar(H.Axcbar1,'location','west');

@@ -612,21 +612,34 @@ CONTAINS
     INTEGER,                    INTENT(OUT)       :: i1, i2
     
     ! Local variables:
-    INTEGER                                       :: ii
+    INTEGER                                       :: vi
+    INTEGER, DIMENSION(:    ), ALLOCATABLE        :: to_which_process_do_I_belong
     
-    IF (ntot > n*2) THEN
-      i1 = MAX(1,    FLOOR(REAL(ntot *  i      / n)) + 1)
-      i2 = MIN(ntot, FLOOR(REAL(ntot * (i + 1) / n)))
-    ELSE
-      i1 = 0
-      i2 = -1
-      DO ii = 1, n
-        IF (ii == i) THEN
-          i1 = i
-          i2 = i
-        END IF
-      END DO
-    END IF
+    ALLOCATE( to_which_process_do_I_belong( ntot))
+    
+    DO vi = 1, ntot
+      to_which_process_do_i_belong( vi) = NINT( REAL(vi-1,dp) * REAL(n-1,dp) / REAL(ntot-1,dp) )
+    END DO
+    
+    i1 = 1
+    DO WHILE (to_which_process_do_i_belong( i1) /= i)
+      i1 = i1+1
+      IF (i1 > ntot) THEN
+        i1 =  0
+        i2 = -1
+        RETURN
+      END IF
+    END DO
+    
+    i2 = ntot
+    DO WHILE (to_which_process_do_i_belong( i2) /= i)
+      i2 = i2-1
+      IF (i2 < 1) THEN
+        i1 =  0
+        i2 = -1
+        RETURN
+      END IF
+    END DO
     
   END SUBROUTINE partition_list
   

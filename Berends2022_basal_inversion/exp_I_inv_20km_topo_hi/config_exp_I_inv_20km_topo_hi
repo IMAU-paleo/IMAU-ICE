@@ -83,8 +83,8 @@
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
-  DIVA_visc_it_norm_dUV_tol_config            = 1E-2                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
-  DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
+  DIVA_visc_it_norm_dUV_tol_config            = 0.5E-2                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  DIVA_visc_it_nit_config                     = 100                               ! Maximum number of effective viscosity iterations
   DIVA_visc_it_relax_config                   = 0.4                              ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
   DIVA_visc_eff_min_config                    = 1E3                              ! Minimum value for effective viscosity
@@ -103,7 +103,7 @@
   DIVA_SOR_tol_config                         = 2.5                              ! DIVA SOR   solver - stop criterion, absolute difference
   DIVA_SOR_omega_config                       = 1.3                              ! DIVA SOR   solver - over-relaxation parameter
   DIVA_PETSc_rtol_config                      = 0.01                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  DIVA_PETSc_abstol_config                    = 0.1                              ! DIVA PETSc solver - stop criterion, absolute difference
+  DIVA_PETSc_abstol_config                    = 0.05                              ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -118,7 +118,7 @@
   dHi_PETSc_abstol_config                     = 0.001                            ! dHi PETSc solver - stop criterion, absolute difference
   
   ! Predictor-corrector ice-thickness update
-  pc_epsilon_config                           = 0.5                              ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
+  pc_epsilon_config                           = 0.3                              ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
   pc_k_I_config                               = 0.2                              ! Exponent k_I in  Robinson et al., 2020, Eq. 33
   pc_k_p_config                               = 0.2                              ! Exponent k_p in  Robinson et al., 2020, Eq. 33
   pc_eta_min_config                           = 1E-8                             ! Normalisation term in estimation of the truncation error (Robinson et al., Eq. 32)
@@ -140,7 +140,7 @@
   choice_sliding_law_config                   = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
   slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-  slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
+  slid_ZI_p_config                            = 3.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
   
   ! Basal hydrology
   choice_basal_hydrology_config               = 'dry'                            ! Choice of basal conditions: "dry", "saturated", "Martin2011"

@@ -4,9 +4,9 @@
   ! ====================
   
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 100000.0                         ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 50000.0                          ! End   time (in years) of the simulations
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
-  dt_output_config                            = 5000.0                           ! Time step (in years) for writing output
+  dt_output_config                            = 500.0                            ! Time step (in years) for writing output
   
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
@@ -83,7 +83,7 @@
   r_smooth_geometry_config                    = 0.5                              ! Geometry smoothing radius (in number of grid cells)
   
   ! Some parameters for numerically solving the SSA/DIVA
-  DIVA_visc_it_norm_dUV_tol_config            = 1E-3                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
+  DIVA_visc_it_norm_dUV_tol_config            = 1E-2                             ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
   DIVA_visc_it_relax_config                   = 0.4                              ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
@@ -140,7 +140,7 @@
   choice_sliding_law_config                   = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
   slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-  slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
+  slid_ZI_p_config                            = 3.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
   
   ! Basal hydrology
   choice_basal_hydrology_config               = 'dry'                            ! Choice of basal conditions: "dry", "saturated", "Martin2011"
@@ -160,7 +160,7 @@
   choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-  uniform_flow_factor_config                  = 1.07482E-17                      ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  uniform_flow_factor_config                  = 1.13928E-17                      ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
   
   ! Climate
   ! =======
