@@ -627,6 +627,7 @@ CONTAINS
       IF (i1 > ntot) THEN
         i1 =  0
         i2 = -1
+        DEALLOCATE( to_which_process_do_I_belong)
         RETURN
       END IF
     END DO
@@ -637,9 +638,12 @@ CONTAINS
       IF (i2 < 1) THEN
         i1 =  0
         i2 = -1
+        DEALLOCATE( to_which_process_do_I_belong)
         RETURN
       END IF
     END DO
+    
+    DEALLOCATE( to_which_process_do_I_belong)
     
   END SUBROUTINE partition_list
   
