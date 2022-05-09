@@ -13,7 +13,7 @@
   ! =======================================================================
   
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'Berends2022_basal_inversion/exp_II_retreat_5km_visc_hi'       ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'Berends2022_basal_inversion/exp_II_retreat_5km_ut_hi'       ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .FALSE.
   do_write_global_scalar_output_config        = .FALSE.
@@ -39,7 +39,7 @@
   ! Initial geometry
   choice_refgeo_init_ANT_config               = 'restart'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   time_to_restart_from_ANT_config             = 100000.0
-  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/exp_II_inv_5km_visc_hi/restart_ANT.nc'
+  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/exp_II_inv_5km_ut_hi/restart_ANT.nc'
   
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
@@ -140,7 +140,7 @@
   ! Sliding laws
   choice_sliding_law_config                   = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
-  slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
+  slid_ZI_ut_config                           = 400.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   slid_ZI_p_config                            = 3.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
   
   ! Basal hydrology
@@ -148,7 +148,7 @@
   
   ! Basal roughness / friction
   choice_basal_roughness_config               = 'prescribed'                     ! "uniform"", parameterised", "prescribed"
-  basal_roughness_filename_config             = 'Berends2022_basal_inversion/exp_II_inv_5km_visc_hi/inverted_bed_roughness.nc'                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  basal_roughness_filename_config             = 'Berends2022_basal_inversion/exp_II_inv_5km_ut_hi/inverted_bed_roughness.nc'                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   
   ! Ice dynamics - calving
   ! ======================
@@ -161,7 +161,7 @@
   choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-  uniform_flow_factor_config                  = 9.1142E-18                       ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  uniform_flow_factor_config                  = 1.13928E-17                      ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
   
   ! Climate
   ! =======

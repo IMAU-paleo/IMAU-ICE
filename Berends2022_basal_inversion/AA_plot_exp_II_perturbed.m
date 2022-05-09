@@ -9,10 +9,12 @@ foldernames = {...
   'exp_II_inv_5km_visc_lo',...          %  2
   'exp_II_inv_5km_SMB_hi',...           %  3
   'exp_II_inv_5km_SMB_lo',...           %  4
-  'results_old/exp_II_inv_5km_BMB_hi',...           %  5
-  'results_old/exp_II_inv_5km_BMB_lo',...           %  6
+  'exp_II_inv_5km_BMB_hi',...           %  5
+  'exp_II_inv_5km_BMB_lo',...           %  6
   'exp_II_inv_5km_topo_hi',...          %  7
-  'exp_II_inv_5km_topo_lo'};            %  8
+  'exp_II_inv_5km_topo_lo',...          %  8
+  'exp_II_inv_5km_p_hi',...             %  9
+  'exp_II_inv_5km_p_lo'};               % 10
 
 cmap_phi  = parula(256);
 cmap_Hs   = itmap(16);
@@ -90,7 +92,7 @@ end
 wa = 300;
 ha = 75;
 
-margins_hor = [50,5,5,5,130];
+margins_hor = [50,5,5,5,5,130];
 margins_ver = [25,5,25,5,25,5,50];
 
 nax = length(margins_hor)-1;
@@ -139,6 +141,7 @@ xlabel( H.Ax(1,1),'Viscosity');
 xlabel( H.Ax(1,2),'SMB');
 xlabel( H.Ax(1,3),'BMB');
 xlabel( H.Ax(1,4),'Topography');
+xlabel( H.Ax(1,5),'Z-I p');
 
 ylabel( H.Ax(1,1),'High')
 ylabel( H.Ax(2,1),'Low')
@@ -274,6 +277,21 @@ adata = zeros(size(cdata));
 adata( R.TAF'>0) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
+% p
+ax = H.Ax(1,5);
+R  = results(9);
+cdata = R.dphi_fric';
+adata = zeros(size(cdata));
+adata( R.TAF'>0) = 1;
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
+
+ax = H.Ax(2,5);
+R  = results(10);
+cdata = R.dphi_fric';
+adata = zeros(size(cdata));
+adata( R.TAF'>0) = 1;
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
+
 %% Middle two rows: surface elevation
 
 % Viscosity
@@ -320,6 +338,17 @@ R  = results(8);
 cdata = R.dHs';
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
 
+% p
+ax = H.Ax(3,5);
+R  = results(9);
+cdata = R.dHs';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+ax = H.Ax(4,5);
+R  = results(10);
+cdata = R.dHs';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
 %% Bottom two rows: surface velocity
 
 % Viscosity
@@ -363,6 +392,17 @@ image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled')
 
 ax = H.Ax(6,4);
 R  = results(8);
+cdata = R.du';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+% p
+ax = H.Ax(5,5);
+R  = results(9);
+cdata = R.du';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+ax = H.Ax(6,5);
+R  = results(10);
 cdata = R.du';
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
 
@@ -569,6 +609,61 @@ end
 
 ax = H.Ax(4,4);
 R  = results(8);
+  
+% Construct actual grounding line contour
+H.tempfig = figure;
+H.tempax  = axes('parent',H.tempfig);
+C_GL = contour('parent',H.tempax,'xdata',R.y,'ydata',R.x,'zdata',R.TAF,'levellist',0);
+close(H.tempfig);
+
+% Plot target GL contour
+C = C_GL_target;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','r');
+end
+
+% Plot inverted GL contour
+C = C_GL;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','k','linestyle','--');
+end
+
+% p
+ax = H.Ax(3,5);
+R  = results(9);
+  
+% Construct actual grounding line contour
+H.tempfig = figure;
+H.tempax  = axes('parent',H.tempfig);
+C_GL = contour('parent',H.tempax,'xdata',R.y,'ydata',R.x,'zdata',R.TAF,'levellist',0);
+close(H.tempfig);
+
+% Plot target GL contour
+C = C_GL_target;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','r');
+end
+
+% Plot inverted GL contour
+C = C_GL;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','k','linestyle','--');
+end
+
+ax = H.Ax(4,5);
+R  = results(10);
   
 % Construct actual grounding line contour
 H.tempfig = figure;
