@@ -239,6 +239,11 @@
   choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
   choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
+  
+  ! Partially fixed geometry, useful for initialisation and inversion runs
+  fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
+  fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
+  fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -252,6 +257,8 @@
   slid_Coulomb_reg_u_threshold_config         = 100.0                            ! Threshold velocity in regularised Coulomb sliding law
   slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
+  include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
+  deltaT_basal_freezing_config                = 2.0                              ! See above.
   
   ! Basal hydrology
   choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
@@ -266,7 +273,7 @@
   uniform_Tsai2015_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Tsai2015 sliding law
   uniform_Schoof2005_alpha_sq_config          = 0.5                              ! Uniform value for alpha_sq in Schoof2005 sliding law
   uniform_Schoof2005_beta_sq_config           = 1.0E4                            ! Uniform value for beta_sq  in Schoof2005 sliding law
-  choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+"
   Martin2011till_phi_Hb_min_config            = -1000.0                          ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
@@ -285,11 +292,11 @@
   BIVgeo_CISMplus_tauc_config                 = 500.0                            ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   BIVgeo_CISMplus_H0_config                   = 100.0                            ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   BIVgeo_CISMplus_u0_config                   = 10.0                             ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_Berends2022_tauc_config              = 500.0                            ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
+  BIVgeo_Berends2022_tauc_config              = 10.0                             ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
   BIVgeo_Berends2022_H0_config                = 100.0                            ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  BIVgeo_Berends2022_u0_config                = 10.0                             ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_Berends2022_Hi_scale_config          = 3000.0                           ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
-  BIVgeo_Berends2022_u_scale_config           = 300.0                            ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_Berends2022_u0_config                = 250.0                            ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_Berends2022_Hi_scale_config          = 300.0                            ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  BIVgeo_Berends2022_u_scale_config           = 3000.0                           ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
@@ -444,7 +451,8 @@
   BMB_sheet_uniform_config                    = 0.0                              ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
-  BMB_max_config                              = 50.0                             ! Maximum amount of allowed basal melt [mie/yr]
+  BMB_max_config                              = 50.0                             ! Maximum amount of allowed basal melt     [mie/yr]
+  BMB_min_config                              = 5.0                              ! Maximum amount of allowed basal freezing [mie/yr]
   
   choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   choice_basin_scheme_EAS_config              = 'none'
@@ -459,9 +467,9 @@
  
   choice_BMB_shelf_amplification_config        = 'basin'                   ! Choice of method to determine BMB amplification factors: "uniform", "basin"
   basin_BMB_amplification_n_ANT_config         = 17                        ! Number of basins used for ANT
-  basin_BMB_amplification_factor_ANT_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
+  basin_BMB_amplification_factor_ANT_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  
   basin_BMB_amplification_n_GRL_config         = 8                         ! Number of basins used for GRL
-  basin_BMB_amplification_factor_GRL_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
+  basin_BMB_amplification_factor_GRL_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  
  
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
   BMB_Favier2019_lin_GammaT_config            = 3.3314E-05     ! 2.03E-5         ! Heat exchange velocity [m s^-1] 
@@ -546,31 +554,6 @@
   ELRA_lithosphere_flex_rigidity_config       = 1.0E+25                          ! Lithospheric flexural rigidity [kg m^2 s^-2]
   ELRA_bedrock_relaxation_time_config         = 3000.0                           ! Relaxation time for bedrock adjustment [yr]
   ELRA_mantle_density_config                  = 3300.0                           ! Mantle density [kg m^-3]
-
-  ! SELEN
-  ! =====
-  
-  SELEN_run_at_t_start_config                  = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
-  SELEN_n_TDOF_iterations_config               = 1                               ! Number of Time-Dependent Ocean Function iterations
-  SELEN_n_recursion_iterations_config          = 1                               ! Number of recursion iterations
-  SELEN_use_rotational_feedback_config         = .FALSE.                         ! If TRUE, rotational feedback is included
-  SELEN_n_harmonics_config                     = 128                             ! Maximum number of harmonic degrees
-  SELEN_display_progress_config                = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
-  
-  SELEN_dir_config                             = 'SELEN_files'                   ! Directory where SELEN initial files and spherical harmonics are stored
-  SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
-  SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
-  SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
-      
-  SELEN_lith_thickness_config                  = 100.0                           ! Thickness of the elastic lithosphere [km]
-  SELEN_visc_n_config                          = 3                               ! Number      of viscous asthenosphere layers
-  SELEN_visc_prof_config                       = 3.0  , 0.6   , 0.3              ! Viscosities of viscous asthenosphere layers [?]
-    
-  ! Settings for the TABOO Earth deformation model
-  SELEN_TABOO_CDE_config                       = 0                               ! code of the model (see taboo for explanation)
-  SELEN_TABOO_TLOVE_config                     = 1                               ! Tidal love numbers yes/no
-  SELEN_TABOO_DEG1_config                      = 1                               ! Tidal love numbers degree
-  SELEN_TABOO_RCMB_config                      = 3480.0                          ! Radius of CMB (km)
   
   ! Which data fields will be written to the help_fields output file
   ! ================================================================
@@ -625,5 +608,6 @@
   help_field_48_config                        = 'none'
   help_field_49_config                        = 'none'
   help_field_50_config                        = 'none'
-
-/
+  
+  /
+  

@@ -468,6 +468,9 @@ MODULE configuration_module
   REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
   REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp
   
+  ! Uniform ocean temperature offset for the student exercise
+  REAL(dp)            :: dT_ocean_uniform_config                     = 0._dp
+  
   ! Surface mass balance
   ! ====================
   
@@ -1124,6 +1127,9 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
     REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
     REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
+  
+    ! Uniform ocean temperature offset for the student exercise
+    REAL(dp)                            :: dT_ocean_uniform
     
     ! Surface mass balance
     ! ====================
@@ -1890,6 +1896,7 @@ CONTAINS
                      ocean_matrix_CO2vsice_EAS_config,                &
                      ocean_matrix_CO2vsice_GRL_config,                &
                      ocean_matrix_CO2vsice_ANT_config,                &
+                     dT_ocean_uniform_config,                         &
                      choice_SMB_model_config,                         &
                      choice_idealised_SMB_config,                     &
                      SMB_uniform_config,                              &
@@ -2506,6 +2513,9 @@ CONTAINS
     C%ocean_matrix_CO2vsice_EAS                = ocean_matrix_CO2vsice_EAS_config
     C%ocean_matrix_CO2vsice_GRL                = ocean_matrix_CO2vsice_GRL_config
     C%ocean_matrix_CO2vsice_ANT                = ocean_matrix_CO2vsice_ANT_config
+  
+    ! Uniform ocean temperature offset for the student exercise
+    C%dT_ocean_uniform                         = dT_ocean_uniform_config
     
     ! Surface mass balance
     ! ====================
