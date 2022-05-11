@@ -1434,7 +1434,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER                ::  T_ocean_ext,  S_ocean_ext
     INTEGER                                            :: wT_ocean_ext, wS_ocean_ext
     
-    LOGICAL,  PARAMETER                                :: verbose = .FALSE.
+    LOGICAL,  PARAMETER                                :: verbose = .TRUE.
     
     ! Add routine to path
     CALL init_routine( routine_name)

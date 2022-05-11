@@ -20,11 +20,11 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1,1000];
-clim_du   = [-100,100];
+clim_du   = [-250,250];
 
 %% Read data
 for fi = 1:length(foldernames)
@@ -56,9 +56,9 @@ end
 
 % Calculate errors
 for fi = 3:4
-  results(fi).dHs       = results(fi).Hs       - results(fi-2).Hs;
-  results(fi).dphi_fric = results(fi).phi_fric - results(fi-2).phi_fric;
-  results(fi).du        = results(fi).uabs     - results(fi-2).uabs;
+  results(fi).dphi_fric = results(fi).phi_fric ./ results(fi-2).phi_fric;
+  results(fi).dHs       = results(fi).Hs       -  results(fi-2).Hs;
+  results(fi).du        = results(fi).uabs     -  results(fi-2).uabs;
 end
 
 %% Set up GUI
@@ -107,7 +107,7 @@ end
 
 for j = 2:3
   colormap(H.Ax(1,j),cmap_dphi);
-  set(H.Ax(1,j),'clim',clim_dphi);
+  set(H.Ax(1,j),'clim',clim_dphi,'colorscale','log');
   
   colormap(H.Ax(2,j),cmap_dHs);
   set(H.Ax(2,j),'clim',clim_dHs);
@@ -163,7 +163,7 @@ yu = pos1(2)+pos1(4);
 xc = (xl+xu)/2;
 xl = xc - wa/2;
 xu = xc + wa/2;
-ax = axes('parent',H.Fig,'units','pixels','position',[xl,yl,xu-xl,yu-yl],'clim',clim_dphi,...
+ax = axes('parent',H.Fig,'units','pixels','position',[xl,yl,xu-xl,yu-yl],'clim',clim_dphi,'colorscale','log',...
   'fontsize',24,'xtick',[],'ytick',[],'color','none');
 ax.XAxis.Visible = 'off';
 ax.YAxis.Visible = 'off';

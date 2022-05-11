@@ -11,7 +11,7 @@ MODULE BMB_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, type_BMB_model
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, type_BMB_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file 
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -24,7 +24,7 @@ CONTAINS
 ! == The main routines that should be called from the main ice model/program
 ! ==========================================================================
 
-  SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time)
+  SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time, refgeo_init)
     ! Run the selected BMB model
     
     IMPLICIT NONE
@@ -36,6 +36,7 @@ CONTAINS
     TYPE(type_BMB_model),                 INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     REAL(dp),                             INTENT(IN)    :: time
+    TYPE(type_reference_geometry),        INTENT(IN)    :: refgeo_init
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model'
@@ -44,21 +45,15 @@ CONTAINS
     
     ! Add routine to path
     CALL init_routine( routine_name)
-  
-    ! Initialise at zero
-    BMB%BMB(       :,grid%i1:grid%i2) = 0._dp
-    BMB%BMB_sheet( :,grid%i1:grid%i2) = 0._dp
-    BMB%BMB_shelf( :,grid%i1:grid%i2) = 0._dp
-    CALL sync
     
     ! Run the selected shelf BMB model
     IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
       CALL sync
     ELSEIF (C%choice_BMB_shelf_model == 'idealised') THEN
-      CALL run_BMB_model_idealised(            grid, ice, BMB, time)
+      CALL run_BMB_model_idealised(            grid, ice,        BMB, time)
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
-      CALL run_BMB_model_ANICE_legacy(         grid, ice, BMB, region_name, time)
+      CALL run_BMB_model_ANICE_legacy(         grid, ice,        BMB, region_name, time)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin') THEN
       CALL run_BMB_model_Favier2019_linear(    grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_quad') THEN
@@ -71,6 +66,8 @@ CONTAINS
       CALL run_BMB_model_PICO(                 grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
+      CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_init)
     ELSE
       CALL crash('unknown choice_BMB_shelf_model "' // TRIM(C%choice_BMB_shelf_model) // '"!')
     END IF
@@ -139,7 +136,7 @@ CONTAINS
     ! Limit basal melt
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      BMB%BMB( j,i) = MAX( BMB%BMB( j,i), -C%BMB_max)
+      BMB%BMB( j,i) = MIN( C%BMB_min, MAX( -C%BMB_max, BMB%BMB( j,i) ))
     END DO
     END DO
     CALL sync
@@ -193,9 +190,11 @@ CONTAINS
       CALL initialise_BMB_model_PICO(  grid, ice, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL initialise_BMB_model_PICOP( grid, ice, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
+      BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
+      CALL sync
     ELSE ! IF     (C%choice_BMB_shelf_model == 'uniform') THEN
       CALL crash('unknown choice_BMB_shelf_model "' // TRIM(C%choice_BMB_shelf_model) // '"!')
-      IF (par%master) WRITE(0,*) '  ERROR: choice_BMB_shelf_model "', TRIM(C%choice_BMB_shelf_model), '" not implemented in initialise_BMB_model!'
     END IF
     
     ! Sheet
@@ -3542,5 +3541,40 @@ CONTAINS
     END IF
     
   END SUBROUTINE calc_GL_depth
+  
+! == Invert for BMB to achieve correct shelf geometry
+! ===================================================
+  
+  SUBROUTINE inverse_BMB_shelf_geometry( grid, ice, BMB, refgeo_init)
+    ! Invert for the BMB that is needed to achieve a steady-state shelf geometry
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid 
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inverse_BMB_shelf_geometry'
+    INTEGER                                            :: i,j
+    REAL(dp), PARAMETER                                :: H0    = 10._dp
+    REAL(dp), PARAMETER                                :: dHdt0 = 10._dp
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+        
+        BMB%BMB_shelf( j,i) = BMB%BMB_shelf( j,i) - ((ice%Hi_a( j,i) - refgeo_init%Hi( j,i)) / H0) - (ice%dHi_dt_a( j,i) / dHdt0)
+        
+      END IF
+      
+    END DO
+    END DO
+    CALL sync
+    
+  END SUBROUTINE inverse_BMB_shelf_geometry
   
 END MODULE BMB_module

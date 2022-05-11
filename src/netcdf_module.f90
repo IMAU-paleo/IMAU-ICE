@@ -332,6 +332,8 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_3D_a,    (/1, 1, 1, ti /))
     ELSEIF (field_name == 'A_flow_vav') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_flow_vav_a,   (/1, 1,    ti /))
+    ELSEIF (field_name == 'Ti_base_rel') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               (region%ice%Ti_a( C%nz,:,:) - region%ice%Ti_pmp_a( C%nz,:,:)),           (/1, 1, ti /))
       
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -358,6 +360,8 @@ CONTAINS
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%v_base_a,       (/1, 1,    ti /))
     ELSEIF (field_name == 'uabs_base') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%uabs_base_a,    (/1, 1,    ti /))
+    ELSEIF (field_name == 'R_shear') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%R_shear,        (/1, 1,    ti /))
       
     ! Climate
     ELSEIF (field_name == 'T2m') THEN
@@ -1416,6 +1420,8 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'A_flow_3D',                [x, y, z, t], id_var, long_name='Ice flow factor', units='Pa^-3 y^-1')
     ELSEIF (field_name == 'A_flow_vav') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_vav',               [x, y,    t], id_var, long_name='Vertically averaged ice flow factor', units='Pa^-3 y^-1')
+    ELSEIF (field_name == 'Ti_base_rel') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Ti_base_rel',              [x, y,    t], id_var, long_name='Basal temperature relative to pressure melting point', units='K')
       
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -1442,6 +1448,8 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'v_base',                   [x, y,    t], id_var, long_name='Basal ice y-velocity', units='m/yr')
     ELSEIF (field_name == 'uabs_base') THEN
       CALL create_double_var( region%help_fields%ncid, 'uabs_base',                [x, y,    t], id_var, long_name='Basal ice velocity', units='m/yr')
+    ELSEIF (field_name == 'R_shear') THEN
+      CALL create_double_var( region%help_fields%ncid, 'R_shear',                  [x, y,    t], id_var, long_name='Shearing ratio; 1 = full shearing, 0 = full sliding')
       
     ! Climate
     ELSEIF (field_name == 'T2m') THEN

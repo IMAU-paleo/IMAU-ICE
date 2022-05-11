@@ -133,7 +133,7 @@ CONTAINS
     
       ! Run the BMB model
       IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time)
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_init)
       END IF
       
       t2 = MPI_WTIME()
@@ -295,7 +295,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
     
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%mask_noice)
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
     
     ! ===== Define ice basins =====
     ! =============================

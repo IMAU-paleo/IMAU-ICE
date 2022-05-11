@@ -19,7 +19,7 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
@@ -32,7 +32,7 @@ filename_help_fields = [foldername_target '/help_fields_ANT.nc'];
 
 target.x         = ncread( filename_restart    ,'x');
 target.y         = ncread( filename_restart    ,'y');
-target.time      = ncread( filename_restart    ,'time'); ti = 3;
+target.time      = ncread( filename_restart    ,'time'); ti = find(target.time==10000);
 target.Hi        = ncread( filename_restart    ,'Hi'      ,[1,1,ti],[Inf,Inf,1]);
 target.Hb        = ncread( filename_restart    ,'Hb'      ,[1,1,ti],[Inf,Inf,1]);
 target.Hs        = ncread( filename_restart    ,'Hs'      ,[1,1,ti],[Inf,Inf,1]);
@@ -69,9 +69,9 @@ for fi = 1:length(foldernames)
   results(fi).Hi(1,:) = min(results(fi).Hi(1,:));
   results(fi).Hs(1,:) = min(results(fi).Hs(1,:));
   
-  results(fi).dphi_fric = results(fi).phi_fric - target.phi_fric;
-  results(fi).dHs       = results(fi).Hs       - target.Hs;
-  results(fi).du        = results(fi).uabs     - target.uabs;
+  results(fi).dphi_fric = results(fi).phi_fric ./ target.phi_fric;
+  results(fi).dHs       = results(fi).Hs       -  target.Hs;
+  results(fi).du        = results(fi).uabs     -  target.uabs;
   
   ice_density           =  910.0;
   seawater_density      = 1028.0;
@@ -112,7 +112,7 @@ for i = 1:nax
 end
 
 colormap(H.Ax(1,1),cmap_dphi);
-set(H.Ax(1,1),'clim',clim_dphi);
+set(H.Ax(1,1),'clim',clim_dphi,'colorscale','log');
 pos = get(H.Ax(1,1),'position');
 H.Cbar1 = colorbar(H.Ax(1,1),'location','southoutside');
 set(H.Ax(1,1),'position',pos);

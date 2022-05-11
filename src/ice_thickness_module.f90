@@ -23,7 +23,7 @@ MODULE ice_thickness_module
 CONTAINS
 
   ! The main routine that is called from "run_ice_model" in the ice_dynamics_module
-  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
+  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt)
     ! Use the total ice velocities to update the ice thickness
     
     IMPLICIT NONE
@@ -34,9 +34,6 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt'
@@ -57,7 +54,7 @@ CONTAINS
     END IF
     
     ! Apply boundary conditions
-    CALL apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
+    CALL apply_ice_thickness_BC( grid, ice, dt)
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -728,7 +725,7 @@ CONTAINS
   END SUBROUTINE calc_dHi_dt_semiimplicit_add_matrix_coefficients_semiimplicit
     
   ! Some useful tools
-  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt, mask_noice, refgeo_PD, refgeo_GIAeq)
+  SUBROUTINE apply_ice_thickness_BC( grid, ice, dt)
     ! Apply numerical ice thickness boundary conditions at the domain border
     
     IMPLICIT NONE
@@ -737,9 +734,6 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: dt
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_ice_thickness_BC'

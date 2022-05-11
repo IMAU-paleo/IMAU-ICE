@@ -28,11 +28,11 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
-clim_du   = [-100,100];
+clim_du   = [-250,250];
 
 %% Read data
 
@@ -68,9 +68,9 @@ for fi = 1:length(foldernames)
   results(fi).v         = ncread( filename_help_fields,'v_surf'  ,[1,1,ti],[Inf,Inf,1]);
   results(fi).uabs      = sqrt( results(fi).u.^2 + results(fi).v.^2);
   
-  results(fi).dphi_fric = results(fi).phi_fric - target.phi_fric;
-  results(fi).dHs       = results(fi).Hs       - target.Hs;
-  results(fi).du        = results(fi).uabs     - target.uabs;
+  results(fi).dphi_fric = results(fi).phi_fric ./ target.phi_fric;
+  results(fi).dHs       = results(fi).Hs       -  target.Hs;
+  results(fi).du        = results(fi).uabs     -  target.uabs;
 end
 
 %% Set up GUI
@@ -109,8 +109,8 @@ end
 for j = 1:nax
   colormap(H.Ax(1,j),cmap_dphi);
   colormap(H.Ax(2,j),cmap_dphi);
-  set(H.Ax(1,j),'clim',clim_dphi);
-  set(H.Ax(2,j),'clim',clim_dphi);
+  set(H.Ax(1,j),'clim',clim_dphi,'colorscale','log');
+  set(H.Ax(2,j),'clim',clim_dphi,'colorscale','log');
 
   colormap(H.Ax(3,j),cmap_dHs);
   colormap(H.Ax(4,j),cmap_dHs);
@@ -146,7 +146,7 @@ yhi = pos1(2)+pos1(4);
 H.Axcbar1 = axes('parent',H.Fig,'units','pixels','position',[xlo,ylo,xhi-xlo,yhi-ylo],'fontsize',24);
 H.Axcbar1.XAxis.Visible = 'off';
 H.Axcbar1.YAxis.Visible = 'off';
-set(H.Axcbar1,'clim',clim_dphi);
+set(H.Axcbar1,'clim',clim_dphi,'colorscale','log');
 colormap(H.Axcbar1,cmap_dphi);
 pos = get(H.Axcbar1,'position');
 H.Cbar1 = colorbar(H.Axcbar1,'location','west');
@@ -207,14 +207,14 @@ ax = H.Ax(1,1);
 R  = results(1);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(2,1);
 R  = results(2);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % SMB
@@ -222,14 +222,14 @@ ax = H.Ax(1,2);
 R  = results(3);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(2,2);
 R  = results(4);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % Topo
@@ -237,14 +237,14 @@ ax = H.Ax(1,3);
 R  = results(5);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(2,3);
 R  = results(6);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % ut
@@ -252,14 +252,14 @@ ax = H.Ax(1,4);
 R  = results(7);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(2,4);
 R  = results(8);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % p
@@ -267,14 +267,14 @@ ax = H.Ax(1,5);
 R  = results(9);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(2,5);
 R  = results(10);
 cdata = R.dphi_fric';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 %% Middle two rows: surface elevation
@@ -284,14 +284,14 @@ ax = H.Ax(3,1);
 R  = results(1);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(4,1);
 R  = results(2);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % SMB
@@ -299,14 +299,14 @@ ax = H.Ax(3,2);
 R  = results(3);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(4,2);
 R  = results(4);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % Topo
@@ -314,14 +314,14 @@ ax = H.Ax(3,3);
 R  = results(5);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(4,3);
 R  = results(6);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % ut
@@ -329,14 +329,14 @@ ax = H.Ax(3,4);
 R  = results(7);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(4,4);
 R  = results(8);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % p
@@ -344,14 +344,14 @@ ax = H.Ax(3,5);
 R  = results(9);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(4,5);
 R  = results(10);
 cdata = R.dHs';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 %% Bottom two rows: surface velocity
@@ -361,14 +361,14 @@ ax = H.Ax(5,1);
 R  = results(1);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(6,1);
 R  = results(2);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % SMB
@@ -376,14 +376,14 @@ ax = H.Ax(5,2);
 R  = results(3);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(6,2);
 R  = results(4);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % Topo
@@ -391,14 +391,14 @@ ax = H.Ax(5,3);
 R  = results(5);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(6,3);
 R  = results(6);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % ut
@@ -406,14 +406,14 @@ ax = H.Ax(5,4);
 R  = results(7);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(6,4);
 R  = results(8);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 % p
@@ -421,12 +421,12 @@ ax = H.Ax(5,5);
 R  = results(9);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
 ax = H.Ax(6,5);
 R  = results(10);
 cdata = R.du';
 adata = zeros(size(cdata));
-adata( R.Hi'>0) = 1;
+adata( R.Hi'>10) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);

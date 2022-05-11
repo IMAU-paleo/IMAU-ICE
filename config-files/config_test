@@ -46,7 +46,7 @@
   
   ! MISOMIP1 (see Asay-Davis et al., 2016)
   MISOMIP1_scenario_config                    = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
-  
+ 
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
@@ -66,71 +66,29 @@
   ! Horizontal grid spacing and size for the four regions
   ! =====================================================
   
-  xmin_NAM_config                             = -3600000.0                       ! Western  boundary     of the North America domain [m]
-  xmax_NAM_config                             =  3600000.0                       ! Eastern  boundary     of the North America domain [m]
-  ymin_NAM_config                             = -2400000.0                       ! Southern boundary     of the North America domain [m]
-  ymax_NAM_config                             =  2400000.0                       ! Northern boundary     of the North America domain [m]
-  dx_NAM_config                               = 40000.0                          ! Horizontal resolution of the North America domain [m]
-  
-  xmin_EAS_config                             = -3400000.0                       ! Western  boundary     of the Eurasia domain [m]
-  xmax_EAS_config                             =  3400000.0                       ! Eastern  boundary     of the Eurasia domain [m]
-  ymin_EAS_config                             = -2080000.0                       ! Southern boundary     of the Eurasia domain [m]
-  ymax_EAS_config                             =  2080000.0                       ! Northern boundary     of the Eurasia domain [m]
-  dx_EAS_config                               = 40000.0                          ! Horizontal resolution of the Eurasia domain [m]
-  
-  xmin_GRL_config                             =  -830000.0                       ! Western  boundary     of the Greenland domain [m]
-  xmax_GRL_config                             =   830000.0                       ! Eastern  boundary     of the Greenland domain [m]
-  ymin_GRL_config                             = -1430000.0                       ! Southern boundary     of the Greenland domain [m]
-  ymax_GRL_config                             =  1430000.0                       ! Northern boundary     of the Greenland domain [m]
-  dx_GRL_config                               = 20000.0                          ! Horizontal resolution of the Greenland domain [m]
-  
-  xmin_ANT_config                             = -3300000.0                       ! Western  boundary     of the Antarctica domain [m]
-  xmax_ANT_config                             =  3300000.0                       ! Eastern  boundary     of the Antarctica domain [m]
-  ymin_ANT_config                             = -3300000.0                       ! Southern boundary     of the Antarctica domain [m]
-  ymax_ANT_config                             =  3300000.0                       ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 80000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  xmin_ANT_config                             =  -700000.0                       ! Western  boundary     of the Antarctica domain [m]
+  xmax_ANT_config                             =   700000.0                       ! Eastern  boundary     of the Antarctica domain [m]
+  ymin_ANT_config                             =  -700000.0                       ! Southern boundary     of the Antarctica domain [m]
+  ymax_ANT_config                             =   700000.0                       ! Northern boundary     of the Antarctica domain [m]
+  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
   
   ! Initial geometry
-  choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_GRL_config               = 'realistic'                      ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
-  time_to_restart_from_EAS_config             = 0.0  
-  time_to_restart_from_GRL_config             = 0.0  
-  time_to_restart_from_ANT_config             = 0.0  
-  choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-  filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  time_to_restart_from_ANT_config             = 50000.0
+  filename_refgeo_init_ANT_config             = 'Berends2022_basal_inversion/exp_I_target_40km/restart_ANT.nc'
   
   ! Present-day geometry
-  choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
-  choice_refgeo_PD_EAS_config                 = 'realistic'                      ! Choice of present-day geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_PD_GRL_config                 = 'realistic'                      ! Choice of present-day geometry for Greenland    ; can be "idealised", "realistic", or "restart"
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_PD_idealised_config           = 'flatearth'                      ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_PD_NAM_config               = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-  filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+  filename_refgeo_PD_ANT_config               = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_topography_40km.nc'
   
   ! GIA equilibrium geometry
-  choice_refgeo_GIAeq_NAM_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
-  choice_refgeo_GIAeq_EAS_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_GIAeq_GRL_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Greenland    ; can be "idealised", "realistic", or "restart"
   choice_refgeo_GIAeq_ANT_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_GIAeq_idealised_config        = 'flatearth'                      ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_GIAeq_NAM_config            = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_GIAeq_EAS_config            = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
-  filename_refgeo_GIAeq_ANT_config            = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
-
-  remove_Lake_Vostok_config                   = .TRUE.
+  filename_refgeo_GIAeq_ANT_config            = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_topography_40km.nc'
+  
+  remove_Lake_Vostok_config                   = .FALSE.
   
   ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
   ! ============================================================
@@ -143,36 +101,14 @@
   choice_forcing_method_config                = 'none' 
    
   ! Insolation forcing (NetCDF)
-  choice_insolation_forcing_config            = 'none'                           ! Choice of insolation forcing: "none", "static", "realistic"
-  static_insolation_time_config               = 0.0                              ! Keep insolation values fixed to this time when choice_insolation_forcing = 'static'
-  filename_insolation_config                  = '/Users/berends/Documents/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
-  
-  ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-  filename_CO2_record_config                  = '/Users/berends/Documents/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
-  CO2_record_length_config                    = 8001
-  
-  ! d18O record (ASCII text file, so the number of rows needs to be specified)
-  filename_d18O_record_config                 = '/Users/berends/Documents/Datasets/d18O/Ahn2017_d18O.dat'
-  d18O_record_length_config                   = 2051
+  choice_insolation_forcing_config            = 'none'                      ! Choice of insolation forcing: "none", "static", "realistic"
   
   ! Geothermal heat flux
   choice_geothermal_heat_flux_config          = 'constant'                       ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
-  constant_geothermal_heat_flux_config        = 1.72E06                          ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
-  filename_geothermal_heat_flux_config        = '/Users/berends/Documents/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
   ! Parameters for calculating modelled benthic d18O
   do_calculate_benthic_d18O_config            = .FALSE.                          ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
-  dT_deepwater_averaging_window_config        = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
-  dT_deepwater_dT_surf_ratio_config           = 0.25                             ! Ratio between global mean surface temperature change and deep-water temperature change
-  d18O_dT_deepwater_ratio_config              = -0.28                            ! Ratio between deep-water temperature change and benthic d18O change
   
-  ! Parameters for the inverse routine
-  dT_glob_inverse_averaging_window_config     = 2000.0                           ! Time window (in yr) over which global mean temperature anomaly is averaged before changing it with the inverse routine
-  inverse_d18O_to_dT_glob_scaling_config      = 20.0                             ! Scaling factor between modelled d18O anomaly and prescribed temperature anomaly change (value from de Boer et al., 2013)
-  CO2_inverse_averaging_window_config         = 2000.0                           ! Time window (in yr) over which CO2                             is averaged before changing it with the inverse routine
-  inverse_d18O_to_CO2_scaling_config          = 68.0                             ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
-  inverse_d18O_to_CO2_initial_CO2_config      = 280.0                            ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
-
   ! Ice dynamics - velocity
   ! =======================
   
@@ -207,7 +143,7 @@
   DIVA_SOR_tol_config                         = 2.5                              ! DIVA SOR   solver - stop criterion, absolute difference
   DIVA_SOR_omega_config                       = 1.3                              ! DIVA SOR   solver - over-relaxation parameter
   DIVA_PETSc_rtol_config                      = 0.01                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  DIVA_PETSc_abstol_config                    = 2.5                              ! DIVA PETSc solver - stop criterion, absolute difference
+  DIVA_PETSc_abstol_config                    = 0.1                              ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -240,20 +176,15 @@
   choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
 
+  ! Partially fixed geometry, useful for initialisation and inversion runs
+  fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
+  fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
+  fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
   
   ! Sliding laws
-  choice_sliding_law_config                   = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
-  choice_idealised_sliding_law_config         = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
-  slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
-  slid_Weertman_m_config                      = 3.0                              ! Exponent in Weertman sliding law
-  slid_Coulomb_reg_q_plastic_config           = 0.3                              ! Scaling exponent   in regularised Coulomb sliding law
-  slid_Coulomb_reg_u_threshold_config         = 100.0                            ! Threshold velocity in regularised Coulomb sliding law
-  slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-  slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
-  
-  ! Basal hydrology
   choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
   Martin2011_hydro_Hb_min_config              = 0.0                              ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   Martin2011_hydro_Hb_max_config              = 1000.0                           ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
@@ -272,7 +203,7 @@
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
-  
+
   ! Basal inversion
   do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
@@ -400,7 +331,7 @@
   ! Surface mass balance
   ! ====================
   
-  choice_SMB_model_config                     = 'direct_regional'                ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  choice_SMB_model_config                     = 'direct_regional'                ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"e_direct_regional_SMB_ANT_config     = 'Berends2022_basal_inversion/input_data/experiment_I/exp_I_SMB_40km.nc'
   choice_idealised_SMB_config                 = 'EISMINT1_A'
   SMB_uniform_config                          = 0.0                              ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
   
@@ -536,10 +467,8 @@
   ! =================
   
   do_ocean_floodfill_config                   = .FALSE.                          ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
-  filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
-  sealevel_record_length_config               = 1
   
   choice_GIA_model_config                     = 'none'                           ! Can be "none", "ELRA", or "SELEN"
   dx_GIA_config                               = 100000.0                         ! Horizontal resolution of the square grid used for the GIA model

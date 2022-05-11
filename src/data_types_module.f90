@@ -112,11 +112,13 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: v_3D_SIA_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_SSA_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_SSA_cy
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: R_shear               ! Shearing ratio; 1 = full shearing, 0 = full sliding
     INTEGER :: wu_3D_a, wv_3D_a, wu_3D_cx, wv_3D_cy, ww_3D_a
     INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wuabs_vav_a
     INTEGER :: wu_surf_a, wv_surf_a, wu_surf_cx, wv_surf_cy, wuabs_surf_a
     INTEGER :: wu_base_a, wv_base_a, wu_base_cx, wv_base_cy, wuabs_base_a
     INTEGER :: wu_3D_SIA_cx, wv_3D_SIA_cy, wu_SSA_cx, wv_SSA_cy
+    INTEGER :: wR_shear
     
     ! Different masks
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_land_a           ! Land touching air or ice

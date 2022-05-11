@@ -178,7 +178,7 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt)
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
@@ -246,7 +246,7 @@ CONTAINS
       
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -312,7 +312,7 @@ CONTAINS
       ! ==============
       
       ! Calculate dHi_dt for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
       region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
     
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
@@ -360,7 +360,8 @@ CONTAINS
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_thickness'
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,ii,jj
+    LOGICAL                                            :: is_shelf_or_GL, is_sheet_or_GL, is_GL
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -368,6 +369,104 @@ CONTAINS
     ! Save the previous ice mask, for use in thermodynamics
     ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
     CALL sync
+    
+    ! If so specified, keep shelf geometry fixed
+    IF (C%fixed_shelf_geometry) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        is_shelf_or_GL = .FALSE.
+        
+        IF (ice%mask_shelf_a( j,i) == 1) THEN
+          is_shelf_or_GL = .TRUE.
+        ELSEIF (ice%mask_sheet_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
+              is_shelf_or_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_shelf_or_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_shelf_or_GL) THEN
+          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
+        END IF
+        
+      END DO
+      END DO
+      CALL sync
+    END IF
+    
+    ! If so specified, keep sheet geometry fixed
+    IF (C%fixed_sheet_geometry) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        is_sheet_or_GL = .FALSE.
+        
+        IF (ice%mask_sheet_a( j,i) == 1) THEN
+          is_sheet_or_GL = .TRUE.
+        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+              is_sheet_or_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_sheet_or_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_sheet_or_GL) THEN
+          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
+        END IF
+        
+      END DO
+      END DO
+      CALL sync
+    END IF
+    
+    ! If so specified, keep GL position fixed
+    IF (C%fixed_grounding_line) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+      
+        is_GL = .FALSE.
+        
+        IF (ice%mask_sheet_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
+              is_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_GL) EXIT
+          END DO
+        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
+          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
+              is_GL = .TRUE.
+              EXIT
+            END IF
+          END DO
+          IF (is_GL) EXIT
+          END DO
+        END IF
+        
+        IF (is_GL) THEN
+          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
+        END IF
+        
+      END DO
+      END DO
+      CALL sync
+    END IF
     
     ! Set ice thickness to new value
     ice%Hi_a( :,grid%i1:grid%i2) = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2))
@@ -448,6 +547,7 @@ CONTAINS
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
     
+    ! Finally update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
     
     ! Finalise routine path
@@ -749,7 +849,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
   
 ! == Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD, refgeo_GIAeq, mask_noice)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
       
@@ -759,9 +859,6 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -788,7 +885,7 @@ CONTAINS
     CALL sync
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min, mask_noice, refgeo_PD, refgeo_GIAeq)
+    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
     CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice)
     CALL update_general_ice_model_data( grid, ice)
@@ -906,6 +1003,7 @@ CONTAINS
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx  , ice%v_3D_SIA_cy          , ice%wv_3D_SIA_cy          )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%u_SSA_cx             , ice%wu_SSA_cx             )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%v_SSA_cy             , ice%wv_SSA_cy             )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%R_shear              , ice%wR_shear              )
     
     ! Different masks
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_land_a          , ice%wmask_land_a          )

@@ -141,7 +141,7 @@
   choice_sliding_law_config                   = 'Zoet-Iverson'                   ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   slid_delta_v_config                         = 1.0E-3                           ! Normalisation parameter to prevent errors when velocity is zero
   slid_ZI_ut_config                           = 200.0                            ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
-  slid_ZI_p_config                            = 5.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
+  slid_ZI_p_config                            = 3.0                              ! Velocity exponent             used in the Zoet-Iverson sliding law
   
   ! Basal hydrology
   choice_basal_hydrology_config               = 'dry'                            ! Choice of basal conditions: "dry", "saturated", "Martin2011"
@@ -161,7 +161,7 @@
   choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   choice_thermo_model_config                  = 'none'                           ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
-  uniform_flow_factor_config                  = 8.5986e-18                      ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
+  uniform_flow_factor_config                  = 9.1142E-18                       ! Uniform ice flow factor (applied when choice_ice_rheology_model_config = "uniform")
   
   ! Climate
   ! =======

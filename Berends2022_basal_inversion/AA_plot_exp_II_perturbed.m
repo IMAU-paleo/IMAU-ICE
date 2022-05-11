@@ -12,7 +12,9 @@ foldernames = {...
   'exp_II_inv_5km_BMB_hi',...           %  5
   'exp_II_inv_5km_BMB_lo',...           %  6
   'exp_II_inv_5km_topo_hi',...          %  7
-  'exp_II_inv_5km_topo_lo'};            %  8
+  'exp_II_inv_5km_topo_lo',...          %  8
+  'exp_II_inv_5km_p_hi',...             %  9
+  'exp_II_inv_5km_p_lo'};               % 10
 
 cmap_phi  = parula(256);
 cmap_Hs   = itmap(16);
@@ -26,7 +28,7 @@ cmap_du   = jet( 32);
 clim_phi  = [0,6];
 clim_Hs   = [0,2700];
 
-clim_dphi = [-8,8];
+clim_dphi = [0.1,10];
 clim_dHs  = [-250,250];
 
 clim_u    = [1.0,1000];
@@ -76,9 +78,9 @@ for fi = 1:length(foldernames)
   results(fi).Hi(1,:) = min(results(fi).Hi(1,:));
   results(fi).Hs(1,:) = min(results(fi).Hs(1,:));
   
-  results(fi).dphi_fric = results(fi).phi_fric - target.phi_fric;
-  results(fi).dHs       = results(fi).Hs       - target.Hs;
-  results(fi).du        = results(fi).uabs     - target.uabs;
+  results(fi).dphi_fric = results(fi).phi_fric ./ target.phi_fric;
+  results(fi).dHs       = results(fi).Hs       -  target.Hs;
+  results(fi).du        = results(fi).uabs     -  target.uabs;
   
   ice_density           =  910.0;
   seawater_density      = 1028.0;
@@ -90,7 +92,7 @@ end
 wa = 300;
 ha = 75;
 
-margins_hor = [50,5,5,5,130];
+margins_hor = [50,5,5,5,5,130];
 margins_ver = [25,5,25,5,25,5,50];
 
 nax = length(margins_hor)-1;
@@ -121,8 +123,8 @@ end
 for j = 1:nax
   colormap(H.Ax(1,j),cmap_dphi);
   colormap(H.Ax(2,j),cmap_dphi);
-  set(H.Ax(1,j),'clim',clim_dphi);
-  set(H.Ax(2,j),'clim',clim_dphi);
+  set(H.Ax(1,j),'clim',clim_dphi,'colorscale','log');
+  set(H.Ax(2,j),'clim',clim_dphi,'colorscale','log');
 
   colormap(H.Ax(3,j),cmap_dHs);
   colormap(H.Ax(4,j),cmap_dHs);
@@ -139,6 +141,7 @@ xlabel( H.Ax(1,1),'Viscosity');
 xlabel( H.Ax(1,2),'SMB');
 xlabel( H.Ax(1,3),'BMB');
 xlabel( H.Ax(1,4),'Topography');
+xlabel( H.Ax(1,5),'Z-I p');
 
 ylabel( H.Ax(1,1),'High')
 ylabel( H.Ax(2,1),'Low')
@@ -157,7 +160,7 @@ yhi = pos1(2)+pos1(4);
 H.Axcbar1 = axes('parent',H.Fig,'units','pixels','position',[xlo,ylo,xhi-xlo,yhi-ylo],'fontsize',24);
 H.Axcbar1.XAxis.Visible = 'off';
 H.Axcbar1.YAxis.Visible = 'off';
-set(H.Axcbar1,'clim',clim_dphi);
+set(H.Axcbar1,'clim',clim_dphi,'colorscale','log');
 colormap(H.Axcbar1,cmap_dphi);
 pos = get(H.Axcbar1,'position');
 H.Cbar1 = colorbar(H.Axcbar1,'location','west');
@@ -274,6 +277,21 @@ adata = zeros(size(cdata));
 adata( R.TAF'>0) = 1;
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
 
+% p
+ax = H.Ax(1,5);
+R  = results(9);
+cdata = R.dphi_fric';
+adata = zeros(size(cdata));
+adata( R.TAF'>0) = 1;
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
+
+ax = H.Ax(2,5);
+R  = results(10);
+cdata = R.dphi_fric';
+adata = zeros(size(cdata));
+adata( R.TAF'>0) = 1;
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled','alphadata',adata);
+
 %% Middle two rows: surface elevation
 
 % Viscosity
@@ -320,6 +338,17 @@ R  = results(8);
 cdata = R.dHs';
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
 
+% p
+ax = H.Ax(3,5);
+R  = results(9);
+cdata = R.dHs';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+ax = H.Ax(4,5);
+R  = results(10);
+cdata = R.dHs';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
 %% Bottom two rows: surface velocity
 
 % Viscosity
@@ -363,6 +392,17 @@ image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled')
 
 ax = H.Ax(6,4);
 R  = results(8);
+cdata = R.du';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+% p
+ax = H.Ax(5,5);
+R  = results(9);
+cdata = R.du';
+image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
+
+ax = H.Ax(6,5);
+R  = results(10);
 cdata = R.du';
 image('parent',ax,'xdata',R.x,'ydata',R.y,'cdata',cdata,'cdatamapping','scaled');
 
@@ -569,6 +609,61 @@ end
 
 ax = H.Ax(4,4);
 R  = results(8);
+  
+% Construct actual grounding line contour
+H.tempfig = figure;
+H.tempax  = axes('parent',H.tempfig);
+C_GL = contour('parent',H.tempax,'xdata',R.y,'ydata',R.x,'zdata',R.TAF,'levellist',0);
+close(H.tempfig);
+
+% Plot target GL contour
+C = C_GL_target;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','r');
+end
+
+% Plot inverted GL contour
+C = C_GL;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','k','linestyle','--');
+end
+
+% p
+ax = H.Ax(3,5);
+R  = results(9);
+  
+% Construct actual grounding line contour
+H.tempfig = figure;
+H.tempax  = axes('parent',H.tempfig);
+C_GL = contour('parent',H.tempax,'xdata',R.y,'ydata',R.x,'zdata',R.TAF,'levellist',0);
+close(H.tempfig);
+
+% Plot target GL contour
+C = C_GL_target;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','r');
+end
+
+% Plot inverted GL contour
+C = C_GL;
+while ~isempty(C)
+  n  = C(2,1);
+  Ct = C(:,2:2+n-1);
+  C = C(:,2+n:end);
+  line('parent',ax,'xdata',Ct(2,:),'ydata',Ct(1,:),'linewidth',3,'color','k','linestyle','--');
+end
+
+ax = H.Ax(4,5);
+R  = results(10);
   
 % Construct actual grounding line contour
 H.tempfig = figure;
