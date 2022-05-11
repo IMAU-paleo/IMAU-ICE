@@ -506,6 +506,26 @@ CONTAINS
     END DO
     END DO
     CALL sync
+   
+    ! Calculate shearing ratio
+    IF     (C%choice_ice_dynamics == 'SIA') THEN
+      ! SIA = pure vertical shear
+      ice%R_shear( :,grid%i1:grid%i2) = 1._dp
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      ! SSA = no vertical shear
+      ice%R_shear( :,grid%i1:grid%i2) = 0._dp
+    ELSE
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        IF (ice%mask_ice_a( j,i) == 1) THEN
+          ice%R_shear( j,i) = MAX( 0._dp, MIN( 1._dp, (1._dp - ice%uabs_base_a( j,i) / ice%uabs_surf_a( j,i)) ))
+        ELSE
+          ice%R_shear( j,i) = 0._dp
+        END IF
+      END DO
+      END DO
+      CALL sync
+    END IF
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1011,8 +1031,17 @@ CONTAINS
     
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
+      
         ! Lipscomb et al., 2019, Eq. 33
         ice%beta_eff_a( j,i) = ice%beta_a( j,i) / (1._dp + ice%beta_a( j,i) * ice%F2_a( j,i))
+        
+        ! Exception for basal freezing
+        IF (C%include_basal_freezing) THEN
+          IF (ice%Ti_pmp_a( C%nz,j,i) - ice%Ti_a( C%nz,j,i) > C%deltaT_basal_freezing) THEN
+            ice%beta_eff_a( j,i) = 1._dp / ice%F2_a( j,i)
+          END IF
+        END IF
+        
       END DO
       END DO
       CALL sync
@@ -1116,6 +1145,13 @@ CONTAINS
   
         ! Calculate basal velocity component 
         ice%u_base_cx( j,i) = ice%u_vav_cx( j,i) - ice%taub_cx( j,i) * F2_stag
+        
+        ! Exception for basal freezing
+        IF (C%include_basal_freezing) THEN
+          IF (ice%Ti_pmp_a( C%nz,j,i) - ice%Ti_a( C%nz,j,i) > C%deltaT_basal_freezing) THEN
+            ice%u_base_cx( j,i) = 0._dp
+          END IF
+        END IF
       
       END IF
 
@@ -1127,6 +1163,13 @@ CONTAINS
             
         ! Calculate basal velocity component 
         ice%v_base_cy( j,i) = ice%v_vav_cy( j,i) - ice%taub_cy( j,i) * F2_stag
+        
+        ! Exception for basal freezing
+        IF (C%include_basal_freezing) THEN
+          IF (ice%Ti_pmp_a( C%nz,j,i) - ice%Ti_a( C%nz,j,i) > C%deltaT_basal_freezing) THEN
+            ice%v_base_cy( j,i) = 0._dp
+          END IF
+        END IF
       
       END IF
 

@@ -133,7 +133,7 @@ CONTAINS
     
       ! Run the BMB model
       IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time)
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_init)
       END IF
       
       t2 = MPI_WTIME()
@@ -170,7 +170,7 @@ CONTAINS
       END IF
 
       ! Update ice geometry and advance region time
-      CALL update_ice_thickness( region%grid, region%ice)
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
@@ -295,7 +295,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
     
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%mask_noice)
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
     
     ! ===== Define ice basins =====
     ! =============================
@@ -419,6 +419,11 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%dt_crit_ice,      region%wdt_crit_ice     )
     CALL allocate_shared_dp_0D(   region%dt_crit_ice_prev, region%wdt_crit_ice_prev)
     
+    region%dt               = C%dt_min
+    region%dt_prev          = C%dt_min
+    region%dt_crit_ice      = C%dt_min
+    region%dt_crit_ice_prev = C%dt_min
+    
     CALL allocate_shared_dp_0D(   region%t_last_SIA,       region%wt_last_SIA      )
     CALL allocate_shared_dp_0D(   region%t_next_SIA,       region%wt_next_SIA      )
     CALL allocate_shared_bool_0D( region%do_SIA,           region%wdo_SIA          )
@@ -505,8 +510,8 @@ CONTAINS
       region%do_ELRA        = .TRUE.
       
       region%t_last_BIV     = C%start_time_of_run
-      region%t_next_BIV     = C%start_time_of_run
-      region%do_BIV         = .TRUE.
+      region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_dt
+      region%do_BIV         = .FALSE.
       
       region%t_last_output  = C%start_time_of_run
       region%t_next_output  = C%start_time_of_run

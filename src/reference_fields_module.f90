@@ -818,8 +818,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_reference_geometry_idealised_MISMIPplus'
     INTEGER                                       :: i,j
-    
-    INTEGER                                       :: imid,jmid
     REAL(dp)                                      :: x,y,xtilde,Bx,By
     REAL(dp), PARAMETER                           :: B0     = -150._dp
     REAL(dp), PARAMETER                           :: B2     = -728.8_dp
@@ -833,9 +831,6 @@ CONTAINS
     
     ! Add routine to path
     CALL init_routine( routine_name)
-    
-    imid = CEILING( REAL( grid%nx,dp) / 2._dp)
-    jmid = CEILING( REAL( grid%nx,dp) / 2._dp)
   
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny

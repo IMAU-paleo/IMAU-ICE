@@ -106,7 +106,10 @@ CONTAINS
     ! Calculate pore water pressure using the chosen basal hydrology model
     ! ====================================================================
     
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
+    IF     (C%choice_basal_hydrology == 'dry') THEN
+      ! Assume zero subglacial water pressure, i.e. effective pressure is equal to overburden pressure everywhere
+      ice%pore_water_pressure_a( :,grid%i1:grid%i2) = 0._dp
+    ELSEIF (C%choice_basal_hydrology == 'saturated') THEN
       ! Assume all marine till is saturated (i.e. pore water pressure is equal to water pressure at depth everywhere)
       CALL calc_pore_water_pressure_saturated( grid, ice)
     ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
@@ -122,7 +125,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ice%overburden_pressure_a( j,i) = ice_density * grav * ice%Hi_a( j,i)
-      ice%Neff_a(                j,i) = MAX(0._dp, ice%overburden_pressure_a( j,i) - ice%pore_water_pressure_a( j,i))
+      ice%Neff_a(                j,i) = MAX( 0._dp, ice%overburden_pressure_a( j,i) - ice%pore_water_pressure_a( j,i))
     END DO
     END DO
     CALL sync
@@ -147,7 +150,11 @@ CONTAINS
     CALL init_routine( routine_name)
     
     ! Allocate shared memory
-    IF     (C%choice_basal_hydrology == 'saturated') THEN
+    IF     (C%choice_basal_hydrology == 'dry') THEN
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%pore_water_pressure_a, ice%wpore_water_pressure_a)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%overburden_pressure_a, ice%woverburden_pressure_a)
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%Neff_a               , ice%wNeff_a               )
+    ELSEIF (C%choice_basal_hydrology == 'saturated') THEN
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%pore_water_pressure_a, ice%wpore_water_pressure_a)
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%overburden_pressure_a, ice%woverburden_pressure_a)
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%Neff_a               , ice%wNeff_a               )
@@ -270,15 +277,6 @@ CONTAINS
       ELSEIF (C%choice_param_basal_roughness == 'MISMIP+') THEN
         ! The basal roughness parameterisation in the MISMIP+ idealised-geometry experiment
         CALL calc_bed_roughness_MISMIPplus( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_A') THEN
-        ! The basal roughness parameterisation in the BIVMIP_A idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_A( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_B') THEN
-        ! The basal roughness parameterisation in the BIVMIP_B idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_B( grid, ice)
-      ELSEIF (C%choice_param_basal_roughness == 'BIVMIP_C') THEN
-        ! The basal roughness parameterisation in the BIVMIP_C idealised-geometry experiment
-        CALL calc_bed_roughness_BIVMIP_C( grid, ice)
       ELSE
         CALL crash('unknown choice_param_basal_roughness' // TRIM(C%choice_param_basal_roughness))
       END IF
@@ -865,156 +863,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE calc_bed_roughness_MISMIPplus
-  SUBROUTINE calc_bed_roughness_BIVMIP_A( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment A (uniform bed plus single southward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_A'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =    0.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      = -700.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =   50.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =  400.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.0_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_A
-  SUBROUTINE calc_bed_roughness_BIVMIP_B( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment B (uniform bed plus single southward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_B'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =    0.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      = -400.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =   50.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =  300.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.1_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_B
-  SUBROUTINE calc_bed_roughness_BIVMIP_C( grid, ice)
-    ! Determine the basal conditions underneath the ice
-    ! 
-    ! Idealised case: BIVMIP experiment C (uniform bed plus single eastward ice stream)
-
-    IMPLICIT NONE
-
-    ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_bed_roughness_BIVMIP_C'
-    INTEGER                                            :: i,j
-    
-    REAL(dp), PARAMETER                                :: xc      =  -50.0E3_dp  ! Ice-stream midpoint (x-coordinate)
-    REAL(dp), PARAMETER                                :: yc      =    0.0E3_dp  ! Ice-stream midpoint (y-coordinate)
-    REAL(dp), PARAMETER                                :: sigma_x =  150.0E3_dp  ! Ice-stream half-width in x-direction
-    REAL(dp), PARAMETER                                :: sigma_y =   15.0E3_dp  ! Ice-stream half-width in y-direction
-    REAL(dp), PARAMETER                                :: phi_max =  5.0_dp      ! Uniform till friction angle outside of ice stream
-    REAL(dp), PARAMETER                                :: phi_min =  0.1_dp      ! Lowest  till friction angle at ice-stream midpoint
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    IF     (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised' .OR. &
-            C%choice_sliding_law == 'Zoet-Iverson') THEN
-      ! (Regularised) Coulomb-type / Zoet-Iverson sliding law: parameterise phi_fric
-  
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        
-        ! Calculate till friction angle
-        ice%phi_fric_a( j,i) = phi_max - (phi_max - phi_min) * EXP( -0.5_dp * &
-          (((grid%x( i) - xc) / sigma_x)**2 + &
-           ((grid%y( j) - yc) / sigma_y)**2))
-        
-      END DO
-      END DO
-      CALL sync
-    
-    ELSE
-      CALL crash('choice_sliding_law "' // TRIM(C%choice_sliding_law) // ' not implemented"!')
-    END IF
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-    
-  END SUBROUTINE calc_bed_roughness_BIVMIP_C
   
 ! == Sliding laws
 ! ===============
@@ -1580,10 +1428,10 @@ CONTAINS
       
       CALL update_bed_roughness_CISMplus( grid, ice, refgeo_init, dt)
       
-    ELSEIF (C%choice_BIVgeo_method == 'Tijn') THEN
+    ELSEIF (C%choice_BIVgeo_method == 'Berends2022') THEN
       ! PIEP
       
-      CALL update_bed_roughness_Tijn( grid, ice, refgeo_init, dt)
+      CALL update_bed_roughness_Berends2022( grid, ice, refgeo_init, dt)
       
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
@@ -1898,9 +1746,10 @@ CONTAINS
     
   END SUBROUTINE update_bed_roughness_CISMplus_Coulomb
   
-  SUBROUTINE update_bed_roughness_Tijn( grid, ice, refgeo_init, dt)
-    ! A geometry+velocity-based inversion, where the rate of change of the bed roughness is
-    ! calculated by integrating the difference between modelled vs. target geometry+velocity
+  SUBROUTINE update_bed_roughness_Berends2022( grid, ice, refgeo_init, dt)
+    ! The geometry+velocity-based inversion from Berends et al. (2022)
+    ! Here, the rate of change of the bed roughness is calculated
+    ! by integrating the difference between modelled vs. target geometry+velocity
     ! along the flowline (both upstream and downstream).
     
     IMPLICIT NONE
@@ -1915,36 +1764,32 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_bed_roughness_Tijn'
     INTEGER,  DIMENSION(:,:  ), POINTER                ::  mask
     INTEGER                                            :: wmask
-    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dCdt
-    INTEGER                                            :: wdCdt
-    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
-    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_trace_up_Hs, w_trace_up_u, w_trace_down_Hs, w_trace_down_u
-    INTEGER                                            :: i,j,ii,jj,n_up,n_down,k,it
-    REAL(dp), DIMENSION(2)                             :: p, t, u
-    REAL(dp)                                           :: Hs_mod, Hs_target, u_mod  , u_target
-    REAL(dp)                                           :: Q_scale, Q_mod, R, w_Hs_up, w_Hs_down, w_u_up, w_u_down
-    REAL(dp)                                           :: sigma
-    
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  dphi_dt
+    INTEGER                                            :: wdphi_dt
     REAL(dp), PARAMETER                                :: dx_trace_rel    = 0.25_dp       ! Trace step size relative to grid resolution
-    REAL(dp), PARAMETER                                :: Hi_scale        = 3000._dp      ! Scaling ice thickness
-    REAL(dp), PARAMETER                                :: u_scale         = 300._dp       ! Scaling velocity
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE            :: trace_up, trace_down
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: w_up, w_down
+    INTEGER                                            :: i,j,n_up,n_down,k
+    REAL(dp), DIMENSION(2)                             :: p,pt
+    REAL(dp)                                           :: Hs_mod, Hs_target, u_mod, u_target
+    REAL(dp)                                           :: I1, I2, I3, I_tot
+    REAL(dp)                                           :: R
+    REAL(dp)                                           :: sigma
     
     ! Add routine to path
     CALL init_routine( routine_name)
     
     ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dCdt, wdCdt)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask   , wmask   )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dphi_dt, wdphi_dt)
     
     ! Allocate memory for the up- and downstream traces
     ALLOCATE( trace_up(        2*MAX(grid%nx,grid%ny), 2))
     ALLOCATE( trace_down(      2*MAX(grid%nx,grid%ny), 2))
     
-    ! Allocate memory for the "response functions" that Hi and u must be convoluted with
-    ALLOCATE( w_trace_up_Hs(   2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_down_Hs( 2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_up_u(    2*MAX(grid%nx,grid%ny)   ))
-    ALLOCATE( w_trace_down_u(  2*MAX(grid%nx,grid%ny)   ))
+    ! Allocate memory for the linear scaling functions
+    ALLOCATE( w_up(   2*MAX(grid%nx,grid%ny)   ))
+    ALLOCATE( w_down( 2*MAX(grid%nx,grid%ny)   ))
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1958,227 +1803,240 @@ CONTAINS
         mask( j,i) = 2
       END IF
       
+      ! The point p
       p = [grid%x( i), grid%y( j)]
       
-      ! Upstream trace
-      trace_up = 0._dp
-      n_up = 0
-      t    = p
-      it   = 0
-      DO WHILE (n_up < MAX(grid%nx, grid%ny))
-        
-        ! Find current tracer location grid indices
-        ii = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( t(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
-        jj = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( t(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
-        
-        ! Interpolate surface velocity to the tracer location
-        u( 1) = interp_bilin_2D( ice%u_surf_a, grid%x, grid%y, t(1), t(2))
-        u( 2) = interp_bilin_2D( ice%v_surf_a, grid%x, grid%y, t(1), t(2))
-        
-        ! If we've reached very slow-moving ice in the interior, end the trace
-        IF (NORM2( u) < 1._dp) EXIT
-        
-        ! Normalise velocity vector
-        u = u / NORM2( u)
-        
-        ! Add current position to the traces
-        n_up = n_up + 1
-        trace_up( n_up,:) = t
-        
-        ! Move the tracer upstream
-        t = t - u * dx_trace_rel * grid%dx
-        
-        ! Safety
-        it = it + 1
-        IF (it > 2*MAX( grid%nx, grid%ny)) EXIT
-        
-      END DO ! DO WHILE (n_up < MAX(grid%nx, grid%ny))
+      ! Trace the flowline upstream and downstream (Berends et al., 2022, Eqs. 2)
+      CALL trace_flowline_upstream(   grid, ice, p, dx_trace_rel, trace_up  , n_up               )
+      CALL trace_flowline_downstream( grid, ice, p, dx_trace_rel, trace_down, n_down, refgeo_init)
       
-      ! Safety
-      IF (n_up == 0) THEN
-        n_up = 1
-        trace_up( 1,:) = p
-      END IF
-      
-      ! Downstream trace
-      trace_down = 0._dp
-      n_down = 0
-      t      = p
-      it     = 0
-      DO WHILE (n_down < MAX(grid%nx, grid%ny))
-        
-        ! Find current tracer location grid indices
-        ii = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( t(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
-        jj = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( t(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
-        
-        ! If we've reached the ice margin, end the trace
-        IF (ice%mask_ice_a( jj,ii) == 0 .OR. ice%mask_margin_a( jj,ii) == 1 .OR. ice%Hi_a( jj,ii) < 1._dp .OR. &
-            refgeo_init%Hi( jj,ii) < 1._dp .OR. ice%BIV_uabs_surf_target( jj,ii) == 0._dp) EXIT
-        
-        ! Interpolate surface velocity to the tracer location
-        u( 1) = interp_bilin_2D( ice%u_surf_a, grid%x, grid%y, t(1), t(2))
-        u( 2) = interp_bilin_2D( ice%v_surf_a, grid%x, grid%y, t(1), t(2))
-        
-        ! Safety
-        IF (u( 1) == 0._dp .AND. u( 2) == 0._dp) EXIT
-        
-        ! Normalise velocity vector
-        u = u / NORM2( u)
-        
-        ! Add current position to the traces
-        n_down = n_down + 1
-        trace_down( n_down,:) = t
-        
-        ! Move the tracer downstream
-        t = t + u * dx_trace_rel * grid%dx
-        
-        ! Safety
-        it = it + 1
-        IF (it > 2*MAX( grid%nx, grid%ny)) EXIT
-        
-      END DO ! DO WHILE (n_down < MAX(grid%nx, grid%ny))
-      
-      ! Safety
-      IF (n_down == 0) THEN
-        n_down = 1
-        trace_down( 1,:) = p
-      END IF
-      
-      ! Calculate (normalised) response functions
-      w_trace_up_Hs = 0._dp
-      w_trace_up_u  = 0._dp
+      ! Calculate linear scaling functions (Berends et al., Eqs. 5)
+      w_up = 0._dp
       DO k = 1, n_up
-        w_trace_up_Hs( k) = REAL( n_up + 1 - k, dp)
-        w_trace_up_u(  k) = REAL( n_up + 1 - k, dp)
+        w_up( k) = REAL( n_up + 1 - k, dp)
       END DO
-      w_trace_up_Hs = w_trace_up_Hs / SUM( w_trace_up_Hs)
-      w_trace_up_u  = w_trace_up_u  / SUM( w_trace_up_u )
+      w_up = w_up / SUM( w_up)
       
-      w_trace_down_Hs = 0._dp
-      w_trace_down_u  = 0._dp
+      w_down = 0._dp
       DO k = 1, n_down
-        w_trace_down_Hs( k) = REAL( n_down + 1 - k, dp)
-        w_trace_down_u(  k) = REAL( n_down + 1 - k, dp)
+        w_down( k) = REAL( n_down + 1 - k, dp)
       END DO
-      w_trace_down_Hs = w_trace_down_Hs / SUM( w_trace_down_Hs)
-      w_trace_down_u  = w_trace_down_u  / SUM( w_trace_down_u )
+      w_down = w_down / SUM( w_down)
       
-      ! Calculate upstream line integrals, multiplied with normalised response function
-      w_Hs_up = 0._dp
-      w_u_up  = 0._dp
+      ! Calculate upstream line integrals
+      I1 = 0._dp
+      I3 = 0._dp
       DO k = 1, n_up
       
-        t = trace_up( k,:)
-        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, t(1), t(2))
-        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, t(1), t(2))
-        u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
-        u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
+        pt = trace_up( k,:)
+        u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, pt(1), pt(2))
+        u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, pt(1), pt(2))
+        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, pt(1), pt(2))
+        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, pt(1), pt(2))
         
         ! If no target velocity data is available, assume zero difference
         IF (u_target /= u_target) u_target = u_mod
         
-        w_Hs_up = w_Hs_up + (Hs_mod - Hs_target) * w_trace_up_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
-        w_u_up  = w_u_up  - (u_mod  - u_target ) * w_trace_up_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
+        I1 = I1 - ( u_mod -  u_target) * w_up( k) / C%BIVgeo_Berends2022_u0    ! Berends et al., (2022), Eq. 4a
+        I3 = I3 + (Hs_mod - Hs_target) * w_up( k) / C%BIVgeo_Berends2022_H0    ! Berends et al., (2022), Eq. 4c
         
       END DO
       
-      ! Calculate downstream line integrals, multiplied with normalised response function
-      w_Hs_down = 0._dp
-      w_u_down  = 0._dp
+      ! Calculate downstream line integral
+      I2 = 0._dp
       DO k = 1, n_down
       
-        t = trace_down( k,:)
-        Hs_mod    = interp_bilin_2D( ice%Hs_a                , grid%x, grid%y, t(1), t(2))
-        Hs_target = interp_bilin_2D( refgeo_init%Hs          , grid%x, grid%y, t(1), t(2))
-        u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, t(1), t(2))
-        u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, t(1), t(2))
+        pt = trace_down( k,:)
+        u_mod     = interp_bilin_2D( ice%uabs_surf_a         , grid%x, grid%y, pt(1), pt(2))
+        u_target  = interp_bilin_2D( ice%BIV_uabs_surf_target, grid%x, grid%y, pt(1), pt(2))
         
         ! If no target velocity data is available, assume zero difference
         IF (u_target /= u_target) u_target = u_mod
         
-        w_Hs_down = w_Hs_down - (Hs_mod - Hs_target) * w_trace_down_Hs( k) * (C%BIVgeo_CISMplus_wH / C%BIVgeo_CISMplus_H0)
-        w_u_down  = w_u_down  - (u_mod  - u_target ) * w_trace_down_u(  k) * (C%BIVgeo_CISMplus_wu / C%BIVgeo_CISMplus_u0)
+        I2 = I2 - ( u_mod -  u_target) * w_down( k) / C%BIVgeo_Berends2022_u0  ! Berends et al., (2022), Eq. 4b
         
       END DO
       
       ! Scale weights with local ice thickness * velocity
       ! (thinner and/or ice experiences less basal friction, so the solution is less sensitive to changes in bed roughness there)
-      Q_mod   = ice%uabs_surf_a( j,i) * ice%Hi_a( j,i)
-      Q_scale = u_scale               * Hi_scale
-      R = MAX( 0._dp, MIN( 1._dp, Q_mod / Q_scale ))
       
-      w_Hs_up   = w_Hs_up   * R
-      w_Hs_down = w_Hs_down * R
-      w_u_up    = w_u_up    * R
-      w_u_down  = w_u_down  * R
+      ! Berends et al. (2022), Eq. 7
+      R = MAX( 0._dp, MIN( 1._dp, ((ice%uabs_surf_a( j,i) * ice%Hi_a( j,i)) / (C%BIVgeo_Berends2022_u_scale * C%BIVgeo_Berends2022_Hi_scale)) ))
+      ! Berends et al. (2022), Eq. 6
+      I_tot = (I1 + I2 + I3) * R
       
-      ! Calculate rate of change of bed roughness
-     ! dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_Hs_down + w_u_up  + w_u_down )
-      dCdt( j,i) = -ice%phi_fric_a( j,i) / C%BIVgeo_CISMplus_tauc * (w_Hs_up + w_u_up + w_u_down )
-      
-!      ! DENK DROM
-!      debug%dp_2D_01( j,i) = w_Hs_up
-!      debug%dp_2D_02( j,i) = w_Hs_down
-!      debug%dp_2D_03( j,i) = w_u_up
-!      debug%dp_2D_04( j,i) = w_u_down
-!      debug%dp_2D_05( j,i) = dCdt( j,i)
+      ! Calculate rate of change of bed roughness (Berends et al. (2022), Eq. 8)
+      dphi_dt( j,i) = -ice%phi_fric_a( j,i) * I_tot / C%BIVgeo_Berends2022_tauc
       
     END DO
     END DO
     CALL sync
     
     ! Extrapolate new values outside the ice sheet
-    CALL extrapolate_updated_bed_roughness( grid, mask, dCdt)
+    CALL extrapolate_updated_bed_roughness( grid, mask, dphi_dt)
     
-    ! Apply regularisation
+    ! Update bed roughness (Berends et al. (2022), Eq. 9)
+    
+    ! First regularisation step (function F1 in Berends et al. (2022), Eq. 9)
     sigma = grid%dx / 1.5_dp
-    CALL smooth_Gaussian_2D( grid, dCdt, sigma)
+    CALL smooth_Gaussian_2D( grid, dphi_dt, sigma)
     
-    ! Update bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
+      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dphi_dt( j,i) * dt ))
     END DO
     END DO
     CALL sync
     
-    ! Apply regularisation
+    ! Second regularisation step (function F2 in Berends et al. (2022), Eq. 9)
     sigma = grid%dx / 4._dp
     CALL smooth_Gaussian_2D( grid, ice%phi_fric_a, sigma)
     
-!    ! DENK DROM
-!    IF (par%master) THEN
-!      debug%dp_2D_06 = dCdt
-!      debug%dp_2D_07 = ice%phi_fric_a
-!      debug%dp_2D_08 = ice%uabs_surf_a
-!      debug%dp_2D_09 = ice%BIV_uabs_surf_target
-!      debug%dp_2D_10 = REAL( ice%mask_margin_a,dp)
-!      debug%dp_2D_11 = ice%u_surf_a
-!      debug%dp_2D_12 = ice%v_surf_a
-!      CALL write_to_debug_file
-!    END IF
-!    CALL sync
-!    CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-
-!    ! Revert to initial topography
-!    ice%Hi_a(         :,grid%i1:grid%i2) = refgeo_init%Hi( :,grid%i1:grid%i2)
-!    ice%Hi_tplusdt_a( :,grid%i1:grid%i2) = refgeo_init%Hi( :,grid%i1:grid%i2)
-!    CALL sync
-    
     ! Clean up after yourself
-    DEALLOCATE( trace_up       )
-    DEALLOCATE( trace_down     )
-    DEALLOCATE( w_trace_up_Hs  )
-    DEALLOCATE( w_trace_down_Hs)
-    DEALLOCATE( w_trace_up_u   )
-    DEALLOCATE( w_trace_down_u )
-    CALL deallocate_shared( wdCdt)
-    CALL deallocate_shared( wmask)
+    DEALLOCATE( trace_up  )
+    DEALLOCATE( trace_down)
+    DEALLOCATE( w_up      )
+    DEALLOCATE( w_down    )
+    CALL deallocate_shared( wmask   )
+    CALL deallocate_shared( wdphi_dt)
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE update_bed_roughness_Tijn
+  END SUBROUTINE update_bed_roughness_Berends2022
+  SUBROUTINE trace_flowline_upstream( grid, ice, p, dx_trace_rel, T, n)
+    ! Trace the flowline passing through point p upstream.
+    ! Returns a list T of n points on the flowline spaced dx_trace_rel * grid%dx apart.
+    !
+    ! Stop the trace when it encounters the ice divide (defined as an ice velocity lower than 1 m/yr)
+    
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
+    REAL(dp),                            INTENT(IN)    :: dx_trace_rel
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: T
+    INTEGER,                             INTENT(OUT)   :: n
+    
+    ! Local variables:
+    INTEGER                                            :: ii,jj,it,nmax
+    REAL(dp), DIMENSION(2)                             :: pt, u
+    
+    nmax = SIZE( T,1)
+      
+    ! Initialise
+    T  = 0._dp
+    n  = 0
+    pt = p
+    it = 0
+    
+    DO WHILE (n < nmax)
+      
+      ! Find current tracer location grid indices
+      ii = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( pt(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
+      jj = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( pt(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
+      
+      ! Interpolate surface velocity to the tracer location
+      u( 1) = interp_bilin_2D( ice%u_surf_a, grid%x, grid%y, pt(1), pt(2))
+      u( 2) = interp_bilin_2D( ice%v_surf_a, grid%x, grid%y, pt(1), pt(2))
+      
+      ! If we've reached the ice divide, end the trace
+      IF (NORM2( u) < 1._dp) EXIT
+      
+      ! Add current position to the traces
+      n = n + 1
+      T( n,:) = pt
+      
+      ! Normalise velocity vector
+      u = u / NORM2( u)
+      
+      ! Move the tracer upstream
+      pt = pt - u * dx_trace_rel * grid%dx
+      
+      ! Safety
+      it = it + 1
+      IF (it > nmax) EXIT
+      
+    END DO ! DO WHILE (n_up < MAX(grid%nx, grid%ny))
+    
+    ! Safety
+    IF (n == 0) THEN
+      n = 1
+      T( 1,:) = p
+    END IF
+    
+  END SUBROUTINE trace_flowline_upstream
+  SUBROUTINE trace_flowline_downstream( grid, ice, p, dx_trace_rel, T, n, refgeo_init)
+    ! Trace the flowline passing through point p downstream.
+    ! Returns a list T of n points on the flowline spaced dx_trace_rel * grid%dx apart.
+    !
+    ! Stop the trace when it encounters the ice margin (either in the modelled or the target geometry)
+    
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
+    REAL(dp),                            INTENT(IN)    :: dx_trace_rel
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: T
+    INTEGER,                             INTENT(OUT)   :: n
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    
+    ! Local variables:
+    INTEGER                                            :: ii,jj,it,nmax
+    REAL(dp), DIMENSION(2)                             :: pt, u
+    
+    nmax = SIZE( T,1)
+      
+    ! Initialise
+    T  = 0._dp
+    n  = 0
+    pt = p
+    it = 0
+    
+    DO WHILE (n < nmax)
+      
+      ! Find current tracer location grid indices
+      ii = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( pt(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
+      jj = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( pt(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
+      
+      ! If we've reached the ice margin, end the trace
+      IF (ice%mask_ice_a( jj,ii) == 0 .OR. ice%mask_margin_a( jj,ii) == 1 .OR. ice%Hi_a( jj,ii) < 1._dp .OR. &
+          refgeo_init%Hi( jj,ii) < 1._dp .OR. ice%BIV_uabs_surf_target( jj,ii) == 0._dp) EXIT
+      
+      ! Interpolate surface velocity to the tracer location
+      u( 1) = interp_bilin_2D( ice%u_surf_a, grid%x, grid%y, pt(1), pt(2))
+      u( 2) = interp_bilin_2D( ice%v_surf_a, grid%x, grid%y, pt(1), pt(2))
+      
+      ! Safety
+      IF (u( 1) == 0._dp .AND. u( 2) == 0._dp) EXIT
+      
+      ! Add current position to the traces
+      n = n + 1
+      T( n,:) = pt
+      
+      ! Normalise velocity vector
+      u = u / NORM2( u)
+      
+      ! Move the tracer downstream
+      pt = pt + u * dx_trace_rel * grid%dx
+      
+      ! Safety
+      it = it + 1
+      IF (it > nmax) EXIT
+      
+    END DO ! DO WHILE (n_down < MAX(grid%nx, grid%ny))
+    
+    ! Safety
+    IF (n == 0) THEN
+      n = 1
+      T( 1,:) = p
+    END IF
+    
+  END SUBROUTINE trace_flowline_downstream
   
   SUBROUTINE extrapolate_updated_bed_roughness( grid, mask, d)
     ! The different geometry-based basal inversion routine only yield values
@@ -2244,7 +2102,7 @@ CONTAINS
             C%choice_BIVgeo_method == 'Lipscomb2021') THEN
       ! Not needed in these methods
     ELSEIF (C%choice_BIVgeo_method == 'CISM+' .OR. &
-            C%choice_BIVgeo_method == 'Tijn') THEN
+            C%choice_BIVgeo_method == 'Berends2022') THEN
       ! Needed in these methods
       
       CALL initialise_basal_inversion_target_velocity( grid, ice)
@@ -2275,11 +2133,9 @@ CONTAINS
     CALL init_routine( routine_name)
     
     ! Determine filename
-    IF     (C%choice_BIVgeo_method == 'CISM+') THEN
-      BIV_target%netcdf%filename = C%BIVgeo_CISMplus_target_filename
-    ELSEIF (C%choice_BIVgeo_method == 'Tijn') THEN
-      IF (par%master) WRITE(0,*) 'initialise_basal_inversion_target_velocity - FIXME: replace C%BIVgeo_CISMplus_target_filename with C%BIVgeo_Tijn_target_filename!'
-      BIV_target%netcdf%filename = C%BIVgeo_CISMplus_target_filename
+    IF     (C%choice_BIVgeo_method == 'CISM+' .OR. &
+            C%choice_BIVgeo_method == 'Berends2022') THEN
+      BIV_target%netcdf%filename = C%BIVgeo_target_velocity_filename
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
     END IF

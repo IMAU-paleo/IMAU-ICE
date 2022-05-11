@@ -157,6 +157,30 @@ CONTAINS
     TAF = Hi - MAX(0._dp, (SL - Hb) * (seawater_density / ice_density))
   
   END FUNCTION thickness_above_floatation
+  FUNCTION Hi_from_Hb_and_Hs( Hb, Hs, SL) RESULT( Hi)
+    ! Given Hb, Hs, and SL, calculate Hi
+      
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: Hb, Hs, SL
+    REAL(dp)                                           :: Hi
+    
+    ! Local variables:
+    REAL(dp)                                           :: Hs_float
+    
+    ! Calculate surface elevation if the ice were exactly at floating thickness
+    Hs_float = Hb + (SL - Hb) * seawater_density / ice_density
+    
+    IF (Hs > Hs_float) THEN
+      ! Grounded ice
+      Hi = Hs - Hb
+    ELSE
+      ! Floating ice
+      Hi = (Hs - SL) / (1._dp - ice_density / seawater_density)
+    END IF
+    
+  END FUNCTION Hi_from_Hb_and_Hs
   
 ! == The error function (used in the Roe&Lindzen precipitation model)
   SUBROUTINE error_function(X, ERR)
@@ -892,6 +916,9 @@ CONTAINS
       CALL partition_list( nx_dst, par%i, par%n, i1, i2)
       d_dst( :,i1:i2) = d_src( :,i1:i2)
       CALL sync
+      CALL deallocate_shared(  wddx_src             )
+      CALL deallocate_shared(  wddy_src             )
+      CALL deallocate_shared(  wmask_dst_outside_src)
       CALL finalise_routine( routine_name)
       RETURN
     END IF
@@ -2074,7 +2101,7 @@ CONTAINS
     INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_filled   ! 1 = successfully filled, 2 = failed to fill (region of to-be-filled pixels not connected to source data)
     
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'extrapolate_Gaussian_floodfill'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'extrapolate_Gaussian_floodfill'
     INTEGER                                            :: i,j,k,ii,jj,it
     INTEGER                                            :: stackN1, stackN2
     INTEGER,  DIMENSION(:,:  ), ALLOCATABLE            :: stack1, stack2

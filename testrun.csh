@@ -2,6 +2,6 @@
 
 ./compile_all.csh
 
-rm -rf results_202*
+rm -rf results_20*
 
-mpiexec -n 2 IMAU_ICE_program   config-files/config_test    MISOMIP1/config-files/MISOMIP1_var_FCMP_PICO
+mpiexec -n 2 IMAU_ICE_program   config-files/config_test

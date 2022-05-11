@@ -303,6 +303,11 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
   CHARACTER(LEN=256)  :: choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   CHARACTER(LEN=256)  :: choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
+  
+  ! Partially fixed geometry, useful for initialisation and inversion runs
+  LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
+  LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
+  LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -316,6 +321,8 @@ MODULE configuration_module
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
   REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
+  LOGICAL             :: include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
+  REAL(dp)            :: deltaT_basal_freezing_config                = 2._dp                            ! See above.
   
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
@@ -330,7 +337,7 @@ MODULE configuration_module
   REAL(dp)            :: uniform_Tsai2015_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Tsai2015 sliding law
   REAL(dp)            :: uniform_Schoof2005_alpha_sq_config          = 0.5_dp                           ! Uniform value for alpha_sq in Schoof2005 sliding law
   REAL(dp)            :: uniform_Schoof2005_beta_sq_config           = 1.0E4_dp                         ! Uniform value for beta_sq  in Schoof2005 sliding law
-  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+", "BIVMIP_A", "BIVMIP_B", "BIVMIP_C"
+  CHARACTER(LEN=256)  :: choice_param_basal_roughness_config         = 'Martin2011'                     ! "Martin2011", "SSA_icestream", "MISMIP+"
   REAL(dp)            :: Martin2011till_phi_Hb_min_config            = -1000._dp                        ! Martin et al. (2011) bed roughness model: low-end  Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
@@ -339,7 +346,7 @@ MODULE configuration_module
   
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
-  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
+  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
   REAL(dp)            :: BIVgeo_dt_config                            = 5._dp                            ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
@@ -349,7 +356,12 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_CISMplus_tauc_config                 = 500._dp                          ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_CISMplus_H0_config                   = 100._dp                          ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_CISMplus_u0_config                   = 10._dp                           ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  CHARACTER(LEN=256)  :: BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  REAL(dp)            :: BIVgeo_Berends2022_tauc_config              = 10._dp                           ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
+  REAL(dp)            :: BIVgeo_Berends2022_H0_config                = 100._dp                          ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Berends2022_u0_config                = 250._dp                          ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 300._dp                          ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 3000._dp                         ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving
@@ -503,7 +515,8 @@ MODULE configuration_module
   REAL(dp)            :: BMB_sheet_uniform_config                    = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   LOGICAL             :: do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
-  REAL(dp)            :: BMB_max_config                              = 50._dp                           ! Maximum amount of allowed basal melt [mie/yr]
+  REAL(dp)            :: BMB_max_config                              = 50._dp                           ! Maximum amount of allowed basal melt     [mie/yr]
+  REAL(dp)            :: BMB_min_config                              = 5._dp                            ! Maximum amount of allowed basal freezing [mie/yr]
   
   CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config              = 'none'
@@ -946,6 +959,11 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_mask_noice_GRL
     CHARACTER(LEN=256)                  :: choice_mask_noice_ANT
 
+    ! Partially fixed geometry, useful for initialisation and inversion runs
+    LOGICAL                             :: fixed_shelf_geometry
+    LOGICAL                             :: fixed_sheet_geometry
+    LOGICAL                             :: fixed_grounding_line
+
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
   
@@ -958,6 +976,8 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
     REAL(dp)                            :: slid_ZI_ut
     REAL(dp)                            :: slid_ZI_p
+    LOGICAL                             :: include_basal_freezing
+    REAL(dp)                            :: deltaT_basal_freezing
     
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
@@ -991,9 +1011,14 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_CISMplus_tauc
     REAL(dp)                            :: BIVgeo_CISMplus_H0
     REAL(dp)                            :: BIVgeo_CISMplus_u0
-    CHARACTER(LEN=256)                  :: BIVgeo_CISMplus_target_filename
+    REAL(dp)                            :: BIVgeo_Berends2022_tauc
+    REAL(dp)                            :: BIVgeo_Berends2022_H0
+    REAL(dp)                            :: BIVgeo_Berends2022_u0
+    REAL(dp)                            :: BIVgeo_Berends2022_Hi_scale
+    REAL(dp)                            :: BIVgeo_Berends2022_u_scale
+    CHARACTER(LEN=256)                  :: BIVgeo_target_velocity_filename
     CHARACTER(LEN=256)                  :: BIVgeo_filename_output
-
+    
     ! Ice dynamics - calving
     ! ======================
     
@@ -1148,6 +1173,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
     LOGICAL                             :: do_asynchronous_BMB
     REAL(dp)                            :: BMB_max
+    REAL(dp)                            :: BMB_min
     
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
@@ -1753,6 +1779,9 @@ CONTAINS
                      choice_mask_noice_EAS_config,                    &
                      choice_mask_noice_GRL_config,                    &
                      choice_mask_noice_ANT_config,                    &
+                     fixed_shelf_geometry_config,                     &
+                     fixed_sheet_geometry_config,                     &
+                     fixed_grounding_line_config,                     &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -1761,6 +1790,8 @@ CONTAINS
                      slid_Coulomb_reg_u_threshold_config,             &
                      slid_ZI_ut_config,                               &
                      slid_ZI_p_config,                                &
+                     include_basal_freezing_config,                   &
+                     deltaT_basal_freezing_config,                    &
                      choice_basal_hydrology_config,                   &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
@@ -1788,7 +1819,12 @@ CONTAINS
                      BIVgeo_CISMplus_tauc_config,                     &
                      BIVgeo_CISMplus_H0_config,                       &
                      BIVgeo_CISMplus_u0_config,                       &
-                     BIVgeo_CISMplus_target_filename_config,          &
+                     BIVgeo_Berends2022_tauc_config,                  &
+                     BIVgeo_Berends2022_H0_config,                    &
+                     BIVgeo_Berends2022_u0_config,                    &
+                     BIVgeo_Berends2022_Hi_scale_config,              &
+                     BIVgeo_Berends2022_u_scale_config,               &
+                     BIVgeo_target_velocity_filename_config,          &
                      BIVgeo_filename_output_config,                   &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
@@ -1891,6 +1927,7 @@ CONTAINS
                      choice_BMB_subgrid_config,                       &
                      do_asynchronous_BMB_config,                      &
                      BMB_max_config,                                  &
+                     BMB_min_config,                                  &
                      choice_basin_scheme_NAM_config,                  &
                      choice_basin_scheme_EAS_config,                  &
                      choice_basin_scheme_GRL_config,                  &
@@ -2306,6 +2343,11 @@ CONTAINS
     C%choice_mask_noice_GRL                    = choice_mask_noice_GRL_config
     C%choice_mask_noice_ANT                    = choice_mask_noice_ANT_config
 
+    ! Partially fixed geometry, useful for initialisation and inversion runs
+    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
+    C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
+    C%fixed_grounding_line                     = fixed_grounding_line_config
+
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
   
@@ -2318,6 +2360,8 @@ CONTAINS
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
     C%slid_ZI_ut                               = slid_ZI_ut_config
     C%slid_ZI_p                                = slid_ZI_p_config
+    C%include_basal_freezing                   = include_basal_freezing_config
+    C%deltaT_basal_freezing                    = deltaT_basal_freezing_config
     
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
@@ -2351,7 +2395,12 @@ CONTAINS
     C%BIVgeo_CISMplus_tauc                     = BIVgeo_CISMplus_tauc_config
     C%BIVgeo_CISMplus_H0                       = BIVgeo_CISMplus_H0_config
     C%BIVgeo_CISMplus_u0                       = BIVgeo_CISMplus_u0_config
-    C%BIVgeo_CISMplus_target_filename          = BIVgeo_CISMplus_target_filename_config
+    C%BIVgeo_Berends2022_tauc                  = BIVgeo_Berends2022_tauc_config
+    C%BIVgeo_Berends2022_H0                    = BIVgeo_Berends2022_H0_config
+    C%BIVgeo_Berends2022_u0                    = BIVgeo_Berends2022_u0_config
+    C%BIVgeo_Berends2022_Hi_scale              = BIVgeo_Berends2022_Hi_scale_config
+    C%BIVgeo_Berends2022_u_scale               = BIVgeo_Berends2022_u_scale_config
+    C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
     C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
   
     ! Ice dynamics - calving
@@ -2506,6 +2555,7 @@ CONTAINS
     C%choice_BMB_subgrid                       = choice_BMB_subgrid_config
     C%do_asynchronous_BMB                      = do_asynchronous_BMB_config
     C%BMB_max                                  = BMB_max_config
+    C%BMB_min                                  = BMB_min_config
     
     C%choice_basin_scheme_NAM                  = choice_basin_scheme_NAM_config
     C%choice_basin_scheme_EAS                  = choice_basin_scheme_EAS_config

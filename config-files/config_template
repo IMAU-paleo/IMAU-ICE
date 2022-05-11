@@ -275,7 +275,7 @@
   
   ! Basal inversion
   do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
-  choice_BIVgeo_method_config                 = 'CISM+'                          ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021"
+  choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
   BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   BIVgeo_Lipscomb2021_tauc_config             = 500.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
@@ -285,7 +285,12 @@
   BIVgeo_CISMplus_tauc_config                 = 500.0                            ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
   BIVgeo_CISMplus_H0_config                   = 100.0                            ! Thickness scale in the CISM+ geometry/velocity-based basal inversion method [m]
   BIVgeo_CISMplus_u0_config                   = 10.0                             ! Velocity  scale in the CISM+ geometry/velocity-based basal inversion method [m/yr]
-  BIVgeo_CISMplus_target_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ geometry/velocity-based basal inversion method
+  BIVgeo_Berends2022_tauc_config              = 500.0                            ! Timescale       in the Berends2022 geometry/velocity-based basal inversion method [yr]
+  BIVgeo_Berends2022_H0_config                = 100.0                            ! First  thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  BIVgeo_Berends2022_u0_config                = 10.0                             ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_Berends2022_Hi_scale_config          = 3000.0                           ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
+  BIVgeo_Berends2022_u_scale_config           = 300.0                            ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
 
   ! Ice dynamics - calving
@@ -454,9 +459,9 @@
  
   choice_BMB_shelf_amplification_config        = 'basin'                   ! Choice of method to determine BMB amplification factors: "uniform", "basin"
   basin_BMB_amplification_n_ANT_config         = 17                        ! Number of basins used for ANT
-  basin_BMB_amplification_factor_ANT_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  
+  basin_BMB_amplification_factor_ANT_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
   basin_BMB_amplification_n_GRL_config         = 8                         ! Number of basins used for GRL
-  basin_BMB_amplification_factor_GRL_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  
+  basin_BMB_amplification_factor_GRL_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
  
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
   BMB_Favier2019_lin_GammaT_config            = 3.3314E-05     ! 2.03E-5         ! Heat exchange velocity [m s^-1] 
@@ -465,7 +470,7 @@
   
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   BMB_Lazeroms2018_GammaT_config              = 3.7506E-04     ! 1.1E-3          ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
-  BMB_Lazeroms2018_find_GL_scheme_config      = 'along_ice_flow'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
+  BMB_Lazeroms2018_find_GL_scheme_config      = 'GL_average_Tijn'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
   
   ! Parameters for the PICO BMB model
   BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
@@ -556,13 +561,10 @@
   SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
   SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
   SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
-  
-  SELEN_irreg_time_n_config               = 15                              ! Number of entries in the irregular moving time window
-  SELEN_irreg_time_window_config          = 20.0  , 20.0  , 20.0  , 5.0  , 5.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 0.0  ,  0.0  ,  0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  ,  0.0  ,  0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  , 0.0  ,  0.0  ,  0.0  , 0.0  , 0.0    /)
       
   SELEN_lith_thickness_config                  = 100.0                           ! Thickness of the elastic lithosphere [km]
   SELEN_visc_n_config                          = 3                               ! Number      of viscous asthenosphere layers
-  SELEN_visc_prof_config                       = 3.0  , 0.6   , 0.3        )     ! Viscosities of viscous asthenosphere layers [?]
+  SELEN_visc_prof_config                       = 3.0  , 0.6   , 0.3              ! Viscosities of viscous asthenosphere layers [?]
     
   ! Settings for the TABOO Earth deformation model
   SELEN_TABOO_CDE_config                       = 0                               ! code of the model (see taboo for explanation)

@@ -1619,9 +1619,6 @@ CONTAINS
       ELSEIF (C%choice_mask_noice_ANT == 'MISMIP+') THEN
         ! Enforce the static calving front at x = 640 km in the MISMIP+ idealised geometry
         CALL initialise_mask_noice_MISMIPplus( region%grid, region%mask_noice)
-      ELSEIF (C%choice_mask_noice_ANT == 'BIVMIP_A') THEN
-        ! Enforce a zero ice thickness BC at the domain boundary in the BIVMIP_A idealised geometry
-        CALL initialise_mask_noice_BIVMIP_A( region%grid, region%mask_noice)
       ELSE
         CALL crash('unknown choice_mask_noice_ANT "' // TRIM(C%choice_mask_noice_ANT) // '"!')
       END IF
@@ -1804,41 +1801,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
   
   END SUBROUTINE initialise_mask_noice_MISMIPplus
-  SUBROUTINE initialise_mask_noice_BIVMIP_A( grid, mask_noice)
-    ! Enforce a zero ice thickness BC at the domain boundary in the BIVMIP_A idealised geometry
-    ! (use the outer two rows of cells so it works for the DIVA)
-      
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid 
-    INTEGER,  DIMENSION(:,:  ),          INTENT(OUT)   :: mask_noice
-  
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_mask_noice_BIVMIP_A'
-    INTEGER                                            :: i,j
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-        
-    DO i = grid%i1, grid%i2
-      mask_noice( 1        ,i) = 1
-      mask_noice( 2        ,i) = 1
-      mask_noice( grid%ny-1,i) = 1
-      mask_noice( grid%ny  ,i) = 1
-    END DO
-    DO j = grid%j1, grid%j2
-      mask_noice( j,1        ) = 1
-      mask_noice( j,2        ) = 1
-      mask_noice( j,grid%nx-1) = 1
-      mask_noice( j,grid%nx  ) = 1
-    END DO
-    CALL sync
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-  
-  END SUBROUTINE initialise_mask_noice_BIVMIP_A
   
 ! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
   SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)

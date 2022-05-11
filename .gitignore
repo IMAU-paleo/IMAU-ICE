@@ -28,6 +28,6 @@ config-files_old/*
 calving_test*
 *.mat
 *.png
-BIVMIP/*
 MISMIP_mod/MISMIP_mod_*
-ABUMIP/*
+ABUMIP/ABUMIP_*
+BIVMIP/BIVMIP_*

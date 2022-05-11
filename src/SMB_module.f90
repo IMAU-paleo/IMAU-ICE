@@ -167,8 +167,6 @@ CONTAINS
       CALL run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
     ELSEIF (C%choice_idealised_SMB == 'Bueler') THEN
       CALL run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
-    ELSEIF (C%choice_idealised_SMB == 'BIVMIP_B') THEN
-      CALL run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
     ELSE
       CALL crash('unknown choice_idealised_SMB "' // TRIM( C%choice_idealised_SMB) // '"!')
     END IF
@@ -287,50 +285,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
           
   END SUBROUTINE run_SMB_model_idealised_Bueler
-  SUBROUTINE run_SMB_model_idealised_BIVMIP_B( grid, SMB, mask_noice)
-    ! Almost the same as the EISMINT1 moving-margin experiment,
-    ! but slightly smaller so the ice lobe doesn't reach the domain border
-    
-    IMPLICIT NONE
-    
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
-    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
-    
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_idealised_BIVMIP_B'
-    INTEGER                                            :: i,j
-    
-    REAL(dp)                                           :: E               ! Radius of circle where accumulation is M_max
-    REAL(dp)                                           :: dist            ! distance to centre of circle
-    REAL(dp)                                           :: S_b             ! Gradient of accumulation-rate change with horizontal distance
-    REAL(dp)                                           :: M_max           ! Maximum accumulation rate 
-    
-    ! Add routine to path
-    CALL init_routine( routine_name)
-    
-    ! Default EISMINT configuration
-    E         = 400000._dp
-    S_b       = 0.01_dp / 1000._dp 
-    M_max     = 0.5_dp
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      IF (mask_noice( j,i) == 0) THEN
-        dist = SQRT(grid%x(i)**2+grid%y(j)**2)
-        SMB%SMB_year( j,i) = MIN( M_max, S_b * (E - dist))
-      ELSE
-        SMB%SMB_year( j,i) = 0._dp
-      END IF
-    END DO
-    END DO
-    CALL sync
-    
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-          
-  END SUBROUTINE run_SMB_model_idealised_BIVMIP_B
   
 ! == The IMAU-ITM SMB model
 ! =========================
