@@ -2137,7 +2137,7 @@ CONTAINS
       
       z_mask_new = 0
       DO k = 1, C%nz_ocean
-        IF (C%z_ocean( k) < z_floor) z_mask_new = 1
+        IF (C%z_ocean( k) < z_floor) z_mask_new( k) = 1
       END DO
       
       ! Regrid vertical column

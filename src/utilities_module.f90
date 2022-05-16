@@ -1256,8 +1256,8 @@ CONTAINS
       ! Find enveloping lat-lon indices
       il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
       iu  = il+1        
-      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-      wiu = 1-wil
+      wil = MAX( 0._dp, MIN( 1._dp, (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1)) ))
+      wiu = 1._dp - wil
       
       ! Exception for pixels near the zero meridian
       IF (grid%lon(j,i) < MINVAL(lon)) THEN
@@ -1274,8 +1274,8 @@ CONTAINS
           
       jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
       ju  = jl+1        
-      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
-      wju = 1-wjl
+      wjl = MAX( 0._dp, MIN( 1._dp, (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1)) ))
+      wju = 1._dp - wjl
       
       ! Interpolate data
       d_grid( j,i) = (d_glob( il,jl) * wil * wjl) + &
@@ -1326,8 +1326,8 @@ CONTAINS
       ! Find enveloping lat-lon indices
       il  = MAX(1,MIN(nlon-1, 1 + FLOOR((grid%lon(j,i)-MINVAL(lon)) / (lon(2)-lon(1)))))
       iu  = il+1        
-      wil = (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1))
-      wiu = 1-wil
+      wil = MAX( 0._dp, MIN( 1._dp, (lon(iu) - grid%lon(j,i))/(lon(2)-lon(1)) ))
+      wiu = 1._dp - wil
       
       ! Exception for pixels near the zero meridian
       IF (grid%lon(j,i) < MINVAL(lon)) THEN
@@ -1344,8 +1344,8 @@ CONTAINS
           
       jl  = MAX(1,MIN(nlat-1, 1 + FLOOR((grid%lat(j,i)-MINVAL(lat)) / (lat(2)-lat(1)))))
       ju  = jl+1        
-      wjl = (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1))
-      wju = 1-wjl
+      wjl = MAX( 0._dp, MIN( 1._dp, (lat(ju) - grid%lat(j,i))/(lat(2)-lat(1)) ))
+      wju = 1._dp - wjl
       
       ! Interpolate data
       DO k = 1, nz
@@ -1884,6 +1884,10 @@ CONTAINS
     REAL(dp)                                           :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
     REAL(dp)                                           :: dist_to_dst, dist_to_dst_min, max_dist
     INTEGER                                            :: k_src_nearest_to_dst
+    REAL(dp)                                           :: z_src_lowest, z_src_highest, NaN
+    
+    NaN = -1._dp
+    NaN = SQRT( NaN)
     
     ! Initialise
     d_dst = 0._dp
@@ -1912,13 +1916,36 @@ CONTAINS
     END DO
     IF (all_are_masked) RETURN
     
-    ! Calculate derivative d_src/dz (one-sided differencing at the boundary, central differencing everywhere else)
+    ! Calculate derivative d_src/dz (one-sided differencing at the boundary or in cells with masked neighbours, central differencing everywhere else)
     ALLOCATE( ddz_src( nz_src))
     DO k = 2, nz_src-1
-      ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
+      IF (mask_src( k-1) == 1 .AND. mask_src( k) == 1 .AND. mask_src( k+1) == 1) THEN
+        ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
+      ELSEIF (mask_src( k) == 0) THEN
+        ddz_src( k    ) = 0._dp
+      ELSEIF (mask_src( k-1) == 0) THEN
+        ddz_src( k    ) = (d_src( k+1   ) - d_src( k       )) / (z_src( k+1   ) - z_src( k       ))
+      ELSEIF (mask_src( k+1) == 0) THEN
+        ddz_src( k    ) = (d_src( k     ) - d_src( k-1     )) / (z_src( k     ) - z_src( k-1     ))
+      ELSE
+        CALL crash('whaa!')
+      END IF
     END DO
-    ddz_src(  1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
-    ddz_src(  nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
+    ddz_src(    1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
+    ddz_src(    nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
+    
+    ! Find lowest and highest z value with source data
+    k_src = 1
+    DO WHILE (mask_src( k_src) == 0)
+      k_src = k_src + 1
+    END DO
+    z_src_lowest = z_src( k_src)
+    
+    k_src = nz_src
+    DO WHILE (mask_src( k_src) == 0)
+      k_src = k_src - 1
+    END DO
+    z_src_highest = z_src( k_src)
     
     ! Perform conservative remapping by finding regions of overlap
     ! between source and destination grid cells
@@ -2006,6 +2033,13 @@ CONTAINS
         d_dst( k_dst) = d_src( k_src_nearest_to_dst)
         
       END IF ! IF (dz_overlap_tot > 0._dp) THEN
+      
+      ! Forbid extrapolation
+      IF     (z_dst( k_dst) < z_src_lowest) THEN
+        d_dst( k_dst) = NaN
+      ELSEIF (z_dst( k_dst) > z_src_highest) THEN
+        d_dst( k_dst) = NaN
+      END IF
         
     END DO ! DO k_dst = 1, nz_dst
     
