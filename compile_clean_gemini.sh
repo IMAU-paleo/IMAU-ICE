@@ -1,7 +1,5 @@
-rm -f src/liblapack.so
-ln -s /usr/lib64/liblapack.so.3.4.2 src/liblapack.so
-
 module load mpi/openmpi-x86_64
+module load petsc/3.16.3
 
 cd src
 mkdir module-files
