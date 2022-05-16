@@ -156,7 +156,7 @@
   d18O_record_length_config                   = 2051
   
   ! Geothermal heat flux
-  choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
+  choice_geothermal_heat_flux_config          = 'constant'                       ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   constant_geothermal_heat_flux_config        = 1.72E06                          ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
   filename_geothermal_heat_flux_config        = '/home/berends/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
@@ -417,7 +417,7 @@
   filename_direct_regional_SMB_NAM_config     = ''
   filename_direct_regional_SMB_EAS_config     = ''
   filename_direct_regional_SMB_GRL_config     = ''
-  filename_direct_regional_SMB_ANT_config     = '/home/berends/Datasets/RACMO_Antarctica/SMB_RACMO2_Antarctica_PD_1kyr_40km.nc'
+  filename_direct_regional_SMB_ANT_config     = 'SMB_RACMO2_Antarctica_PD_1kyr_40km.nc'
   
   ! Tuning parameters for the IMAU-ITM SMB model
   SMB_IMAUITM_choice_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
@@ -461,7 +461,7 @@
   filename_basins_NAM_config                  = ''                               ! Path to a text file containing polygons of drainage basins
   filename_basins_EAS_config                  = ''
   filename_basins_GRL_config                  = ''
-  filename_basins_ANT_config                  = '/home/berends/Datasets/basins_Antarctica/ant_full_drainagesystem_polygons.txt'
+  filename_basins_ANT_config                  = 'ant_full_drainagesystem_polygons.txt'
   do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
   do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
  
