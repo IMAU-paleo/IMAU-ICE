@@ -4,6 +4,8 @@ ln -s /usr/lib64/liblapack.so.3.4.2 src/liblapack.so
 module load mpi/openmpi-x86_64
 
 cd src
+mkdir module-files
+mkdir object-files
 #make clean
 make all
 cd ..
