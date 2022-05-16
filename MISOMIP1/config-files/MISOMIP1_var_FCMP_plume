@@ -1,8 +1,0 @@
-&CONFIG
-  
-  fixed_output_dir_suffix_config              = '_FCMP_plume'
-  choice_BMB_shelf_model_config               = 'Lazeroms2018_plume'
-  BMB_Lazeroms2018_GammaT_config              = 5.493E-04
-  choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
-
-/

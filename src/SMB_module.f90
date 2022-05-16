@@ -91,6 +91,10 @@ CONTAINS
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
     
+    ! Offset the SMB
+    SMB%SMB_year( :,grid%i1:grid%i2) = SMB%SMB_year( :,grid%i1:grid%i2) + C%dSMB_uniform
+    CALL sync
+    
     ! Finalise routine path
     CALL finalise_routine( routine_name)
           

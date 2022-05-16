@@ -1,0 +1,6 @@
+&CONFIG
+
+  fixed_output_dir_config                     = 'results_warm_ocean'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  dT_ocean_uniform_config                     = 1.0 
+  
+/

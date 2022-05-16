@@ -1373,12 +1373,10 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
         
         ! Temperature forcing
-        dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
+        dT = MAX( 0._dp, BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i))
         
         ! Favier et al. (2019), Eq. 4
-        ! BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_quad_GammaT * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
-        ! Altered to allow for negative basal melt (i.e. refreezing) when dT < 0 
-        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_quad_GammaT * SIGN(dT,1._dp) * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
+        BMB%BMB_shelf( j,i) = -sec_per_year * C%BMB_Favier2019_quad_GammaT * (seawater_density * cp_ocean * dT / (ice_density * L_fusion))**2._dp
         
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
       

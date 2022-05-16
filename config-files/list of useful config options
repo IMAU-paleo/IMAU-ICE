@@ -1,0 +1,51 @@
+  
+  ! ========================
+  ! ===== ICE DYNAMICS =====
+  ! ========================
+  
+  ! The flow enhancement factors are used to scale Glen's flow law factor A. Higher values means
+  ! the ice flows more easily. The two values affect respectively only the grounded and only the
+  ! floating ice.
+  
+  m_enh_sheet_config                          = 0.500                             ! [unitless] low = 0.400, default = 0.500, high = 0.625
+  m_enh_shelf_config                          = 0.300                             ! [unitless] low = 0.240, default = 0.300, high = 0.375
+  
+  ! The bed roughness controls the amount of basal sliding. In IMAU-ICE, bed roughness is parameterised
+  ! as a function of bedrock elevation, based on the idea that marine bed has a history of erosion and
+  ! ocean intrusion, so that it will be more slippery. Bedrock above sea level is assigned the "phi_max"
+  ! value (i.e. high friction), while areas more than 1000 m below sea level are assigned the "phi_min"
+  ! value (i.e. low friction). In between these elevations, the friction is scaled linearly between these
+  ! values. Think ab
+  
+  Martin2011till_phi_min_config               = 10.0                              ! [degrees] low =  5.0, default = 10.0, high = 20.0
+  Martin2011till_phi_max_config               = 40.0                              ! [degrees] low = 20.0, default = 40.0, high = 60.0
+  
+  ! =============================
+  ! ===== OCEAN TEMPERATURE =====
+  ! =============================
+  
+  ! Ocean temperatures in IMAU-ICE are parameterised with a simple linear depth-dependent profile.
+  ! They are offset with the "dT_ocean_uniform" value, so e.g. setting this value to 1.0 will
+  ! warm up the entire ocean by 1 K.
+  
+  dT_ocean_uniform_config                     = 0.0                               ! [K] low = -1.0, default = 0.0, high = 1.0
+  
+  ! ================================
+  ! ===== SURFACE MASS BALANCE =====
+  ! ================================
+  
+  ! The surface mass balance in these experiments is prescribed directly from output of the RACMO2.1
+  ! regional climate model. A uniform offset value can be added to provide rough estimates of the
+  ! mass balance in cold and warm climates
+  
+  dSMB_uniform_config                         = 0.0
+  
+  ! ===============
+  ! ===== GIA =====
+  ! ===============
+  
+  ! Glacial isostatic adjustment is described by an ELRA model.
+  
+  ELRA_lithosphere_flex_rigidity_config       = 1.0E+25                          ! Lithospheric flexural rigidity [kg m^2 s^-2]
+  ELRA_bedrock_relaxation_time_config         = 3000.0                           ! Relaxation time for bedrock adjustment [yr]
+  ELRA_mantle_density_config                  = 3300.0                           ! Mantle density [kg m^-3]

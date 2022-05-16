@@ -573,14 +573,14 @@ CONTAINS
         T_surf = -1.27_dp
         dTdz   = -0.000238_dp
       ELSEIF (ice%basin_ID( j,i) == 14) THEN
-        T_surf = -1.01_dp
-        dTdz   = -0.000889_dp
+        T_surf = -0.80_dp
+        dTdz   =  0.004000_dp
       ELSEIF (ice%basin_ID( j,i) == 15) THEN
-        T_surf = -1.00_dp
+        T_surf = -0.80_dp
         dTdz   = -0.000400_dp
       ELSEIF (ice%basin_ID( j,i) == 16) THEN
-        T_surf = -1.50_dp
-        dTdz   = -0.000600_dp
+        T_surf = -1.30_dp
+        dTdz   = -0.000400_dp
       ELSEIF (ice%basin_ID( j,i) == 17) THEN
         T_surf = -1.37_dp
         dTdz   = -0.001392_dp
@@ -601,9 +601,9 @@ CONTAINS
         S = w * Sbot + (1._dp - w) * Szero
         
         ! Fill in values
-        ocean%T_ocean(          k,j,i) = T
-        ocean%T_ocean_ext(      k,j,i) = T
-        ocean%T_ocean_corr_ext( k,j,i) = T
+        ocean%T_ocean(          k,j,i) = T + C%dT_ocean_uniform
+        ocean%T_ocean_ext(      k,j,i) = T + C%dT_ocean_uniform
+        ocean%T_ocean_corr_ext( k,j,i) = T + C%dT_ocean_uniform
         
         ocean%S_ocean(          k,j,i) = S
         ocean%S_ocean_ext(      k,j,i) = S

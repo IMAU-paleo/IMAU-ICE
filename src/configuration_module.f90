@@ -508,6 +508,9 @@ MODULE configuration_module
   REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp 
   REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
   
+  ! SMB offset for the student exercise
+  REAL(dp)            :: dSMB_uniform_config                         = 0._dp
+  
   ! Basal mass balance
   ! ==================
   
@@ -1167,6 +1170,9 @@ MODULE configuration_module
     REAL(dp)                            :: SMB_IMAUITM_C_refr_EAS
     REAL(dp)                            :: SMB_IMAUITM_C_refr_GRL
     REAL(dp)                            :: SMB_IMAUITM_C_refr_ANT
+  
+    ! SMB offset for the student exercise
+    REAL(dp)                            :: dSMB_uniform
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================
@@ -1926,6 +1932,7 @@ CONTAINS
                      SMB_IMAUITM_C_refr_EAS_config,                   &
                      SMB_IMAUITM_C_refr_GRL_config,                   &
                      SMB_IMAUITM_C_refr_ANT_config,                   &
+                     dSMB_uniform_config,                             &
                      choice_BMB_shelf_model_config,                   &
                      choice_idealised_BMB_shelf_config,               &
                      choice_BMB_sheet_model_config,                   &
@@ -2553,6 +2560,9 @@ CONTAINS
     C%SMB_IMAUITM_C_refr_EAS                   = SMB_IMAUITM_C_refr_EAS_config
     C%SMB_IMAUITM_C_refr_GRL                   = SMB_IMAUITM_C_refr_GRL_config
     C%SMB_IMAUITM_C_refr_ANT                   = SMB_IMAUITM_C_refr_ANT_config
+  
+    ! SMB offset for the student exercise
+    C%dSMB_uniform                             = dSMB_uniform_config
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================
