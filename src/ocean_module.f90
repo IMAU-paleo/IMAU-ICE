@@ -214,6 +214,8 @@ CONTAINS
       CALL run_ocean_model_idealised_MISOMIP1( grid, ocean, time)
     ELSEIF (C%choice_idealised_ocean == 'Reese2018_ANT') THEN
       CALL run_ocean_model_idealised_Reese2018_ANT( grid, ice, ocean, region_name)
+    ELSEIF (C%choice_idealised_ocean == 'linear_per_basin') THEN
+      CALL run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name)
     ELSE
       CALL crash('unknown choice_idealised_ocean "' // TRIM( C%choice_idealised_ocean) // '"!')
     END IF
@@ -489,6 +491,87 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_ocean_model_idealised_Reese2018_ANT
+  SUBROUTINE run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name)
+    ! Run the regional ocean model
+    ! 
+    ! Set the ocean temperature and salinity to depth- and basin-dependent values.
+    ! For the salinity, values are only depth-dependent, using the MISMIP+ "COLD" profile.
+    ! For the temperature, each basin has its own profile of the form T = T_surf + dTdz * depth.
+    !
+    ! Basin-dependent values of T_surf and dTdz are prescribed through the config; the
+    ! default values are derived from an inversion, where we used the "inverse_shelf_geometry"
+    ! BMB model to derive the melt rates necessary to maintain the present-day shelf geometry
+    ! (i.e. M = dH/dt). Then, we fit a linear temperature profile to these melt rates, using
+    ! an assumed quadratic relation between thermal forcing and melt rates.
+    
+    IMPLICIT NONE
+    
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid  
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_studentdemo'
+    INTEGER                                            :: i,j,k,bi
+    REAL(dp)                                           :: T_surf, dT_dz, w, T, S
+    REAL(dp), PARAMETER                                :: Szero     = 33.8_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: Sbot      = 34.55_dp   ! Sea floor   salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_max = 720_dp     ! Maximum depth for the profile (constant values below that)
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Safety
+    IF (.NOT. region_name == 'ANT') THEN
+      CALL crash('only applicable to Antarctica!')
+    END IF
+    IF (.NOT. (C%choice_basin_scheme_ANT == 'file' .AND. C%do_merge_basins_ANT)) THEN
+      IF (par%master) THEN
+        CALL warning('This really only works when using the external Antarctic ice basins file "ant_full_drainagesystem_polygons.txt". ' // &
+                     'This can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems. ' // &
+                     '...and you will also need to set do_merge_basins_ANT_config = .TRUE.')
+      END IF
+    END IF
+    
+    ! Determine vertical temperature and salinity profiles per basin
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ! Basin-dependent temperature profile
+      bi = ice%basin_ID( j,i)
+      T_surf = C%ocean_T_surf_per_basin( bi)
+      dT_dz  = C%ocean_dT_dz_per_basin(  bi)
+      
+      ! Fill in vertical temperature/salinity profiles
+      DO k = 1, C%nz_ocean
+        
+        ! Temperature: basin-dependent linear profile
+        T = T_surf + dT_dz * C%z_ocean( k)
+      
+        ! Salinity: just use the MISMIP+ "COLD" profile everywhere
+        w = MIN( 1._dp, MAX( 0._dp, C%z_ocean( k) / depth_max ))
+        S = w * Sbot + (1._dp - w) * Szero
+        
+        ! Fill in values
+        ocean%T_ocean(          k,j,i) = T
+        ocean%T_ocean_ext(      k,j,i) = T
+        ocean%T_ocean_corr_ext( k,j,i) = T
+        
+        ocean%S_ocean(          k,j,i) = S
+        ocean%S_ocean_ext(      k,j,i) = S
+        ocean%S_ocean_corr_ext( k,j,i) = S
+        
+      END DO
+      
+    END DO
+    END DO
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE run_ocean_model_idealised_linear_per_basin
   
 ! == Uniform warm/cold ocean model (the old ANICE way)
 ! ====================================================

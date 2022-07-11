@@ -449,7 +449,7 @@ MODULE configuration_module
   REAL(dp)            :: ocean_temperature_cold_config               = 268.16_dp                        ! cold period temperature of the ocean beneath the shelves [K; -5.0 Celcius]
   REAL(dp)            :: ocean_temperature_warm_config               = 275.16_dp                        ! warm period temperature of the ocean beneath the shelves [K;  2.0 Celcius]
   
-  ! Parameters used when choice_ocean_model = "matrix_warm_cold"
+  ! Parameters used when choice_idealised_ocean = "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                         ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                          ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
@@ -467,6 +467,30 @@ MODULE configuration_module
   REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                           ! Can be set separately for different regions
   REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
   REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp
+  
+  ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
+  REAL(dp), DIMENSION(100) :: ocean_T_surf_per_basin_config = &
+      (/ -1.69_dp, -1.59_dp, -1.51_dp, -1.41_dp, -1.30_dp, -1.38_dp, -1.13_dp, -1.50_dp, -1.40_dp, -1.10_dp, &
+         -1.58_dp, -1.16_dp, -1.27_dp, -0.80_dp, -0.80_dp, -1.30_dp, -1.37_dp,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  , &
+          0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  ,  0._dp  /)
+  REAL(dp), DIMENSION(100) :: ocean_dT_dz_per_basin_config = &
+      (/ -0.000419_dp, -0.000293_dp, -0.000602_dp, -0.001165_dp, -0.000600_dp, -0.000618_dp, -0.002153_dp, -0.000400_dp, -0.000400_dp, -0.000400_dp, &
+         -0.000487_dp, -0.001189_dp, -0.000238_dp,  0.004000_dp, -0.000400_dp, -0.000400_dp, -0.001392_dp,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
+          0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      /)
   
   ! Surface mass balance
   ! ====================
@@ -1070,6 +1094,10 @@ MODULE configuration_module
     REAL(dp)                            :: climate_matrix_CO2vsice_EAS
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
+  
+    ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
+    REAL(dp), DIMENSION(100) :: ocean_T_surf_per_basin
+    REAL(dp), DIMENSION(100) :: ocean_dT_dz_per_basin
     
     ! Orbit time and CO2 concentration of the warm and cold snapshots
     REAL(dp)                            :: matrix_high_CO2_level
@@ -1857,6 +1885,8 @@ CONTAINS
                      climate_matrix_CO2vsice_EAS_config,              &
                      climate_matrix_CO2vsice_GRL_config,              &
                      climate_matrix_CO2vsice_ANT_config,              &
+                     ocean_T_surf_per_basin_config,                   &
+                     ocean_dT_dz_per_basin_config,                    &
                      matrix_high_CO2_level_config,                    &
                      matrix_low_CO2_level_config,                     &
                      matrix_warm_orbit_time_config,                   &
@@ -2506,6 +2536,10 @@ CONTAINS
     C%ocean_matrix_CO2vsice_EAS                = ocean_matrix_CO2vsice_EAS_config
     C%ocean_matrix_CO2vsice_GRL                = ocean_matrix_CO2vsice_GRL_config
     C%ocean_matrix_CO2vsice_ANT                = ocean_matrix_CO2vsice_ANT_config
+  
+    ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
+    C%ocean_T_surf_per_basin                   = ocean_T_surf_per_basin_config
+    C%ocean_dT_dz_per_basin                    = ocean_dT_dz_per_basin_config
     
     ! Surface mass balance
     ! ====================
