@@ -1006,17 +1006,18 @@ MODULE data_types_netcdf_module
     ! ID for NetCDF file:
     INTEGER :: ncid
     
-    ! ID's for variables:
-    ! ===================
+  ! Dimensions
+  ! ==========
     
-    ! Dimensions
     INTEGER :: id_dim_x
     INTEGER :: id_dim_y
     
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
     
-    ! Variables:
+  ! Variables
+  ! =========
+    
     INTEGER :: id_var_x
     INTEGER :: id_var_y
     INTEGER :: id_var_phi_fric
@@ -1040,17 +1041,18 @@ MODULE data_types_netcdf_module
     ! ID for NetCDF file:
     INTEGER :: ncid
     
-    ! ID's for variables:
-    ! ===================
+  ! Dimensions
+  ! ==========
     
-    ! Dimensions
     INTEGER :: id_dim_x
     INTEGER :: id_dim_y
     
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
     
-    ! Variables:
+  ! Variables
+  ! =========
+  
     INTEGER :: id_var_x
     INTEGER :: id_var_y
     INTEGER :: id_var_u_surf
@@ -1062,6 +1064,74 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_v_surf                = 'v_surf               '
     
   END TYPE type_netcdf_BIV_target_velocity
+  
+  TYPE type_netcdf_ISMIP6_output_scalar
+    ! NetCDF output following the ISMIP6 protocol, as described on https://www.climate-cryosphere.org/wiki/index.php?title=ISMIP6-Projections-Greenland (accessed 11 July 2022).
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_time
+    
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    ! Dimensions
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+    ! Field variables
+    INTEGER :: id_var_scalar
+    
+    CHARACTER(LEN=256) :: name_var_scalar                = '                     '
+    
+  END TYPE type_netcdf_ISMIP6_output_scalar
+  
+  TYPE type_netcdf_ISMIP6_output_field
+    ! NetCDF output following the ISMIP6 protocol, as described on https://www.climate-cryosphere.org/wiki/index.php?title=ISMIP6-Projections-Greenland (accessed 11 July 2022).
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_x
+    INTEGER :: id_dim_y
+    INTEGER :: id_dim_time
+    
+    CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    ! Dimensions
+    INTEGER :: id_var_x
+    INTEGER :: id_var_y
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+    ! Field variables
+    INTEGER :: id_var_field
+    
+    CHARACTER(LEN=256) :: name_var_field                 = '                     '
+    
+  END TYPE type_netcdf_ISMIP6_output_field
   
 CONTAINS
 

@@ -233,102 +233,111 @@ CONTAINS
     RETURN
   END SUBROUTINE error_function
   
-! == The oblique stereographic projection 
-  SUBROUTINE oblique_sg_projection( lambda, phi, lambda_M_deg, phi_M_deg, alpha_deg, x_IM_P_prime, y_IM_P_prime)
+! == The oblique stereographic projection
+  SUBROUTINE oblique_sg_projection( lambda, phi, lambda_M_deg, phi_M_deg, beta_deg, x_IM_P_prime, y_IM_P_prime, k_P)
     ! This subroutine projects with an oblique stereographic projection the longitude-latitude
-    ! coordinates which coincide with the GCM grid points to the rectangular IM coordinate
-    ! system, with coordinates (x,y).
+    ! coordinates to a rectangular coordinate system, with coordinates (x,y).
     !
-    ! For more information about M, C%alpha_stereographic, the center of projection and the used
-    ! projection method see:
-    !  Reerink et al. (2010), Mapping technique of climate fields between GCM's and ice models, GMD
-    
+    ! For more information about M, beta_deg, the center of projection and the used
+    ! projection method see: Reerink et al. (2010), Mapping technique of climate fields
+    ! between GCM's and ice models, GMD
+
+    ! For North and South Pole: lambda_M_deg = 0._dp, to generate the correct coordinate
+    ! system, see equation (2.3) or equation (A.53) in Reerink et al. (2010).
+
     IMPLICIT NONE
 
     ! Input variables:
-    REAL(dp), INTENT(IN)            :: lambda        ! lon in degrees
-    REAL(dp), INTENT(IN)            :: phi           ! lat in degrees
-    
+    REAL(dp), INTENT(IN)            :: lambda        ! in degrees
+    REAL(dp), INTENT(IN)            :: phi           ! in degrees
+
     ! Polar stereographic projection parameters
     REAL(dp), INTENT(IN)            :: lambda_M_deg  ! in degrees
     REAL(dp), INTENT(IN)            :: phi_M_deg     ! in degrees
-    REAL(dp), INTENT(IN)            :: alpha_deg     ! in degrees
+    REAL(dp), INTENT(IN)            :: beta_deg      ! in degrees
 
     ! Output variables:
-    REAL(dp), INTENT(OUT)           :: x_IM_P_prime  ! in meter
-    REAL(dp), INTENT(OUT)           :: y_IM_P_prime  ! in meter
+    REAL(dp), INTENT(OUT)           :: x_IM_P_prime  ! in metres
+    REAL(dp), INTENT(OUT)           :: y_IM_P_prime  ! in metres
+    REAL(dp), INTENT(OUT), OPTIONAL :: k_P           ! Length scale factor [-],  k in Snyder (1987)
 
     ! Local variables:
+    REAL(dp)                        :: alpha_deg     ! in degrees
     REAL(dp)                        :: phi_P         ! in radians
     REAL(dp)                        :: lambda_P      ! in radians
     REAL(dp)                        :: t_P_prime
-    
     REAL(dp)                        :: lambda_M, phi_M, alpha
     
-    lambda_M = (pi / 180._dp) * lambda_M_deg
-    phi_M    = (pi / 180._dp) * phi_M_deg
-    alpha    = (pi / 180._dp) * alpha_deg
-
-    ! For North and South Pole: C%lambda_M = 0._dp, to generate the correct IM coordinate
-    ! system, see equation (2.3) or equation (A.53) in Reerink et al. (2010).
+    ! Convert beta to alpha
+    alpha_deg = 90._dp - beta_deg
 
     ! Convert longitude-latitude coordinates to radians:
     phi_P    = (pi / 180._dp) * phi
     lambda_P = (pi / 180._dp) * lambda
 
+    ! Convert projection parameters to radians:
+    lambda_M = (pi / 180._dp) * lambda_M_deg
+    phi_M    = (pi / 180._dp) * phi_M_deg
+    alpha    = (pi / 180._dp) * alpha_deg
+
     ! See equation (2.6) or equation (A.56) in Reerink et al. (2010):
-    t_P_prime = ((1._dp + COS(alpha)) / (1._dp + COS(phi_P) * COS(phi_M) * COS(lambda_P - lambda_M) + SIN(phi_P) * SIN(phi_M))) / (pi / 180._dp)
+    t_P_prime = (1._dp + COS(alpha)) / (1._dp + COS(phi_P) * COS(phi_M) * COS(lambda_P - lambda_M) + SIN(phi_P) * SIN(phi_M))
 
     ! See equations (2.4-2.5) or equations (A.54-A.55) in Reerink et al. (2010):
     x_IM_P_prime =  earth_radius * (COS(phi_P) * SIN(lambda_P - lambda_M)) * t_P_prime
-    y_IM_P_prime =  earth_radius * (SIN(phi_P) * COS(phi_M) - (COS(phi_P) * SIN(phi_M)) * COS(lambda_P - lambda_M)) * t_P_prime   
-    
-    
+    y_IM_P_prime =  earth_radius * (SIN(phi_P) * COS(phi_M) - (COS(phi_P) * SIN(phi_M)) * COS(lambda_P - lambda_M)) * t_P_prime
+
+    ! See equation (21-4) on page 157 in Snyder (1987):
+    IF(PRESENT(k_P)) k_P = (1._dp + COS(alpha)) / (1._dp + SIN(phi_M) * SIN(phi_P) + COS(phi_M) * COS(phi_P) * COS(lambda_P - lambda_M))
+
   END SUBROUTINE oblique_sg_projection
-  SUBROUTINE inverse_oblique_sg_projection( x_IM_P_prime, y_IM_P_prime, lambda_M_deg, phi_M_deg, alpha_deg, lambda_P, phi_P)
+  SUBROUTINE inverse_oblique_sg_projection( x_IM_P_prime, y_IM_P_prime, lambda_M_deg, phi_M_deg, beta_deg, lambda_P, phi_P)
     ! This subroutine projects with an inverse oblique stereographic projection the
-    ! (x,y) coordinates which coincide with the IM grid points to the longitude-latitude
-    ! coordinate system, with coordinates (lambda, phi) in degrees.
+    ! (x,y) coordinates to a longitude-latitude coordinate system, with coordinates (lambda, phi) in degrees.
     !
-    ! For more information about M, alpha, the center of projection and the used
-    ! projection method see:
-    !  Reerink et al. (2010), Mapping technique of climate fields between GCM's and ice models, GMD
-    
+    ! For more information about M, alpha_deg, the center of projection and the used
+    ! projection method see: Reerink et al. (2010), Mapping technique of climate fields
+    ! between GCM's and ice models, GMD
+
     IMPLICIT NONE
 
     ! Input variables:
-    REAL(dp), INTENT(IN)  :: x_IM_P_prime  ! in meter
-    REAL(dp), INTENT(IN)  :: y_IM_P_prime  ! in meter
-    
+    REAL(dp), INTENT(IN)  :: x_IM_P_prime  ! in metres
+    REAL(dp), INTENT(IN)  :: y_IM_P_prime  ! in metres
+
     ! Polar stereographic projection parameters
     REAL(dp), INTENT(IN)  :: lambda_M_deg  ! in degrees
     REAL(dp), INTENT(IN)  :: phi_M_deg     ! in degrees
-    REAL(dp), INTENT(IN)  :: alpha_deg     ! in degrees
+    REAL(dp), INTENT(IN)  :: beta_deg      ! in degrees
 
     ! Output variables:
     REAL(dp), INTENT(OUT) :: lambda_P      ! in degrees
     REAL(dp), INTENT(OUT) :: phi_P         ! in degrees
 
     ! Local variables:
-    REAL(dp)              :: x_3D_P_prime  ! in meter
-    REAL(dp)              :: y_3D_P_prime  ! in meter
-    REAL(dp)              :: z_3D_P_prime  ! in meter
+    REAL(dp)              :: alpha_deg     ! in degrees
+    REAL(dp)              :: x_3D_P_prime  ! in metres
+    REAL(dp)              :: y_3D_P_prime  ! in metres
+    REAL(dp)              :: z_3D_P_prime  ! in metres
     REAL(dp)              :: a
     REAL(dp)              :: t_P
-    REAL(dp)              :: x_3D_P        ! in meter
-    REAL(dp)              :: y_3D_P        ! in meter
-    REAL(dp)              :: z_3D_P        ! in meter
-    
+    REAL(dp)              :: x_3D_P        ! in metres
+    REAL(dp)              :: y_3D_P        ! in metres
+    REAL(dp)              :: z_3D_P        ! in metres
     REAL(dp)              :: lambda_M, phi_M, alpha
     
+    ! Convert beta to alpha
+    alpha_deg = 90._dp - beta_deg
+
+    ! Convert projection parameters to radians:
     lambda_M = (pi / 180._dp) * lambda_M_deg
     phi_M    = (pi / 180._dp) * phi_M_deg
     alpha    = (pi / 180._dp) * alpha_deg
 
     ! See equations (2.14-2.16) or equations (B.21-B.23) in Reerink et al. (2010):
-    x_3D_P_prime = earth_radius * COS(alpha) * COS(lambda_M) * COS(phi_M) - SIN(lambda_M) * (x_IM_P_prime*(pi / 180._dp)) - COS(lambda_M) * SIN(phi_M) * (y_IM_P_prime*(pi / 180._dp))
-    y_3D_P_prime = earth_radius * COS(alpha) * SIN(lambda_M) * COS(phi_M) + COS(lambda_M) * (x_IM_P_prime*(pi / 180._dp)) - SIN(lambda_M) * SIN(phi_M) * (y_IM_P_prime*(pi / 180._dp))
-    z_3D_P_prime = earth_radius * COS(alpha) *                 SIN(phi_M)                                          +                   COS(phi_M) * (y_IM_P_prime*(pi / 180._dp))
+    x_3D_P_prime = earth_radius * COS(alpha) * COS(lambda_M) * COS(phi_M) - SIN(lambda_M) * x_IM_P_prime - COS(lambda_M) * SIN(phi_M) * y_IM_P_prime
+    y_3D_P_prime = earth_radius * COS(alpha) * SIN(lambda_M) * COS(phi_M) + COS(lambda_M) * x_IM_P_prime - SIN(lambda_M) * SIN(phi_M) * y_IM_P_prime
+    z_3D_P_prime = earth_radius * COS(alpha) *                 SIN(phi_M)                                +                 COS(phi_M) * y_IM_P_prime
 
     ! See equation (2.13) or equation (B.20) in Reerink et al. (2010):
     a = COS(lambda_M) * COS(phi_M) * x_3D_P_prime  +  SIN(lambda_M) * COS(phi_M) * y_3D_P_prime  +  SIN(phi_M) * z_3D_P_prime
@@ -339,7 +348,7 @@ CONTAINS
     ! See equations (2.9-2.11) or equations (B.16-B.18) in Reerink et al. (2010):
     x_3D_P =  earth_radius * COS(lambda_M) * COS(phi_M) * (t_P - 1._dp) + x_3D_P_prime * t_P
     y_3D_P =  earth_radius * SIN(lambda_M) * COS(phi_M) * (t_P - 1._dp) + y_3D_P_prime * t_P
-    z_3D_P =  earth_radius *                   SIN(phi_M) * (t_P - 1._dp) + z_3D_P_prime * t_P
+    z_3D_P =  earth_radius *                 SIN(phi_M) * (t_P - 1._dp) + z_3D_P_prime * t_P
 
     ! See equation (2.7) or equation (B.24) in Reerink et al. (2010):
     IF(x_3D_P <  0._dp                      ) THEN
@@ -364,6 +373,7 @@ CONTAINS
     ELSE IF(z_3D_P <  0._dp) THEN
       phi_P =  -90._dp
     END IF
+
   END SUBROUTINE inverse_oblique_sg_projection
 
 ! == Smoothing operations
@@ -885,10 +895,10 @@ CONTAINS
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_square_to_square_cons_2nd_order_2D'
-    INTEGER                                           :: i,j,i_src,j_src,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
-    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst, xcmin, xcmax, ycmin, ycmax
-    INTEGER,  DIMENSION(nx_dst,2)                     :: ir_src
-    INTEGER,  DIMENSION(ny_dst,2)                     :: jr_src
+    INTEGER                                           :: i,j,i_src,j_src,i_dst,j_dst,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
+    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst
+    INTEGER,  DIMENSION(nx_dst)                       :: il_src, iu_src
+    INTEGER,  DIMENSION(ny_dst)                       :: jl_src, ju_src
     REAL(dp)                                          :: xomin, xomax, yomin, yomax, w0, w1x, w1y
     REAL(dp)                                          :: Ad, Asd, Asum
     REAL(dp), DIMENSION(:,:  ), POINTER               ::  ddx_src,  ddy_src
@@ -924,20 +934,95 @@ CONTAINS
     END IF
     
     ! Find overlaps between grids
-    DO i = 1, nx_dst
-      ! Dst cell i overlaps with src cells ir_src( i,1) to ir_src( i,2)
-      xcmin = x_dst( i) - dx_dst/2._dp
-      xcmax = x_dst( i) + dx_dst/2._dp
-      ir_src( i,:) = MAX( 1, MIN( nx_src, [CEILING(-1.5_dp + FLOOR(nx_src/2._dp) + xcmin / dx_src), &
-                                           CEILING( 1.5_dp + FLOOR(nx_src/2._dp) + xcmax / dx_src)] ))
-    END DO ! DO i = 1, nx_dst
-    DO j = 1, ny_dst
-      ! Dst cell j overlaps with src cells jr_src( j,1) to ir_src( j,2)
-      ycmin = y_dst( j) - dy_dst/2._dp
-      ycmax = y_dst( j) + dy_dst/2._dp
-      jr_src( j,:) = MAX( 1, MIN( ny_src, [CEILING(-1.5_dp + FLOOR(ny_src/2._dp) + ycmin / dy_src), &
-                                           CEILING( 1.5_dp + FLOOR(ny_src/2._dp) + ycmax / dy_src)] ))
-    END DO ! DO j = 1, ny_dst
+    ! dst cell [i,j] overlaps with src cells [il_src( i):iu_src( i), jl_src( j):ju_src( j)]
+    
+    ! il
+    DO i_dst = 1, nx_dst
+  
+      IF (i_dst == 1) THEN
+        il_src( i_dst) = 1
+      ELSE
+        il_src( i_dst) = il_src( i_dst-1)
+      END IF
+  
+      DO WHILE (x_src( il_src( i_dst)) + dx_src < x_dst( i_dst) - dx_dst)
+        il_src( i_dst) = il_src( i_dst) + 1
+        IF (il_src( i_dst) >= nx_src) THEN
+          EXIT
+        END IF
+      END DO
+      il_src( i_dst) = MAX( 1, MIN( nx_src, il_src( i_dst) ))
+  
+    END DO ! DO i_dst = 1, nx_dst
+    
+    il_src = il_src - 1
+    il_src = MAX( 1, MIN( nx_src, il_src))
+    
+    ! iu
+    DO i_dst = nx_dst, 1, -1
+  
+      IF (i_dst == nx_dst) THEN
+        iu_src( i_dst) = nx_src
+      ELSE
+        iu_src( i_dst) = il_src( i_dst+1)
+      END IF
+  
+      DO WHILE (x_src( iu_src( i_dst)) - dx_src > x_dst( i_dst) + dx_dst)
+        iu_src( i_dst) = iu_src( i_dst) - 1
+        IF (iu_src( i_dst) <= 1) THEN
+          EXIT
+        END IF
+      END DO
+      iu_src( i_dst) = MAX( 1, MIN( nx_src, iu_src( i_dst) ))
+  
+    END DO ! DO i_dst = nx_dst, 1, -1
+    
+    iu_src = iu_src + 1
+    iu_src = MAX( 1, MIN( nx_src, iu_src))
+    
+    ! jl
+    DO j_dst = 1, ny_dst
+  
+      IF (j_dst == 1) THEN
+        jl_src( j_dst) = 1
+      ELSE
+        jl_src( j_dst) = jl_src( j_dst-1)
+      END IF
+  
+      DO WHILE (y_src( jl_src( j_dst)) + dx_src < y_dst( j_dst) - dx_dst)
+        jl_src( j_dst) = jl_src( j_dst) + 1
+        IF (jl_src( j_dst) >= ny_src) THEN
+          EXIT
+        END IF
+      END DO
+      jl_src( j_dst) = MAX( 1, MIN( ny_src, jl_src( j_dst) ))
+  
+    END DO ! DO j_dst = 1, ny_dst
+    
+    jl_src = jl_src - 1
+    jl_src = MAX( 1, MIN( ny_src, jl_src))
+    
+    ! ju
+    DO j_dst = ny_dst, 1, -1
+  
+      IF (j_dst == ny_dst) THEN
+        ju_src( j_dst) = ny_src
+      ELSE
+        ju_src( j_dst) = jl_src( j_dst+1)
+      END IF
+  
+      DO WHILE (y_src( ju_src( j_dst)) - dx_src > y_dst( j_dst) + dx_dst)
+        ju_src( j_dst) = ju_src( j_dst) - 1
+        IF (ju_src( j_dst) <= 1) THEN
+          EXIT
+        END IF
+      END DO
+      ju_src( j_dst) = MAX( 1, MIN( ny_src, ju_src( j_dst) ))
+  
+    END DO ! DO j_dst = ny_dst, 1, -1
+    
+    ju_src = ju_src + 1
+    ju_src = MAX( 1, MIN( ny_src, ju_src))
     
     ! Get derivatives of d_src
     CALL partition_list( nx_src, par%i, par%n, i1, i2)
@@ -971,8 +1056,8 @@ CONTAINS
         mask_dst_outside_src( j,i) = 0
       END IF
       
-      DO i_src = ir_src( i,1), ir_src( i,2)
-      DO j_src = jr_src( j,1), jr_src( j,2)
+      DO i_src = il_src( i), iu_src( i)
+      DO j_src = jl_src( j), ju_src( j)
         
         xomin = MAX( x_dst( i) - dx_dst/2._dp, x_src( i_src) - dx_src/2._dp)
         xomax = MIN( x_dst( i) + dx_dst/2._dp, x_src( i_src) + dx_src/2._dp)
@@ -1001,10 +1086,10 @@ CONTAINS
       END DO ! DO j_src = jr_src( j,1), jr_src( j,2)
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
       
-      ! Safety
-      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
-        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled!', int_01 = j, int_02 = i)
-      END IF
+!      ! Safety
+!      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
+!        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, Ad = {dp_02}', int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = Ad)
+!      END IF
       
     END DO ! DO j = 1, ny_dst
     END DO ! DO i = i1, i2

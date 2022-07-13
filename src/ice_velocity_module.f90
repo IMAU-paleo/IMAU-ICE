@@ -637,6 +637,18 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Surface and basal vertical velocities
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+      ice%w_surf_a( j,i) = ice%w_3D_a( 1   ,j,i)
+      ice%w_base_a( j,i) = ice%w_3D_a( C%nz,j,i)
+      
+    END DO
+    END DO
+    CALL sync
+    
     ! Clean up after yourself
     CALL deallocate_shared( wdHs_dx_a)
     CALL deallocate_shared( wdHs_dy_a)

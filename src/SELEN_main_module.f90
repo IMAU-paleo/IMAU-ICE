@@ -1058,7 +1058,7 @@ CONTAINS
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'dx                    = ', region%grid_GIA%dx
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'lambda_M              = ', region%grid_GIA%lambda_M
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'phi_M                 = ', region%grid_GIA%phi_M
-      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'alpha_stereo          = ', region%grid_GIA%alpha_stereo
+      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'beta_stereo           = ', region%grid_GIA%beta_stereo
       WRITE(UNIT = 1337, FMT = '(A,I5)')    'SELEN_n_harmonics     = ', C%SELEN_n_harmonics
       
       WRITE(UNIT = 1337, FMT = '(A)') ''      
@@ -1073,7 +1073,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE create_new_sh_folder
-  SUBROUTINE read_sh_header( header_filename, version_number, nx, ny, dx, lambda_M, phi_M, alpha_stereo, SELEN_n_harmonics)
+  SUBROUTINE read_sh_header( header_filename, version_number, nx, ny, dx, lambda_M, phi_M, beta_stereo, SELEN_n_harmonics)
     
     IMPLICIT NONE
     
@@ -1085,7 +1085,7 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: dx
     REAL(dp),                            INTENT(OUT)   :: lambda_M
     REAL(dp),                            INTENT(OUT)   :: phi_M
-    REAL(dp),                            INTENT(OUT)   :: alpha_stereo
+    REAL(dp),                            INTENT(OUT)   :: beta_stereo
     INTEGER,                             INTENT(OUT)   :: SELEN_n_harmonics
     
     ! Local variables:
@@ -1099,7 +1099,7 @@ CONTAINS
                      dx,                                  &
                      lambda_M,                            &
                      phi_M,                               &
-                     alpha_stereo,                        &
+                     beta_stereo,                         &
                      SELEN_n_harmonics
     
     ! Add routine to path
@@ -1143,7 +1143,7 @@ CONTAINS
     REAL(dp)                                           :: dx_read
     REAL(dp)                                           :: lambda_M_read
     REAL(dp)                                           :: phi_M_read
-    REAL(dp)                                           :: alpha_stereo_read
+    REAL(dp)                                           :: beta_stereo_read
     INTEGER                                            :: SELEN_n_harmonics_read
     
     ! Add routine to path
@@ -1182,7 +1182,7 @@ CONTAINS
         ELSE
           ! If the header exists, read it and see if it fits the current UFEMISM set-up.
           
-          CALL read_sh_header( header_filename, version_number_read, nx_read, ny_read, dx_read, lambda_M_read, phi_M_read, alpha_stereo_read, SELEN_n_harmonics_read)
+          CALL read_sh_header( header_filename, version_number_read, nx_read, ny_read, dx_read, lambda_M_read, phi_M_read, beta_stereo_read, SELEN_n_harmonics_read)
           
           IF ( TRIM(version_number_read) == TRIM(version_number)         .AND. &
                nx_read                   == region%grid_GIA%nx           .AND. &
@@ -1190,7 +1190,7 @@ CONTAINS
                dx_read                   == region%grid_GIA%dx           .AND. &
                lambda_M_read             == region%grid_GIA%lambda_M     .AND. &
                phi_M_read                == region%grid_GIA%phi_M        .AND. &
-               alpha_stereo_read         == region%grid_GIA%alpha_stereo .AND. &
+               beta_stereo_read          == region%grid_GIA%beta_stereo .AND. &
                SELEN_n_harmonics_read    == C%SELEN_n_harmonics) THEN
             ! This header matches the current model set-up!
             

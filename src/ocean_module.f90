@@ -1184,7 +1184,7 @@ CONTAINS
     CALL deallocate_shared( hires%grid%wdx          )
     CALL deallocate_shared( hires%grid%wlambda_m    )
     CALL deallocate_shared( hires%grid%wphi_m       )
-    CALL deallocate_shared( hires%grid%walpha_stereo)
+    CALL deallocate_shared( hires%grid%wbeta_stereo )
     CALL deallocate_shared( hires%grid%wlat         )
     CALL deallocate_shared( hires%grid%wlon         )
     CALL deallocate_shared( hires%wT_ocean          )
@@ -1243,14 +1243,14 @@ CONTAINS
     CALL allocate_shared_dp_0D(  hires%grid%ymax,         hires%grid%wymax        )
     CALL allocate_shared_dp_0D(  hires%grid%lambda_M,     hires%grid%wlambda_M    )
     CALL allocate_shared_dp_0D(  hires%grid%phi_M,        hires%grid%wphi_M       )
-    CALL allocate_shared_dp_0D(  hires%grid%alpha_stereo, hires%grid%walpha_stereo)
+    CALL allocate_shared_dp_0D(  hires%grid%beta_stereo,  hires%grid%wbeta_stereo )
     
     ! Polar stereographic projection parameters and resolution
     IF (par%master) THEN
       ! Projection parameters are of course identical to those used for this ice model region
       hires%grid%lambda_M     = region%grid%lambda_M
       hires%grid%phi_M        = region%grid%phi_M
-      hires%grid%alpha_stereo = region%grid%alpha_stereo
+      hires%grid%beta_stereo  = region%grid%beta_stereo
       ! But the resolution is different
       hires%grid%dx           = hires%grid%x( 2) - hires%grid%x( 1)
     END IF
@@ -1266,7 +1266,7 @@ CONTAINS
     
     DO i = hires%grid%i1, hires%grid%i2
     DO j = 1, hires%grid%ny
-      CALL inverse_oblique_sg_projection( hires%grid%x( i), hires%grid%y( j), hires%grid%lambda_M, hires%grid%phi_M, hires%grid%alpha_stereo, hires%grid%lon( j,i), hires%grid%lat( j,i))
+      CALL inverse_oblique_sg_projection( hires%grid%x( i), hires%grid%y( j), hires%grid%lambda_M, hires%grid%phi_M, hires%grid%beta_stereo, hires%grid%lon( j,i), hires%grid%lat( j,i))
     END DO
     END DO
     CALL sync
@@ -1345,14 +1345,14 @@ CONTAINS
     CALL allocate_shared_dp_0D(  hires%grid%ymax,         hires%grid%wymax        )
     CALL allocate_shared_dp_0D(  hires%grid%lambda_M,     hires%grid%wlambda_M    )
     CALL allocate_shared_dp_0D(  hires%grid%phi_M,        hires%grid%wphi_M       )
-    CALL allocate_shared_dp_0D(  hires%grid%alpha_stereo, hires%grid%walpha_stereo)
+    CALL allocate_shared_dp_0D(  hires%grid%beta_stereo , hires%grid%wbeta_stereo )
     
     ! Polar stereographic projection parameters and resolution
     IF (par%master) THEN
       ! Projection parameters are of course identical to those used for this ice model region
       hires%grid%lambda_M     = region%grid%lambda_M
       hires%grid%phi_M        = region%grid%phi_M
-      hires%grid%alpha_stereo = region%grid%alpha_stereo
+      hires%grid%beta_stereo  = region%grid%beta_stereo
       ! But the resolution is different
       hires%grid%dx           = hires%grid%x( 2) - hires%grid%x( 1)
       ! Check if this is the resolution we want
@@ -1372,7 +1372,7 @@ CONTAINS
     
     DO i = hires%grid%i1, hires%grid%i2
     DO j = 1, hires%grid%ny
-      CALL inverse_oblique_sg_projection( hires%grid%x( i), hires%grid%y( j), hires%grid%lambda_M, hires%grid%phi_M, hires%grid%alpha_stereo, hires%grid%lon( j,i), hires%grid%lat( j,i))
+      CALL inverse_oblique_sg_projection( hires%grid%x( i), hires%grid%y( j), hires%grid%lambda_M, hires%grid%phi_M, hires%grid%beta_stereo, hires%grid%lon( j,i), hires%grid%lat( j,i))
     END DO
     END DO
     CALL sync
@@ -1952,7 +1952,7 @@ CONTAINS
     REAL(dp)                                           :: ocean_extrap_Gauss_sigma_read
     REAL(dp)                                           :: lambda_M_read
     REAL(dp)                                           :: phi_M_read
-    REAL(dp)                                           :: alpha_stereo_read
+    REAL(dp)                                           :: beta_stereo_read
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1997,7 +1997,7 @@ CONTAINS
             ocean_extrap_Gauss_sigma_read,      &
             lambda_M_read,                      &
             phi_M_read,                         &
-            alpha_stereo_read)
+            beta_stereo_read)
           
           IF ( TRIM(original_ocean_filename_read)    == TRIM(filename_ocean_glob)             .AND. &
                TRIM(choice_ocean_vertical_grid_read) == TRIM(choice_ocean_vertical_grid_read) .AND. &
@@ -2007,7 +2007,7 @@ CONTAINS
                ocean_extrap_Gauss_sigma_read         == C%ocean_extrap_Gauss_sigma            .AND. &
                lambda_M_read                         == region%grid%lambda_M                  .AND. &
                phi_M_read                            == region%grid%phi_M                     .AND. &
-               alpha_stereo_read                     == region%grid%alpha_stereo) THEN
+               beta_stereo_read                      == region%grid%beta_stereo) THEN
             ! This header matches the current model set-up!
             
             foundmatch = .TRUE.
@@ -2044,7 +2044,7 @@ CONTAINS
             ocean_extrap_Gauss_sigma,      &
             lambda_M,                      &
             phi_M,                         &
-            alpha_stereo                   )
+            beta_stereo                   )
     ! Read a header file listing the model settings that were used to create a high-resolution extrapolated ocean data file
     
     IMPLICIT NONE
@@ -2059,7 +2059,7 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: ocean_extrap_Gauss_sigma
     REAL(dp),                            INTENT(OUT)   :: lambda_M
     REAL(dp),                            INTENT(OUT)   :: phi_M
-    REAL(dp),                            INTENT(OUT)   :: alpha_stereo
+    REAL(dp),                            INTENT(OUT)   :: beta_stereo
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_ocean_header'
@@ -2074,7 +2074,7 @@ CONTAINS
                      ocean_extrap_Gauss_sigma,            &
                      lambda_M,                            &
                      phi_M,                               &
-                     alpha_stereo
+                     beta_stereo
     
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2147,7 +2147,7 @@ CONTAINS
       WRITE(UNIT = 1337, FMT = '(A)')       '! Parameters of the high-resolution grid'
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'lambda_M                      = ', hires%grid%lambda_M
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'phi_M                         = ', hires%grid%phi_M
-      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'alpha_stereo                  = ', hires%grid%alpha_stereo
+      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'beta_stereo                   = ', hires%grid%beta_stereo
       
       WRITE(UNIT = 1337, FMT = '(A)') ''      
       WRITE(UNIT = 1337, FMT = '(A)') '/'

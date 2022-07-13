@@ -45,8 +45,13 @@ CONTAINS
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%Hs_a(  j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
-      ice%TAF_a( j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%Hs_a(     j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%TAF_a(    j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      IF (ice%mask_land_a( j,i) == 1) THEN
+        ice%dHs_dt_a( j,i) = ice%dHb_dt_a( j,i) + ice%dHi_dt_a( j,i)
+      ELSE
+        ice%dHs_dt_a( j,i) = ice%dHi_dt_a( j,i) * (1._dp - ice_density / seawater_density)
+      END IF
     END DO
     END DO
     CALL sync
@@ -1120,7 +1125,7 @@ CONTAINS
         ! Project [lat,lon] to [x,y]
         CALL partition_list( n_vertices, par%i, par%n, vi1, vi2)
         DO vi = vi1, vi2
-          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), grid%lambda_M, grid%phi_M, grid%alpha_stereo, Vx( vi), Vy( vi))
+          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), grid%lambda_M, grid%phi_M, grid%beta_stereo, Vx( vi), Vy( vi))
         END DO
         
       ELSEIF (region_name == 'GRL') THEN
@@ -1237,7 +1242,7 @@ CONTAINS
         ! Project [lat,lon] to [x,y]
         CALL partition_list( n_vertices, par%i, par%n, vi1, vi2)
         DO vi = vi1, vi2
-          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), grid%lambda_M, grid%phi_M, grid%alpha_stereo, Vx( vi), Vy( vi))
+          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), grid%lambda_M, grid%phi_M, grid%beta_stereo, Vx( vi), Vy( vi))
         END DO
         
       END IF ! IF (region_name == 'ANT') THEN

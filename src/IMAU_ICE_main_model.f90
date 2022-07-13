@@ -21,7 +21,7 @@ MODULE IMAU_ICE_main_model
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                                  create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
-                                                 create_regional_scalar_output_file
+                                                 create_regional_scalar_output_file, create_ISMIP6_output_files, write_to_ISMIP6_output_files
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
@@ -164,8 +164,9 @@ CONTAINS
                             
       ! Write output
       IF (region%do_output) THEN
-        IF (par%master) CALL write_to_restart_file(     region, forcing)
-        IF (par%master) CALL write_to_help_fields_file( region)
+        CALL write_to_restart_file(     region, forcing)
+        CALL write_to_help_fields_file( region)
+        IF (C%do_write_ISMIP6_output) CALL write_to_ISMIP6_output_files( region)
         CALL sync
       END IF
 
@@ -185,9 +186,10 @@ CONTAINS
     
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      IF (par%master)  CALL write_to_restart_file(     region, forcing)
-      IF (par%master)  CALL write_to_help_fields_file( region)
+      CALL write_to_restart_file(     region, forcing)
+      CALL write_to_help_fields_file( region)
       IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
+      IF (C%do_write_ISMIP6_output) CALL write_to_ISMIP6_output_files( region)
     END IF
     
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -278,9 +280,14 @@ CONTAINS
     END DO
     region%help_fields%filename = TRIM(C%output_dir) // TRIM(short_filename)
 
-    ! Let the Master create the (empty) NetCDF files
-    IF (par%master) CALL create_restart_file(     region, forcing)
-    IF (par%master) CALL create_help_fields_file( region)
+    ! Create the (empty) NetCDF files
+    CALL create_restart_file(     region, forcing)
+    CALL create_help_fields_file( region)
+    
+    ! ISMIP6 output
+    IF (C%do_write_ISMIP6_output) THEN
+      CALL create_ISMIP6_output_files( region)
+    END IF
     
     ! ===== Initialise initial, present-day, and GIA equilibrium reference geometries =====
     ! =====================================================================================
@@ -593,7 +600,7 @@ CONTAINS
     CALL allocate_shared_dp_0D(  region%grid%ymax,         region%grid%wymax        )
     CALL allocate_shared_dp_0D(  region%grid%lambda_M,     region%grid%wlambda_M    )
     CALL allocate_shared_dp_0D(  region%grid%phi_M,        region%grid%wphi_M       )
-    CALL allocate_shared_dp_0D(  region%grid%alpha_stereo, region%grid%walpha_stereo)
+    CALL allocate_shared_dp_0D(  region%grid%beta_stereo,  region%grid%wbeta_stereo )
     
     ! Let the Master do the work
     IF (par%master) THEN
@@ -607,7 +614,7 @@ CONTAINS
         region%grid%dx           = C%dx_NAM
         region%grid%lambda_M     = C%lambda_M_NAM
         region%grid%phi_M        = C%phi_M_NAM
-        region%grid%alpha_stereo = C%alpha_stereo_NAM
+        region%grid%beta_stereo  = C%beta_stereo_NAM
       ELSEIF (region%name == 'EAS') THEN
         xmin                     = C%xmin_EAS
         xmax                     = C%xmax_EAS
@@ -616,7 +623,7 @@ CONTAINS
         region%grid%dx           = C%dx_EAS
         region%grid%lambda_M     = C%lambda_M_EAS
         region%grid%phi_M        = C%phi_M_EAS
-        region%grid%alpha_stereo = C%alpha_stereo_EAS
+        region%grid%beta_stereo  = C%beta_stereo_EAS
       ELSEIF (region%name == 'GRL') THEN
         xmin                     = C%xmin_GRL
         xmax                     = C%xmax_GRL
@@ -625,7 +632,7 @@ CONTAINS
         region%grid%dx           = C%dx_GRL
         region%grid%lambda_M     = C%lambda_M_GRL
         region%grid%phi_M        = C%phi_M_GRL
-        region%grid%alpha_stereo = C%alpha_stereo_GRL
+        region%grid%beta_stereo  = C%beta_stereo_GRL
       ELSEIF (region%name == 'ANT') THEN
         xmin                     = C%xmin_ANT
         xmax                     = C%xmax_ANT
@@ -634,7 +641,7 @@ CONTAINS
         region%grid%dx           = C%dx_ANT
         region%grid%lambda_M     = C%lambda_M_ANT
         region%grid%phi_M        = C%phi_M_ANT
-        region%grid%alpha_stereo = C%alpha_stereo_ANT
+        region%grid%beta_stereo  = C%beta_stereo_ANT
       END IF
       
       ! Determine the number of grid cells we can fit in this domain
@@ -663,17 +670,21 @@ CONTAINS
     
     ! Fill in x and y
     IF (par%master) THEN
+    
+      ! x
+      region%grid%xmin = xmid - nsx * region%grid%dx
+      region%grid%xmax = xmid + nsx * region%grid%dx
       DO i = 1, region%grid%nx
-        region%grid%x( i) = -nsx*region%grid%dx + (i-1)*region%grid%dx
+        region%grid%x( i) = region%grid%xmin + (i-1)*region%grid%dx
       END DO
+    
+      ! y
+      region%grid%ymin = ymid - nsy * region%grid%dx
+      region%grid%ymax = ymid + nsy * region%grid%dx
       DO j = 1, region%grid%ny
-        region%grid%y( j) = -nsy*region%grid%dx + (j-1)*region%grid%dx
+        region%grid%y( j) = region%grid%ymin + (j-1)*region%grid%dx
       END DO
       
-      region%grid%xmin = MINVAL(region%grid%x)
-      region%grid%xmax = MAXVAL(region%grid%x)
-      region%grid%ymin = MINVAL(region%grid%y)
-      region%grid%ymax = MAXVAL(region%grid%y)
     END IF ! IF (par%master) THEN
     CALL sync
     
@@ -683,7 +694,7 @@ CONTAINS
     
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-      CALL inverse_oblique_sg_projection( region%grid%x( i), region%grid%y( j), region%grid%lambda_M, region%grid%phi_M, region%grid%alpha_stereo, region%grid%lon( j,i), region%grid%lat( j,i))
+      CALL inverse_oblique_sg_projection( region%grid%x( i), region%grid%y( j), region%grid%lambda_M, region%grid%phi_M, region%grid%beta_stereo, region%grid%lon( j,i), region%grid%lat( j,i))
     END DO
     END DO
     CALL sync
@@ -733,7 +744,7 @@ CONTAINS
     CALL allocate_shared_dp_0D(  region%grid_GIA%ymax,         region%grid_GIA%wymax        )
     CALL allocate_shared_dp_0D(  region%grid_GIA%lambda_M,     region%grid_GIA%wlambda_M    )
     CALL allocate_shared_dp_0D(  region%grid_GIA%phi_M,        region%grid_GIA%wphi_M       )
-    CALL allocate_shared_dp_0D(  region%grid_GIA%alpha_stereo, region%grid_GIA%walpha_stereo)
+    CALL allocate_shared_dp_0D(  region%grid_GIA%beta_stereo,  region%grid_GIA%wbeta_stereo )
     
     ! Let the Master do the work
     IF (par%master) THEN
@@ -747,7 +758,7 @@ CONTAINS
         region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_NAM
         region%grid_GIA%phi_M        = C%phi_M_NAM
-        region%grid_GIA%alpha_stereo = C%alpha_stereo_NAM
+        region%grid_GIA%beta_stereo  = C%beta_stereo_NAM
       ELSEIF (region%name == 'EAS') THEN
         xmin                         = C%xmin_EAS
         xmax                         = C%xmax_EAS
@@ -756,7 +767,7 @@ CONTAINS
         region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_EAS
         region%grid_GIA%phi_M        = C%phi_M_EAS
-        region%grid_GIA%alpha_stereo = C%alpha_stereo_EAS
+        region%grid_GIA%beta_stereo  = C%beta_stereo_EAS
       ELSEIF (region%name == 'GRL') THEN
         xmin                         = C%xmin_GRL
         xmax                         = C%xmax_GRL
@@ -765,7 +776,7 @@ CONTAINS
         region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_GRL
         region%grid_GIA%phi_M        = C%phi_M_GRL
-        region%grid_GIA%alpha_stereo = C%alpha_stereo_GRL
+        region%grid_GIA%beta_stereo  = C%beta_stereo_GRL
       ELSEIF (region%name == 'ANT') THEN
         xmin                         = C%xmin_ANT
         xmax                         = C%xmax_ANT
@@ -774,7 +785,7 @@ CONTAINS
         region%grid_GIA%dx           = C%dx_GIA
         region%grid_GIA%lambda_M     = C%lambda_M_ANT
         region%grid_GIA%phi_M        = C%phi_M_ANT
-        region%grid_GIA%alpha_stereo = C%alpha_stereo_ANT
+        region%grid_GIA%beta_stereo  = C%beta_stereo_ANT
       END IF
       
       ! Determine the number of grid cells we can fit in this domain
@@ -799,17 +810,21 @@ CONTAINS
     
     ! Fill in x and y
     IF (par%master) THEN
+    
+      ! x
+      region%grid_GIA%xmin = xmid - nsx * region%grid_GIA%dx
+      region%grid_GIA%xmax = xmid + nsx * region%grid_GIA%dx
       DO i = 1, region%grid_GIA%nx
-        region%grid_GIA%x( i) = -nsx*region%grid_GIA%dx + (i-1)*region%grid_GIA%dx
+        region%grid_GIA%x( i) = region%grid_GIA%xmin + (i-1)*region%grid_GIA%dx
       END DO
+    
+      ! y
+      region%grid_GIA%ymin = ymid - nsy * region%grid_GIA%dx
+      region%grid_GIA%ymax = ymid + nsy * region%grid_GIA%dx
       DO j = 1, region%grid_GIA%ny
-        region%grid_GIA%y( j) = -nsy*region%grid_GIA%dx + (j-1)*region%grid_GIA%dx
+        region%grid_GIA%y( j) = region%grid_GIA%ymin + (j-1)*region%grid_GIA%dx
       END DO
       
-      region%grid_GIA%xmin = MINVAL(region%grid_GIA%x)
-      region%grid_GIA%xmax = MAXVAL(region%grid_GIA%x)
-      region%grid_GIA%ymin = MINVAL(region%grid_GIA%y)
-      region%grid_GIA%ymax = MAXVAL(region%grid_GIA%y)
     END IF ! IF (par%master) THEN
     CALL sync
     
@@ -819,7 +834,8 @@ CONTAINS
     
     DO i = region%grid_GIA%i1, region%grid_GIA%i2
     DO j = 1, region%grid_GIA%ny
-      CALL inverse_oblique_sg_projection( region%grid_GIA%x( i), region%grid_GIA%y( j), region%grid_GIA%lambda_M, region%grid_GIA%phi_M, region%grid_GIA%alpha_stereo, region%grid_GIA%lon( j,i), region%grid_GIA%lat( j,i))
+      CALL inverse_oblique_sg_projection( region%grid_GIA%x( i), region%grid_GIA%y( j), region%grid_GIA%lambda_M, &
+        region%grid_GIA%phi_M, region%grid_GIA%beta_stereo, region%grid_GIA%lon( j,i), region%grid_GIA%lat( j,i))
     END DO
     END DO
     CALL sync

@@ -6,15 +6,7 @@ MODULE data_types_module
   ! If only Types could be collapsed in BBEdit...
 
   USE configuration_module,        ONLY: dp, C
-  USE data_types_netcdf_module,    ONLY: type_netcdf_climate_data, type_netcdf_reference_geometry, &
-                                         type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
-                                         type_netcdf_debug, type_netcdf_geothermal_heat_flux, type_netcdf_SELEN_output, &
-                                         type_netcdf_SELEN_global_topo, type_netcdf_direct_climate_forcing_global, &
-                                         type_netcdf_direct_climate_forcing_regional, type_netcdf_direct_SMB_forcing_global, &
-                                         type_netcdf_direct_SMB_forcing_regional, type_netcdf_ocean_data, &
-                                         type_netcdf_extrapolated_ocean_data, type_netcdf_scalars_global, &
-                                         type_netcdf_scalars_regional, type_netcdf_BIV_target_velocity, &
-                                         type_netcdf_BIV_bed_roughness, type_netcdf_resource_tracker
+  USE data_types_netcdf_module
 
   IMPLICIT NONE
   
@@ -30,9 +22,9 @@ MODULE data_types_module
     
     REAL(dp),                   POINTER     :: lambda_M
     REAL(dp),                   POINTER     :: phi_M
-    REAL(dp),                   POINTER     :: alpha_stereo
+    REAL(dp),                   POINTER     :: beta_stereo
     REAL(dp), DIMENSION(:,:  ), POINTER     :: lat, lon
-    INTEGER :: wlambda_M, wphi_M, walpha_stereo, wlat, wlon
+    INTEGER :: wlambda_M, wphi_M, wbeta_stereo, wlat, wlon
   
   END TYPE type_grid
   
@@ -100,11 +92,13 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_vav_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf_a              ! Ice velocity at the surface [m yr^-1]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: w_surf_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_surf_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_base_a              ! Ice velocity at the base [m yr^-1]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_base_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: w_base_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_base_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_base_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_base_a
@@ -115,8 +109,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: R_shear               ! Shearing ratio; 1 = full shearing, 0 = full sliding
     INTEGER :: wu_3D_a, wv_3D_a, wu_3D_cx, wv_3D_cy, ww_3D_a
     INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wuabs_vav_a
-    INTEGER :: wu_surf_a, wv_surf_a, wu_surf_cx, wv_surf_cy, wuabs_surf_a
-    INTEGER :: wu_base_a, wv_base_a, wu_base_cx, wv_base_cy, wuabs_base_a
+    INTEGER :: wu_surf_a, wv_surf_a, wu_surf_cx, wv_surf_cy, wuabs_surf_a, ww_surf_a
+    INTEGER :: wu_base_a, wv_base_a, wu_base_cx, wv_base_cy, wuabs_base_a, ww_base_a
     INTEGER :: wu_3D_SIA_cx, wv_3D_SIA_cy, wu_SSA_cx, wv_SSA_cy
     INTEGER :: wR_shear
     

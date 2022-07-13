@@ -107,27 +107,52 @@ MODULE configuration_module
   LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
   
-  ! Horizontal grid spacing and size for the four regions
-  ! =====================================================
+  ! ISMIP6 output
+  ! =============
   
-  REAL(dp)            :: xmin_NAM_config                             = -3600000._dp                     ! Western  boundary     of the North America domain [m]
+  LOGICAL             :: do_write_ISMIP6_output_config               = .FALSE.                          ! Whether or not to create a set of ISMIP6 output files
+  CHARACTER(LEN=256)  :: ISMIP6_output_group_code_config             = 'IMAU'                           ! Code for the group      name in the ISMIP6 output file names
+  CHARACTER(LEN=256)  :: ISMIP6_output_model_code_config             = 'IMAUICE'                        ! Code for the model      name in the ISMIP6 output file names
+  CHARACTER(LEN=256)  :: ISMIP6_output_experiment_code_config        = 'test'                           ! Code for the experiment name in the ISMIP6 output file names
+  CHARACTER(LEN=256)  :: ISMIP6_output_basetime_config               = 'YYYY-MM-DD'                     ! Basetime for the ISMIP6 output files (e.g. '1900-01-01')
+  
+  ! Grids
+  ! =====
+  
+  ! North America
+  REAL(dp)            :: lambda_M_NAM_config                         = 265._dp                          ! Longitude of the pole of the stereographic projection for the North America domain [degrees east]
+  REAL(dp)            :: phi_M_NAM_config                            = 62._dp                           ! Latitude  of the pole of the stereographic projection for the North America domain [degrees north]
+  REAL(dp)            :: beta_stereo_NAM_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the North America domain [degrees]
+  REAL(dp)            :: xmin_NAM_config                             = -3600000._dp                     ! Western  boundary        of the North America domain [m]
   REAL(dp)            :: xmax_NAM_config                             =  3600000._dp                     ! Eastern  boundary     of the North America domain [m]
   REAL(dp)            :: ymin_NAM_config                             = -2400000._dp                     ! Southern boundary     of the North America domain [m]
   REAL(dp)            :: ymax_NAM_config                             =  2400000._dp                     ! Northern boundary     of the North America domain [m]
   REAL(dp)            :: dx_NAM_config                               = 40000._dp                        ! Horizontal resolution of the North America domain [m]
   
+  ! Eurasia
+  REAL(dp)            :: lambda_M_EAS_config                         = 40._dp                           ! Longitude of the pole of the stereographic projection for the Eurasia domain [degrees east]
+  REAL(dp)            :: phi_M_EAS_config                            = 70._dp                           ! Latitude  of the pole of the stereographic projection for the Eurasia domain [degrees north]
+  REAL(dp)            :: beta_stereo_EAS_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
   REAL(dp)            :: xmin_EAS_config                             = -3400000._dp                     ! Western  boundary     of the Eurasia domain [m]
   REAL(dp)            :: xmax_EAS_config                             =  3400000._dp                     ! Eastern  boundary     of the Eurasia domain [m]
   REAL(dp)            :: ymin_EAS_config                             = -2080000._dp                     ! Southern boundary     of the Eurasia domain [m]
   REAL(dp)            :: ymax_EAS_config                             =  2080000._dp                     ! Northern boundary     of the Eurasia domain [m]
   REAL(dp)            :: dx_EAS_config                               = 40000._dp                        ! Horizontal resolution of the Eurasia domain [m]
   
-  REAL(dp)            :: xmin_GRL_config                             =  -830000._dp                     ! Western  boundary     of the Greenland domain [m]
-  REAL(dp)            :: xmax_GRL_config                             =   830000._dp                     ! Eastern  boundary     of the Greenland domain [m]
-  REAL(dp)            :: ymin_GRL_config                             = -1430000._dp                     ! Southern boundary     of the Greenland domain [m]
-  REAL(dp)            :: ymax_GRL_config                             =  1430000._dp                     ! Northern boundary     of the Greenland domain [m]
+  ! Greenland
+  REAL(dp)            :: lambda_M_GRL_config                         = -45._dp                          ! Longitude of the pole of the stereographic projection for the Greenland domain [degrees east]
+  REAL(dp)            :: phi_M_GRL_config                            = 90._dp                           ! Latitude  of the pole of the stereographic projection for the Greenland domain [degrees north]
+  REAL(dp)            :: beta_stereo_GRL_config                      = 20._dp                           ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
+  REAL(dp)            :: xmin_GRL_config                             =  -720000._dp                     ! Western  boundary     of the Greenland domain [m]
+  REAL(dp)            :: xmax_GRL_config                             =   960000._dp                     ! Eastern  boundary     of the Greenland domain [m]
+  REAL(dp)            :: ymin_GRL_config                             = -3450000._dp                     ! Southern boundary     of the Greenland domain [m]
+  REAL(dp)            :: ymax_GRL_config                             =  -570000._dp                     ! Northern boundary     of the Greenland domain [m]
   REAL(dp)            :: dx_GRL_config                               = 20000._dp                        ! Horizontal resolution of the Greenland domain [m]
   
+  ! Antarctica
+  REAL(dp)            :: lambda_M_ANT_config                         = 0._dp                            ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
+  REAL(dp)            :: phi_M_ANT_config                            = -90._dp                          ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
+  REAL(dp)            :: beta_stereo_ANT_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
   REAL(dp)            :: xmin_ANT_config                             = -3300000._dp                     ! Western  boundary     of the Antarctica domain [m]
   REAL(dp)            :: xmax_ANT_config                             =  3300000._dp                     ! Eastern  boundary     of the Antarctica domain [m]
   REAL(dp)            :: ymin_ANT_config                             = -3300000._dp                     ! Southern boundary     of the Antarctica domain [m]
@@ -169,7 +194,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
   ! Present-day geometry
@@ -180,7 +205,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_refgeo_PD_idealised_config           = 'flatearth'                      ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_PD_NAM_config               = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   
   ! GIA equilibrium geometry
@@ -191,7 +216,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_idealised_config        = 'flatearth'                      ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_NAM_config            = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_EAS_config            = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland/Greenland_BedMachine_5km.nc'
+  CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_ANT_config            = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   LOGICAL             :: remove_Lake_Vostok_config                   = .TRUE.
@@ -805,27 +830,52 @@ MODULE configuration_module
     LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
   
-    ! Horizontal grid spacing and size for the four regions
-    ! =====================================================
+    ! ISMIP6 output
+    ! =============
     
+    LOGICAL                             :: do_write_ISMIP6_output
+    CHARACTER(LEN=256)                  :: ISMIP6_output_group_code
+    CHARACTER(LEN=256)                  :: ISMIP6_output_model_code
+    CHARACTER(LEN=256)                  :: ISMIP6_output_experiment_code
+    CHARACTER(LEN=256)                  :: ISMIP6_output_basetime
+    
+    ! Grids
+    ! =====
+    
+    ! North America
+    REAL(dp)                            :: lambda_M_NAM
+    REAL(dp)                            :: phi_M_NAM
+    REAL(dp)                            :: beta_stereo_NAM
     REAL(dp)                            :: xmin_NAM
     REAL(dp)                            :: xmax_NAM
     REAL(dp)                            :: ymin_NAM
     REAL(dp)                            :: ymax_NAM
     REAL(dp)                            :: dx_NAM
     
+    ! Eurasia
+    REAL(dp)                            :: lambda_M_EAS
+    REAL(dp)                            :: phi_M_EAS
+    REAL(dp)                            :: beta_stereo_EAS
     REAL(dp)                            :: xmin_EAS
     REAL(dp)                            :: xmax_EAS
     REAL(dp)                            :: ymin_EAS
     REAL(dp)                            :: ymax_EAS
     REAL(dp)                            :: dx_EAS
     
+    ! Greenland
+    REAL(dp)                            :: lambda_M_GRL
+    REAL(dp)                            :: phi_M_GRL
+    REAL(dp)                            :: beta_stereo_GRL
     REAL(dp)                            :: xmin_GRL
     REAL(dp)                            :: xmax_GRL
     REAL(dp)                            :: ymin_GRL
     REAL(dp)                            :: ymax_GRL
     REAL(dp)                            :: dx_GRL
     
+    ! Antarctica
+    REAL(dp)                            :: lambda_M_ANT
+    REAL(dp)                            :: phi_M_ANT
+    REAL(dp)                            :: beta_stereo_ANT
     REAL(dp)                            :: xmin_ANT
     REAL(dp)                            :: xmax_ANT
     REAL(dp)                            :: ymin_ANT
@@ -1405,23 +1455,6 @@ MODULE configuration_module
     INTEGER                             :: type_groundingline
     INTEGER                             :: type_calvingfront
     
-    ! Parameters of the polar stereographic projections of the four model regions
-    ! (These have to match the values used to create the input files!)
-    ! ===========================================================================     
-                          
-    REAL(dp)                            :: lambda_M_NAM                           
-    REAL(dp)                            :: lambda_M_EAS                           
-    REAL(dp)                            :: lambda_M_GRL                           
-    REAL(dp)                            :: lambda_M_ANT
-    REAL(dp)                            :: phi_M_NAM
-    REAL(dp)                            :: phi_M_EAS
-    REAL(dp)                            :: phi_M_GRL
-    REAL(dp)                            :: phi_M_ANT
-    REAL(dp)                            :: alpha_stereo_NAM
-    REAL(dp)                            :: alpha_stereo_EAS
-    REAL(dp)                            :: alpha_stereo_GRL
-    REAL(dp)                            :: alpha_stereo_ANT
-    
     ! The output directory
     ! ====================
     
@@ -1680,21 +1713,38 @@ CONTAINS
                      do_write_global_scalar_output_config,            &
                      do_write_debug_data_config,                      &
                      do_check_for_NaN_config,                         &
+                     do_write_ISMIP6_output_config,                   &
+                     ISMIP6_output_group_code_config,                 &
+                     ISMIP6_output_model_code_config,                 &
+                     ISMIP6_output_experiment_code_config,            &
+                     ISMIP6_output_basetime_config,                   &
+                     lambda_M_NAM_config,                             &
+                     phi_M_NAM_config,                                &
+                     beta_stereo_NAM_config,                          &
                      xmin_NAM_config,                                 &
                      xmax_NAM_config,                                 &
                      ymin_NAM_config,                                 &
                      ymax_NAM_config,                                 &
                      dx_NAM_config,                                   &
+                     lambda_M_EAS_config,                             &
+                     phi_M_EAS_config,                                &
+                     beta_stereo_EAS_config,                          &
                      xmin_EAS_config,                                 &
                      xmax_EAS_config,                                 &
                      ymin_EAS_config,                                 &
                      ymax_EAS_config,                                 &
                      dx_EAS_config,                                   &
+                     lambda_M_GRL_config,                             &
+                     phi_M_GRL_config,                                &
+                     beta_stereo_GRL_config,                          &
                      xmin_GRL_config,                                 &
                      xmax_GRL_config,                                 &
                      ymin_GRL_config,                                 &
                      ymax_GRL_config,                                 &
                      dx_GRL_config,                                   &
+                     lambda_M_ANT_config,                             &
+                     phi_M_ANT_config,                                &
+                     beta_stereo_ANT_config,                          &
                      xmin_ANT_config,                                 &
                      xmax_ANT_config,                                 &
                      ymin_ANT_config,                                 &
@@ -2194,27 +2244,52 @@ CONTAINS
     C%do_write_debug_data                      = do_write_debug_data_config
     C%do_check_for_NaN                         = do_check_for_NaN_config
   
-    ! Horizontal grid spacing and size for the four regions
-    ! =====================================================
+    ! ISMIP6 output
+    ! =============
     
+    C%do_write_ISMIP6_output                   = do_write_ISMIP6_output_config
+    C%ISMIP6_output_group_code                 = ISMIP6_output_group_code_config
+    C%ISMIP6_output_model_code                 = ISMIP6_output_model_code_config
+    C%ISMIP6_output_experiment_code            = ISMIP6_output_experiment_code_config
+    C%ISMIP6_output_basetime                   = ISMIP6_output_basetime_config
+  
+    ! Grids
+    ! =====
+    
+    ! North America
+    C%lambda_M_NAM                             = lambda_M_NAM_config
+    C%phi_M_NAM                                = phi_M_NAM_config
+    C%beta_stereo_NAM                          = beta_stereo_NAM_config
     C%xmin_NAM                                 = xmin_NAM_config
     C%xmax_NAM                                 = xmax_NAM_config
     C%ymin_NAM                                 = ymin_NAM_config
     C%ymax_NAM                                 = ymax_NAM_config
     C%dx_NAM                                   = dx_NAM_config
     
+    ! Eurasia
+    C%lambda_M_EAS                             = lambda_M_EAS_config
+    C%phi_M_EAS                                = phi_M_EAS_config
+    C%beta_stereo_EAS                          = beta_stereo_EAS_config
     C%xmin_EAS                                 = xmin_EAS_config
     C%xmax_EAS                                 = xmax_EAS_config
     C%ymin_EAS                                 = ymin_EAS_config
     C%ymax_EAS                                 = ymax_EAS_config
     C%dx_EAS                                   = dx_EAS_config
     
+    ! Greenland
+    C%lambda_M_GRL                             = lambda_M_GRL_config
+    C%phi_M_GRL                                = phi_M_GRL_config
+    C%beta_stereo_GRL                          = beta_stereo_GRL_config
     C%xmin_GRL                                 = xmin_GRL_config
     C%xmax_GRL                                 = xmax_GRL_config
     C%ymin_GRL                                 = ymin_GRL_config
     C%ymax_GRL                                 = ymax_GRL_config
     C%dx_GRL                                   = dx_GRL_config
     
+    ! Antarctica
+    C%lambda_M_ANT                             = lambda_M_ANT_config
+    C%phi_M_ANT                                = phi_M_ANT_config
+    C%beta_stereo_ANT                          = beta_stereo_ANT_config
     C%xmin_ANT                                 = xmin_ANT_config
     C%xmax_ANT                                 = xmax_ANT_config
     C%ymin_ANT                                 = ymin_ANT_config
@@ -2795,23 +2870,6 @@ CONTAINS
     C%type_margin                              = 6
     C%type_groundingline                       = 7
     C%type_calvingfront                        = 8
-    
-    ! Parameters of the polar stereographic projections of the four model regions
-    ! (These have to match the values used to create the input files!)
-    ! ===========================================================================  
-  
-    C%lambda_M_NAM                             = 265._dp
-    C%lambda_M_EAS                             = 40._dp
-    C%lambda_M_GRL                             = 320._dp
-    C%lambda_M_ANT                             = 0._dp
-    C%phi_M_NAM                                = 62._dp
-    C%phi_M_EAS                                = 70._dp
-    C%phi_M_GRL                                = 72._dp
-    C%phi_M_ANT                                = -90._dp
-    C%alpha_stereo_NAM                         = 165.0923_dp
-    C%alpha_stereo_EAS                         = 165.04_dp
-    C%alpha_stereo_GRL                         = 164.85_dp
-    C%alpha_stereo_ANT                         = 165.0263_dp
 
   END SUBROUTINE copy_variables_to_struct
   
