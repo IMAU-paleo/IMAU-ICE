@@ -75,7 +75,7 @@
   ! North America
   lambda_M_NAM_config                         = 265.0                            ! Longitude of the pole of the stereographic projection for the North America domain [degrees east]
   phi_M_NAM_config                            = 62.0                             ! Latitude  of the pole of the stereographic projection for the North America domain [degrees north]
-  beta_stereo_NAM_config                      = 19.0                             ! Standard parallel     of the stereographic projection for the North America domain [degrees]
+  beta_stereo_NAM_config                      = 71.0                             ! Standard parallel     of the stereographic projection for the North America domain [degrees]
   xmin_NAM_config                             = -3600000.0                       ! Western  boundary        of the North America domain [m]
   xmax_NAM_config                             =  3600000.0                       ! Eastern  boundary     of the North America domain [m]
   ymin_NAM_config                             = -2400000.0                       ! Southern boundary     of the North America domain [m]
@@ -85,7 +85,7 @@
   ! Eurasia
   lambda_M_EAS_config                         = 40.0                             ! Longitude of the pole of the stereographic projection for the Eurasia domain [degrees east]
   phi_M_EAS_config                            = 70.0                             ! Latitude  of the pole of the stereographic projection for the Eurasia domain [degrees north]
-  beta_stereo_EAS_config                      = 19.0                             ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
+  beta_stereo_EAS_config                      = 71.0                             ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
   xmin_EAS_config                             = -3400000.0                       ! Western  boundary     of the Eurasia domain [m]
   xmax_EAS_config                             =  3400000.0                       ! Eastern  boundary     of the Eurasia domain [m]
   ymin_EAS_config                             = -2080000.0                       ! Southern boundary     of the Eurasia domain [m]
@@ -95,7 +95,7 @@
   ! Greenland
   lambda_M_GRL_config                         = -45.0                            ! Longitude of the pole of the stereographic projection for the Greenland domain [degrees east]
   phi_M_GRL_config                            = 90.0                             ! Latitude  of the pole of the stereographic projection for the Greenland domain [degrees north]
-  beta_stereo_GRL_config                      = 20.0                             ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
+  beta_stereo_GRL_config                      = 70.0                             ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
   xmin_GRL_config                             =  -720000.0                       ! Western  boundary     of the Greenland domain [m]
   xmax_GRL_config                             =   960000.0                       ! Eastern  boundary     of the Greenland domain [m]
   ymin_GRL_config                             = -3450000.0                       ! Southern boundary     of the Greenland domain [m]
@@ -105,7 +105,7 @@
   ! Antarctica
   lambda_M_ANT_config                         = 0.0                              ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
   phi_M_ANT_config                            = -90.0                            ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
-  beta_stereo_ANT_config                      = 19.0                             ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
+  beta_stereo_ANT_config                      = 71.0                             ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
   xmin_ANT_config                             = -3300000.0                       ! Western  boundary     of the Antarctica domain [m]
   xmax_ANT_config                             =  3300000.0                       ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -3300000.0                       ! Southern boundary     of the Antarctica domain [m]
@@ -198,7 +198,7 @@
   ! Ice dynamics - velocity
   ! =======================
   
-  choice_ice_dynamics_config                  = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  choice_ice_dynamics_config                  = 'SIA/SSA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   n_flow_config                               = 3.0                              ! Exponent in Glen's flow law
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
@@ -585,9 +585,9 @@
   ! ================================================================
   
   help_field_01_config                        = 'uabs_vav'
-  help_field_02_config                        = 'none'
-  help_field_03_config                        = 'none'
-  help_field_04_config                        = 'none'
+  help_field_02_config                        = 'lat'
+  help_field_03_config                        = 'lon'
+  help_field_04_config                        = 'basin_ID'
   help_field_05_config                        = 'none'
   help_field_06_config                        = 'none'
   help_field_07_config                        = 'none'

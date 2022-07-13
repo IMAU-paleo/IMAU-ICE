@@ -122,7 +122,7 @@ MODULE configuration_module
   ! North America
   REAL(dp)            :: lambda_M_NAM_config                         = 265._dp                          ! Longitude of the pole of the stereographic projection for the North America domain [degrees east]
   REAL(dp)            :: phi_M_NAM_config                            = 62._dp                           ! Latitude  of the pole of the stereographic projection for the North America domain [degrees north]
-  REAL(dp)            :: beta_stereo_NAM_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the North America domain [degrees]
+  REAL(dp)            :: beta_stereo_NAM_config                      = 71._dp                           ! Standard parallel     of the stereographic projection for the North America domain [degrees]
   REAL(dp)            :: xmin_NAM_config                             = -3600000._dp                     ! Western  boundary        of the North America domain [m]
   REAL(dp)            :: xmax_NAM_config                             =  3600000._dp                     ! Eastern  boundary     of the North America domain [m]
   REAL(dp)            :: ymin_NAM_config                             = -2400000._dp                     ! Southern boundary     of the North America domain [m]
@@ -132,7 +132,7 @@ MODULE configuration_module
   ! Eurasia
   REAL(dp)            :: lambda_M_EAS_config                         = 40._dp                           ! Longitude of the pole of the stereographic projection for the Eurasia domain [degrees east]
   REAL(dp)            :: phi_M_EAS_config                            = 70._dp                           ! Latitude  of the pole of the stereographic projection for the Eurasia domain [degrees north]
-  REAL(dp)            :: beta_stereo_EAS_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
+  REAL(dp)            :: beta_stereo_EAS_config                      = 71._dp                           ! Standard parallel     of the stereographic projection for the Eurasia domain [degrees]
   REAL(dp)            :: xmin_EAS_config                             = -3400000._dp                     ! Western  boundary     of the Eurasia domain [m]
   REAL(dp)            :: xmax_EAS_config                             =  3400000._dp                     ! Eastern  boundary     of the Eurasia domain [m]
   REAL(dp)            :: ymin_EAS_config                             = -2080000._dp                     ! Southern boundary     of the Eurasia domain [m]
@@ -142,7 +142,7 @@ MODULE configuration_module
   ! Greenland
   REAL(dp)            :: lambda_M_GRL_config                         = -45._dp                          ! Longitude of the pole of the stereographic projection for the Greenland domain [degrees east]
   REAL(dp)            :: phi_M_GRL_config                            = 90._dp                           ! Latitude  of the pole of the stereographic projection for the Greenland domain [degrees north]
-  REAL(dp)            :: beta_stereo_GRL_config                      = 20._dp                           ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
+  REAL(dp)            :: beta_stereo_GRL_config                      = 70._dp                           ! Standard parallel     of the stereographic projection for the Greenland domain [degrees]
   REAL(dp)            :: xmin_GRL_config                             =  -720000._dp                     ! Western  boundary     of the Greenland domain [m]
   REAL(dp)            :: xmax_GRL_config                             =   960000._dp                     ! Eastern  boundary     of the Greenland domain [m]
   REAL(dp)            :: ymin_GRL_config                             = -3450000._dp                     ! Southern boundary     of the Greenland domain [m]
@@ -152,7 +152,7 @@ MODULE configuration_module
   ! Antarctica
   REAL(dp)            :: lambda_M_ANT_config                         = 0._dp                            ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
   REAL(dp)            :: phi_M_ANT_config                            = -90._dp                          ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
-  REAL(dp)            :: beta_stereo_ANT_config                      = 19._dp                           ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
+  REAL(dp)            :: beta_stereo_ANT_config                      = 71._dp                           ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
   REAL(dp)            :: xmin_ANT_config                             = -3300000._dp                     ! Western  boundary     of the Antarctica domain [m]
   REAL(dp)            :: xmax_ANT_config                             =  3300000._dp                     ! Eastern  boundary     of the Antarctica domain [m]
   REAL(dp)            :: ymin_ANT_config                             = -3300000._dp                     ! Southern boundary     of the Antarctica domain [m]
