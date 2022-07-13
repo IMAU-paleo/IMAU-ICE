@@ -945,7 +945,7 @@ CONTAINS
         il_src( i_dst) = il_src( i_dst-1)
       END IF
   
-      DO WHILE (x_src( il_src( i_dst)) + dx_src < x_dst( i_dst) - dx_dst)
+      DO WHILE (x_src( il_src( i_dst)) + dx_src / 2._dp < x_dst( i_dst) - dx_dst / 2._dp)
         il_src( i_dst) = il_src( i_dst) + 1
         IF (il_src( i_dst) >= nx_src) THEN
           EXIT
@@ -967,7 +967,7 @@ CONTAINS
         iu_src( i_dst) = il_src( i_dst+1)
       END IF
   
-      DO WHILE (x_src( iu_src( i_dst)) - dx_src > x_dst( i_dst) + dx_dst)
+      DO WHILE (x_src( iu_src( i_dst)) - dx_src / 2._dp > x_dst( i_dst) + dx_dst / 2._dp)
         iu_src( i_dst) = iu_src( i_dst) - 1
         IF (iu_src( i_dst) <= 1) THEN
           EXIT
@@ -989,7 +989,7 @@ CONTAINS
         jl_src( j_dst) = jl_src( j_dst-1)
       END IF
   
-      DO WHILE (y_src( jl_src( j_dst)) + dx_src < y_dst( j_dst) - dx_dst)
+      DO WHILE (y_src( jl_src( j_dst)) + dx_src / 2._dp < y_dst( j_dst) - dx_dst / 2._dp)
         jl_src( j_dst) = jl_src( j_dst) + 1
         IF (jl_src( j_dst) >= ny_src) THEN
           EXIT
@@ -1011,7 +1011,7 @@ CONTAINS
         ju_src( j_dst) = jl_src( j_dst+1)
       END IF
   
-      DO WHILE (y_src( ju_src( j_dst)) - dx_src > y_dst( j_dst) + dx_dst)
+      DO WHILE (y_src( ju_src( j_dst)) - dx_src / 2._dp > y_dst( j_dst) + dx_dst / 2._dp)
         ju_src( j_dst) = ju_src( j_dst) - 1
         IF (ju_src( j_dst) <= 1) THEN
           EXIT
@@ -1086,10 +1086,10 @@ CONTAINS
       END DO ! DO j_src = jr_src( j,1), jr_src( j,2)
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
       
-!      ! Safety
-!      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
-!        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, Ad = {dp_02}', int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = Ad)
-!      END IF
+      ! Safety
+      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
+        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, Ad = {dp_02}', int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = Ad)
+      END IF
       
     END DO ! DO j = 1, ny_dst
     END DO ! DO i = i1, i2
