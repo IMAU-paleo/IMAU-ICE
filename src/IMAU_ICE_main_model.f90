@@ -33,7 +33,9 @@ MODULE IMAU_ICE_main_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
   USE bedrock_ELRA_module,                 ONLY: initialise_ELRA_model,             run_ELRA_model
+# if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
+# endif
   USE scalar_data_output_module,           ONLY: write_regional_scalar_data
   USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
 
@@ -93,8 +95,10 @@ CONTAINS
         ! Nothing to be done
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
         CALL run_ELRA_model( region)
+# if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
+# endif
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
@@ -342,8 +346,10 @@ CONTAINS
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
       CALL initialise_GIA_model_grid( region)
       CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+# if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
+# endif
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF

@@ -1,4 +1,7 @@
-
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+  DO_SELEN = yes
+  
 # Adjust MYLIB and MYINC such that they match with the libraries and include paths:
   MYLIB  = /usr/lib64/
   MYLIB2 = /nethome/beren017/IMAU_ICE/src_v1.1.0/
@@ -6,10 +9,14 @@
 
 # Compiler names:
   F90 = mpifort
+  
+  ifeq ($(DO_SELEN),yes)
+    COMPILER_FLAGS_SELEN = -DDO_SELEN
+  endif
 
 # Compiler flags:
 ##  F90FLAGS = -g -O2 -I $(MYINC) -J$(MOD_PATH) -Wall -fdump-core -fbounds-check -fcheck-array-temporaries -ffree-line-length-none
-  F90FLAGS = -g -O3 -I $(MYINC) -J$(MOD_PATH) -ffree-line-length-none
+  F90FLAGS = -g -O3 -I $(MYINC) -J$(MOD_PATH) -ffree-line-length-none  ${COMPILER_FLAGS_SELEN}
 
 # Link flags:
   LDFLAGS = -lz -lnetcdff -lnetcdf -L$(MYLIB) -L$(MYLIB2) -llapack -lpthread

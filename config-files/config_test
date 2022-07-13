@@ -584,7 +584,7 @@
   ! Which data fields will be written to the help_fields output file
   ! ================================================================
   
-  help_field_01_config                        = 'none'
+  help_field_01_config                        = 'uabs_vav'
   help_field_02_config                        = 'none'
   help_field_03_config                        = 'none'
   help_field_04_config                        = 'none'
