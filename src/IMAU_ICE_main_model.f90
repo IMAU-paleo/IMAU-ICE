@@ -21,7 +21,7 @@ MODULE IMAU_ICE_main_model
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                                  create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
-                                                 create_regional_scalar_output_file, create_ISMIP6_output_files, write_to_ISMIP6_output_files
+                                                 create_regional_scalar_output_file, create_ISMIP_output_files, write_to_ISMIP_output_files
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
@@ -170,7 +170,7 @@ CONTAINS
       IF (region%do_output) THEN
         CALL write_to_restart_file(     region, forcing)
         CALL write_to_help_fields_file( region)
-        IF (C%do_write_ISMIP6_output) CALL write_to_ISMIP6_output_files( region)
+        IF (C%do_write_ISMIP_output) CALL write_to_ISMIP_output_files( region)
         CALL sync
       END IF
 
@@ -193,7 +193,7 @@ CONTAINS
       CALL write_to_restart_file(     region, forcing)
       CALL write_to_help_fields_file( region)
       IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
-      IF (C%do_write_ISMIP6_output) CALL write_to_ISMIP6_output_files( region)
+      IF (C%do_write_ISMIP_output) CALL write_to_ISMIP_output_files( region)
     END IF
     
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -289,8 +289,8 @@ CONTAINS
     CALL create_help_fields_file( region)
     
     ! ISMIP6 output
-    IF (C%do_write_ISMIP6_output) THEN
-      CALL create_ISMIP6_output_files( region)
+    IF (C%do_write_ISMIP_output) THEN
+      CALL create_ISMIP_output_files( region)
     END IF
     
     ! ===== Initialise initial, present-day, and GIA equilibrium reference geometries =====
