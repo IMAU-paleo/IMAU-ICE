@@ -107,14 +107,14 @@ MODULE configuration_module
   LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
   
-  ! ISMIP6 output
-  ! =============
+  ! ISMIP-style output
+  ! ==================
   
-  LOGICAL             :: do_write_ISMIP6_output_config               = .FALSE.                          ! Whether or not to create a set of ISMIP6 output files
-  CHARACTER(LEN=256)  :: ISMIP6_output_group_code_config             = 'IMAU'                           ! Code for the group      name in the ISMIP6 output file names
-  CHARACTER(LEN=256)  :: ISMIP6_output_model_code_config             = 'IMAUICE'                        ! Code for the model      name in the ISMIP6 output file names
-  CHARACTER(LEN=256)  :: ISMIP6_output_experiment_code_config        = 'test'                           ! Code for the experiment name in the ISMIP6 output file names
-  CHARACTER(LEN=256)  :: ISMIP6_output_basetime_config               = 'YYYY-MM-DD'                     ! Basetime for the ISMIP6 output files (e.g. '1900-01-01')
+  LOGICAL             :: do_write_ISMIP_output_config                = .FALSE.                          ! Whether or not to create a set of ISMIP output files
+  CHARACTER(LEN=256)  :: ISMIP_output_group_code_config              = 'IMAU'                           ! Code for the group      name in the ISMIP output file names
+  CHARACTER(LEN=256)  :: ISMIP_output_model_code_config              = 'IMAUICE'                        ! Code for the model      name in the ISMIP output file names
+  CHARACTER(LEN=256)  :: ISMIP_output_experiment_code_config         = 'test'                           ! Code for the experiment name in the ISMIP output file names
+  CHARACTER(LEN=256)  :: ISMIP_output_basetime_config                = 'YYYY-MM-DD'                     ! Basetime for the ISMIP output files (e.g. '1900-01-01')
   
   ! Grids
   ! =====
@@ -554,6 +554,20 @@ MODULE configuration_module
   REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp 
   REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
   
+  ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+  ! ==============================================================
+  
+  CHARACTER(LEN=256)  :: ISMIP_forcing_filename_SMB_baseline_config  = ''                              ! NetCDF file containing the baseline SMB
+  CHARACTER(LEN=256)  :: ISMIP_forcing_filename_ST_baseline_config   = ''                              ! NetCDF file containing the baseline temperature
+  CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_aSMB_config        = ''                              ! Folder containing the single-year NetCDF files of the SMB anomaly
+  CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_aSMB_config      = ''                              ! Filename without the year (e.g. if the actual file is "aSMB_MARv3.12-yearly-CESM2-ssp585-1950.nc",   then this variable should be "aSMB_MARv3.12-yearly-CESM2-ssp585-"
+  CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_dSMBdz_config      = ''                              ! Folder containing the single-year NetCDF files of the SMB lapse rate
+  CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_dSMBdz_config    = ''                              ! Filename without the year (e.g. if the actual file is "dSMBdz_MARv3.12-yearly-CESM2-ssp585-1950.nc", then this variable should be "dSMBdz_MARv3.12-yearly-CESM2-ssp585-"
+  CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_aST_config         = ''                              ! Folder containing the single-year NetCDF files of the temperature anomaly
+  CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_aST_config       = ''                              ! Filename without the year (e.g. if the actual file is "aST_MARv3.12-yearly-CESM2-ssp585-1950.nc",    then this variable should be "aST_MARv3.12-yearly-CESM2-ssp585-"
+  CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_dSTdz_config       = ''                              ! Folder containing the single-year NetCDF files of the temperature lapse rate
+  CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_dSTdz_config     = ''                              ! Filename without the year (e.g. if the actual file is "dSTdz_MARv3.12-yearly-CESM2-ssp585-1950.nc",  then this variable should be "dSTdz_MARv3.12-yearly-CESM2-ssp585-"
+  
   ! Basal mass balance
   ! ==================
   
@@ -830,14 +844,14 @@ MODULE configuration_module
     LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
   
-    ! ISMIP6 output
+    ! ISMIP output
     ! =============
     
-    LOGICAL                             :: do_write_ISMIP6_output
-    CHARACTER(LEN=256)                  :: ISMIP6_output_group_code
-    CHARACTER(LEN=256)                  :: ISMIP6_output_model_code
-    CHARACTER(LEN=256)                  :: ISMIP6_output_experiment_code
-    CHARACTER(LEN=256)                  :: ISMIP6_output_basetime
+    LOGICAL                             :: do_write_ISMIP_output
+    CHARACTER(LEN=256)                  :: ISMIP_output_group_code
+    CHARACTER(LEN=256)                  :: ISMIP_output_model_code
+    CHARACTER(LEN=256)                  :: ISMIP_output_experiment_code
+    CHARACTER(LEN=256)                  :: ISMIP_output_basetime
     
     ! Grids
     ! =====
@@ -1239,6 +1253,20 @@ MODULE configuration_module
     REAL(dp)                            :: SMB_IMAUITM_C_refr_EAS
     REAL(dp)                            :: SMB_IMAUITM_C_refr_GRL
     REAL(dp)                            :: SMB_IMAUITM_C_refr_ANT
+    
+    ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+    ! ==============================================================
+    
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_SMB_baseline
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_ST_baseline
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_aSMB
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_aSMB
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_dSMBdz
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_dSMBdz
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_aST
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_aST
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_dSTdz
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_dSTdz
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================
@@ -1713,11 +1741,11 @@ CONTAINS
                      do_write_global_scalar_output_config,            &
                      do_write_debug_data_config,                      &
                      do_check_for_NaN_config,                         &
-                     do_write_ISMIP6_output_config,                   &
-                     ISMIP6_output_group_code_config,                 &
-                     ISMIP6_output_model_code_config,                 &
-                     ISMIP6_output_experiment_code_config,            &
-                     ISMIP6_output_basetime_config,                   &
+                     do_write_ISMIP_output_config,                    &
+                     ISMIP_output_group_code_config,                  &
+                     ISMIP_output_model_code_config,                  &
+                     ISMIP_output_experiment_code_config,             &
+                     ISMIP_output_basetime_config,                    &
                      lambda_M_NAM_config,                             &
                      phi_M_NAM_config,                                &
                      beta_stereo_NAM_config,                          &
@@ -1999,6 +2027,16 @@ CONTAINS
                      SMB_IMAUITM_C_refr_EAS_config,                   &
                      SMB_IMAUITM_C_refr_GRL_config,                   &
                      SMB_IMAUITM_C_refr_ANT_config,                   &
+                     ISMIP_forcing_filename_SMB_baseline_config,      &
+                     ISMIP_forcing_filename_ST_baseline_config,       &
+                     ISMIP_forcing_foldername_aSMB_config,            &
+                     ISMIP_forcing_basefilename_aSMB_config,          &
+                     ISMIP_forcing_foldername_dSMBdz_config,          &
+                     ISMIP_forcing_basefilename_dSMBdz_config,        &
+                     ISMIP_forcing_foldername_aST_config,             &
+                     ISMIP_forcing_basefilename_aST_config,           &
+                     ISMIP_forcing_foldername_dSTdz_config,           &
+                     ISMIP_forcing_basefilename_dSTdz_config,         &
                      choice_BMB_shelf_model_config,                   &
                      choice_idealised_BMB_shelf_config,               &
                      choice_BMB_sheet_model_config,                   &
@@ -2244,14 +2282,14 @@ CONTAINS
     C%do_write_debug_data                      = do_write_debug_data_config
     C%do_check_for_NaN                         = do_check_for_NaN_config
   
-    ! ISMIP6 output
-    ! =============
+    ! ISMIP-style output
+    ! ==================
     
-    C%do_write_ISMIP6_output                   = do_write_ISMIP6_output_config
-    C%ISMIP6_output_group_code                 = ISMIP6_output_group_code_config
-    C%ISMIP6_output_model_code                 = ISMIP6_output_model_code_config
-    C%ISMIP6_output_experiment_code            = ISMIP6_output_experiment_code_config
-    C%ISMIP6_output_basetime                   = ISMIP6_output_basetime_config
+    C%do_write_ISMIP_output                    = do_write_ISMIP_output_config
+    C%ISMIP_output_group_code                  = ISMIP_output_group_code_config
+    C%ISMIP_output_model_code                  = ISMIP_output_model_code_config
+    C%ISMIP_output_experiment_code             = ISMIP_output_experiment_code_config
+    C%ISMIP_output_basetime                    = ISMIP_output_basetime_config
   
     ! Grids
     ! =====
@@ -2652,6 +2690,20 @@ CONTAINS
     C%SMB_IMAUITM_C_refr_EAS                   = SMB_IMAUITM_C_refr_EAS_config
     C%SMB_IMAUITM_C_refr_GRL                   = SMB_IMAUITM_C_refr_GRL_config
     C%SMB_IMAUITM_C_refr_ANT                   = SMB_IMAUITM_C_refr_ANT_config
+    
+    ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+    ! ==============================================================
+    
+    C%ISMIP_forcing_filename_SMB_baseline      = ISMIP_forcing_filename_SMB_baseline_config
+    C%ISMIP_forcing_filename_ST_baseline       = ISMIP_forcing_filename_ST_baseline_config
+    C%ISMIP_forcing_foldername_aSMB            = ISMIP_forcing_foldername_aSMB_config
+    C%ISMIP_forcing_basefilename_aSMB          = ISMIP_forcing_basefilename_aSMB_config
+    C%ISMIP_forcing_foldername_dSMBdz          = ISMIP_forcing_foldername_dSMBdz_config
+    C%ISMIP_forcing_basefilename_dSMBdz        = ISMIP_forcing_basefilename_dSMBdz_config
+    C%ISMIP_forcing_foldername_aST             = ISMIP_forcing_foldername_aST_config
+    C%ISMIP_forcing_basefilename_aST           = ISMIP_forcing_basefilename_aST_config
+    C%ISMIP_forcing_foldername_dSTdz           = ISMIP_forcing_foldername_dSTdz_config
+    C%ISMIP_forcing_basefilename_dSTdz         = ISMIP_forcing_basefilename_dSTdz_config
     
     ! Basal mass balance - sub-shelf melt
     ! ===================================

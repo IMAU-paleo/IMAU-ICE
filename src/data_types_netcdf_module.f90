@@ -1133,6 +1133,54 @@ MODULE data_types_netcdf_module
     
   END TYPE type_netcdf_ISMIP6_output_field
   
+  TYPE type_netcdf_ISMIP_style_forcing
+    ! NetCDF files containing the different ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing fields
+    
+    CHARACTER(LEN=256) :: filename
+    
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+    
+  ! Dimensions
+  ! ==========
+    
+    INTEGER :: id_dim_x
+    INTEGER :: id_dim_y
+    INTEGER :: id_dim_time
+    
+    CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
+    
+  ! Variables
+  ! =========
+    
+    ! Dimensions
+    INTEGER :: id_var_x
+    INTEGER :: id_var_y
+    INTEGER :: id_var_time
+    
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
+    
+    ! Field variables
+    INTEGER :: id_var_SMB
+    INTEGER :: id_var_ST
+    INTEGER :: id_var_aSMB
+    INTEGER :: id_var_dSMBdz
+    INTEGER :: id_var_aST
+    INTEGER :: id_var_dSTdz
+    
+    CHARACTER(LEN=256) :: name_var_SMB                   = 'SMB                  '
+    CHARACTER(LEN=256) :: name_var_ST                    = 'T2m                  '
+    CHARACTER(LEN=256) :: name_var_aSMB                  = 'aSMB                 '
+    CHARACTER(LEN=256) :: name_var_dSMBdz                = 'dSMBdz               '
+    CHARACTER(LEN=256) :: name_var_aST                   = 'aST                  '
+    CHARACTER(LEN=256) :: name_var_dSTdz                 = 'dSTdz                '
+    
+  END TYPE type_netcdf_ISMIP_style_forcing
+  
 CONTAINS
 
 END MODULE data_types_netcdf_module

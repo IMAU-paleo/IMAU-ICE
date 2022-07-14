@@ -84,6 +84,7 @@ CONTAINS
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_MeltPreviousYear, region%SMB%MeltPreviousYear, (/1, 1,    ti/))
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
+    ELSEIF (C%choice_SMB_model == 'ISMIP_style_forcing') THEN
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -1010,7 +1011,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional') THEN
+            C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'ISMIP_style_forcing') THEN
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -1117,6 +1119,7 @@ CONTAINS
       CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_MeltPreviousYear, [x, y,       t], region%restart%netcdf%id_var_MeltPreviousYear, long_name='Melt during previous year', units='mie')
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
+    ELSEIF (C%choice_SMB_model == 'ISMIP_style_forcing') THEN
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -2057,7 +2060,7 @@ CONTAINS
     TYPE(type_model_region),          INTENT(INOUT) :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'create_regional_scalar_output_file'
+    CHARACTER(LEN=256), PARAMETER                   :: routine_name = 'create_regional_scalar_output_file'
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
     
@@ -2111,7 +2114,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional') THEN
+            C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'ISMIP_style_forcing') THEN
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -5302,9 +5306,9 @@ CONTAINS
     
   END SUBROUTINE read_BIV_target_velocity
   
-  ! ISMIP6 output
-  SUBROUTINE create_ISMIP6_output_files( region)
-    ! Create all the ISMIP6 output files
+  ! ISMIP-style output
+  SUBROUTINE create_ISMIP_output_files( region)
+    ! Create all the ISMIP output files
     
     IMPLICIT NONE
     
@@ -5312,7 +5316,7 @@ CONTAINS
     TYPE(type_model_region), INTENT(IN)    :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP6_output_files'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP_output_files'
     CHARACTER(LEN=256)                                 :: icesheet_code, foldername
     
     ! Add routine to path
@@ -5323,7 +5327,7 @@ CONTAINS
       RETURN
     END IF
     
-    ! Code for the ice sheet name in the ISMIP6 output file names
+    ! Code for the ice sheet name in the ISMIP output file names
     IF     (region%name == 'NAM') THEN
       icesheet_code = 'NAIS'
     ELSEIF (region%name == 'EAS') THEN
@@ -5340,54 +5344,54 @@ CONTAINS
     END IF
     
     ! Create a subdirectory within the output directory
-    foldername = TRIM( C%output_dir) // TRIM(                 icesheet_code  ) // '_' // &
-                                        TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                        TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                        TRIM( C%ISMIP6_output_experiment_code)
+    foldername = TRIM( C%output_dir) // TRIM(                icesheet_code  ) // '_' // &
+                                        TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                        TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                        TRIM( C%ISMIP_output_experiment_code)
     CALL system('mkdir ' // foldername)
 
-    ! Create all the ISMIP6 output files
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'lithk'                , 'land_ice_thickness'                                               , 'm'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'orog'                 , 'surface_altitude'                                                 , 'm'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'topg'                 , 'bedrock_altitude'                                                 , 'm'             )
-    CALL create_ISMIP6_output_file_field_notime( foldername, icesheet_code, region%grid, 'hfgeoubed'            , 'upward_geothermal_heat_flux_at_ground_level'                      , 'W m-2'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'acabf'                , 'land_ice_surface_specific_mass_balance_flux'                      , 'kg m-2 s-1'    )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'libmassbfgr'          , 'land_ice_basal_specific_mass_balance_flux'                        , 'kg m-2 s-1'    )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'libmassbffl'          , 'land_ice_basal_specific_mass_balance_flux'                        , 'kg m-2 s-1'    )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'dlithkdt'             , 'tendency_of_land_ice_thickness'                                   , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'xvelsurf'             , 'land_ice_surface_x_velocity'                                      , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'yvelsurf'             , 'land_ice_surface_y_velocity'                                      , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'zvelsurf'             , 'land_ice_surface_upward_velocity'                                 , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'xvelbase'             , 'land_ice_basal_x_velocity'                                        , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'yvelbase'             , 'land_ice_basal_y_velocity'                                        , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'zvelbase'             , 'land_ice_basal_upward_velocity'                                   , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'xvelmean'             , 'land_ice_vertical_mean_x_velocity'                                , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'yvelmean'             , 'land_ice_vertical_mean_y_velocity'                                , 'm s-1'         )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'litemptop'            , 'temperature_at_top_of_ice_sheet_model'                            , 'K'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'litempbotgr'          , 'temperature_at_base_of_ice_sheet_model'                           , 'K'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'litempbotfl'          , 'temperature_at_base_of_ice_sheet_model'                           , 'K'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'strbasemag'           , 'land_ice_basal_drag'                                              , 'Pa'            )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'licalvf'              , 'land_ice_specific_mass_flux_due_to_calving'                       , 'kg m-2 s-1'    )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'lifmassbf'            , 'land_ice_specific_mass_flux_due_to_calving_and_ice_front_melting' , 'kg m-2 s-1'    )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'sftgif'               , 'land_ice_area_fraction'                                           , '1'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'sftgrf'               , 'grounded_ice_sheet_area_fraction'                                 , '1'             )
-    CALL create_ISMIP6_output_file_field(        foldername, icesheet_code, region%grid, 'sftflf'               , 'floating_ice_shelf_area_fraction'                                 , '1'             )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'lim'                  , 'land_ice_mass'                                                    , 'kg'            )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'limnsw'               , 'land_ice_mass_not_displacing_sea_water'                           , 'kg'            )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'iareagr'              , 'grounded_ice_sheet_area'                                          , 'm2'            )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'iareafl'              , 'floating_ice_sheet_area'                                          , 'm2'            )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'tendacabf'            , 'tendency_of_land_ice_mass_due_to_surface_mass_balance'            , 'kg s-1'        )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'tendlibmassbf'        , 'tendency_of_land_ice_mass_due_to_basal_mass_balance'              , 'kg s-1'        )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'tendlibmassbffl'      , 'tendency_of_land_ice_mass_due_to_basal_mass_balance'              , 'kg s-1'        )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'tendlicalvf'          , 'tendency_of_land_ice_mass_due_to_calving'                         , 'kg s-1'        )
-    CALL create_ISMIP6_output_file_scalar(       foldername, icesheet_code,              'tendlifmassbf'        , 'tendency_of_land_ice_mass_due_to_calving_and_ice_front_melting'   , 'kg s-1'        )
+    ! Create all the ISMIP output files
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'lithk'                , 'land_ice_thickness'                                               , 'm'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'orog'                 , 'surface_altitude'                                                 , 'm'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'topg'                 , 'bedrock_altitude'                                                 , 'm'             )
+    CALL create_ISMIP_output_file_field_notime( foldername, icesheet_code, region%grid, 'hfgeoubed'            , 'upward_geothermal_heat_flux_at_ground_level'                      , 'W m-2'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'acabf'                , 'land_ice_surface_specific_mass_balance_flux'                      , 'kg m-2 s-1'    )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'libmassbfgr'          , 'land_ice_basal_specific_mass_balance_flux'                        , 'kg m-2 s-1'    )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'libmassbffl'          , 'land_ice_basal_specific_mass_balance_flux'                        , 'kg m-2 s-1'    )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'dlithkdt'             , 'tendency_of_land_ice_thickness'                                   , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'xvelsurf'             , 'land_ice_surface_x_velocity'                                      , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'yvelsurf'             , 'land_ice_surface_y_velocity'                                      , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'zvelsurf'             , 'land_ice_surface_upward_velocity'                                 , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'xvelbase'             , 'land_ice_basal_x_velocity'                                        , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'yvelbase'             , 'land_ice_basal_y_velocity'                                        , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'zvelbase'             , 'land_ice_basal_upward_velocity'                                   , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'xvelmean'             , 'land_ice_vertical_mean_x_velocity'                                , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'yvelmean'             , 'land_ice_vertical_mean_y_velocity'                                , 'm s-1'         )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'litemptop'            , 'temperature_at_top_of_ice_sheet_model'                            , 'K'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'litempbotgr'          , 'temperature_at_base_of_ice_sheet_model'                           , 'K'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'litempbotfl'          , 'temperature_at_base_of_ice_sheet_model'                           , 'K'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'strbasemag'           , 'land_ice_basal_drag'                                              , 'Pa'            )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'licalvf'              , 'land_ice_specific_mass_flux_due_to_calving'                       , 'kg m-2 s-1'    )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'lifmassbf'            , 'land_ice_specific_mass_flux_due_to_calving_and_ice_front_melting' , 'kg m-2 s-1'    )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'sftgif'               , 'land_ice_area_fraction'                                           , '1'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'sftgrf'               , 'grounded_ice_sheet_area_fraction'                                 , '1'             )
+    CALL create_ISMIP_output_file_field(        foldername, icesheet_code, region%grid, 'sftflf'               , 'floating_ice_shelf_area_fraction'                                 , '1'             )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'lim'                  , 'land_ice_mass'                                                    , 'kg'            )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'limnsw'               , 'land_ice_mass_not_displacing_sea_water'                           , 'kg'            )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'iareagr'              , 'grounded_ice_sheet_area'                                          , 'm2'            )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'iareafl'              , 'floating_ice_sheet_area'                                          , 'm2'            )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'tendacabf'            , 'tendency_of_land_ice_mass_due_to_surface_mass_balance'            , 'kg s-1'        )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'tendlibmassbf'        , 'tendency_of_land_ice_mass_due_to_basal_mass_balance'              , 'kg s-1'        )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'tendlibmassbffl'      , 'tendency_of_land_ice_mass_due_to_basal_mass_balance'              , 'kg s-1'        )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'tendlicalvf'          , 'tendency_of_land_ice_mass_due_to_calving'                         , 'kg s-1'        )
+    CALL create_ISMIP_output_file_scalar(       foldername, icesheet_code,              'tendlifmassbf'        , 'tendency_of_land_ice_mass_due_to_calving_and_ice_front_melting'   , 'kg s-1'        )
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE create_ISMIP6_output_files
-  SUBROUTINE create_ISMIP6_output_file_scalar( foldername, icesheet_code, variable_name, standard_name, units)
-    ! Create a single ISMIP6 output file for a scalar
+  END SUBROUTINE create_ISMIP_output_files
+  SUBROUTINE create_ISMIP_output_file_scalar( foldername, icesheet_code, variable_name, standard_name, units)
+    ! Create a single ISMIP output file for a scalar
     
     IMPLICIT NONE
     
@@ -5395,7 +5399,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name, standard_name, units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP6_output_file_scalar'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP_output_file_scalar'
     CHARACTER(LEN=256)                                 :: filename
     LOGICAL                                            :: file_exists
     INTEGER                                            :: ncid
@@ -5411,11 +5415,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
     
     ! Check if a file by this name already exists; if so, crash the model.
     INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
@@ -5437,7 +5441,7 @@ CONTAINS
     CALL handle_error( nf90_def_var( ncid, 'time', nf90_float, [id_dim_t], id_var_t))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'standard_name', 'time'))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'long_name'    , 'time'))
-    CALL handle_error( nf90_put_att( ncid, id_var_t, 'units'        , 'days since ' // TRIM( C%ISMIP6_output_basetime)))
+    CALL handle_error( nf90_put_att( ncid, id_var_t, 'units'        , 'days since ' // TRIM( C%ISMIP_output_basetime)))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'calendar'     , '360_day'))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'axis'         , 'T'))
     
@@ -5459,9 +5463,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE create_ISMIP6_output_file_scalar
-  SUBROUTINE create_ISMIP6_output_file_field( foldername, icesheet_code, grid, variable_name, standard_name, units)
-    ! Create a single ISMIP6 output file for an [x,y,t] data field
+  END SUBROUTINE create_ISMIP_output_file_scalar
+  SUBROUTINE create_ISMIP_output_file_field( foldername, icesheet_code, grid, variable_name, standard_name, units)
+    ! Create a single ISMIP output file for an [x,y,t] data field
     
     IMPLICIT NONE
     
@@ -5470,7 +5474,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name, standard_name, units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP6_output_file_field'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP_output_file_field'
     CHARACTER(LEN=256)                                 :: filename
     LOGICAL                                            :: file_exists
     INTEGER                                            :: ncid
@@ -5486,11 +5490,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
     
     ! Check if a file by this name already exists; if so, crash the model.
     INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
@@ -5518,7 +5522,7 @@ CONTAINS
     CALL handle_error( nf90_def_var( ncid, 'time', nf90_float, [id_dim_t], id_var_t))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'standard_name', 'time'))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'long_name'    , 'time'))
-    CALL handle_error( nf90_put_att( ncid, id_var_t, 'units'        , 'days since ' // TRIM( C%ISMIP6_output_basetime)))
+    CALL handle_error( nf90_put_att( ncid, id_var_t, 'units'        , 'days since ' // TRIM( C%ISMIP_output_basetime)))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'calendar'     , '360_day'))
     CALL handle_error( nf90_put_att( ncid, id_var_t, 'axis'         , 'T'))
     
@@ -5544,9 +5548,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE create_ISMIP6_output_file_field
-  SUBROUTINE create_ISMIP6_output_file_field_notime( foldername, icesheet_code, grid, variable_name, standard_name, units)
-    ! Create a single ISMIP6 output file for an [x,y] data field
+  END SUBROUTINE create_ISMIP_output_file_field
+  SUBROUTINE create_ISMIP_output_file_field_notime( foldername, icesheet_code, grid, variable_name, standard_name, units)
+    ! Create a single ISMIP output file for an [x,y] data field
     
     IMPLICIT NONE
     
@@ -5555,7 +5559,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name, standard_name, units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP6_output_file_field_notime'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_ISMIP_output_file_field_notime'
     CHARACTER(LEN=256)                                 :: filename
     LOGICAL                                            :: file_exists
     INTEGER                                            :: ncid
@@ -5571,11 +5575,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
     
     ! Check if a file by this name already exists; if so, crash the model.
     INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
@@ -5620,9 +5624,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE create_ISMIP6_output_file_field_notime
-  SUBROUTINE write_to_ISMIP6_output_files( region)
-    ! Write to all the ISMIP6 output files
+  END SUBROUTINE create_ISMIP_output_file_field_notime
+  SUBROUTINE write_to_ISMIP_output_files( region)
+    ! Write to all the ISMIP output files
   
     USE parameters_module, ONLY: ice_density, sec_per_year
    
@@ -5632,7 +5636,7 @@ CONTAINS
     TYPE(type_model_region), INTENT(IN)    :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                        :: routine_name = 'write_to_ISMIP6_output_files'
+    CHARACTER(LEN=256), PARAMETER                        :: routine_name = 'write_to_ISMIP_output_files'
     INTEGER                                              :: i,j
     CHARACTER(LEN=256)                                   :: icesheet_code, foldername
     REAL(dp), PARAMETER                                  :: missing_value = 1.E20
@@ -5662,7 +5666,7 @@ CONTAINS
       RETURN
     END IF
     
-    ! Code for the ice sheet name in the ISMIP6 output file names
+    ! Code for the ice sheet name in the ISMIP output file names
     IF     (region%name == 'NAM') THEN
       icesheet_code = 'NAIS'
     ELSEIF (region%name == 'EAS') THEN
@@ -5679,10 +5683,10 @@ CONTAINS
     END IF
     
     ! The folder where the ISMIp6 output files are located
-    foldername = TRIM( C%output_dir) // TRIM(                 icesheet_code  ) // '_' // &
-                                        TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                        TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                        TRIM( C%ISMIP6_output_experiment_code)
+    foldername = TRIM( C%output_dir) // TRIM(                icesheet_code  ) // '_' // &
+                                        TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                        TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                        TRIM( C%ISMIP_output_experiment_code)
                                             
     ! Calculate some quantities that are not natively in the ice model
     
@@ -5767,48 +5771,48 @@ CONTAINS
     END DO
     END DO
     
-    ! Write to all the ISMIP6 output files
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hi_a                    , 'lithk'                    )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hs_a                    , 'orog'                     )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hb_a                    , 'topg'                     )
-    CALL write_to_ISMIP6_output_file_field_notime(  foldername, icesheet_code,              region%ice%GHF_a                   , 'hfgeoubed'                )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%SMB%SMB_year                , 'acabf'                    )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%BMB%BMB_sheet               , 'libmassbfgr'              )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%BMB%BMB_shelf               , 'libmassbffl'              )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%dHs_dt_a                , 'dlithkdt'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_surf_a                , 'xvelsurf'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_surf_a                , 'yvelsurf'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%w_surf_a                , 'zvelsurf'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_base_a                , 'xvelbase'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_base_a                , 'yvelbase'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%w_base_a                , 'zvelbase'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_vav_a                 , 'xvelmean'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_vav_a                 , 'yvelmean'                 )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, region%ice%Ti_a( 1   ,:,:)         , 'litemptop'                )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, Ti_base_gr                         , 'litempbotgr'              )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, Ti_base_fl                         , 'litempbotfl'              )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, basal_drag                         , 'strbasemag'               )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, calving_flux                       , 'licalvf'                  )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, calving_and_front_melt_flux        , 'lifmassbf'                )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, land_ice_area_fraction             , 'sftgif'                   )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, grounded_ice_sheet_area_fraction   , 'sftgrf'                   )
-    CALL write_to_ISMIP6_output_file_field(         foldername, icesheet_code, region%time, floating_ice_shelf_area_fraction   , 'sftflf'                   )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, land_ice_mass                      , 'lim'                      )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, mass_above_floatation              , 'limnsw'                   )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, grounded_ice_sheet_area            , 'iareagr'                  )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, floating_ice_sheet_area            , 'iareafl'                  )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, total_SMB                          , 'tendacabf'                )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, total_BMB                          , 'tendlibmassbf'            )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, total_BMB_shelf                    , 'tendlibmassbffl'          )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, total_calving_flux                 , 'tendlicalvf'              )
-    CALL write_to_ISMIP6_output_file_scalar(        foldername, icesheet_code, region%time, total_calving_and_front_melt_flux  , 'tendlifmassbf'            )
+    ! Write to all the ISMIP output files
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hi_a                    , 'lithk'                    )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hs_a                    , 'orog'                     )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%Hb_a                    , 'topg'                     )
+    CALL write_to_ISMIP_output_file_field_notime(  foldername, icesheet_code,              region%ice%GHF_a                   , 'hfgeoubed'                )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%SMB%SMB_year                , 'acabf'                    )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%BMB%BMB_sheet               , 'libmassbfgr'              )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%BMB%BMB_shelf               , 'libmassbffl'              )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%dHs_dt_a                , 'dlithkdt'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_surf_a                , 'xvelsurf'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_surf_a                , 'yvelsurf'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%w_surf_a                , 'zvelsurf'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_base_a                , 'xvelbase'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_base_a                , 'yvelbase'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%w_base_a                , 'zvelbase'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%u_vav_a                 , 'xvelmean'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%v_vav_a                 , 'yvelmean'                 )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, region%ice%Ti_a( 1   ,:,:)         , 'litemptop'                )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, Ti_base_gr                         , 'litempbotgr'              )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, Ti_base_fl                         , 'litempbotfl'              )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, basal_drag                         , 'strbasemag'               )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, calving_flux                       , 'licalvf'                  )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, calving_and_front_melt_flux        , 'lifmassbf'                )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, land_ice_area_fraction             , 'sftgif'                   )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, grounded_ice_sheet_area_fraction   , 'sftgrf'                   )
+    CALL write_to_ISMIP_output_file_field(         foldername, icesheet_code, region%time, floating_ice_shelf_area_fraction   , 'sftflf'                   )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, land_ice_mass                      , 'lim'                      )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, mass_above_floatation              , 'limnsw'                   )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, grounded_ice_sheet_area            , 'iareagr'                  )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, floating_ice_sheet_area            , 'iareafl'                  )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, total_SMB                          , 'tendacabf'                )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, total_BMB                          , 'tendlibmassbf'            )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, total_BMB_shelf                    , 'tendlibmassbffl'          )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, total_calving_flux                 , 'tendlicalvf'              )
+    CALL write_to_ISMIP_output_file_scalar(        foldername, icesheet_code, region%time, total_calving_and_front_melt_flux  , 'tendlifmassbf'            )
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE write_to_ISMIP6_output_files
-  SUBROUTINE write_to_ISMIP6_output_file_scalar( foldername, icesheet_code, time, d, variable_name)
-    ! Write a single scalar to the corresponding ISMIP6 output file
+  END SUBROUTINE write_to_ISMIP_output_files
+  SUBROUTINE write_to_ISMIP_output_file_scalar( foldername, icesheet_code, time, d, variable_name)
+    ! Write a single scalar to the corresponding ISMIP output file
    
     IMPLICIT NONE
     
@@ -5818,7 +5822,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP6_output_file_scalar'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP_output_file_scalar'
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
     INTEGER                                            :: id_dim_t
@@ -5834,11 +5838,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
         
     ! Open the netcdf file
     CALL open_netcdf_file( filename, ncid)
@@ -5851,7 +5855,7 @@ CONTAINS
     CALL inquire_single_var( ncid, variable_name, (/ id_dim_t /), id_var  )
         
     ! Write time
-    CALL handle_error( nf90_put_var( ncid, id_var_t, days_since_ISMIP6_basetime( time), start = (/ nt+1 /)))
+    CALL handle_error( nf90_put_var( ncid, id_var_t, days_since_ISMIP_basetime( time), start = (/ nt+1 /)))
       
     ! Write data to the NetCDF file
     CALL handle_error( nf90_put_var( ncid, id_var, d, start = (/ nt+1 /)))
@@ -5862,9 +5866,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE write_to_ISMIP6_output_file_scalar
-  SUBROUTINE write_to_ISMIP6_output_file_field( foldername, icesheet_code, time, d, variable_name)
-    ! Write a single [x,y,t] data field to the corresponding ISMIP6 output file
+  END SUBROUTINE write_to_ISMIP_output_file_scalar
+  SUBROUTINE write_to_ISMIP_output_file_field( foldername, icesheet_code, time, d, variable_name)
+    ! Write a single [x,y,t] data field to the corresponding ISMIP output file
    
     IMPLICIT NONE
     
@@ -5874,7 +5878,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP6_output_file_field'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP_output_file_field'
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
     INTEGER                                            :: id_dim_x, id_dim_y, id_dim_t
@@ -5890,11 +5894,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
         
     ! Open the netcdf file
     CALL open_netcdf_file( filename, ncid)
@@ -5909,10 +5913,10 @@ CONTAINS
     CALL inquire_single_var( ncid, variable_name, (/ id_dim_x, id_dim_y, id_dim_t /), id_var  )
         
     ! Write time
-    CALL handle_error( nf90_put_var( ncid, id_var_t, days_since_ISMIP6_basetime( time), start = (/ nt+1 /)))
+    CALL handle_error( nf90_put_var( ncid, id_var_t, days_since_ISMIP_basetime( time), start = (/ nt+1 /)))
       
     ! Write data to the NetCDF file
-    CALL write_data_to_file_dp_2D( ncid, nx, ny, id_var, ISMIP6_unit_conversion_field( d, variable_name), (/ 1, 1, nt+1 /) )
+    CALL write_data_to_file_dp_2D( ncid, nx, ny, id_var, ISMIP_unit_conversion_field( d, variable_name), (/ 1, 1, nt+1 /) )
     
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -5920,9 +5924,9 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE write_to_ISMIP6_output_file_field
-  SUBROUTINE write_to_ISMIP6_output_file_field_notime( foldername, icesheet_code, d, variable_name)
-    ! Write a single [x,y,t] data field to the corresponding ISMIP6 output file
+  END SUBROUTINE write_to_ISMIP_output_file_field
+  SUBROUTINE write_to_ISMIP_output_file_field_notime( foldername, icesheet_code, d, variable_name)
+    ! Write a single [x,y,t] data field to the corresponding ISMIP output file
    
     IMPLICIT NONE
     
@@ -5931,7 +5935,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: foldername, icesheet_code, variable_name
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP6_output_file_field_notime'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_ISMIP_output_file_field_notime'
     CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: ncid
     INTEGER                                            :: id_dim_x, id_dim_y
@@ -5947,11 +5951,11 @@ CONTAINS
     END IF
     
     ! Filename
-    filename = TRIM(foldername) // '/' // TRIM( variable_name                  ) // '_' // &
-                                          TRIM(                 icesheet_code  ) // '_' // &
-                                          TRIM( C%ISMIP6_output_group_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_model_code     ) // '_' // &
-                                          TRIM( C%ISMIP6_output_experiment_code) // '.nc'
+    filename = TRIM(foldername) // '/' // TRIM( variable_name                 ) // '_' // &
+                                          TRIM(                icesheet_code  ) // '_' // &
+                                          TRIM( C%ISMIP_output_group_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_model_code     ) // '_' // &
+                                          TRIM( C%ISMIP_output_experiment_code) // '.nc'
         
     ! Open the netcdf file
     CALL open_netcdf_file( filename, ncid)
@@ -5964,7 +5968,7 @@ CONTAINS
     CALL inquire_single_var( ncid, variable_name, (/ id_dim_x, id_dim_y /), id_var  )
       
     ! Write data to the NetCDF file
-    CALL write_data_to_file_dp_2D( ncid, nx, ny, id_var, ISMIP6_unit_conversion_field( d, variable_name), (/ 1, 1 /) )
+    CALL write_data_to_file_dp_2D( ncid, nx, ny, id_var, ISMIP_unit_conversion_field( d, variable_name), (/ 1, 1 /) )
     
     ! Close the file
     CALL close_netcdf_file( ncid)
@@ -5972,8 +5976,8 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
-  END SUBROUTINE write_to_ISMIP6_output_file_field_notime
-  FUNCTION ISMIP6_unit_conversion_field( d, variable_name) RESULT( d_conv)
+  END SUBROUTINE write_to_ISMIP_output_file_field_notime
+  FUNCTION ISMIP_unit_conversion_field( d, variable_name) RESULT( d_conv)
     ! Convert data fields from IMAU-ICE units to SI units
   
     USE parameters_module, ONLY: sec_per_year, ice_density
@@ -6072,12 +6076,12 @@ CONTAINS
       d_conv = d
     ELSE
       ! Unknown variable name
-      CALL crash('ISMIP6_unit_conversion: unknown variable name "' // TRIM( variable_name) // '"!')
+      CALL crash('ISMIP_unit_conversion: unknown variable name "' // TRIM( variable_name) // '"!')
     END IF
     
-  END FUNCTION ISMIP6_unit_conversion_field
-  FUNCTION days_since_ISMIP6_basetime( time) RESULT( ndays)
-    ! Calculate the number of days since ISMIP6 basetime
+  END FUNCTION ISMIP_unit_conversion_field
+  FUNCTION days_since_ISMIP_basetime( time) RESULT( ndays)
+    ! Calculate the number of days since ISMIP basetime
     !
     ! Assume basetime equals t = 0
   
@@ -6091,7 +6095,455 @@ CONTAINS
     
     ndays = time * 360._dp
     
-  END FUNCTION days_since_ISMIP6_basetime
+  END FUNCTION days_since_ISMIP_basetime
+  
+  ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+  SUBROUTINE inquire_ISMIP_forcing_SMB_baseline_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_SMB_baseline_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x, nx, netcdf%id_dim_x)
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y, ny, netcdf%id_dim_y)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_SMB, (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_SMB)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_SMB_baseline_file
+  SUBROUTINE read_ISMIP_forcing_SMB_baseline_file( netcdf, x, y, SMB)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),              INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),              INTENT(INOUT) :: SMB
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_SMB_baseline_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x  , x  , start = (/ 1    /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y  , y  , start = (/ 1    /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_SMB, SMB, start = (/ 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_SMB_baseline_file
+  SUBROUTINE inquire_ISMIP_forcing_ST_baseline_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_ST_baseline_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x, nx, netcdf%id_dim_x)
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y, ny, netcdf%id_dim_y)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_ST,  (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_ST)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_ST_baseline_file
+  SUBROUTINE read_ISMIP_forcing_ST_baseline_file( netcdf, x, y, ST)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),            INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),            INTENT(INOUT) :: ST
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_ST_baseline_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x  , x  , start = (/ 1    /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y  , y  , start = (/ 1    /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_ST , ST , start = (/ 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_ST_baseline_file
+  SUBROUTINE inquire_ISMIP_forcing_aSMB_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_aSMB_file'
+    INTEGER                                       :: nt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx, netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny, netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_aSMB, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aSMB)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_aSMB_file
+  SUBROUTINE read_ISMIP_forcing_aSMB_file( netcdf, x, y, aSMB)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),            INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),            INTENT(INOUT) :: aSMB
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_aSMB_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x   , x   , start = (/ 1       /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y   , y   , start = (/ 1       /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_aSMB, aSMB, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_aSMB_file
+  SUBROUTINE inquire_ISMIP_forcing_dSMBdz_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_dSMBdz_file'
+    INTEGER                                       :: nt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx, netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny, netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,      (/ netcdf%id_dim_x                                      /), netcdf%id_var_x     )
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,      (/                  netcdf%id_dim_y                     /), netcdf%id_var_y     )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_dSMBdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSMBdz)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_dSMBdz_file
+  SUBROUTINE read_ISMIP_forcing_dSMBdz_file( netcdf, x, y, dSMBdz)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),            INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),            INTENT(INOUT) :: dSMBdz
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_dSMBdz_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x   , x   , start = (/ 1       /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y   , y   , start = (/ 1       /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_dSMBdz, dSMBdz, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_dSMBdz_file
+  SUBROUTINE inquire_ISMIP_forcing_aST_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_aST_file'
+    INTEGER                                       :: nt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx, netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny, netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_aST,  (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aST )
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_aST_file
+  SUBROUTINE read_ISMIP_forcing_aST_file( netcdf, x, y, aST)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),            INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),            INTENT(INOUT) :: aST
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_aST_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x   , x   , start = (/ 1       /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y   , y   , start = (/ 1       /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_aST, aST, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_aST_file
+  SUBROUTINE inquire_ISMIP_forcing_dSTdz_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    INTEGER,                               INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_ISMIP_forcing_dSTdz_file'
+    INTEGER                                       :: nt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx, netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny, netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,     (/ netcdf%id_dim_x                                      /), netcdf%id_var_x    )
+    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,     (/                  netcdf%id_dim_y                     /), netcdf%id_var_y    )
+    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_dSTdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSTdz)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_ISMIP_forcing_dSTdz_file
+  SUBROUTINE read_ISMIP_forcing_dSTdz_file( netcdf, x, y, dSTdz)
+    ! Read grid and data from the NetCDF file
+
+    ! In/output variables:
+    TYPE(type_netcdf_ISMIP_style_forcing), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),            INTENT(INOUT) :: x, y
+    REAL(dp), DIMENSION(:,:  ),            INTENT(INOUT) :: dSTdz
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_ISMIP_forcing_dSTdz_file'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+    
+    ! Open the netcdf file
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x   , x   , start = (/ 1       /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y   , y   , start = (/ 1       /) ))
+    
+    ! Read the field data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_dSTdz, dSTdz, start = (/ 1, 1, 1 /) ))
+        
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_ISMIP_forcing_dSTdz_file
   
 ! Some general useful stuff
 ! =========================

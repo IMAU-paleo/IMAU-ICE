@@ -614,6 +614,50 @@ MODULE data_types_module
   
   END TYPE type_direct_SMB_forcing_regional
   
+  TYPE type_ISMIP_style_forcing
+    ! Data fields for the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+    
+    ! NetCDF files containing the baseline SMB and surface temperature
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_SMB_baseline
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_ST_baseline
+
+    ! The baseline SMB and surface temperature (on the model grid)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB_baseline
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ST_baseline
+    INTEGER :: wSMB_baseline, wST_baseline
+    
+    ! Timestamps of the two timeframes
+    REAL(dp),                   POINTER     :: t0, t1
+    INTEGER :: wt0, wt1
+    
+    ! NetCDF files containing the aSMB, dSMBdz, aST, and dTSdz for the two timeframes enveloping the current model time
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_aSMB0  , netcdf_aSMB1
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_dSMBdz0, netcdf_dSMBdz1
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_aST0   , netcdf_aST1
+    TYPE(type_netcdf_ISMIP_style_forcing)   :: netcdf_dSTdz0 , netcdf_dSTdz1
+
+    ! The two timeframes enveloping the model time (on the model grid)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: aSMB0  , aSMB1
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dSMBdz0, dSMBdz1
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: aST0   , aST1
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dSTdz0 , dSTdz1
+    INTEGER :: waSMB0, waSMB1, wdSMBdz0, wdSMBdz1, waST0, waST1, wdSTdz0, wdSTdz1
+    
+    ! The time-interpolated values of aSMB, dSMBdz, ST, and dSTdz
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: aSMB
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dSMBdz
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: aST
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dSTdz
+    INTEGER :: waSMB, wdSMBdz, waST, wdSTdz
+    
+    ! The applied values of SMB and ST (i.e. after applying the anomaly and elevation correction)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ST
+    INTEGER :: wSMB, wST
+    
+  
+  END TYPE type_ISMIP_style_forcing
+  
   TYPE type_climate_matrix_regional
     ! All the relevant climate data fields (PD observations, GCM snapshots, and final, applied climate) on the model region grid
 
@@ -634,6 +678,9 @@ MODULE data_types_module
     ! Direct climate/SMB forcing
     TYPE(type_direct_climate_forcing_regional) :: direct
     TYPE(type_direct_SMB_forcing_regional)     :: SMB_direct
+    
+    ! Data fields for the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+    TYPE(type_ISMIP_style_forcing)        :: ISMIP_forcing
           
   END TYPE type_climate_matrix_regional
 

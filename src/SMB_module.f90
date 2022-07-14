@@ -87,6 +87,11 @@ CONTAINS
       
       CALL run_SMB_model_direct( grid, climate_matrix%SMB_direct, SMB, time, mask_noice)
       
+    ELSEIF (C%choice_SMB_model == 'ISMIP_style_forcing') THEN
+    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+      
+      CALL run_SMB_model_ISMIP_forcing( grid, climate_matrix, SMB)
+      
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
@@ -118,7 +123,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional') THEN
+            C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'ISMIP_style_forcing') THEN
       ! Only need yearly total SMB in these cases
       
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
@@ -790,6 +796,40 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE run_SMB_model_direct
+
+! == ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+! =================================================================
+
+  SUBROUTINE run_SMB_model_ISMIP_forcing( grid, climate_matrix, SMB)
+    ! Run the selected SMB model
+    !
+    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
+    
+    IMPLICIT NONE
+    
+    ! In/output variables
+    TYPE(type_grid),                        INTENT(IN)    :: grid
+    TYPE(type_climate_matrix_regional),     INTENT(IN)    :: climate_matrix
+    TYPE(type_SMB_model),                   INTENT(INOUT) :: SMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_ISMIP_forcing'
+    INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+        SMB%SMB_year( j,i) = climate_matrix%ISMIP_forcing%SMB( j,i)
+    END DO
+    END DO
+    CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE run_SMB_model_ISMIP_forcing
   
 ! == Some generally useful tools
 ! ==============================
