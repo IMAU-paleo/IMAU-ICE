@@ -1352,9 +1352,7 @@ MODULE data_types_module
     TYPE(type_ocean_matrix_regional)        :: ocean_matrix                              ! All the ocean data for this model region
     TYPE(type_SMB_model)                    :: SMB                                       ! The different SMB components for this model region
     TYPE(type_BMB_model)                    :: BMB                                       ! The different BMB components for this model region
-# if (defined(DO_SELEN))
     TYPE(type_SELEN_regional)               :: SELEN                                     ! SELEN input and output data for this model region
-# endif
     
     ! Output netcdf files
     TYPE(type_restart_data)                 :: restart
