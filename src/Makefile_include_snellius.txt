@@ -1,27 +1,27 @@
-# Compile with SELEN: anything else than yes (no quotes) will skip all
-# SELEN-related stuff both in the Makefile and in the model code
-  DO_SELEN = yes
-
 # Compiler names:
   F90 = mpifort
 
-# Setting the path for the netcdf libraries:  
-  NCLIB     = $(shell nf-config --flibs)
-  NCINC     = $(shell nf-config --fflags)
+# Setting the path for the netcdf libraries:
+  NCLIB    = $(shell nf-config --flibs)
+  NCINC    = $(shell nf-config --fflags)
+
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+  DO_SELEN = no
 
 # Compiler flags:
-  COMPILER_FLAGS_BASIC    = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp \
-                            -fimplicit-none -g
-  COMPILER_FLAGS_CHECK    = -fbounds-check -fcheck-array-temporaries
-  
+  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp \
+                           -fimplicit-none -g # -Werror=implicit-interface
+  COMPILER_FLAGS_CHECK   = -fcheck=all -fbacktrace
+
   ifeq ($(DO_SELEN),yes)
     COMPILER_FLAGS_SELEN = -DDO_SELEN
   endif
 
-  F90FLAGS                = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} ${COMPILER_FLAGS_SELEN} \
-                            ${NCINC} -I${PETSC_DIR}/include
+  F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} ${COMPILER_FLAGS_SELEN} \
+                           ${NCINC} -I${PETSC_DIR}/include
 
 # Linking flags of libaries:
-  LDFLAGS                 = -g ${NCLIB} \
-                            -lpetsc \
-                            -lopenblas
+  LDFLAGS                = -g ${NCLIB} \
+                           -lpetsc \
+                           -lmkl_rt
