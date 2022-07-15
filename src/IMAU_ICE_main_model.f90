@@ -2,6 +2,7 @@ MODULE IMAU_ICE_main_model
 
   ! Contains all the routines for initialising and running the IMAU-ICE regional ice-sheet model.
 
+  USE, INTRINSIC :: ISO_C_BINDING,         ONLY: c_backspace
   USE mpi
   USE configuration_module,                ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parallel_module,                     ONLY: par, sync, cerr, ierr, &
@@ -38,8 +39,6 @@ MODULE IMAU_ICE_main_model
 # endif
   USE scalar_data_output_module,           ONLY: write_regional_scalar_data
   USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
-
-  USE, INTRINSIC :: ISO_C_BINDING,         ONLY: c_backspace
 
   IMPLICIT NONE
 
