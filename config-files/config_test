@@ -282,7 +282,7 @@
   ! Basal inversion
   do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   choice_BIVgeo_method_config                 = 'Bernales2017'                   ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
-  BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
+  BIVgeo_dt_config                            = 10.0                             ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   BIVgeo_Lipscomb2021_tauc_config             = 500.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
   BIVgeo_Lipscomb2021_H0_config               = 100.0                            ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
@@ -298,7 +298,7 @@
   BIVgeo_Berends2022_u_scale_config           = 3000.0                           ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
-  BIVgeo_Bernales2017_hinv_config             = 500.0                            ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
+  BIVgeo_Bernales2017_hinv_config             = 1000.0                           ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   BIVgeo_Bernales2017_tol_diff_config         = 100.0                            ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
   BIVgeo_Bernales2017_tol_frac_config         = 1.0                              ! Minimum ratio between ice thickness difference and reference value that triggers inversion
 
@@ -458,7 +458,7 @@
   BMB_sheet_uniform_config                    = 0.0                              ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
   do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
-  BMB_max_config                              = 100.0                            ! Maximum amount of allowed basal melt     [mie/yr]
+  BMB_max_config                              = 120.0                            ! Maximum amount of allowed basal melt     [mie/yr]
   BMB_min_config                              = 5.0                              ! Maximum amount of allowed basal freezing [mie/yr]
 
   choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
