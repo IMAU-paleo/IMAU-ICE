@@ -58,9 +58,9 @@ CONTAINS
     ! Local variables:
     !CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_model'
     CHARACTER(LEN=256)                                 :: routine_name
-    REAL(dp)                                           :: tstart, tstop, t1, t2
+    REAL(dp)                                           :: tstart, tstop, t1, t2, dt_ave
     INTEGER                                            :: it
-    CHARACTER(LEN=9)                                   :: r_time, r_step, r_adv
+    CHARACTER(LEN=9)                                   :: r_time, r_step, r_adv, r_ave
 
 
     ! Add routine to path
@@ -88,6 +88,7 @@ CONTAINS
   ! ====================================
 
     it = 0
+    dt_ave = 0._dp
     DO WHILE (region%time < t_end)
       it = it + 1
 
@@ -181,6 +182,7 @@ CONTAINS
       ! Update ice geometry and advance region time
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
       IF (par%master) region%time = region%time + region%dt
+      IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
       ! DENK DROM
@@ -189,12 +191,17 @@ CONTAINS
       IF (par%master) THEN
         IF (region%time < t_end) THEN
           r_adv = "no"
+          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
+          write (r_step,"(F6.3)") max(region%dt,0.001_dp)
+          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,99) // &
+                 "   t = " // trim(r_time) // " kyr - dt = " // trim(r_step) // " yr"
         ELSE
           r_adv = "yes"
+          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
+          write (r_step, "(F6.3)") dt_ave / real(it,dp)
+          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,99) // &
+                 "   t = " // trim(r_time) // " kyr - dt_ave = " // trim(r_step) // " yr"
         END IF
-        write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
-        write (r_step,"(F6.3)") max(region%dt,0.001_dp)
-        write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,99) // "   t = " // trim(r_time) // " kyr - dt = " // trim(r_step) // " yr"
       END IF
 
     END DO ! DO WHILE (region%time < t_end)
