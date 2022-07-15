@@ -119,6 +119,29 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
+    ! == Time display
+    ! ===============
+
+      if (par%master .AND. C%do_time_display) then
+        if (region%time + region%dt < t_end) then
+          if (region%do_output) then
+            r_adv = "yes"
+          else
+            r_adv = "no"
+          end if
+          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
+          write (r_step,"(F6.3)") max(region%dt,0.001_dp)
+          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,999) // &
+                 "   t = " // trim(r_time) // " kyr - dt = " // trim(r_step) // " yr"
+        else
+          r_adv = "yes"
+          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
+          write (r_step, "(F6.3)") dt_ave / real(it,dp)
+          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,999) // &
+                 "   t = " // trim(r_time) // " kyr - dt_ave = " // trim(r_step) // " yr"
+        end if
+      end if
+
     ! Climate , SMB and BMB
     ! =====================
 
@@ -186,22 +209,6 @@ CONTAINS
 
       ! DENK DROM
       !region%time = t_end
-
-      IF (par%master) THEN
-        IF (region%time < t_end) THEN
-          r_adv = "no"
-          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
-          write (r_step,"(F6.3)") max(region%dt,0.001_dp)
-          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,99) // &
-                 "   t = " // trim(r_time) // " kyr - dt = " // trim(r_step) // " yr"
-        ELSE
-          r_adv = "yes"
-          write (r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
-          write (r_step, "(F6.3)") dt_ave / real(it,dp)
-          write (*,"(A)",advance=trim(r_adv)) repeat(c_backspace,99) // &
-                 "   t = " // trim(r_time) // " kyr - dt_ave = " // trim(r_step) // " yr"
-        END IF
-      END IF
 
     END DO ! DO WHILE (region%time < t_end)
 

@@ -36,6 +36,7 @@
 
   do_write_debug_data_config                  = .TRUE.                           ! Whether or not the debug NetCDF file should be created and written to
   do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
+  do_time_display_config                      = .TRUE.                           ! Print current model time to screen
 
   ! ISMIP-style output
   ! ==================

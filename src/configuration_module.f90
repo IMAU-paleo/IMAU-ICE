@@ -106,6 +106,7 @@ MODULE configuration_module
 
   LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
+  LOGICAL             :: do_time_display_config                      = .FALSE.                          ! Print current model time to screen
 
   ! ISMIP-style output
   ! ==================
@@ -846,6 +847,7 @@ MODULE configuration_module
 
     LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
+    LOGICAL                             :: do_time_display
 
     ! ISMIP output
     ! =============
@@ -1747,6 +1749,7 @@ CONTAINS
                      do_write_global_scalar_output_config,            &
                      do_write_debug_data_config,                      &
                      do_check_for_NaN_config,                         &
+                     do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
                      ISMIP_output_group_code_config,                  &
                      ISMIP_output_model_code_config,                  &
@@ -2290,6 +2293,7 @@ CONTAINS
 
     C%do_write_debug_data                      = do_write_debug_data_config
     C%do_check_for_NaN                         = do_check_for_NaN_config
+    C%do_time_display                          = do_time_display_config
 
     ! ISMIP-style output
     ! ==================
