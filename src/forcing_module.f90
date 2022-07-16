@@ -564,10 +564,10 @@ CONTAINS
 
     IF (par%master) THEN
       IF     (time < MINVAL( forcing%CO2_time) * 1000._dp) THEN ! times 1000 because forcing%CO2_time is in kyr
-        CALL warning('model time before start of CO2 record; using constant extrapolation!')
+        ! Model time before start of CO2 record; using constant extrapolation
         forcing%CO2_obs = forcing%CO2_record( 1)
       ELSEIF (time > MAXVAL( forcing%CO2_time) * 1000._dp) THEN
-        CALL warning('model time beyond end of CO2 record; using constant extrapolation!')
+        ! Model time beyond end of CO2 record; using constant extrapolation
         forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
       ELSE
         iu = 1
@@ -630,6 +630,13 @@ CONTAINS
       END DO
 
       CLOSE( UNIT  = 1337)
+
+      IF (C%start_time_of_run/1000._dp < forcing%CO2_time(1)) THEN
+         CALL warning(' Model time starts before start of CO2 record; constant extrapolation will be used in that case!')
+      END IF
+      IF (C%end_time_of_run/1000._dp > forcing%CO2_time(C%CO2_record_length)) THEN
+         CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
+      END IF
 
     END IF ! IF (par%master)
     CALL sync
@@ -935,7 +942,7 @@ CONTAINS
           forcing%ins_t0 = forcing%ins_time(ti0)
           forcing%ins_t1 = forcing%ins_time(ti1)
         ELSE
-          CALL warning('using constant PD insolation for future projections!')
+          ! Constant PD insolation for future projections
           ti0 = forcing%ins_nyears
           ti1 = forcing%ins_nyears
 
@@ -1007,6 +1014,13 @@ CONTAINS
       ! Read time and latitude data
       IF (par%master) CALL read_insolation_file_time_lat( forcing)
       CALL sync
+
+      IF (C%start_time_of_run < forcing%ins_time(1)) THEN
+         CALL warning(' Model time starts before start of insolation record; the model will crash lol')
+      END IF
+      IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
+         CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
+      END IF
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -1093,7 +1107,7 @@ CONTAINS
 
   END SUBROUTINE initialise_geothermal_heat_flux_regional
 
-  ! ===== Sea level records =====
+! ===== Sea level records =====
 ! =============================
 
   ! Read in a sea level record from a file
@@ -1101,7 +1115,7 @@ CONTAINS
     ! Read the sea level record specified in C%filename_sealevel_record. Assumes
     ! this is an ASCII text file with at least two columns (time in kyr and sea level in m)
     ! and the number of rows being equal to C%sealevel_record_length
-    ! NOTE: assumes time is listed in kyr (so LGM would be -21.0)
+    ! NOTE: assumes time is listed in YEARS (so LGM would be -21000.0)
 
     IMPLICIT NONE
 
@@ -1141,6 +1155,13 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
 
+    IF (C%start_time_of_run < forcing%sealevel_time(1)) THEN
+      CALL warning(' Model time starts before start of sea level record; constant extrapolation will be used in that case!')
+    END IF
+    IF (C%end_time_of_run > forcing%sealevel_time(C%sealevel_record_length)) THEN
+      CALL warning(' Model time will reach beyond end of sea level record; constant extrapolation will be used in that case!')
+    END IF
+
     ! Set the value for the current (starting) model time
     CALL update_sealevel_record_at_model_time( C%start_time_of_run)
 
@@ -1153,7 +1174,7 @@ CONTAINS
     ! Interpolate the data in forcing%sealevel to find the value at the queried time.
     ! If time lies outside the range of forcing%sealevel_time, return the first/last value
     !
-    ! NOTE: assumes time is listed in kyr (so LGM would be -21000.0)
+    ! NOTE: assumes time is listed in YEARS (so LGM would be -21000.0)
 
     IMPLICIT NONE
 
@@ -1176,11 +1197,11 @@ CONTAINS
     END IF
 
     IF (par%master) THEN
-      IF     (time < MINVAL( forcing%sealevel_time)) THEN ! not doing times 1000 because forcing%sealevel_time is NOT in kyr (for now)
-        CALL warning('model time before start of sea level record; using constant extrapolation!')
+      IF     (time < MINVAL( forcing%sealevel_time)) THEN ! Remember: forcing%sealevel_time is in YEARS, not kyr
+        ! Model time before start of sea level record; using constant extrapolation
         forcing%sealevel_obs = forcing%sealevel_record( 1)
       ELSEIF (time > MAXVAL( forcing%sealevel_time)) THEN
-        ! CALL warning('model time beyond end of sea level record; using constant extrapolation!')
+        ! Model time beyond end of sea level record; using constant extrapolation
         forcing%sealevel_obs = forcing%sealevel_record( C%sealevel_record_length)
       ELSE
         iu = 1
