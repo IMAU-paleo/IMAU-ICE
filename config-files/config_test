@@ -138,7 +138,7 @@
   ! Possible choice_forcing_method options:
   ! 'none'                 : No global forcing used at all; climate or SMB are fully parameterised or directly prescribed
   ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
-  ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
+  ! 'CO2_direct'           : Use the specified CO2 record (in kyr) to force the climate matrix (e.g. Berends et al., 2018)
   ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
   choice_forcing_method_config                = 'CO2_direct'
 
@@ -329,7 +329,7 @@
   ! Climate
   ! =======
 
-  choice_climate_model_config                 = 'PD_obs'                         ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
+  choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
   choice_idealised_climate_config             = 'EISMINT1_A'
 
   ! NetCDF files containing direct global/regional climate forcing
@@ -552,10 +552,10 @@
   ! =================
 
   do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  choice_sealevel_model_config                = 'prescribed'                     ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
-  filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
-  sealevel_record_length_config               = 1
+  filename_sealevel_record_config             = 'data/Sealevel/bintanja2008_rsl.dat' ! Name of a file containing a sealevel record (in years)
+  sealevel_record_length_config               = 30001
 
   choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   dx_GIA_config                               = 100000.0                         ! Horizontal resolution of the square grid used for the GIA model

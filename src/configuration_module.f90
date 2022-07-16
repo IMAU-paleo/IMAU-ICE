@@ -237,7 +237,7 @@ MODULE configuration_module
   REAL(dp)            :: static_insolation_time_config               = 0._dp                            ! Keep insolation values fixed to this time when choice_insolation_forcing = 'static'
   CHARACTER(LEN=256)  :: filename_insolation_config                  = '/Users/berends/Documents/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
 
-  ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+  ! CO2 record (ASCII text file in kyr, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_CO2_record_config                  = '/Users/berends/Documents/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
   INTEGER             :: CO2_record_length_config                    = 8001
 
@@ -680,7 +680,7 @@ MODULE configuration_module
   LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
   CHARACTER(LEN=256)  :: choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
-  CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
+  CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
 
   CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
