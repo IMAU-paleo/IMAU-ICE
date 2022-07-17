@@ -554,7 +554,7 @@
   do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
   choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
-  filename_sealevel_record_config             = 'data/Sealevel/bintanja2008_rsl.dat' ! Filename of a file containing a sealevel record
+  filename_sealevel_record_config             = 'data/Sealevel/bintanja2008_rsl.dat' ! Name of a file containing a sealevel record (in years)
   sealevel_record_length_config               = 30001
 
   choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
@@ -585,5 +585,6 @@
   help_field_18_config                        = 'Runoff_year'
   help_field_19_config                        = 'SMB_year'
   help_field_20_config                        = 'SL'
+  help_field_21_config                        = 'dHb'
 
 /
