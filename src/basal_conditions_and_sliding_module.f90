@@ -2128,9 +2128,9 @@ CONTAINS
         IF (ABS(h_delta) >= C%BIVgeo_Bernales2017_tol_diff .OR. &
             ABS(h_dfrac) >= C%BIVgeo_Bernales2017_tol_frac) THEN
 
-          ! Further adjust only where the previous value is not significantly improving the result
-          IF ( (h_delta > 0._dp .AND. ice%dHi_dt_a(j,i) >= -0.1_dp) .OR. &
-               (h_delta < 0._dp .AND. ice%dHi_dt_a(j,i) <=  0.1_dp) ) THEN
+          ! Further adjust only where the previous value is not improving the result
+          IF ( (h_delta > 0._dp .AND. ice%dHi_dt_a(j,i) >= 0.0_dp) .OR. &
+               (h_delta < 0._dp .AND. ice%dHi_dt_a(j,i) <= 0.0_dp) ) THEN
 
             ! Scale the difference and restrict it to the [-1.5 1.5] range
             dz(j,i) = MAX(-1.5_dp, MIN(1.5_dp, h_delta * h_scale))
