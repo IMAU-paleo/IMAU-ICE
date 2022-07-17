@@ -79,7 +79,7 @@ CONTAINS
     ELSEIF (C%choice_climate_model == 'PD_obs') THEN
       ! Keep the climate fixed to present-day observed conditions
 
-      CALL run_climate_model_PD_obs( region%grid, region%climate_matrix)
+      CALL run_climate_model_PD_obs( region%grid, region%ice, region%climate_matrix, region%name)
 
     ELSEIF (C%choice_climate_model == 'PD_dTglob') THEN
       ! Use the present-day climate plus a global temperature offset (de Boer et al., 2013)
@@ -375,7 +375,7 @@ CONTAINS
 ! == Static present-day observed climate
 ! ======================================
 
-  SUBROUTINE run_climate_model_PD_obs( grid, climate_matrix)
+  SUBROUTINE run_climate_model_PD_obs( grid, ice, climate_matrix, region_name)
     ! Run the regional climate model
     !
     ! Keep the climate fixed to present-day observed conditions
@@ -384,7 +384,9 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_matrix_regional),  INTENT(INOUT) :: climate_matrix
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_PD_obs'
@@ -405,6 +407,33 @@ CONTAINS
     END DO
     END DO
     CALL sync
+
+    ! Adapt temperature to model orography using a lapse-rate correction
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO m = 1, 12
+
+      climate_matrix%applied%T2m( m,j,i) = climate_matrix%PD_obs%T2m( m,j,i) - 0.008_dp * &
+                                           (ice%Hs_a( j,i) - climate_matrix%PD_obs%Hs( j,i))
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Downscale precipitation from the coarse-resolution reference
+    ! orography to the fine-resolution ice-model orography
+    IF (region_name == 'NAM' .OR. region_name == 'EAS' .OR. region_name == 'PAT') THEN
+      ! Use the Roe&Lindzen precipitation model to do this; Berends et al., 2018, Eqs. A3-A7
+      CALL adapt_precip_Roe( grid, climate_matrix%PD_obs%Hs, climate_matrix%PD_obs%T2m, &
+                             climate_matrix%PD_obs%Wind_LR, climate_matrix%PD_obs%Wind_DU, &
+                             climate_matrix%PD_obs%Precip, ice%Hs_a, climate_matrix%applied%T2m, &
+                             climate_matrix%PD_obs%Wind_LR, climate_matrix%PD_obs%Wind_DU, &
+                             climate_matrix%applied%Precip)
+    ELSEIF (region_name == 'GRL' .OR. region_name == 'ANT') THEN
+      ! Use a simpler temperature-based correction; Berends et al., 2018, Eq. 14
+      CALL adapt_precip_CC( grid, ice%Hs_a, climate_matrix%PD_obs%Hs, climate_matrix%PD_obs%T2m, &
+                            climate_matrix%PD_obs%Precip, climate_matrix%applied%Precip, region_name)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -468,6 +497,19 @@ CONTAINS
       climate_matrix%applied%Hs(        j,i) = climate_matrix%PD_obs%Hs(        j,i)
       climate_matrix%applied%Wind_LR( m,j,i) = climate_matrix%PD_obs%Wind_LR( m,j,i)
       climate_matrix%applied%Wind_DU( m,j,i) = climate_matrix%PD_obs%Wind_DU( m,j,i)
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Initialise insolation at present-day (needed for the IMAU-ITM SMB model)
+    CALL get_insolation_at_time( grid, 0.0_dp, climate_matrix%PD_obs%Q_TOA)
+
+    ! Initialise applied insolation with present-day values
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO m = 1, 12
+      climate_matrix%applied%Q_TOA( m,j,i) = climate_matrix%PD_obs%Q_TOA( m,j,i)
     END DO
     END DO
     END DO
