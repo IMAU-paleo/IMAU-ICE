@@ -148,7 +148,7 @@
   filename_insolation_config                  = 'data/Insolation/Laskar_etal_2004_insolation.nc'
 
   ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-  filename_CO2_record_config                  = 'data/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+  filename_CO2_record_config                  = 'data/CO2/EPICA_CO2_Bereiter_2015_100yr_noPD.dat'
   CO2_record_length_config                    = 8001
 
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
@@ -282,6 +282,8 @@
 
   ! Basal inversion
   do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
+  BIVgeo_t_start_config                       = -9.9E9                           ! Minimum model time when the inversion is allowed
+  BIVgeo_t_end_config                         = +9.9E9                           ! Maximum model time when the inversion is allowed
   choice_BIVgeo_method_config                 = 'Bernales2017'                   ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
   BIVgeo_dt_config                            = 10.0                             ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
