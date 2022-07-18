@@ -122,7 +122,7 @@ CONTAINS
     ! == Time display
     ! ===============
 
-      if (par%master .AND. C%do_time_display) then
+      if (par%master .and. C%do_time_display) then
         if (region%time + region%dt < t_end) then
           r_adv = "no"
           write(r_time,"(F9.3)") min(region%time,t_end) / 1000._dp
@@ -187,7 +187,9 @@ CONTAINS
     ! ==============================
 
       IF (region%do_BIV) THEN
-        CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt)
+        IF (region%time > C%BIVgeo_t_start .AND. region%time < C%BIVgeo_t_end) THEN
+          CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt)
+        END IF
       END IF
 
     ! Time step and output
