@@ -1012,15 +1012,18 @@ CONTAINS
       CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1, forcing%wins_Q_TOA1)
 
       ! Read time and latitude data
-      IF (par%master) CALL read_insolation_file_time_lat( forcing)
-      CALL sync
+      IF (par%master) THEN
 
-      IF (C%start_time_of_run < forcing%ins_time(1)) THEN
-         CALL warning(' Model time starts before start of insolation record; the model will crash lol')
+        CALL read_insolation_file_time_lat( forcing)
+
+        IF (C%start_time_of_run < forcing%ins_time(1)) THEN
+          CALL warning(' Model time starts before start of insolation record; the model will crash lol')
+        END IF
+        IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
+          CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
+        END IF
       END IF
-      IF (C%end_time_of_run > forcing%ins_time(forcing%ins_nyears)) THEN
-         CALL warning(' Model time will reach beyond end of insolation record; constant extrapolation will be used in that case!')
-      END IF
+      CALL sync
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
@@ -1141,7 +1144,7 @@ CONTAINS
     ! Read sea level record (time and values) from specified text file
     IF (par%master) THEN
 
-        IF (par%master) WRITE(0,*) ' Reading sea level record from ', TRIM(C%filename_sealevel_record), '...'
+        WRITE(0,*) ' Reading sea level record from ', TRIM(C%filename_sealevel_record), '...'
 
         OPEN(   UNIT = 1337, FILE=C%filename_sealevel_record, ACTION='READ')
         DO i = 1, C%sealevel_record_length
@@ -1152,15 +1155,15 @@ CONTAINS
         END DO
         CLOSE( UNIT  = 1337)
 
+        IF (C%start_time_of_run < forcing%sealevel_time(1)) THEN
+          CALL warning(' Model time starts before start of sea level record; constant extrapolation will be used in that case!')
+        END IF
+        IF (C%end_time_of_run > forcing%sealevel_time(C%sealevel_record_length)) THEN
+          CALL warning(' Model time will reach beyond end of sea level record; constant extrapolation will be used in that case!')
+        END IF
+
     END IF ! IF (par%master) THEN
     CALL sync
-
-    IF (C%start_time_of_run < forcing%sealevel_time(1)) THEN
-      CALL warning(' Model time starts before start of sea level record; constant extrapolation will be used in that case!')
-    END IF
-    IF (C%end_time_of_run > forcing%sealevel_time(C%sealevel_record_length)) THEN
-      CALL warning(' Model time will reach beyond end of sea level record; constant extrapolation will be used in that case!')
-    END IF
 
     ! Set the value for the current (starting) model time
     CALL update_sealevel_record_at_model_time( C%start_time_of_run)
