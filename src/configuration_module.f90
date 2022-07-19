@@ -1698,11 +1698,14 @@ CONTAINS
     
     IMPLICIT NONE
 
-    ! Local variables:
+    ! In/output variables:
     CHARACTER(LEN=256),INTENT(IN) :: config_filename
     
-    INTEGER, PARAMETER :: config_unit = 28
-    INTEGER            :: ios
+    ! Local variables:
+    CHARACTER(LEN=256)            :: namelist_filename
+    INTEGER, PARAMETER            :: config_unit   = 1337
+    INTEGER, PARAMETER            :: namelist_unit = 1338
+    INTEGER                       :: ios, ierr, cerr
     
     ! The NAMELIST that's used to read the external config file.
 
@@ -2195,23 +2198,177 @@ CONTAINS
                      help_field_50_config
                       
     IF (config_filename == '') RETURN
-      
-    OPEN(UNIT=config_unit, FILE=TRIM(config_filename), STATUS='OLD', ACTION='READ', iostat=ios)
-    IF(ios /= 0) THEN
-      WRITE(UNIT=*, FMT='(/3A/)') 'read_config_file - ERROR: could not open the configuration file: ', TRIM(config_filename)
-      STOP
+    
+    ! Write the CONFIG namelist to a temporary file
+    namelist_filename = 'config_namelist_temp.txt'
+    OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
+    WRITE( UNIT = namelist_unit, NML  = CONFIG)
+    CLOSE( UNIT = namelist_unit)
+    
+    ! Check the config file for validity
+    CALL check_config_file_validity( config_filename, namelist_filename)
+    
+    ! Delete the temporary CONFIG namelist file
+    CALL system('rm -f ' // TRIM( namelist_filename))
+    
+    ! Open the config file
+    OPEN(  UNIT = config_unit, FILE = TRIM( config_filename), STATUS = 'OLD', ACTION = 'READ', IOSTAT = ios)
+    IF (ios /= 0) THEN
+      WRITE(0,'(A,A,A)') colour_string('ERROR: config file "' // TRIM( config_filename),'red') // '" not found!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
 
-    ! In the following statement the entire configuration file is read, using the namelist (NML=CONFIG)
-    READ(UNIT=config_unit, NML=CONFIG, IOSTAT=ios)
-    CLOSE(UNIT=config_unit)
-
-    IF(ios /= 0) THEN
-      WRITE(UNIT=*, FMT='(/3A)') 'read_config_file - ERROR while reading configuration file: ', TRIM(config_filename)
-      STOP
-    END IF     
+    ! Read the config file using the CONFIG namelist
+    READ(  UNIT = config_unit, NML = CONFIG, IOSTAT = ios)
+    IF (ios /= 0) THEN
+      WRITE(0,'(A,A,A)') colour_string('ERROR: error while reading config file "' // TRIM( config_filename),'red') // '"!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Close the config file
+    CLOSE( UNIT = config_unit)
 
   END SUBROUTINE read_config_file
+  
+  SUBROUTINE check_config_file_validity( config_filename, namelist_filename)
+    ! Check if the provided config file is valid
+    ! 
+    ! Do this by reading one line at a time of the config file, determining the name of the variable
+    ! declared in that line, and checking if that variable also exists in the namelist file
+    ! 
+    ! Assumes that the CONFIG namelist has already been written to the specified file.
+    
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),INTENT(IN) :: config_filename, namelist_filename
+
+    ! Local variables:
+    INTEGER, PARAMETER            :: config_unit   = 1337
+    INTEGER, PARAMETER            :: namelist_unit = 1338
+    INTEGER                       :: ios, ierr, cerr
+    LOGICAL                       :: found_end_of_file_config, found_end_of_file_namelist
+    CHARACTER(256)                :: single_line_config      , single_line_namelist
+    INTEGER                       :: line_counter_config     , line_counter_namelist
+    LOGICAL                       :: found_match, found_mismatch
+
+    ! Open the config and namelist files
+    OPEN( UNIT = config_unit, FILE = config_filename, IOSTAT = ios)
+    IF (ios /= 0) THEN
+      WRITE(0,'(A)') colour_string('ERROR','red') // ': config file "' // TRIM( config_filename) // '" not found!'
+      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    END IF
+    
+    ! Read one line at a time of the config file, determine the name of the variable
+    ! declared in that line, and check if that variable also exists in the namelist file
+    
+    found_end_of_file_config = .FALSE.
+    line_counter_config      = 0
+    found_mismatch           = .FALSE.
+    
+    DO WHILE (.NOT. found_end_of_file_config)
+    
+      line_counter_config = line_counter_config + 1
+      
+      ! Read a single line from the config file
+      READ( UNIT = config_unit, FMT = '(A)', IOSTAT = ios) single_line_config
+      
+      ! If we've reached the end of the file before finding the terminating forward slash, this config file is not valid.
+      IF (ios < 0) THEN
+        WRITE(0,'(A)') colour_string('ERROR','red') // ': config file "' // TRIM( config_filename) // '" is not terminated with a forward slash!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Remove all leading spaces
+      CALL remove_leading_spaces( single_line_config)
+      
+      ! The variable name is the part of the string left of the first (, =, or space.
+      single_line_config = single_line_config( 1:SCAN( single_line_config, '( =')-1)
+      
+      ! Get config variable in all caps for case-insensitive comparison
+      CALL capitalise_string( single_line_config)
+
+      ! The forward slash at the end terminates the config file
+      IF (single_line_config == '/') THEN
+        found_end_of_file_config = .TRUE.
+      END IF
+      
+      ! Disregard empty lines, commented lines, and the header line
+      IF (single_line_config == '' .OR. single_line_config == '&CONFIG' .OR. single_line_config( 1:1) == '!') THEN
+        CYCLE
+      END IF
+      
+      ! Open the namelist file
+      OPEN( UNIT = namelist_unit, FILE = namelist_filename)
+      IF (ios /= 0) THEN
+        WRITE(0,'(A)') colour_string('ERROR','red') // ': namelist file "' // TRIM( namelist_filename) // '" not found!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+      
+      ! Read all variables from the namelist file and check if any of them match the current config variable
+      
+      found_end_of_file_namelist = .FALSE.
+      line_counter_namelist      = 0
+      found_match                = .FALSE.
+      
+      DO WHILE ((.NOT. found_end_of_file_namelist) .AND. (.NOT. found_match))
+        
+        line_counter_namelist = line_counter_namelist + 1
+      
+        ! Read a single line from the namelist file
+        READ( UNIT = namelist_unit, FMT = '(A)', IOSTAT = ios) single_line_namelist
+        
+        ! If we've reached the end of the file before finding the terminating forward slash, this namelist file is not valid.
+        IF (ios < 0) THEN
+          WRITE(0,'(A)') colour_string('ERROR','red') // ': namelist file "' // TRIM( namelist_filename) // '" is not terminated with a forward slash!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+        END IF
+        
+        ! Remove all leading spaces
+        CALL remove_leading_spaces( single_line_namelist)
+        
+        ! The variable name is the part of the string left of the first (, =, or space.
+        single_line_namelist = single_line_namelist( 1:SCAN( single_line_namelist, '( =')-1)
+        
+        ! Get namelist variable in all caps for case-insensitive comparison
+        CALL capitalise_string( single_line_namelist)
+  
+        ! The forward slash at the end terminates the config file
+        IF (single_line_namelist == '/') THEN
+          found_end_of_file_namelist = .TRUE.
+        END IF
+        
+        ! Disregard empty lines, commented lines, and the header line
+        IF (single_line_namelist == '' .OR. single_line_namelist == '&CONFIG' .OR. single_line_namelist( 1:1) == '!') THEN
+          CYCLE
+        END IF
+        
+        ! Check if this namelist variable matches the config variable
+        IF (single_line_namelist == single_line_config) THEN
+          found_match = .TRUE.
+        END IF
+        
+      END DO ! DO WHILE ((.NOT. found_end_of_file_namelist) .AND. (.NOT. found_match))
+      
+      ! If no matching variable was found in the namelist file, print an error
+      IF (.NOT. found_match) THEN
+        WRITE(0,'(A,I4)') colour_string('ERROR','red') // ': invalid config variable "' // TRIM( single_line_config) // &
+          '" in file "' // TRIM( config_filename) // '", line ', line_counter_config
+        found_mismatch = .TRUE.
+      END IF
+
+      ! Close the namelist file
+      CLOSE( UNIT = namelist_unit)
+     
+    END DO ! DO WHILE (.NOT. found_end_of_file_config)
+
+    ! Close the config file
+    CLOSE( UNIT = config_unit)
+    
+    ! If an invalid config variable was found, crash.
+    IF (found_mismatch) CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+    
+  END SUBROUTINE check_config_file_validity
 
   SUBROUTINE copy_variables_to_struct
     ! Overwrite the values in the fields of the "C" type with the values
@@ -3593,6 +3750,46 @@ CONTAINS
     str = str(1:ci-1) // val_str // str(ci+len_marker:len_str)
     
   END SUBROUTINE insert_val_into_string_dp
+  SUBROUTINE capitalise_string( str)
+    ! Changes a string which contains lower case letters to a string with upper case letters
+    ! Useful for case-insensitive string comparison
+    
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                   INTENT(INOUT) :: str
+
+    ! Local variables:
+    INTEGER                                             :: i, index_cap
+
+    CHARACTER(26), PARAMETER                            :: cap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+    CHARACTER(26), PARAMETER                            :: low = 'abcdefghijklmnopqrstuvwxyz'
+    
+    DO i = 1, LEN_TRIM( str)
+      index_cap = INDEX( low, str( i:i))
+      IF (index_cap > 0) str( i:i) = cap( index_cap:index_cap)
+    END DO
+    
+  END SUBROUTINE capitalise_string
+  SUBROUTINE remove_leading_spaces( str)
+    ! Changes a string which contains lower case letters to a string with upper case letters
+    ! Useful for case-insensitive string comparison
+    
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=256),                   INTENT(INOUT) :: str
+
+    ! Local variables:
+    INTEGER                                             :: lstr
+    
+    DO WHILE (str( 1:1) == ' ' .AND. LEN_TRIM( str) > 0)
+      lstr = LEN_TRIM( str)
+      str( 1:lstr-1) = str( 2:lstr)
+      str( lstr:lstr) = ' '
+    END DO
+    
+  END SUBROUTINE remove_leading_spaces
   
 
 END MODULE configuration_module
