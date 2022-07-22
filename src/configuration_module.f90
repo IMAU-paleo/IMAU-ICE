@@ -369,6 +369,8 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  LOGICAL             :: do_smooth_phi_restart_config                = .TRUE.                           ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
+  REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
@@ -1093,6 +1095,8 @@ MODULE configuration_module
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
     CHARACTER(LEN=256)                  :: basal_roughness_filename
+    LOGICAL                             :: do_smooth_phi_restart
+    REAL(dp)                            :: r_smooth_phi_restart
 
     ! Basal inversion
     LOGICAL                             :: do_BIVgeo
@@ -1929,6 +1933,8 @@ CONTAINS
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
                      basal_roughness_filename_config,                 &
+                     do_smooth_phi_restart_config,                    &
+                     r_smooth_phi_restart_config,                     &
                      do_BIVgeo_config,                                &
                      BIVgeo_t_start_config,                           &
                      BIVgeo_t_end_config,                             &
@@ -2700,6 +2706,8 @@ CONTAINS
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
     C%basal_roughness_filename                 = basal_roughness_filename_config
+    C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
+    C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
 
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config

@@ -494,6 +494,8 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_Coulomb'
     TYPE(type_BIV_bed_roughness)                       :: BIV
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: r_smooth
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -527,6 +529,23 @@ CONTAINS
 
     ! Map (transposed) raw data to the model grid
     CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%phi_fric, ice%phi_fric_a)
+
+    ! Smooth input bed roughness (for restarts with a different resolution)
+    IF (C%do_smooth_phi_restart) THEN
+      ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
+      r_smooth = grid%dx * C%r_smooth_phi_restart
+
+      ! Apply smoothing to the bed roughness
+      CALL smooth_Gaussian_2D( grid, ice%phi_fric_a, r_smooth)
+
+      ! Limit bed roughness
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ice%phi_fric_a( j,i) = MAX( 0.1_dp, MIN( 30._dp, ice%phi_fric_a( j,i)))
+      END DO
+      END DO
+      CALL sync
+    END IF
 
     ! Deallocate raw data
     CALL deallocate_shared( BIV%wnx      )
