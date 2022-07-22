@@ -333,6 +333,10 @@ MODULE configuration_module
   LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
   LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+  
+  ! Prescribed retreat mask
+  LOGICAL             :: do_apply_prescribed_retreat_mask_config     = .FALSE.                          ! Whether or not to apply an externally prescribed retreat mask
+  CHARACTER(LEN=256)  :: prescribed_retreat_mask_filename_config     = ''                               ! NetCDF file containing a prescribed retreat mask
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -1051,6 +1055,10 @@ MODULE configuration_module
     LOGICAL                             :: fixed_shelf_geometry
     LOGICAL                             :: fixed_sheet_geometry
     LOGICAL                             :: fixed_grounding_line
+  
+    ! Prescribed retreat mask
+    LOGICAL                             :: do_apply_prescribed_retreat_mask
+    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_filename
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1891,6 +1899,8 @@ CONTAINS
                      fixed_shelf_geometry_config,                     &
                      fixed_sheet_geometry_config,                     &
                      fixed_grounding_line_config,                     &
+                     do_apply_prescribed_retreat_mask_config,         &
+                     prescribed_retreat_mask_filename_config,         &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2647,6 +2657,10 @@ CONTAINS
     C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
     C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
     C%fixed_grounding_line                     = fixed_grounding_line_config
+  
+    ! Prescribed retreat mask
+    C%do_apply_prescribed_retreat_mask         = do_apply_prescribed_retreat_mask_config
+    C%prescribed_retreat_mask_filename         = prescribed_retreat_mask_filename_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
