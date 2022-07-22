@@ -6124,9 +6124,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y, ny, netcdf%id_dim_y)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_SMB, (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_SMB)
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_SMB, (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_SMB)
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6197,9 +6197,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y, ny, netcdf%id_dim_y)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_ST,  (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_ST)
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,   (/ netcdf%id_dim_x                  /), netcdf%id_var_x  )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,   (/                  netcdf%id_dim_y /), netcdf%id_var_y  )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_ST,  (/ netcdf%id_dim_x, netcdf%id_dim_y /), netcdf%id_var_ST)
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6272,9 +6272,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_aSMB, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aSMB)
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_aSMB, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aSMB)
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6347,9 +6347,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,      (/ netcdf%id_dim_x                                      /), netcdf%id_var_x     )
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,      (/                  netcdf%id_dim_y                     /), netcdf%id_var_y     )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_dSMBdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSMBdz)
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,      (/ netcdf%id_dim_x                                      /), netcdf%id_var_x     )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,      (/                  netcdf%id_dim_y                     /), netcdf%id_var_y     )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_dSMBdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSMBdz)
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6422,9 +6422,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_aST,  (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aST )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,    (/ netcdf%id_dim_x                                      /), netcdf%id_var_x   )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,    (/                  netcdf%id_dim_y                     /), netcdf%id_var_y   )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_aST,  (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_aST )
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6497,9 +6497,9 @@ CONTAINS
     CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
     
     ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_x,     (/ netcdf%id_dim_x                                      /), netcdf%id_var_x    )
-    CALL inquire_single_var( netcdf%ncid, netcdf%name_var_y,     (/                  netcdf%id_dim_y                     /), netcdf%id_var_y    )
-    CALL inquire_double_var( netcdf%ncid, netcdf%name_var_dSTdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSTdz)
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x,     (/ netcdf%id_dim_x                                      /), netcdf%id_var_x    )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y,     (/                  netcdf%id_dim_y                     /), netcdf%id_var_y    )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_dSTdz, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_dSTdz)
     
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6544,6 +6544,124 @@ CONTAINS
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_ISMIP_forcing_dSTdz_file
+  
+  ! Prescribed retreat mask
+  SUBROUTINE inquire_prescribed_retreat_mask_file( netcdf, nx, ny)
+    ! Check if the right dimensions and variables are present in the file.
+
+    ! In/output variables:
+    TYPE(type_netcdf_prescribed_retreat_mask), INTENT(INOUT) :: netcdf
+    INTEGER,                                   INTENT(OUT)   :: nx, ny 
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'inquire_prescribed_retreat_mask_file'
+    INTEGER                                       :: nt
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    netcdf%filename = TRIM( C%prescribed_retreat_mask_filename)
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx, netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny, netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, nt, netcdf%id_dim_time)
+    
+    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_x           , (/ netcdf%id_dim_x                                      /), netcdf%id_var_x           )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y           , (/                  netcdf%id_dim_y                     /), netcdf%id_var_y           )
+    CALL inquire_int_var(              netcdf%ncid, netcdf%name_var_time        , (/                                   netcdf%id_dim_time /), netcdf%id_var_time        )
+    CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_ice_fraction, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_ice_fraction)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE inquire_prescribed_retreat_mask_file
+  SUBROUTINE read_prescribed_retreat_mask_file( netcdf, x, y, time, ice_fraction_retreat_mask_raw0, ice_fraction_retreat_mask_raw1, &
+    ice_fraction_retreat_mask_t0, ice_fraction_retreat_mask_t1)
+    ! Read the two timeframes enveloping the model time from the file
+
+    ! In/output variables:
+    TYPE(type_netcdf_prescribed_retreat_mask), INTENT(INOUT) :: netcdf
+    REAL(dp), DIMENSION(:    ),                INTENT(OUT)   :: x, y
+    REAL(dp),                                  INTENT(IN)    :: time
+    REAL(dp), DIMENSION(:,:  ),                INTENT(OUT)   :: ice_fraction_retreat_mask_raw0
+    REAL(dp), DIMENSION(:,:  ),                INTENT(OUT)   :: ice_fraction_retreat_mask_raw1
+    REAL(dp),                                  INTENT(OUT)   :: ice_fraction_retreat_mask_t0
+    REAL(dp),                                  INTENT(OUT)   :: ice_fraction_retreat_mask_t1
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_prescribed_retreat_mask_file'
+    INTEGER                                       :: nx, ny
+    INTEGER                                       :: ntimes_in_file
+    INTEGER , DIMENSION(:    ), ALLOCATABLE       ::  times_in_file_int
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       ::  times_in_file_dp
+    INTEGER                                       :: ti0, ti1
+    REAL(dp), DIMENSION(:,:,:), ALLOCATABLE       :: retreat_mask_timeframe_with_time_dimension
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+        
+    ! Open the netcdf file
+    netcdf%filename = TRIM( C%prescribed_retreat_mask_filename)
+    CALL open_netcdf_file( netcdf%filename, netcdf%ncid)
+    
+    ! Read the grid data
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_x, x, start = (/ 1 /) ))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_y, y, start = (/ 1 /) ))
+    
+    ! Read time from file
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_x   , nx            , netcdf%id_dim_x   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_y   , ny            , netcdf%id_dim_y   )
+    CALL inquire_dim( netcdf%ncid, netcdf%name_dim_time, ntimes_in_file, netcdf%id_dim_time)
+    ALLOCATE( times_in_file_int( ntimes_in_file))
+    ALLOCATE( times_in_file_dp(  ntimes_in_file))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_time, times_in_file_int, start = (/ 1 /) ))
+    times_in_file_dp = REAL( times_in_file_int, dp)
+    
+    ! Determine which timeframes to read
+    ti0 = 1
+    DO WHILE (times_in_file_dp( ti0) <= time .AND. ti0 < ntimes_in_file-1)
+      ti0 = ti0 + 1
+    END DO
+    ti1 = ti0 + 1
+    
+    ice_fraction_retreat_mask_t0 = times_in_file_dp( ti0)
+    ice_fraction_retreat_mask_t1 = times_in_file_dp( ti1)
+    
+    DEALLOCATE( times_in_file_int)
+    DEALLOCATE( times_in_file_dp )
+    
+    ! Read timeframes
+    ALLOCATE( retreat_mask_timeframe_with_time_dimension( nx, ny, 1))
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_ice_fraction, retreat_mask_timeframe_with_time_dimension, start = (/ 1, 1, ti0 /), count = (/ nx, ny, 1 /) ))
+    ice_fraction_retreat_mask_raw0 = retreat_mask_timeframe_with_time_dimension( :,:,1)
+    CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_ice_fraction, retreat_mask_timeframe_with_time_dimension, start = (/ 1, 1, ti1 /), count = (/ nx, ny, 1 /) ))
+    ice_fraction_retreat_mask_raw1 = retreat_mask_timeframe_with_time_dimension( :,:,1)
+    DEALLOCATE( retreat_mask_timeframe_with_time_dimension)
+    
+    ! Close the netcdf file
+    CALL close_netcdf_file( netcdf%ncid)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
+  END SUBROUTINE read_prescribed_retreat_mask_file
   
 ! Some general useful stuff
 ! =========================
@@ -6849,6 +6967,37 @@ CONTAINS
     END IF
     
   END SUBROUTINE inquire_double_var
+  SUBROUTINE inquire_single_or_double_var( ncid, var_name, id_dims, id_var)
+    ! Inquire the id of a variable and check that the dimensions of the variable match the dimensions given by the user and
+    ! that the variable is of type nf90_FLOAT or nf90_DOUBLE.
+    IMPLICIT NONE
+
+    ! Input variables:
+    INTEGER,                    INTENT(IN)    :: ncid
+    CHARACTER(LEN=*),           INTENT(IN)    :: var_name
+    INTEGER, DIMENSION(:),      INTENT(IN)    :: id_dims
+
+    ! Output variables:
+    INTEGER,                INTENT(OUT)   :: id_var
+
+    ! Local variables:
+    INTEGER                               :: xtype, ndims
+    INTEGER, DIMENSION(nf90_max_var_dims) :: actual_id_dims
+
+    CALL handle_error(nf90_inq_varid(ncid, var_name, id_var))
+    CALL handle_error(nf90_inquire_variable(ncid, id_var, xtype=xtype,ndims=ndims,dimids=actual_id_dims))
+    IF (xtype /= nf90_double .AND. xtype /= nf90_float) THEN
+      CALL crash('Actual type of variable "' // TRIM( var_name) // '" is neither nf90_float nor nf90_double!')
+    END IF
+    IF (ndims /= SIZE( id_dims)) THEN
+      CALL crash('Actual number of dimensions = {int_01} of variable "' // TRIM( var_name) // '" does not match required number of dimensions = {int_02}', &
+        int_01 = ndims, int_02 = SIZE( id_dims))
+    END IF
+    IF (ANY( actual_id_dims( 1:ndims) /= id_dims)) THEN
+      CALL crash('Actual dimensions of variable "' // TRIM( var_name) // '" does not match required dimensions!')
+    END IF
+
+  END SUBROUTINE inquire_single_or_double_var
   SUBROUTINE handle_error( stat, message)
     USE netcdf, ONLY: nf90_noerr, nf90_strerror
     IMPLICIT NONE

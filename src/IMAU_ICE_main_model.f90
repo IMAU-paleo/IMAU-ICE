@@ -175,7 +175,7 @@ CONTAINS
       END IF
 
       ! Update ice geometry and advance region time
-      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%time)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
       
