@@ -1,7 +1,7 @@
 &CONFIG
 
-  start_time_of_run_config                    = -120000.0                        ! Start time (in years) of the simulations
-  end_time_of_run_config                      = -17000.0                         ! End   time (in years) of the simulations
+  start_time_of_run_config                    = -17000.0                         ! Start time (in years) of the simulations
+  end_time_of_run_config                      = -10000.0                         ! End   time (in years) of the simulations
   dt_coupling_config                          = 100.0                            ! Interval of coupling (in years) between the four ice-sheets
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_thermo_config                            = 10.0                             ! Time step (in years) for updating thermodynamics
@@ -26,7 +26,7 @@
   ! =======================================================================
 
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'results_GRL_40km_spin02_glacial'! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'results_GRL_32km_spin03_termina_csm'! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -78,7 +78,7 @@
   xmax_GRL_config                             =   960000.0                       ! Eastern  boundary     of the Greenland domain [m]
   ymin_GRL_config                             = -3450000.0                       ! Southern boundary     of the Greenland domain [m]
   ymax_GRL_config                             =  -570000.0                       ! Northern boundary     of the Greenland domain [m]
-  dx_GRL_config                               = 40000.0                          ! Horizontal resolution of the Greenland domain [m]
+  dx_GRL_config                               = 32000.0                          ! Horizontal resolution of the Greenland domain [m]
 
   ! Antarctica
   lambda_M_ANT_config                         = 0.0                              ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
@@ -100,12 +100,12 @@
   choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0
-  time_to_restart_from_GRL_config             = 50000.0
+  time_to_restart_from_GRL_config             = -17000.0
   time_to_restart_from_ANT_config             = 0.0
   choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   filename_refgeo_init_NAM_config             = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = 'data/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_init_GRL_config             = 'results_GRL_40km_spin01_calib/restart_GRL.nc'
+  filename_refgeo_init_GRL_config             = 'results_GRL_32km_spin02_glacial_csm/restart_GRL.nc'
   filename_refgeo_init_ANT_config             = 'data/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   ! Present-day geometry
@@ -278,7 +278,9 @@
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  basal_roughness_filename_config             = 'results_GRL_40km_spin01_calib/bed_roughness_inv.nc' ! NetCDF file containing a basal roughness field for the chosen sliding law
+  basal_roughness_filename_config             = 'results_GRL_32km_spin01_calib_csm/bed_roughness_inv.nc' ! NetCDF file containing a basal roughness field for the chosen sliding law
+  do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
+  r_smooth_phi_restart_config                 = 0.5                              ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
   do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
@@ -309,7 +311,7 @@
   ! ======================
 
   choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
-  calving_threshold_thickness_config          = 200.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  calving_threshold_thickness_config          = 100.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
@@ -345,9 +347,9 @@
   filename_PD_obs_climate_config              = 'data/ERA40/ERA40_climate_global.nc'
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_climate_snapshot_PI_config         = 'data/GCM_snapshots/CESM_PI.nc'
-  filename_climate_snapshot_warm_config       = 'data/GCM_snapshots/CESM_PI.nc'
-  filename_climate_snapshot_cold_config       = 'data/GCM_snapshots/CESM_LGM.nc'
+  filename_climate_snapshot_PI_config         = 'data/GCM_snapshots/CCSM_PI.nc'
+  filename_climate_snapshot_warm_config       = 'data/GCM_snapshots/CCSM_PI.nc'
+  filename_climate_snapshot_cold_config       = 'data/GCM_snapshots/CCSM_LGM.nc'
 
   constant_lapserate_config                   = 0.008                            ! Constant atmospheric lapse rate [K m^-1]
 
@@ -372,7 +374,7 @@
   ! Ocean
   ! =====
 
-  choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  choice_ocean_model_config                   = 'none'                           ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
@@ -381,9 +383,9 @@
   name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_GCM_ocean_snapshot_PI_config       = 'data/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  filename_GCM_ocean_snapshot_warm_config     = 'data/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
-  filename_GCM_ocean_snapshot_cold_config     = 'data/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
+  filename_GCM_ocean_snapshot_PI_config       = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
+  filename_GCM_ocean_snapshot_warm_config     = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
+  filename_GCM_ocean_snapshot_cold_config     = 'data/CMIP5/CCSM_CMIP5_LGM_ocean.nc'
 
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   ocean_temperature_PD_config                 = 271.46                           ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
@@ -438,10 +440,10 @@
   SMB_IMAUITM_C_abl_constant_EAS_config       = 0.0
   SMB_IMAUITM_C_abl_constant_GRL_config       = 0.0
   SMB_IMAUITM_C_abl_constant_ANT_config       = 0.0
-  SMB_IMAUITM_C_abl_Ts_NAM_config             = 15.0                             ! 10.0 : Temperature-based melt factor
-  SMB_IMAUITM_C_abl_Ts_EAS_config             = 15.0
-  SMB_IMAUITM_C_abl_Ts_GRL_config             = 16.0
-  SMB_IMAUITM_C_abl_Ts_ANT_config             = 15.0
+  SMB_IMAUITM_C_abl_Ts_NAM_config             = 10.0                             ! 10.0 : Temperature-based melt factor
+  SMB_IMAUITM_C_abl_Ts_EAS_config             = 10.0
+  SMB_IMAUITM_C_abl_Ts_GRL_config             = 10.0
+  SMB_IMAUITM_C_abl_Ts_ANT_config             = 10.0
   SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227                           ! 0.0227 : Insolation-based melt factor
   SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227
   SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227
@@ -454,7 +456,7 @@
   ! Basal mass balance
   ! ==================
 
-  choice_BMB_shelf_model_config               = 'Favier2019_quad'                ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
+  choice_BMB_shelf_model_config               = 'inverse_shelf_geometry'         ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   choice_idealised_BMB_shelf_config           = 'MISMIP+'
   choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "uniform"
   BMB_shelf_uniform_config                    = 0.0                              ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
@@ -475,15 +477,15 @@
   do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
   do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
 
-  choice_BMB_shelf_amplification_config        = 'uniform'                       ! Choice of method to determine BMB amplification factors: "uniform", "basin"
-  basin_BMB_amplification_n_ANT_config         = 17                        ! Number of basins used for ANT
-  basin_BMB_amplification_factor_ANT_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
-  basin_BMB_amplification_n_GRL_config         = 8                         ! Number of basins used for GRL
-  basin_BMB_amplification_factor_GRL_config    = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
+  choice_BMB_shelf_amplification_config       = 'uniform'                        ! Choice of method to determine BMB amplification factors: "uniform", "basin"
+  basin_BMB_amplification_n_ANT_config        = 17                               ! Number of basins used for ANT
+  basin_BMB_amplification_factor_ANT_config   = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
+  basin_BMB_amplification_n_GRL_config        = 8                                ! Number of basins used for GRL
+  basin_BMB_amplification_factor_GRL_config   = 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0  , 1.0
 
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
   BMB_Favier2019_lin_GammaT_config            = 3.3314E-05     ! 2.03E-5         ! Heat exchange velocity [m s^-1]
-  BMB_Favier2019_quad_GammaT_config           = 1.00E-2        ! 99.32E-5        ! Commented values are from Favier et al. (2019), Table 3
+  BMB_Favier2019_quad_GammaT_config           = 1.00E-3        ! 99.32E-5        ! Commented values are from Favier et al. (2019), Table 3
   BMB_Favier2019_Mplus_GammaT_config          = 1.00E-3        ! 132.9E-5        ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
 
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
@@ -556,7 +558,7 @@
   do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
   choice_sealevel_model_config                = 'prescribed'                     ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
-  filename_sealevel_record_config             = 'data/Sealevel/bintanja2008_rsl.dat' ! Name of a file containing a sealevel record (in years)
+  filename_sealevel_record_config             = 'data/Sealevel/bintanja2008_rsl_PD00.dat' ! Name of a file containing a sealevel record (in years)
   sealevel_record_length_config               = 30001
 
   choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
