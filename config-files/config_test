@@ -148,7 +148,7 @@
   filename_insolation_config                  = 'data/Insolation/Laskar_etal_2004_insolation.nc'
 
   ! CO2 record (ASCII text file, so the number of rows needs to be specified)
-  filename_CO2_record_config                  = 'data/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
+  filename_CO2_record_config                  = 'data/CO2/EPICA_CO2_Bereiter_2015_100yr_noPD.dat'
   CO2_record_length_config                    = 8001
 
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
@@ -176,7 +176,7 @@
   ! Ice dynamics - velocity
   ! =======================
 
-  choice_ice_dynamics_config                  = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  choice_ice_dynamics_config                  = 'SIA/SSA'                        ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   n_flow_config                               = 3.0                              ! Exponent in Glen`s flow law
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
@@ -279,7 +279,7 @@
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
-  do_smooth_phi_restart_config                = .TRUE.                           ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
+  do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   r_smooth_phi_restart_config                 = 0.5                              ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
@@ -304,14 +304,14 @@
   BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
   BIVgeo_Bernales2017_hinv_config             = 1000.0                           ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
-  BIVgeo_Bernales2017_tol_diff_config         = 100.0                            ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
+  BIVgeo_Bernales2017_tol_diff_config         = 100.0                            ! Minimum ice thickness difference [m] that triggers inversion
   BIVgeo_Bernales2017_tol_frac_config         = 1.0                              ! Minimum ratio between ice thickness difference and reference value that triggers inversion
 
   ! Ice dynamics - calving
   ! ======================
 
   choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
-  calving_threshold_thickness_config          = 200.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  calving_threshold_thickness_config          = 100.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
@@ -347,9 +347,9 @@
   filename_PD_obs_climate_config              = 'data/ERA40/ERA40_climate_global.nc'
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_climate_snapshot_PI_config         = 'data/GCM_snapshots/CESM_PI.nc'
-  filename_climate_snapshot_warm_config       = 'data/GCM_snapshots/CESM_PI.nc'
-  filename_climate_snapshot_cold_config       = 'data/GCM_snapshots/CESM_LGM.nc'
+  filename_climate_snapshot_PI_config         = 'data/GCM_snapshots/CCSM_PI.nc'
+  filename_climate_snapshot_warm_config       = 'data/GCM_snapshots/CCSM_PI.nc'
+  filename_climate_snapshot_cold_config       = 'data/GCM_snapshots/CCSM_LGM.nc'
 
   constant_lapserate_config                   = 0.008                            ! Constant atmospheric lapse rate [K m^-1]
 
@@ -379,13 +379,15 @@
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   filename_PD_obs_ocean_config                = 'data/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-  name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  name_ocean_salinity_obs_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_GCM_ocean_snapshot_PI_config       = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
-  filename_GCM_ocean_snapshot_warm_config     = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
-  filename_GCM_ocean_snapshot_cold_config     = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
+  filename_GCM_ocean_snapshot_PI_config       = 'data/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_warm_config     = 'data/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_cold_config     = 'data/CMIP5/ocn/CCSM_CMIP5_lgm_ocean.nc'
+  name_ocean_temperature_GCM_config           = 't_ocean'
+  name_ocean_salinity_GCM_config              = 's_ocean'
 
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   ocean_temperature_PD_config                 = 271.46                           ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
@@ -440,10 +442,10 @@
   SMB_IMAUITM_C_abl_constant_EAS_config       = 0.0
   SMB_IMAUITM_C_abl_constant_GRL_config       = 0.0
   SMB_IMAUITM_C_abl_constant_ANT_config       = 0.0
-  SMB_IMAUITM_C_abl_Ts_NAM_config             = 15.0                             ! 10.0 : Temperature-based melt factor
-  SMB_IMAUITM_C_abl_Ts_EAS_config             = 15.0
-  SMB_IMAUITM_C_abl_Ts_GRL_config             = 16.0
-  SMB_IMAUITM_C_abl_Ts_ANT_config             = 15.0
+  SMB_IMAUITM_C_abl_Ts_NAM_config             = 10.0                             ! 10.0 : Temperature-based melt factor
+  SMB_IMAUITM_C_abl_Ts_EAS_config             = 10.0
+  SMB_IMAUITM_C_abl_Ts_GRL_config             = 10.0
+  SMB_IMAUITM_C_abl_Ts_ANT_config             = 10.0
   SMB_IMAUITM_C_abl_Q_NAM_config              = 0.0227                           ! 0.0227 : Insolation-based melt factor
   SMB_IMAUITM_C_abl_Q_EAS_config              = 0.0227
   SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227
@@ -485,8 +487,8 @@
 
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
   BMB_Favier2019_lin_GammaT_config            = 3.3314E-05     ! 2.03E-5         ! Heat exchange velocity [m s^-1]
-  BMB_Favier2019_quad_GammaT_config           = 111.6E-5       ! 99.32E-5        ! Commented values are from Favier et al. (2019), Table 3
-  BMB_Favier2019_Mplus_GammaT_config          = 108.6E-5       ! 132.9E-5        ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
+  BMB_Favier2019_quad_GammaT_config           = 1.0E-3       ! 99.32E-5          ! Commented values are from Favier et al. (2019), Table 3
+  BMB_Favier2019_Mplus_GammaT_config          = 1.0E-3       ! 132.9E-5          ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
 
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   BMB_Lazeroms2018_GammaT_config              = 3.7506E-04     ! 1.1E-3          ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
@@ -589,5 +591,6 @@
   help_field_18_config                        = 'Runoff_year'
   help_field_19_config                        = 'SMB_year'
   help_field_20_config                        = 'SL'
+  help_field_21_config                        = 'dHb'
 
 /

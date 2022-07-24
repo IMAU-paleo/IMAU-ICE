@@ -374,18 +374,20 @@
   ! Ocean
   ! =====
 
-  choice_ocean_model_config                   = 'none'                           ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   filename_PD_obs_ocean_config                = 'data/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-  name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  name_ocean_salinity_obs_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_GCM_ocean_snapshot_PI_config       = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
-  filename_GCM_ocean_snapshot_warm_config     = 'data/CMIP5/CCSM_CMIP5_PI_ocean.nc'
-  filename_GCM_ocean_snapshot_cold_config     = 'data/CMIP5/CCSM_CMIP5_LGM_ocean.nc'
+  filename_GCM_ocean_snapshot_PI_config       = 'data/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_warm_config     = 'data/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_cold_config     = 'data/CMIP5/ocn/CCSM_CMIP5_lgm_ocean.nc'
+  name_ocean_temperature_GCM_config           = 't_ocean'
+  name_ocean_salinity_GCM_config              = 's_ocean'
 
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   ocean_temperature_PD_config                 = 271.46                           ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]

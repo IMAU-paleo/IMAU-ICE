@@ -369,7 +369,7 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
-  LOGICAL             :: do_smooth_phi_restart_config                = .TRUE.                           ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
+  LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
@@ -469,13 +469,15 @@ MODULE configuration_module
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-  CHARACTER(LEN=256)  :: name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  CHARACTER(LEN=256)  :: name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  CHARACTER(LEN=256)  :: name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_obs_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config       = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
+  CHARACTER(LEN=256)  :: name_ocean_temperature_GCM_config           = 't_an'
+  CHARACTER(LEN=256)  :: name_ocean_salinity_GCM_config              = 's_an'
 
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   REAL(dp)            :: ocean_temperature_PD_config                 = 271.46_dp                        ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
@@ -1199,13 +1201,15 @@ MODULE configuration_module
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
-    CHARACTER(LEN=256)                  :: name_ocean_temperature
-    CHARACTER(LEN=256)                  :: name_ocean_salinity
+    CHARACTER(LEN=256)                  :: name_ocean_temperature_obs
+    CHARACTER(LEN=256)                  :: name_ocean_salinity_obs
 
     ! GCM snapshots in the matrix_warm_cold option
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
+    CHARACTER(LEN=256)                  :: name_ocean_temperature_GCM
+    CHARACTER(LEN=256)                  :: name_ocean_salinity_GCM
 
     ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
     REAL(dp)                            :: ocean_temperature_PD
@@ -2001,11 +2005,13 @@ CONTAINS
                      choice_ocean_model_config,                       &
                      choice_idealised_ocean_config,                   &
                      filename_PD_obs_ocean_config,                    &
-                     name_ocean_temperature_config,                   &
-                     name_ocean_salinity_config,                      &
+                     name_ocean_temperature_obs_config,               &
+                     name_ocean_salinity_obs_config,                  &
                      filename_GCM_ocean_snapshot_PI_config,           &
                      filename_GCM_ocean_snapshot_warm_config,         &
                      filename_GCM_ocean_snapshot_cold_config,         &
+                     name_ocean_temperature_GCM_config,               &
+                     name_ocean_salinity_GCM_config,                  &
                      ocean_temperature_PD_config,                     &
                      ocean_temperature_cold_config,                   &
                      ocean_temperature_warm_config,                   &
@@ -2806,13 +2812,15 @@ CONTAINS
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
-    C%name_ocean_temperature                   = name_ocean_temperature_config
-    C%name_ocean_salinity                      = name_ocean_salinity_config
+    C%name_ocean_temperature_obs               = name_ocean_temperature_obs_config
+    C%name_ocean_salinity_obs                  = name_ocean_salinity_obs_config
 
     ! GCM snapshots in the matrix_warm_cold option
     C%filename_GCM_ocean_snapshot_PI           = filename_GCM_ocean_snapshot_PI_config
     C%filename_GCM_ocean_snapshot_warm         = filename_GCM_ocean_snapshot_warm_config
     C%filename_GCM_ocean_snapshot_cold         = filename_GCM_ocean_snapshot_cold_config
+    C%name_ocean_temperature_GCM               = name_ocean_temperature_GCM_config
+    C%name_ocean_salinity_GCM                  = name_ocean_salinity_GCM_config
 
     ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
     C%ocean_temperature_PD                     = ocean_temperature_PD_config
