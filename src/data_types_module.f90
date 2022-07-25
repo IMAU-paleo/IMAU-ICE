@@ -259,6 +259,14 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
     INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
 
+    ! Ice dynamics - prescribed retreat mask
+    REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t0  ! Time of first     prescribed retreat mask timeframe ( <= region%time)
+    REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t1  ! Time of second    prescribed retreat mask timeframe ( >= region%time)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask0    !         First     prescribed retreat mask timeframe
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask1    !         Second    prescribed retreat mask timeframe
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask     ! Time-interpolated prescribed retreat mask
+    INTEGER :: wice_fraction_retreat_mask_t0, wice_fraction_retreat_mask_t1, wice_fraction_retreat_mask0, wice_fraction_retreat_mask1, wice_fraction_retreat_mask
+    
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
     REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_tau

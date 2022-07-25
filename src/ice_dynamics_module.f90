@@ -26,7 +26,7 @@ MODULE ice_dynamics_module
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
                                                  determine_masks_transitions
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
-  USE calving_module,                      ONLY: apply_calving_law
+  USE calving_module,                      ONLY: apply_calving_law, apply_prescribed_retreat_mask
 
   IMPLICIT NONE
   
@@ -346,7 +346,7 @@ CONTAINS
   END SUBROUTINE run_ice_dynamics_pc
   
 ! == Update the ice thickness at the end of a model time loop
-  SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_PD, refgeo_GIAeq)
+  SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_init, refgeo_PD, refgeo_GIAeq, time)
     ! Update the ice thickness at the end of a model time loop
     
     IMPLICIT NONE
@@ -355,8 +355,10 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD 
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
+    REAL(dp),                            INTENT(IN)    :: time
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_thickness'
@@ -546,6 +548,11 @@ CONTAINS
       END DO
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
+    
+    ! Apply a prescribed retreat mask
+    IF (C%do_apply_prescribed_retreat_mask) THEN
+      CALL apply_prescribed_retreat_mask( grid, ice, time, refgeo_init)
+    END IF
     
     ! Finally update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
@@ -1113,6 +1120,15 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
+    
+    ! Ice dynamics - prescribed retreat mask
+    IF (C%do_apply_prescribed_retreat_mask) THEN
+    CALL allocate_shared_dp_0D(                              ice%ice_fraction_retreat_mask_t0, ice%wice_fraction_retreat_mask_t0)
+    CALL allocate_shared_dp_0D(                              ice%ice_fraction_retreat_mask_t1, ice%wice_fraction_retreat_mask_t1)
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask0  , ice%wice_fraction_retreat_mask0  )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask1  , ice%wice_fraction_retreat_mask1  )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask   , ice%wice_fraction_retreat_mask   )
+    END IF
     
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )
