@@ -1,5 +1,5 @@
 MODULE configuration_module
-  
+
   ! The way it's done right now:
   ! Each config variable has two versions: one with the "_config" extension, which is
   ! an actual variable in this module only, and one without the extension, which is
@@ -17,27 +17,27 @@ MODULE configuration_module
   ! be overwritten in the end.
   !
   ! Some day I'll figure out a more elegant solution for this...
-  
+
   USE mpi
 
   IMPLICIT NONE
-  
+
   INTEGER, PARAMETER  :: dp  = KIND(1.0D0)  ! Kind of double precision numbers. Reals should be declared as: REAL(dp) :: example
-  
+
   ! === Error messaging / debugging / profiling system ===
-  
+
   CHARACTER(LEN=1024) :: routine_path
   INTEGER             :: n_MPI_windows
-  
+
   TYPE subroutine_resource_tracker
     ! Track the resource use (computation time, memory) of a single subroutine
     CHARACTER(LEN = 1024) :: routine_path
     REAL(dp)              :: tstart, tcomp
     INTEGER               :: n_MPI_windows_init, n_MPI_windows_final
   END TYPE subroutine_resource_tracker
-  
+
   TYPE( subroutine_resource_tracker), DIMENSION(:), ALLOCATABLE :: resource_tracker
-  
+
 
   ! ===================================================================================
   ! "_config  variables, which will be collected into a NAMELIST, and possibly replaced
@@ -46,10 +46,10 @@ MODULE configuration_module
 
   ! Time steps and range
   ! ====================
-  
+
   REAL(dp)            :: start_time_of_run_config                    = 0.0_dp                           ! Start time (in years) of the simulations
   REAL(dp)            :: end_time_of_run_config                      = 50000.0_dp                       ! End   time (in years) of the simulations
-  REAL(dp)            :: dt_coupling_config                          = 100._dp                          ! Interval of coupling (in years) between the four ice-sheets  
+  REAL(dp)            :: dt_coupling_config                          = 100._dp                          ! Interval of coupling (in years) between the four ice-sheets
   REAL(dp)            :: dt_max_config                               = 10.0_dp                          ! Maximum time step (in years) of the ice model
   REAL(dp)            :: dt_thermo_config                            = 10.0_dp                          ! Time step (in years) for updating thermodynamics
   REAL(dp)            :: dt_climate_config                           = 10._dp                           ! Time step (in years) for updating the climate
@@ -59,66 +59,67 @@ MODULE configuration_module
   REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
   REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing output
-  
+
   ! Which ice sheets do we simulate?
   ! ================================
-  
+
   LOGICAL             :: do_NAM_config                               = .FALSE.                          ! North America
   LOGICAL             :: do_EAS_config                               = .FALSE.                          ! Eurasia
   LOGICAL             :: do_GRL_config                               = .FALSE.                          ! Greenland
   LOGICAL             :: do_ANT_config                               = .TRUE.                           ! Antarctica
-  
+
   ! Benchmark experiments
   ! =====================
-  
+
   ! SSA_icestream (see Schoof 2006, and also Bueler and Brown 2009)
   REAL(dp)            :: SSA_icestream_A_config                      = 1.0E-17_dp                       ! Glen's flow law factor (Pa yr^-1)
   REAL(dp)            :: SSA_icestream_L_config                      = 100000._dp                       ! Ice-stream half-width (m)
   REAL(dp)            :: SSA_icestream_m_config                      = 0.5_dp                           ! Determines the "smoothness" of the transition between the low-friction ice stream centre and the high-friction margin areas; low value (~0.5) = gradual, high value ( ~10) = sudden
   REAL(dp)            :: SSA_icestream_tantheta_config               = 0.0003_dp                        ! Slope
   REAL(dp)            :: SSA_icestream_H_config                      = 2000._dp                         ! Ice thickness (m)
-  
+
   ! ISMIP-HOM (see Pattyn et al. 2008)
   REAL(dp)            :: ISMIP_HOM_L_config                          = 160000.0                         ! Domain size of the ISMIP-HOM benchmarks
   CHARACTER(LEN=256)  :: ISMIP_HOM_E_Arolla_filename_config          = 'arolla100.dat'                  ! Path to the Haut Glacier d'Arolla input file
-  
+
   ! MISMIP+ (see Asay-Davis et al., 2016)
   LOGICAL             :: MISMIPplus_do_tune_A_for_GL_config          = .FALSE.                          ! Whether or not the flow factor A should be tuned for the GL position
   REAL(dp)            :: MISMIPplus_xGL_target_config                = 450000._dp                       ! Mid-channel GL position to tune the flow factor A for
   REAL(dp)            :: MISMIPplus_A_flow_initial_config            = 2.0E-17_dp                       ! Initial flow factor before tuning (or throughout the run when tuning is not used)
   CHARACTER(LEN=256)  :: MISMIPplus_scenario_config                  = ''                               ! Choose between the five MISMIP+  scenarios from Cornford   et al. (2020): ice0, ice1ra, ice1rr, ice2ra, ice2rr
-  
+
   ! MISOMIP1 (see Asay-Davis et al., 2016)
   CHARACTER(LEN=256)  :: MISOMIP1_scenario_config                    = ''                               ! Choose between the four MISOMIP+ scenarios from Asay-Davis et al. (2016): IceOcean1ra, IceOcean1rr, IceOcean2ra, IceOcean2rr
-  
+
   ! Whether or not to let IMAU_ICE dynamically create its own output folder.
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
-  
+
   LOGICAL             :: create_procedural_output_dir_config         = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
   CHARACTER(LEN=256)  :: fixed_output_dir_config                     = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   LOGICAL             :: do_write_regional_scalar_output_config      = .TRUE.
   LOGICAL             :: do_write_global_scalar_output_config        = .TRUE.
-  
+
   ! Debugging
   ! =========
-  
+
   LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
-  
+  LOGICAL             :: do_time_display_config                      = .FALSE.                          ! Print current model time to screen
+
   ! ISMIP-style output
   ! ==================
-  
+
   LOGICAL             :: do_write_ISMIP_output_config                = .FALSE.                          ! Whether or not to create a set of ISMIP output files
   CHARACTER(LEN=256)  :: ISMIP_output_group_code_config              = 'IMAU'                           ! Code for the group      name in the ISMIP output file names
   CHARACTER(LEN=256)  :: ISMIP_output_model_code_config              = 'IMAUICE'                        ! Code for the model      name in the ISMIP output file names
   CHARACTER(LEN=256)  :: ISMIP_output_experiment_code_config         = 'test'                           ! Code for the experiment name in the ISMIP output file names
   CHARACTER(LEN=256)  :: ISMIP_output_basetime_config                = 'YYYY-MM-DD'                     ! Basetime for the ISMIP output files (e.g. '1900-01-01')
-  
+
   ! Grids
   ! =====
-  
+
   ! North America
   REAL(dp)            :: lambda_M_NAM_config                         = 265._dp                          ! Longitude of the pole of the stereographic projection for the North America domain [degrees east]
   REAL(dp)            :: phi_M_NAM_config                            = 62._dp                           ! Latitude  of the pole of the stereographic projection for the North America domain [degrees north]
@@ -128,7 +129,7 @@ MODULE configuration_module
   REAL(dp)            :: ymin_NAM_config                             = -2400000._dp                     ! Southern boundary     of the North America domain [m]
   REAL(dp)            :: ymax_NAM_config                             =  2400000._dp                     ! Northern boundary     of the North America domain [m]
   REAL(dp)            :: dx_NAM_config                               = 40000._dp                        ! Horizontal resolution of the North America domain [m]
-  
+
   ! Eurasia
   REAL(dp)            :: lambda_M_EAS_config                         = 40._dp                           ! Longitude of the pole of the stereographic projection for the Eurasia domain [degrees east]
   REAL(dp)            :: phi_M_EAS_config                            = 70._dp                           ! Latitude  of the pole of the stereographic projection for the Eurasia domain [degrees north]
@@ -138,7 +139,7 @@ MODULE configuration_module
   REAL(dp)            :: ymin_EAS_config                             = -2080000._dp                     ! Southern boundary     of the Eurasia domain [m]
   REAL(dp)            :: ymax_EAS_config                             =  2080000._dp                     ! Northern boundary     of the Eurasia domain [m]
   REAL(dp)            :: dx_EAS_config                               = 40000._dp                        ! Horizontal resolution of the Eurasia domain [m]
-  
+
   ! Greenland
   REAL(dp)            :: lambda_M_GRL_config                         = -45._dp                          ! Longitude of the pole of the stereographic projection for the Greenland domain [degrees east]
   REAL(dp)            :: phi_M_GRL_config                            = 90._dp                           ! Latitude  of the pole of the stereographic projection for the Greenland domain [degrees north]
@@ -148,7 +149,7 @@ MODULE configuration_module
   REAL(dp)            :: ymin_GRL_config                             = -3450000._dp                     ! Southern boundary     of the Greenland domain [m]
   REAL(dp)            :: ymax_GRL_config                             =  -570000._dp                     ! Northern boundary     of the Greenland domain [m]
   REAL(dp)            :: dx_GRL_config                               = 20000._dp                        ! Horizontal resolution of the Greenland domain [m]
-  
+
   ! Antarctica
   REAL(dp)            :: lambda_M_ANT_config                         = 0._dp                            ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
   REAL(dp)            :: phi_M_ANT_config                            = -90._dp                          ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
@@ -161,7 +162,7 @@ MODULE configuration_module
 
   ! The scaled vertical coordinate zeta, used mainly in thermodynamics
   ! ==================================================================
-  
+
   INTEGER                        :: nz_config                        = 15
   REAL(dp), DIMENSION(210), SAVE :: zeta_config                      = &
    (/0.00_dp, 0.10_dp, 0.20_dp, 0.30_dp, 0.40_dp, 0.50_dp, 0.60_dp, 0.70_dp, 0.80_dp, 0.90_dp, 0.925_dp, 0.95_dp, 0.975_dp, 0.99_dp, 1.00_dp, &
@@ -181,7 +182,7 @@ MODULE configuration_module
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
-  
+
   ! Initial geometry
   CHARACTER(LEN=256)  :: choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
   CHARACTER(LEN=256)  :: choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
@@ -196,7 +197,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
-  
+
   ! Present-day geometry
   CHARACTER(LEN=256)  :: choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
   CHARACTER(LEN=256)  :: choice_refgeo_PD_EAS_config                 = 'realistic'                      ! Choice of present-day geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
@@ -207,7 +208,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   CHARACTER(LEN=256)  :: filename_refgeo_PD_ANT_config               = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
-  
+
   ! GIA equilibrium geometry
   CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_NAM_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
   CHARACTER(LEN=256)  :: choice_refgeo_GIAeq_EAS_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
@@ -220,30 +221,30 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_refgeo_GIAeq_ANT_config            = '/Users/berends/Documents/Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   LOGICAL             :: remove_Lake_Vostok_config                   = .TRUE.
-  
+
   ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
   ! ============================================================
-  
+
   ! Possible choice_forcing_method options:
   ! 'none'                 : No global forcing used at all; climate or SMB are fully parameterised or directly prescribed
   ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
   ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
   ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
-  CHARACTER(LEN=256)  :: choice_forcing_method_config                = 'd18O_inverse_dT_glob' 
-   
+  CHARACTER(LEN=256)  :: choice_forcing_method_config                = 'd18O_inverse_dT_glob'
+
   ! Insolation forcing (NetCDF)
   CHARACTER(LEN=256)  :: choice_insolation_forcing_config            = 'realistic'                      ! Choice of insolation forcing: "none", "static", "realistic"
   REAL(dp)            :: static_insolation_time_config               = 0._dp                            ! Keep insolation values fixed to this time when choice_insolation_forcing = 'static'
   CHARACTER(LEN=256)  :: filename_insolation_config                  = '/Users/berends/Documents/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
-  
-  ! CO2 record (ASCII text file, so the number of rows needs to be specified)
+
+  ! CO2 record (ASCII text file in kyr, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_CO2_record_config                  = '/Users/berends/Documents/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
   INTEGER             :: CO2_record_length_config                    = 8001
-  
+
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_d18O_record_config                 = '/Users/berends/Documents/Datasets/d18O/Ahn2017_d18O.dat'
   INTEGER             :: d18O_record_length_config                   = 2051
-  
+
   ! Geothermal heat flux
   CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
@@ -254,7 +255,7 @@ MODULE configuration_module
   REAL(dp)            :: dT_deepwater_averaging_window_config        = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
   REAL(dp)            :: dT_deepwater_dT_surf_ratio_config           = 0.25_dp                          ! Ratio between global mean surface temperature change and deep-water temperature change
   REAL(dp)            :: d18O_dT_deepwater_ratio_config              = -0.28_dp                         ! Ratio between deep-water temperature change and benthic d18O change
-  
+
   ! Parameters for the inverse routine
   REAL(dp)            :: dT_glob_inverse_averaging_window_config     = 2000._dp                         ! Time window (in yr) over which global mean temperature anomaly is averaged before changing it with the inverse routine
   REAL(dp)            :: inverse_d18O_to_dT_glob_scaling_config      = 20._dp                           ! Scaling factor between modelled d18O anomaly and prescribed temperature anomaly change (value from de Boer et al., 2013)
@@ -264,7 +265,7 @@ MODULE configuration_module
 
   ! Ice dynamics - velocity
   ! =======================
-  
+
   CHARACTER(LEN=256)  :: choice_ice_dynamics_config                  = 'DIVA'                           ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   REAL(dp)            :: n_flow_config                               = 3.0_dp                           ! Exponent in Glen's flow law
   REAL(dp)            :: m_enh_sheet_config                          = 1.0_dp                           ! Ice flow enhancement factor for grounded ice
@@ -274,7 +275,7 @@ MODULE configuration_module
   LOGICAL             :: do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
   LOGICAL             :: do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
   REAL(dp)            :: r_smooth_geometry_config                    = 0.5_dp                           ! Geometry smoothing radius (in number of grid cells)
-  
+
   ! Some parameters for numerically solving the SSA/DIVA
   REAL(dp)            :: DIVA_visc_it_norm_dUV_tol_config            = 1E-2_dp                          ! Successive solutions of UV in the effective viscosity iteration must not differ by more than this amount (on average)
   INTEGER             :: DIVA_visc_it_nit_config                     = 50                               ! Maximum number of effective viscosity iterations
@@ -300,7 +301,7 @@ MODULE configuration_module
 
   ! Ice dynamics - time integration
   ! ===============================
-  
+
   CHARACTER(LEN=256)  :: choice_timestepping_config                  = 'pc'                             ! Choice of timestepping method: "direct", "pc" (NOTE: 'direct' does not work with DIVA ice dynamcis!)
   CHARACTER(LEN=256)  :: choice_ice_integration_method_config        = 'explicit'                       ! Choice of ice thickness integration scheme: "none" (i.e. unchanging geometry), "explicit", "semi-implicit"
   CHARACTER(LEN=256)  :: dHi_choice_matrix_solver_config             = 'SOR'                            ! Choice of matrix solver for the semi-implicit ice thickness equation: "SOR", "PETSc"
@@ -309,7 +310,7 @@ MODULE configuration_module
   REAL(dp)            :: dHi_SOR_omega_config                        = 1.3_dp                           ! dHi SOR   solver - over-relaxation parameter
   REAL(dp)            :: dHi_PETSc_rtol_config                       = 0.001_dp                         ! dHi PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
   REAL(dp)            :: dHi_PETSc_abstol_config                     = 0.001_dp                         ! dHi PETSc solver - stop criterion, absolute difference
-  
+
   ! Predictor-corrector ice-thickness update
   REAL(dp)            :: pc_epsilon_config                           = 0.5_dp                           ! Target truncation error in dHi_dt [m/yr] (epsilon in Robinson et al., 2020, Eq. 33)
   REAL(dp)            :: pc_k_I_config                               = 0.2_dp                           ! Exponent k_I in  Robinson et al., 2020, Eq. 33
@@ -318,17 +319,17 @@ MODULE configuration_module
   INTEGER             :: pc_max_timestep_iterations_config           = 5                                ! Maximum number of iterations of each time step
   REAL(dp)            :: pc_redo_tol_config                          = 10._dp                           ! Maximum allowed truncation error (any higher and the timestep is decreased)
   REAL(dp)            :: dt_min_config                               = 0.01_dp                          ! Smallest allowed time step [yr]
-  
+
   ! Ice thickness boundary conditions
   CHARACTER(LEN=256)  :: ice_thickness_west_BC_config                = 'zero'                           ! Choice of boundary conditions for ice thickness at the domain boundary: "infinite", "periodic", "zero", "fixed"
-  CHARACTER(LEN=256)  :: ice_thickness_east_BC_config                = 'zero' 
+  CHARACTER(LEN=256)  :: ice_thickness_east_BC_config                = 'zero'
   CHARACTER(LEN=256)  :: ice_thickness_south_BC_config               = 'zero'
   CHARACTER(LEN=256)  :: ice_thickness_north_BC_config               = 'zero'
   CHARACTER(LEN=256)  :: choice_mask_noice_NAM_config                = 'NAM_remove_GRL'                 ! Choice of mask_noice configuration
   CHARACTER(LEN=256)  :: choice_mask_noice_EAS_config                = 'EAS_remove_GRL'
   CHARACTER(LEN=256)  :: choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   CHARACTER(LEN=256)  :: choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
-  
+
   ! Partially fixed geometry, useful for initialisation and inversion runs
   LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
@@ -340,7 +341,7 @@ MODULE configuration_module
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
-  
+
   ! Sliding laws
   CHARACTER(LEN=256)  :: choice_sliding_law_config                   = 'Coulomb_regularised'            ! Choice of sliding law: "no_sliding", "idealised", "Coulomb", "Coulomb_regularised", "Weertman", "Tsai2015", "Schoof2005", "Zoet-Iverson"
   CHARACTER(LEN=256)  :: choice_idealised_sliding_law_config         = ''                               ! "ISMIP_HOM_C", "ISMIP_HOM_D", "ISMIP_HOM_E", "ISMIP_HOM_F"
@@ -352,12 +353,12 @@ MODULE configuration_module
   REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
   LOGICAL             :: include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
   REAL(dp)            :: deltaT_basal_freezing_config                = 2._dp                            ! See above.
-  
+
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
-  
+
   ! Basal roughness / friction
   CHARACTER(LEN=256)  :: choice_basal_roughness_config               = 'parameterised'                  ! "uniform"", parameterised", "prescribed"
   REAL(dp)            :: uniform_Weertman_beta_sq_config             = 1.0E4_dp                         ! Uniform value for beta_sq  in Weertman sliding law
@@ -372,10 +373,14 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
   CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
-  
+  LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
+  REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
+
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
-  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022"
+  REAL(dp)            :: BIVgeo_t_start_config                       = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
+  REAL(dp)            :: BIVgeo_t_end_config                         = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+  CHARACTER(LEN=256)  :: choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
   REAL(dp)            :: BIVgeo_dt_config                            = 5._dp                            ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   REAL(dp)            :: BIVgeo_PDC2012_hinv_config                  = 500._dp                          ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Lipscomb2021_tauc_config             = 500._dp                          ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
@@ -391,21 +396,24 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 300._dp                          ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 3000._dp                         ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
-  CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = ''                               ! NetCDF file where the final inverted basal roughness will be saved
+  CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
+  REAL(dp)            :: BIVgeo_Bernales2017_hinv_config             = 100._dp                          ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
+  REAL(dp)            :: BIVgeo_Bernales2017_tol_diff_config         = 100._dp                          ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
+  REAL(dp)            :: BIVgeo_Bernales2017_tol_frac_config         = 1.0_dp                           ! Minimum ratio between ice thickness difference and reference value that triggers inversion
 
   ! Ice dynamics - calving
   ! ======================
-  
+
   CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
   REAL(dp)            :: calving_threshold_thickness_config          = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   LOGICAL             :: do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   LOGICAL             :: continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   REAL(dp)            :: continental_shelf_min_height_config         = -2000._dp                        ! Maximum depth of the continental shelf
-  
+
   ! Thermodynamics and rheology
   ! ===========================
-  
+
   CHARACTER(LEN=256)  :: choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   REAL(dp)            :: uniform_ice_temperature_config              = 270._dp                          ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   CHARACTER(LEN=256)  :: choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
@@ -415,69 +423,71 @@ MODULE configuration_module
   REAL(dp)            :: uniform_ice_heat_capacity_config            = 2009._dp                         ! Uniform ice heat capacity (applied when choice_ice_heat_capacity_config = "uniform")
   CHARACTER(LEN=256)  :: choice_ice_thermal_conductivity_config      = 'Ritz1987'                       ! Choice of ice heat capacity model: "uniform", "Ritz1987"
   REAL(dp)            :: uniform_ice_thermal_conductivity_config     = 6.626958E7_dp                    ! Uniform ice thermal conductivity (applied when choice_ice_thermal_conductivity_config = "uniform")
-  
+
   ! Climate
   ! =======
 
   CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
-  
+
   ! NetCDF files containing direct global/regional climate forcing
   CHARACTER(LEN=256)  :: filename_direct_global_climate_config       = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_NAM_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_EAS_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_GRL_config = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_climate_ANT_config = ''
-  
+
   ! NetCDF file containing the present-day observed climate (e.g. ERA40)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config              = '/Users/berends/Documents/Datasets/ERA40/ERA40_climate_global.nc'
-  
+
   ! GCM snapshots in the matrix_warm_cold option
   CHARACTER(LEN=256)  :: filename_climate_snapshot_PI_config         = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
-  
+
   REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
-  
+
   ! Scaling factor for CO2 vs ice weights
-  REAL(dp)            :: climate_matrix_CO2vsice_NAM_config          = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on temperature 
+  REAL(dp)            :: climate_matrix_CO2vsice_NAM_config          = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on temperature
   REAL(dp)            :: climate_matrix_CO2vsice_EAS_config          = 0.5_dp                           ! Can be set separately for different regions
   REAL(dp)            :: climate_matrix_CO2vsice_GRL_config          = 0.75_dp                          ! Default values are from Berends et al, 2018
-  REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                          ! 1.0_dp equals glacial index method                       
+  REAL(dp)            :: climate_matrix_CO2vsice_ANT_config          = 0.75_dp                          ! 1.0_dp equals glacial index method
 
   ! Orbit time and CO2 concentration of the warm and cold snapshots
-  REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                          ! CO2 level  pertaining to the warm climate (PI  level default)         
-  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                          ! CO2 level  pertaining to the cold climate (LGM level default)   
+  REAL(dp)            :: matrix_high_CO2_level_config                = 280._dp                          ! CO2 level  pertaining to the warm climate (PI  level default)
+  REAL(dp)            :: matrix_low_CO2_level_config                 = 190._dp                          ! CO2 level  pertaining to the cold climate (LGM level default)
   REAL(dp)            :: matrix_warm_orbit_time_config               = 0._dp                            ! Orbit time pertaining to the warm climate (PI default)
   REAL(dp)            :: matrix_cold_orbit_time_config               = -21000._dp                       ! Orbit time pertaining to the cold climate (LGM default)
-  
+
   ! Whether or not to apply a bias correction to the GCM snapshots
   LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
   LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
- 
+
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
-  
+
   ! Ocean
   ! =====
-  
+
   CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
-  
-  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+
+  ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-  CHARACTER(LEN=256)  :: name_ocean_temperature_config               = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
-  CHARACTER(LEN=256)  :: name_ocean_salinity_config                  = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
+  CHARACTER(LEN=256)  :: name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
+  CHARACTER(LEN=256)  :: name_ocean_salinity_obs_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_PI_config       = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_warm_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
   CHARACTER(LEN=256)  :: filename_GCM_ocean_snapshot_cold_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'
-  
+  CHARACTER(LEN=256)  :: name_ocean_temperature_GCM_config           = 't_an'
+  CHARACTER(LEN=256)  :: name_ocean_salinity_GCM_config              = 's_an'
+
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   REAL(dp)            :: ocean_temperature_PD_config                 = 271.46_dp                        ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
   REAL(dp)            :: ocean_temperature_cold_config               = 268.16_dp                        ! cold period temperature of the ocean beneath the shelves [K; -5.0 Celcius]
   REAL(dp)            :: ocean_temperature_warm_config               = 275.16_dp                        ! warm period temperature of the ocean beneath the shelves [K;  2.0 Celcius]
-  
+
   ! Parameters used when choice_idealised_ocean = "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                         ! Maximum depth           to be used for ocean data
@@ -492,11 +502,11 @@ MODULE configuration_module
   REAL(dp)            :: ocean_w_tot_hist_averaging_window_config    = 1500._dp                         ! Time window (in yr) over which the weighing fields for sea-water temperature at maximum depth are averaged
 
   ! Scaling factor for CO2 vs ice weights
-  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on ocean T and S 
+  REAL(dp)            :: ocean_matrix_CO2vsice_NAM_config            = 0.5_dp                           ! Weight factor for the influence of CO2 vs ice cover on ocean T and S
   REAL(dp)            :: ocean_matrix_CO2vsice_EAS_config            = 0.5_dp                           ! Can be set separately for different regions
-  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp                       
+  REAL(dp)            :: ocean_matrix_CO2vsice_GRL_config            = 0.75_dp
   REAL(dp)            :: ocean_matrix_CO2vsice_ANT_config            = 0.75_dp
-  
+
   ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
   REAL(dp), DIMENSION(100) :: ocean_T_surf_per_basin_config = &
       (/ -1.69_dp, -1.59_dp, -1.51_dp, -1.41_dp, -1.30_dp, -1.38_dp, -1.13_dp, -1.50_dp, -1.40_dp, -1.10_dp, &
@@ -520,21 +530,21 @@ MODULE configuration_module
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      /)
-  
+
   ! Surface mass balance
   ! ====================
-  
+
   CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_SMB_config                 = 'EISMINT1_A'
   REAL(dp)            :: SMB_uniform_config                          = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
-  
+
   ! NetCDF file containing direct global/regional climate forcing
   CHARACTER(LEN=256)  :: filename_direct_global_SMB_config           = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_NAM_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
-  
+
   ! Tuning parameters for the IMAU-ITM SMB model
   CHARACTER(LEN=256)  :: SMB_IMAUITM_choice_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
   CHARACTER(LEN=256)  :: SMB_IMAUITM_choice_init_firn_EAS_config     = 'uniform'
@@ -554,13 +564,13 @@ MODULE configuration_module
   REAL(dp)            :: SMB_IMAUITM_C_abl_Q_GRL_config              = 0.0227_dp
   REAL(dp)            :: SMB_IMAUITM_C_abl_Q_ANT_config              = 0.0227_dp
   REAL(dp)            :: SMB_IMAUITM_C_refr_NAM_config               = 0.051_dp                         ! 0.012_dp
-  REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp 
-  REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp 
+  REAL(dp)            :: SMB_IMAUITM_C_refr_EAS_config               = 0.051_dp
+  REAL(dp)            :: SMB_IMAUITM_C_refr_GRL_config               = 0.051_dp
   REAL(dp)            :: SMB_IMAUITM_C_refr_ANT_config               = 0.051_dp
-  
+
   ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
   ! ==============================================================
-  
+
   CHARACTER(LEN=256)  :: ISMIP_forcing_filename_SMB_baseline_config  = ''                              ! NetCDF file containing the baseline SMB
   CHARACTER(LEN=256)  :: ISMIP_forcing_filename_ST_baseline_config   = ''                              ! NetCDF file containing the baseline temperature
   CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_aSMB_config        = ''                              ! Folder containing the single-year NetCDF files of the SMB anomaly
@@ -571,10 +581,10 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_aST_config       = ''                              ! Filename without the year (e.g. if the actual file is "aST_MARv3.12-yearly-CESM2-ssp585-1950.nc",    then this variable should be "aST_MARv3.12-yearly-CESM2-ssp585-"
   CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_dSTdz_config       = ''                              ! Folder containing the single-year NetCDF files of the temperature lapse rate
   CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_dSTdz_config     = ''                              ! Filename without the year (e.g. if the actual file is "dSTdz_MARv3.12-yearly-CESM2-ssp585-1950.nc",  then this variable should be "dSTdz_MARv3.12-yearly-CESM2-ssp585-"
-  
+
   ! Basal mass balance
   ! ==================
-  
+
   CHARACTER(LEN=256)  :: choice_BMB_shelf_model_config               = 'ANICE_legacy'                   ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
   CHARACTER(LEN=256)  :: choice_idealised_BMB_shelf_config           = 'MISMIP+'
   CHARACTER(LEN=256)  :: choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "uniform"
@@ -584,7 +594,7 @@ MODULE configuration_module
   LOGICAL             :: do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
   REAL(dp)            :: BMB_max_config                              = 50._dp                           ! Maximum amount of allowed basal melt     [mie/yr]
   REAL(dp)            :: BMB_min_config                              = 5._dp                            ! Maximum amount of allowed basal freezing [mie/yr]
-  
+
   CHARACTER(LEN=256)  :: choice_basin_scheme_NAM_config              = 'none'                           ! Choice of basin ID scheme; can be 'none' or 'file'
   CHARACTER(LEN=256)  :: choice_basin_scheme_EAS_config              = 'none'
   CHARACTER(LEN=256)  :: choice_basin_scheme_GRL_config              = 'none'
@@ -595,29 +605,29 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_basins_ANT_config                  = ''
   LOGICAL             :: do_merge_basins_ANT_config                  = .TRUE.                           ! Whether or not to merge some of the Antarctic basins
   LOGICAL             :: do_merge_basins_GRL_config                  = .TRUE.                           ! Whether or not to merge some of the Greenland basins
- 
+
   CHARACTER(LEN=256)       ::  choice_BMB_shelf_amplification_config        = 'basin'                   ! Choice of method to determine BMB amplification factors: "uniform", "basin"
   INTEGER                  ::  basin_BMB_amplification_n_ANT_config         = 17                        ! Number of basins used for ANT
   REAL(dp), DIMENSION(17)  ::  basin_BMB_amplification_factor_ANT_config    = &                         ! BMB amplification factor for each basin for ANT
     (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
        1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
   INTEGER                  ::  basin_BMB_amplification_n_GRL_config         = 8                         ! Number of basins used for GRL
-  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                         ! BMB amplification factor for each basin for GRL 
+  REAL(dp), DIMENSION(8)   ::  basin_BMB_amplification_factor_GRL_config    = &                         ! BMB amplification factor for each basin for GRL
     (/ 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp /)
- 
+
   ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
-  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config            = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1] 
+  REAL(dp)            :: BMB_Favier2019_lin_GammaT_config            = 3.3314E-05_dp  ! 2.03E-5_dp      ! Heat exchange velocity [m s^-1]
   REAL(dp)            :: BMB_Favier2019_quad_GammaT_config           = 111.6E-5_dp    ! 99.32E-5_dp     ! Commented values are from Favier et al. (2019), Table 3
   REAL(dp)            :: BMB_Favier2019_Mplus_GammaT_config          = 108.6E-5_dp    ! 132.9E-5_dp     ! Actual value are re-tuned for IMAU-ICE, following the same approach (see Asay-Davis et al., 2016, ISOMIP+)
-  
+
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   REAL(dp)            :: BMB_Lazeroms2018_GammaT_config              = 3.7506E-04_dp  ! 1.1E-3_dp       ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
   CHARACTER(LEN=256)  :: BMB_Lazeroms2018_find_GL_scheme_config      = 'GL_average_Tijn'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
-  
+
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
   REAL(dp)            :: BMB_PICO_GammaTstar_config                  = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
-  
+
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
   REAL(dp)            :: T_ocean_mean_PD_EAS_config                  = -1.7_dp
@@ -631,7 +641,7 @@ MODULE configuration_module
   REAL(dp)            :: T_ocean_mean_warm_EAS_config                =  2.0_dp
   REAL(dp)            :: T_ocean_mean_warm_GRL_config                =  4.0_dp
   REAL(dp)            :: T_ocean_mean_warm_ANT_config                =  2.0_dp
-            
+
   REAL(dp)            :: BMB_deepocean_PD_NAM_config                 =  -5._dp                          ! Present-day sub-shelf melt rate for deep-ocean areas [m/year]
   REAL(dp)            :: BMB_deepocean_PD_EAS_config                 =  -5._dp
   REAL(dp)            :: BMB_deepocean_PD_GRL_config                 =  -5._dp
@@ -640,7 +650,7 @@ MODULE configuration_module
   REAL(dp)            :: BMB_deepocean_cold_EAS_config               =  -2._dp
   REAL(dp)            :: BMB_deepocean_cold_GRL_config               =  -2._dp
   REAL(dp)            :: BMB_deepocean_cold_ANT_config               =  -2._dp
-  REAL(dp)            :: BMB_deepocean_warm_NAM_config               = -10._dp                          ! Warm period sub-shelf melt rate for deep-ocean areas [m/year]    
+  REAL(dp)            :: BMB_deepocean_warm_NAM_config               = -10._dp                          ! Warm period sub-shelf melt rate for deep-ocean areas [m/year]
   REAL(dp)            :: BMB_deepocean_warm_EAS_config               = -10._dp
   REAL(dp)            :: BMB_deepocean_warm_GRL_config               = -10._dp
   REAL(dp)            :: BMB_deepocean_warm_ANT_config               = -10._dp
@@ -657,32 +667,32 @@ MODULE configuration_module
   REAL(dp)            :: BMB_shelf_exposed_warm_EAS_config           =  -6._dp
   REAL(dp)            :: BMB_shelf_exposed_warm_GRL_config           =  -6._dp
   REAL(dp)            :: BMB_shelf_exposed_warm_ANT_config           =  -6._dp
-    
+
   REAL(dp)            :: subshelf_melt_factor_NAM_config             = 0.005_dp                         ! Overall tuning factor for sub-shelf melt rate
   REAL(dp)            :: subshelf_melt_factor_EAS_config             = 0.005_dp
   REAL(dp)            :: subshelf_melt_factor_GRL_config             = 0.005_dp
   REAL(dp)            :: subshelf_melt_factor_ANT_config             = 0.005_dp
-  
+
   REAL(dp)            :: deep_ocean_threshold_depth_NAM_config       = 1200._dp                         ! Threshold water depth for "deep ocean" (as opposed to continental shelf);
   REAL(dp)            :: deep_ocean_threshold_depth_EAS_config       = 800._dp                          ! this mostly prevents ice shelves from growing beyond the continental shelf
   REAL(dp)            :: deep_ocean_threshold_depth_GRL_config       = 800._dp                          ! Different depths for different regions is a bit ad hoc, but in reality
   REAL(dp)            :: deep_ocean_threshold_depth_ANT_config       = 1800._dp                         ! the different surface ocean temperatures probably result in the same effect...
-  
+
   ! Englacial isotope tracing
   ! =========================
-  
+
   CHARACTER(LEN=256)  :: choice_ice_isotopes_model_config             = 'ANICE_legacy'                  ! Choice of englacial isotopes model: "none", "uniform", "ANICE_legacy"
   REAL(dp)            :: uniform_ice_d18O_config                      = 0._dp                           ! Uniform englacial d18O-value (used when choice_ice_isotope_model_config = "uniform")
-    
+
   ! Sea level and GIA
   ! =================
-  
+
   LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
   CHARACTER(LEN=256)  :: choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
-  CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Filename of a file containing a sealevel record
+  CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
-  
+
   CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   REAL(dp)            :: dx_GIA_config                               = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
   REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config       = 1.0E+25_dp                       ! Lithospheric flexural rigidity [kg m^2 s^-2]
@@ -691,39 +701,39 @@ MODULE configuration_module
 
   ! SELEN
   ! =====
-  
+
   LOGICAL             :: SELEN_run_at_t_start_config                  = .FALSE.                         ! Whether or not to run SELEN in the first coupling loop (needed for some benchmark experiments)
   INTEGER             :: SELEN_n_TDOF_iterations_config               = 1                               ! Number of Time-Dependent Ocean Function iterations
   INTEGER             :: SELEN_n_recursion_iterations_config          = 1                               ! Number of recursion iterations
   LOGICAL             :: SELEN_use_rotational_feedback_config         = .FALSE.                         ! If TRUE, rotational feedback is included
   INTEGER             :: SELEN_n_harmonics_config                     = 128                             ! Maximum number of harmonic degrees
   LOGICAL             :: SELEN_display_progress_config                = .FALSE.                         ! Whether or not to display the progress of the big loops to the screen (doesn't work on Cartesius!)
-  
+
   CHARACTER(LEN=256)  :: SELEN_dir_config                             = 'SELEN_files'                   ! Directory where SELEN initial files and spherical harmonics are stored
   CHARACTER(LEN=256)  :: SELEN_global_topo_filename_config            = 'SELEN_global_topography.nc'    ! Filename for the SELEN global topography file (located in SELEN_dir)
   CHARACTER(LEN=256)  :: SELEN_TABOO_init_filename_config             = 'SELEN_TABOO_initial_file.dat'  ! Filename for the TABOO initial file           (idem                )
   CHARACTER(LEN=256)  :: SELEN_LMJ_VALUES_filename_config             = 'SELEN_lmj_values.bin'          ! Filename for the LJ and MJ values file        (idem                )
-  
+
   INTEGER                  :: SELEN_irreg_time_n_config               = 15                              ! Number of entries in the irregular moving time window
   REAL(dp), DIMENSION(50)  :: SELEN_irreg_time_window_config          = &                               ! Values of entries in the irregular moving time window
    (/20._dp, 20._dp, 20._dp, 5._dp, 5._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, 1._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, 0._dp, &
       0._dp,  0._dp,  0._dp, 0._dp, 0._dp  /)
-      
+
   REAL(dp)            :: SELEN_lith_thickness_config                  = 100._dp                         ! Thickness of the elastic lithosphere [km]
   INTEGER             :: SELEN_visc_n_config                          = 3                               ! Number      of viscous asthenosphere layers
   REAL(dp), DIMENSION(3) :: SELEN_visc_prof_config                    = (/ 3._dp, 0.6_dp, 0.3_dp /)     ! Viscosities of viscous asthenosphere layers [?]
-    
+
   ! Settings for the TABOO Earth deformation model
   INTEGER             :: SELEN_TABOO_CDE_config                       = 0                               ! code of the model (see taboo for explanation)
   INTEGER             :: SELEN_TABOO_TLOVE_config                     = 1                               ! Tidal love numbers yes/no
   INTEGER             :: SELEN_TABOO_DEG1_config                      = 1                               ! Tidal love numbers degree
   REAL(dp)            :: SELEN_TABOO_RCMB_config                      = 3480._dp                        ! Radius of CMB (km)
-  
+
   ! Which data fields will be written to the help_fields output file
   ! ================================================================
-  
+
   CHARACTER(LEN=256)  :: help_field_01_config                        = 'none'
   CHARACTER(LEN=256)  :: help_field_02_config                        = 'none'
   CHARACTER(LEN=256)  :: help_field_03_config                        = 'none'
@@ -782,12 +792,12 @@ MODULE configuration_module
   ! which are either the default values specified above, are the values
   ! specified from the external config file.
   ! ==========================================================================
-  
+
   TYPE constants_type
 
     ! Time steps and range
     ! =====================
-   
+
     REAL(dp)                            :: start_time_of_run
     REAL(dp)                            :: end_time_of_run
     REAL(dp)                            :: dt_coupling
@@ -800,15 +810,15 @@ MODULE configuration_module
     REAL(dp)                            :: dt_bedrock_ELRA
     REAL(dp)                            :: dt_SELEN
     REAL(dp)                            :: dt_output
-    
+
     ! Which ice sheets do we simulate?
     ! ================================
-    
+
     LOGICAL                             :: do_NAM
     LOGICAL                             :: do_EAS
     LOGICAL                             :: do_GRL
     LOGICAL                             :: do_ANT
-    
+
     ! Benchmark experiments
     ! =====================
 
@@ -841,25 +851,26 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
     LOGICAL                             :: do_write_global_scalar_output
-    
+
     ! Debugging
     ! =========
-    
+
     LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
-  
+    LOGICAL                             :: do_time_display
+
     ! ISMIP output
     ! =============
-    
+
     LOGICAL                             :: do_write_ISMIP_output
     CHARACTER(LEN=256)                  :: ISMIP_output_group_code
     CHARACTER(LEN=256)                  :: ISMIP_output_model_code
     CHARACTER(LEN=256)                  :: ISMIP_output_experiment_code
     CHARACTER(LEN=256)                  :: ISMIP_output_basetime
-    
+
     ! Grids
     ! =====
-    
+
     ! North America
     REAL(dp)                            :: lambda_M_NAM
     REAL(dp)                            :: phi_M_NAM
@@ -869,7 +880,7 @@ MODULE configuration_module
     REAL(dp)                            :: ymin_NAM
     REAL(dp)                            :: ymax_NAM
     REAL(dp)                            :: dx_NAM
-    
+
     ! Eurasia
     REAL(dp)                            :: lambda_M_EAS
     REAL(dp)                            :: phi_M_EAS
@@ -879,7 +890,7 @@ MODULE configuration_module
     REAL(dp)                            :: ymin_EAS
     REAL(dp)                            :: ymax_EAS
     REAL(dp)                            :: dx_EAS
-    
+
     ! Greenland
     REAL(dp)                            :: lambda_M_GRL
     REAL(dp)                            :: phi_M_GRL
@@ -889,7 +900,7 @@ MODULE configuration_module
     REAL(dp)                            :: ymin_GRL
     REAL(dp)                            :: ymax_GRL
     REAL(dp)                            :: dx_GRL
-    
+
     ! Antarctica
     REAL(dp)                            :: lambda_M_ANT
     REAL(dp)                            :: phi_M_ANT
@@ -900,15 +911,15 @@ MODULE configuration_module
     REAL(dp)                            :: ymax_ANT
     REAL(dp)                            :: dx_ANT
 
-    ! Scaled vertical coordinate zeta  
+    ! Scaled vertical coordinate zeta
     ! ===============================
-     
+
     INTEGER                             :: nz
     REAL(dp), DIMENSION(:), ALLOCATABLE :: zeta
 
     ! Reference geometries (initial, present-day, and GIA equilibrium)
     ! ================================================================
-    
+
     ! Initial geometry
     CHARACTER(LEN=256)                  :: choice_refgeo_init_NAM
     CHARACTER(LEN=256)                  :: choice_refgeo_init_EAS
@@ -923,7 +934,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_refgeo_init_EAS
     CHARACTER(LEN=256)                  :: filename_refgeo_init_GRL
     CHARACTER(LEN=256)                  :: filename_refgeo_init_ANT
-    
+
     ! Present-day geometry
     CHARACTER(LEN=256)                  :: choice_refgeo_PD_NAM
     CHARACTER(LEN=256)                  :: choice_refgeo_PD_EAS
@@ -934,7 +945,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_refgeo_PD_EAS
     CHARACTER(LEN=256)                  :: filename_refgeo_PD_GRL
     CHARACTER(LEN=256)                  :: filename_refgeo_PD_ANT
-    
+
     ! GIA equilibrium geometry
     CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_NAM
     CHARACTER(LEN=256)                  :: choice_refgeo_GIAeq_EAS
@@ -945,38 +956,38 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_EAS
     CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_GRL
     CHARACTER(LEN=256)                  :: filename_refgeo_GIAeq_ANT
-  
+
     LOGICAL                             :: remove_Lake_Vostok
-  
+
     ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
     ! ============================================================
-    
+
     CHARACTER(LEN=256)                  :: choice_forcing_method
-     
+
     ! Insolation forcing (NetCDF)
     CHARACTER(LEN=256)                  :: choice_insolation_forcing
     REAL(dp)                            :: static_insolation_time
     CHARACTER(LEN=256)                  :: filename_insolation
-    
+
     ! CO2 record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)                  :: filename_CO2_record
     INTEGER                             :: CO2_record_length
-    
+
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)                  :: filename_d18O_record
     INTEGER                             :: d18O_record_length
-    
+
     ! Geothermal heat flux
     CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
     REAL(dp)                            :: constant_geothermal_heat_flux
     CHARACTER(LEN=256)                  :: filename_geothermal_heat_flux
-  
+
     ! Parameters for calculating modelled benthic d18O
     LOGICAL                             :: do_calculate_benthic_d18O
     REAL(dp)                            :: dT_deepwater_averaging_window
     REAL(dp)                            :: dT_deepwater_dT_surf_ratio
     REAL(dp)                            :: d18O_dT_deepwater_ratio
-    
+
     ! Parameters for the inverse routine
     REAL(dp)                            :: dT_glob_inverse_averaging_window
     REAL(dp)                            :: inverse_d18O_to_dT_glob_scaling
@@ -986,7 +997,7 @@ MODULE configuration_module
 
     ! Ice dynamics - velocity
     ! =======================
-    
+
     CHARACTER(LEN=256)                  :: choice_ice_dynamics
     REAL(dp)                            :: n_flow
     REAL(dp)                            :: m_enh_sheet
@@ -996,7 +1007,7 @@ MODULE configuration_module
     LOGICAL                             :: do_GL_subgrid_friction
     LOGICAL                             :: do_smooth_geometry
     REAL(dp)                            :: r_smooth_geometry
-    
+
     ! Some parameters for numerically solving the SSA/DIVA
     REAL(dp)                            :: DIVA_visc_it_norm_dUV_tol
     INTEGER                             :: DIVA_visc_it_nit
@@ -1019,10 +1030,10 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_SOR_omega
     REAL(dp)                            :: DIVA_PETSc_rtol
     REAL(dp)                            :: DIVA_PETSc_abstol
-  
+
     ! Ice dynamics - time integration
     ! ===============================
-    
+
     CHARACTER(LEN=256)                  :: choice_timestepping
     CHARACTER(LEN=256)                  :: choice_ice_integration_method
     CHARACTER(LEN=256)                  :: dHi_choice_matrix_solver
@@ -1031,7 +1042,7 @@ MODULE configuration_module
     REAL(dp)                            :: dHi_SOR_omega
     REAL(dp)                            :: dHi_PETSc_rtol
     REAL(dp)                            :: dHi_PETSc_abstol
-    
+
     ! Predictor-corrector ice-thickness update
     REAL(dp)                            :: pc_epsilon
     REAL(dp)                            :: pc_k_I
@@ -1040,7 +1051,7 @@ MODULE configuration_module
     INTEGER                             :: pc_max_timestep_iterations
     REAL(dp)                            :: pc_redo_tol
     REAL(dp)                            :: dt_min
-  
+
     ! Ice thickness boundary conditions
     CHARACTER(LEN=256)                  :: ice_thickness_west_BC
     CHARACTER(LEN=256)                  :: ice_thickness_east_BC
@@ -1062,7 +1073,7 @@ MODULE configuration_module
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-  
+
     ! Sliding laws
     CHARACTER(LEN=256)                  :: choice_sliding_law
     CHARACTER(LEN=256)                  :: choice_idealised_sliding_law
@@ -1074,7 +1085,7 @@ MODULE configuration_module
     REAL(dp)                            :: slid_ZI_p
     LOGICAL                             :: include_basal_freezing
     REAL(dp)                            :: deltaT_basal_freezing
-    
+
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
     REAL(dp)                            :: Martin2011_hydro_Hb_min
@@ -1094,9 +1105,13 @@ MODULE configuration_module
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
     CHARACTER(LEN=256)                  :: basal_roughness_filename
-    
+    LOGICAL                             :: do_smooth_phi_restart
+    REAL(dp)                            :: r_smooth_phi_restart
+
     ! Basal inversion
     LOGICAL                             :: do_BIVgeo
+    REAL(dp)                            :: BIVgeo_t_start
+    REAL(dp)                            :: BIVgeo_t_end
     CHARACTER(LEN=256)                  :: choice_BIVgeo_method
     REAL(dp)                            :: BIVgeo_dt
     REAL(dp)                            :: BIVgeo_PDC2012_hinv
@@ -1114,10 +1129,13 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_Berends2022_u_scale
     CHARACTER(LEN=256)                  :: BIVgeo_target_velocity_filename
     CHARACTER(LEN=256)                  :: BIVgeo_filename_output
-    
+    REAL(dp)                            :: BIVgeo_Bernales2017_hinv
+    REAL(dp)                            :: BIVgeo_Bernales2017_tol_diff
+    REAL(dp)                            :: BIVgeo_Bernales2017_tol_frac
+
     ! Ice dynamics - calving
     ! ======================
-    
+
     CHARACTER(LEN=256)                  :: choice_calving_law
     REAL(dp)                            :: calving_threshold_thickness
     LOGICAL                             :: do_remove_shelves
@@ -1127,7 +1145,7 @@ MODULE configuration_module
 
     ! Thermodynamics and rheology
     ! ===========================
-    
+
     CHARACTER(LEN=256)                  :: choice_initial_ice_temperature
     REAL(dp)                            :: uniform_ice_temperature
     CHARACTER(LEN=256)                  :: choice_thermo_model
@@ -1137,73 +1155,75 @@ MODULE configuration_module
     REAL(dp)                            :: uniform_ice_heat_capacity
     CHARACTER(LEN=256)                  :: choice_ice_thermal_conductivity
     REAL(dp)                            :: uniform_ice_thermal_conductivity
-  
+
     ! Climate
     ! =======
-  
+
     CHARACTER(LEN=256)                  :: choice_climate_model
     CHARACTER(LEN=256)                  :: choice_idealised_climate
-    
+
     ! NetCDF files containing direct global/regional climate forcing
     CHARACTER(LEN=256)                  :: filename_direct_global_climate
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_NAM
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_EAS
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_GRL
     CHARACTER(LEN=256)                  :: filename_direct_regional_climate_ANT
-    
+
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
-    
+
     ! GCM snapshots in the matrix_warm_cold option
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_cold
-    
+
     REAL(dp)                            :: constant_lapserate
-    
+
     ! Scaling factor for CO2 vs ice weights
     REAL(dp)                            :: climate_matrix_CO2vsice_NAM
     REAL(dp)                            :: climate_matrix_CO2vsice_EAS
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
-  
+
     ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
     REAL(dp), DIMENSION(100) :: ocean_T_surf_per_basin
     REAL(dp), DIMENSION(100) :: ocean_dT_dz_per_basin
-    
+
     ! Orbit time and CO2 concentration of the warm and cold snapshots
     REAL(dp)                            :: matrix_high_CO2_level
     REAL(dp)                            :: matrix_low_CO2_level
     REAL(dp)                            :: matrix_warm_orbit_time
     REAL(dp)                            :: matrix_cold_orbit_time
-    
+
     ! Whether or not to apply a bias correction to the GCM snapshots
     LOGICAL                             :: climate_matrix_biascorrect_warm
     LOGICAL                             :: climate_matrix_biascorrect_cold
-    
+
     LOGICAL                             :: switch_glacial_index_precip
-    
+
     ! Ocean
     ! =====
-    
+
     CHARACTER(LEN=256)                  :: choice_ocean_model
     CHARACTER(LEN=256)                  :: choice_idealised_ocean
-    
-    ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+
+    ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
-    CHARACTER(LEN=256)                  :: name_ocean_temperature
-    CHARACTER(LEN=256)                  :: name_ocean_salinity
-    
+    CHARACTER(LEN=256)                  :: name_ocean_temperature_obs
+    CHARACTER(LEN=256)                  :: name_ocean_salinity_obs
+
     ! GCM snapshots in the matrix_warm_cold option
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_PI
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_GCM_ocean_snapshot_cold
-    
+    CHARACTER(LEN=256)                  :: name_ocean_temperature_GCM
+    CHARACTER(LEN=256)                  :: name_ocean_salinity_GCM
+
     ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
     REAL(dp)                            :: ocean_temperature_PD
     REAL(dp)                            :: ocean_temperature_cold
     REAL(dp)                            :: ocean_temperature_warm
-    
+
     ! Parameters used when choice_ocean_model = "matrix_warm_cold"
     CHARACTER(LEN=256)                  :: choice_ocean_vertical_grid
     REAL(dp)                            :: ocean_vertical_grid_max_depth
@@ -1218,27 +1238,27 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_GRL
     CHARACTER(LEN=256)                  :: ocean_extrap_hires_geo_filename_ANT
     REAL(dp)                            :: ocean_w_tot_hist_averaging_window
-    
+
     ! Scaling factor for CO2 vs ice weights
     REAL(dp)                            :: ocean_matrix_CO2vsice_NAM
     REAL(dp)                            :: ocean_matrix_CO2vsice_EAS
     REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
     REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
-    
+
     ! Surface mass balance
     ! ====================
-    
+
     CHARACTER(LEN=256)                  :: choice_SMB_model
     CHARACTER(LEN=256)                  :: choice_idealised_SMB
     REAL(dp)                            :: SMB_uniform
-    
+
     ! NetCDF file containing direct global/regional SMB forcing
     CHARACTER(LEN=256)                  :: filename_direct_global_SMB
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_NAM
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_EAS
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_GRL
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_ANT
-    
+
     ! Tuning parameters for the IMAU-ITM SMB model
     CHARACTER(LEN=256)                  :: SMB_IMAUITM_choice_init_firn_NAM
     CHARACTER(LEN=256)                  :: SMB_IMAUITM_choice_init_firn_EAS
@@ -1261,10 +1281,10 @@ MODULE configuration_module
     REAL(dp)                            :: SMB_IMAUITM_C_refr_EAS
     REAL(dp)                            :: SMB_IMAUITM_C_refr_GRL
     REAL(dp)                            :: SMB_IMAUITM_C_refr_ANT
-    
+
     ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
     ! ==============================================================
-    
+
     CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_SMB_baseline
     CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_ST_baseline
     CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_aSMB
@@ -1275,10 +1295,10 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_aST
     CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_dSTdz
     CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_dSTdz
-    
+
     ! Basal mass balance - sub-shelf melt
     ! ===================================
-    
+
     CHARACTER(LEN=256)                  :: choice_BMB_shelf_model
     CHARACTER(LEN=256)                  :: choice_idealised_BMB_shelf
     CHARACTER(LEN=256)                  :: choice_BMB_sheet_model
@@ -1288,7 +1308,7 @@ MODULE configuration_module
     LOGICAL                             :: do_asynchronous_BMB
     REAL(dp)                            :: BMB_max
     REAL(dp)                            :: BMB_min
-    
+
     CHARACTER(LEN=256)                  :: choice_basin_scheme_NAM
     CHARACTER(LEN=256)                  :: choice_basin_scheme_EAS
     CHARACTER(LEN=256)                  :: choice_basin_scheme_GRL
@@ -1299,26 +1319,26 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_basins_ANT
     LOGICAL                             :: do_merge_basins_ANT
     LOGICAL                             :: do_merge_basins_GRL
-    
+
     CHARACTER(LEN=256)                  :: choice_BMB_shelf_amplification
     INTEGER                             :: basin_BMB_amplification_n_ANT
     REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_ANT
     INTEGER                             :: basin_BMB_amplification_n_GRL
     REAL(dp), DIMENSION(:), ALLOCATABLE :: basin_BMB_amplification_factor_GRL
-  
+
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
     REAL(dp)                            :: BMB_Favier2019_lin_GammaT
     REAL(dp)                            :: BMB_Favier2019_quad_GammaT
     REAL(dp)                            :: BMB_Favier2019_Mplus_GammaT
-    
+
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     REAL(dp)                            :: BMB_Lazeroms2018_GammaT
     CHARACTER(LEN=256)                  :: BMB_Lazeroms2018_find_GL_scheme
-  
+
     ! Parameters for the PICO BMB model
     INTEGER                             :: BMB_PICO_nboxes
     REAL(dp)                            :: BMB_PICO_GammaTstar
-    
+
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
     REAL(dp)                            :: T_ocean_mean_PD_EAS
@@ -1332,7 +1352,7 @@ MODULE configuration_module
     REAL(dp)                            :: T_ocean_mean_warm_EAS
     REAL(dp)                            :: T_ocean_mean_warm_GRL
     REAL(dp)                            :: T_ocean_mean_warm_ANT
-              
+
     REAL(dp)                            :: BMB_deepocean_PD_NAM
     REAL(dp)                            :: BMB_deepocean_PD_EAS
     REAL(dp)                            :: BMB_deepocean_PD_GRL
@@ -1345,7 +1365,7 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_deepocean_warm_EAS
     REAL(dp)                            :: BMB_deepocean_warm_GRL
     REAL(dp)                            :: BMB_deepocean_warm_ANT
-  
+
     REAL(dp)                            :: BMB_shelf_exposed_PD_NAM
     REAL(dp)                            :: BMB_shelf_exposed_PD_EAS
     REAL(dp)                            :: BMB_shelf_exposed_PD_GRL
@@ -1358,32 +1378,32 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_exposed_warm_EAS
     REAL(dp)                            :: BMB_shelf_exposed_warm_GRL
     REAL(dp)                            :: BMB_shelf_exposed_warm_ANT
-      
+
     REAL(dp)                            :: subshelf_melt_factor_NAM
     REAL(dp)                            :: subshelf_melt_factor_EAS
     REAL(dp)                            :: subshelf_melt_factor_GRL
     REAL(dp)                            :: subshelf_melt_factor_ANT
-    
+
     REAL(dp)                            :: deep_ocean_threshold_depth_NAM
     REAL(dp)                            :: deep_ocean_threshold_depth_EAS
     REAL(dp)                            :: deep_ocean_threshold_depth_GRL
     REAL(dp)                            :: deep_ocean_threshold_depth_ANT
-  
+
     ! Englacial isotope tracing
     ! ========================
-    
+
     CHARACTER(LEN=256)                  :: choice_ice_isotopes_model
     REAL(dp)                            :: uniform_ice_d18O
-  
+
     ! Sea level and GIA
     ! =================
-    
+
     LOGICAL                             :: do_ocean_floodfill
     CHARACTER(LEN=256)                  :: choice_sealevel_model
     REAL(dp)                            :: fixed_sealevel
     CHARACTER(LEN=256)                  :: filename_sealevel_record
     INTEGER                             :: sealevel_record_length
-  
+
     CHARACTER(LEN=256)                  :: choice_GIA_model
     REAL(dp)                            :: dx_GIA
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
@@ -1392,95 +1412,95 @@ MODULE configuration_module
 
     ! SELEN
     ! =====
-    
+
     LOGICAL                             :: SELEN_run_at_t_start
     INTEGER                             :: SELEN_n_TDOF_iterations
     INTEGER                             :: SELEN_n_recursion_iterations
     LOGICAL                             :: SELEN_use_rotational_feedback
     INTEGER                             :: SELEN_n_harmonics
     LOGICAL                             :: SELEN_display_progress
-    
+
     CHARACTER(LEN=256)                  :: SELEN_dir
     CHARACTER(LEN=256)                  :: SELEN_global_topo_filename
     CHARACTER(LEN=256)                  :: SELEN_TABOO_init_filename
     CHARACTER(LEN=256)                  :: SELEN_LMJ_VALUES_filename
-    
+
     INTEGER                             :: SELEN_irreg_time_n
     REAL(dp), DIMENSION(:), ALLOCATABLE :: SELEN_irreg_time_window
-    
+
     REAL(dp)                            :: SELEN_lith_thickness
     INTEGER                             :: SELEN_visc_n
     REAL(dp), DIMENSION(:), ALLOCATABLE :: SELEN_visc_prof
-    
+
     INTEGER                             :: SELEN_TABOO_CDE
     INTEGER                             :: SELEN_TABOO_TLOVE
     INTEGER                             :: SELEN_TABOO_DEG1
     REAL(dp)                            :: SELEN_TABOO_RCMB
-    
+
     ! Some derived values
     INTEGER                             :: SELEN_i1, SELEN_i2           ! Parallelisation of loops over global grid pixels
     INTEGER                             :: SELEN_j1, SELEN_j2           ! Parallelisation of loops over harmonic degrees
     REAL(dp)                            :: SELEN_alfa
     INTEGER                             :: SELEN_jmax
     INTEGER                             :: SELEN_reg_time_n
-    
+
     ! Which data fields will be written to the help_fields output file
     ! ================================================================
-    
-    CHARACTER(LEN=256)                  :: help_field_01  
-    CHARACTER(LEN=256)                  :: help_field_02  
-    CHARACTER(LEN=256)                  :: help_field_03  
-    CHARACTER(LEN=256)                  :: help_field_04  
-    CHARACTER(LEN=256)                  :: help_field_05  
-    CHARACTER(LEN=256)                  :: help_field_06  
-    CHARACTER(LEN=256)                  :: help_field_07  
-    CHARACTER(LEN=256)                  :: help_field_08  
+
+    CHARACTER(LEN=256)                  :: help_field_01
+    CHARACTER(LEN=256)                  :: help_field_02
+    CHARACTER(LEN=256)                  :: help_field_03
+    CHARACTER(LEN=256)                  :: help_field_04
+    CHARACTER(LEN=256)                  :: help_field_05
+    CHARACTER(LEN=256)                  :: help_field_06
+    CHARACTER(LEN=256)                  :: help_field_07
+    CHARACTER(LEN=256)                  :: help_field_08
     CHARACTER(LEN=256)                  :: help_field_09
-    CHARACTER(LEN=256)                  :: help_field_10  
-    CHARACTER(LEN=256)                  :: help_field_11  
-    CHARACTER(LEN=256)                  :: help_field_12  
-    CHARACTER(LEN=256)                  :: help_field_13  
-    CHARACTER(LEN=256)                  :: help_field_14  
-    CHARACTER(LEN=256)                  :: help_field_15  
-    CHARACTER(LEN=256)                  :: help_field_16  
-    CHARACTER(LEN=256)                  :: help_field_17  
-    CHARACTER(LEN=256)                  :: help_field_18  
+    CHARACTER(LEN=256)                  :: help_field_10
+    CHARACTER(LEN=256)                  :: help_field_11
+    CHARACTER(LEN=256)                  :: help_field_12
+    CHARACTER(LEN=256)                  :: help_field_13
+    CHARACTER(LEN=256)                  :: help_field_14
+    CHARACTER(LEN=256)                  :: help_field_15
+    CHARACTER(LEN=256)                  :: help_field_16
+    CHARACTER(LEN=256)                  :: help_field_17
+    CHARACTER(LEN=256)                  :: help_field_18
     CHARACTER(LEN=256)                  :: help_field_19
-    CHARACTER(LEN=256)                  :: help_field_20  
-    CHARACTER(LEN=256)                  :: help_field_21  
-    CHARACTER(LEN=256)                  :: help_field_22  
-    CHARACTER(LEN=256)                  :: help_field_23  
-    CHARACTER(LEN=256)                  :: help_field_24  
-    CHARACTER(LEN=256)                  :: help_field_25  
-    CHARACTER(LEN=256)                  :: help_field_26  
-    CHARACTER(LEN=256)                  :: help_field_27  
-    CHARACTER(LEN=256)                  :: help_field_28  
+    CHARACTER(LEN=256)                  :: help_field_20
+    CHARACTER(LEN=256)                  :: help_field_21
+    CHARACTER(LEN=256)                  :: help_field_22
+    CHARACTER(LEN=256)                  :: help_field_23
+    CHARACTER(LEN=256)                  :: help_field_24
+    CHARACTER(LEN=256)                  :: help_field_25
+    CHARACTER(LEN=256)                  :: help_field_26
+    CHARACTER(LEN=256)                  :: help_field_27
+    CHARACTER(LEN=256)                  :: help_field_28
     CHARACTER(LEN=256)                  :: help_field_29
-    CHARACTER(LEN=256)                  :: help_field_30  
-    CHARACTER(LEN=256)                  :: help_field_31  
-    CHARACTER(LEN=256)                  :: help_field_32  
-    CHARACTER(LEN=256)                  :: help_field_33  
-    CHARACTER(LEN=256)                  :: help_field_34  
-    CHARACTER(LEN=256)                  :: help_field_35  
-    CHARACTER(LEN=256)                  :: help_field_36  
-    CHARACTER(LEN=256)                  :: help_field_37  
-    CHARACTER(LEN=256)                  :: help_field_38  
+    CHARACTER(LEN=256)                  :: help_field_30
+    CHARACTER(LEN=256)                  :: help_field_31
+    CHARACTER(LEN=256)                  :: help_field_32
+    CHARACTER(LEN=256)                  :: help_field_33
+    CHARACTER(LEN=256)                  :: help_field_34
+    CHARACTER(LEN=256)                  :: help_field_35
+    CHARACTER(LEN=256)                  :: help_field_36
+    CHARACTER(LEN=256)                  :: help_field_37
+    CHARACTER(LEN=256)                  :: help_field_38
     CHARACTER(LEN=256)                  :: help_field_39
-    CHARACTER(LEN=256)                  :: help_field_40  
-    CHARACTER(LEN=256)                  :: help_field_41  
-    CHARACTER(LEN=256)                  :: help_field_42  
-    CHARACTER(LEN=256)                  :: help_field_43  
-    CHARACTER(LEN=256)                  :: help_field_44  
-    CHARACTER(LEN=256)                  :: help_field_45  
-    CHARACTER(LEN=256)                  :: help_field_46  
-    CHARACTER(LEN=256)                  :: help_field_47  
-    CHARACTER(LEN=256)                  :: help_field_48  
+    CHARACTER(LEN=256)                  :: help_field_40
+    CHARACTER(LEN=256)                  :: help_field_41
+    CHARACTER(LEN=256)                  :: help_field_42
+    CHARACTER(LEN=256)                  :: help_field_43
+    CHARACTER(LEN=256)                  :: help_field_44
+    CHARACTER(LEN=256)                  :: help_field_45
+    CHARACTER(LEN=256)                  :: help_field_46
+    CHARACTER(LEN=256)                  :: help_field_47
+    CHARACTER(LEN=256)                  :: help_field_48
     CHARACTER(LEN=256)                  :: help_field_49
     CHARACTER(LEN=256)                  :: help_field_50
-    
+
     ! Values to be filled into the total mask (used only for diagnostic output)
     ! ==========================================================================
-    
+
     INTEGER                             :: type_land
     INTEGER                             :: type_ocean
     INTEGER                             :: type_lake
@@ -1490,22 +1510,22 @@ MODULE configuration_module
     INTEGER                             :: type_margin
     INTEGER                             :: type_groundingline
     INTEGER                             :: type_calvingfront
-    
+
     ! The output directory
     ! ====================
-    
+
     CHARACTER(LEN=256)                  :: output_dir
 
   END TYPE constants_type
-  
 
-  
-  
+
+
+
   ! Since some of the TABOO routines have variables named C (thanks, Giorgio...),
   ! we cannot use the regular config structure there. Collect the required config
   ! parameters into a smaller separate structure called C_TABOO
   TYPE constants_type_TABOO
-    
+
     INTEGER                             :: IMODE            ! SELEN integration mode
     INTEGER                             :: NV               ! Number of viscoelastic layers
     REAL(dp), DIMENSION(:), ALLOCATABLE :: VSC              ! Viscosity profile
@@ -1521,7 +1541,7 @@ MODULE configuration_module
   ! ===============================================
   ! "C" is an instance of the "constants_type" type
   ! ===============================================
-  
+
   TYPE(constants_type      ), SAVE :: C
   TYPE(constants_type_TABOO), SAVE :: C_TABOO
 
@@ -1531,10 +1551,10 @@ CONTAINS
     ! Initialise the C (configuration) structure from one or two external config text files,
     ! set up the output directory (either procedurally from the current date, or directly
     ! from the config-specified folder name), and copy the config file(s) there.
-    
+
     ! In/output variables:
     CHARACTER(LEN=256),                  INTENT(IN)    :: version_number
-    
+
     ! Local variables:
     INTEGER                                            :: ierr, process_rank, number_of_processes, p
     LOGICAL                                            :: master
@@ -1542,125 +1562,125 @@ CONTAINS
     INTEGER                                            :: i,n
     CHARACTER(LEN=20)                                  :: output_dir_procedural
     LOGICAL                                            :: ex
-  
+
     ! Get rank of current process and total number of processes
     ! (needed because the configuration_module cannot access the par structure)
     CALL MPI_COMM_RANK( MPI_COMM_WORLD, process_rank, ierr)
     CALL MPI_COMM_SIZE( MPI_COMM_WORLD, number_of_processes, ierr)
     master = (process_rank == 0)
-    
+
   ! ===== Set up the config structure =====
   ! =======================================
-    
+
     ! The name(s) of the config file(s) are provided as input arguments when calling the IMAU_ICE_program
     ! executable. After calling MPI_INIT, only the master process "sees" these arguments, so they need to be
     ! broadcast to the other processes.
-    
+
     IF (master) THEN
-    
+
       config_filename       = ''
       template_filename     = ''
       variation_filename    = ''
       config_mode           = ''
-      
+
       IF     (iargc() == 0) THEN
         CALL crash('IMAU-ICE v' // TRIM( version_number) // ' needs at least one config file to run!')
       ELSEIF (iargc() == 1) THEN
         ! Run the model with a single config file
-        
+
         CALL getarg( 1, config_filename)
         config_mode = 'single_config'
-        
+
       ELSEIF (iargc() == 2) THEN
         ! Run the model with two config files (template+variation)
-        
+
         CALL getarg( 1, template_filename )
         CALL getarg( 2, variation_filename)
         config_mode = 'template+variation'
-        
+
       ELSE
         CALL crash('IMAU-ICE v' // TRIM( version_number) // ' can take either one or two config files to run!')
       END IF
-      
+
     END IF ! IF (master) THEN
-    
+
     CALL MPI_BCAST( config_filename,    256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( template_filename,  256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( variation_filename, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( config_mode,        256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
-    
+
     ! Let each of the processors read the config file in turns so there's no access conflicts
     IF (config_mode == 'single_config') THEN
       ! Read only a single config file
-      
+
       DO p = 0, number_of_processes-1
         IF (p == process_rank) THEN
-        
+
           ! Read the external file, use a Fortran NAMELIST to overwrite the default
           ! values of the XXX_config variables
           CALL read_config_file( config_filename)
-          
+
           ! Copy values from the XXX_config variables to the C structure
           CALL copy_variables_to_struct
-          
+
         END IF
         CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
       END DO
-      
+
     ELSEIF (config_mode == 'template+variation') THEN
       ! Read two config file consecutively: one "template" and one "variation"
-      
+
       DO p = 0, number_of_processes-1
         IF (p == process_rank) THEN
-        
+
           ! Read the external file, use a Fortran NAMELIST to overwrite the default
           ! values of the XXX_config variables
-          
+
           ! First the template, then the variation
           CALL read_config_file( template_filename)
           CALL read_config_file( variation_filename)
-          
+
           ! Copy values from the XXX_config variables to the C structure
           CALL copy_variables_to_struct
-          
+
         END IF
         CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
       END DO
-      
+
     ELSE ! IF (config_mode == 'single_config') THEN
       CALL crash(' unknown config_mode "' // TRIM( config_mode) // '"!')
     END IF ! IF (config_mode == 'single_config') THEN
-    
+
   ! ===== Set up the output directory =====
   ! =======================================
-    
+
     ! First get the name of the output directory (either procedural, or provided in the config file)
-    
+
     DO n = 1, 256
       C%output_dir(n:n) = ' '
     END DO
-    
+
     IF (C%create_procedural_output_dir) THEN
       ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-      
-      IF (master) THEN  
+
+      IF (master) THEN
         CALL get_procedural_output_dir_name( output_dir_procedural)
         C%output_dir(1:21) = TRIM(output_dir_procedural) // '/'
       END IF
       CALL MPI_BCAST( C%output_dir, 256, MPI_CHAR, 0, MPI_COMM_WORLD, ierr)
-      
+
     ELSE
       ! Use the provided name (return an error if this directory already exists)
 
       C%output_dir = TRIM(C%fixed_output_dir) // TRIM(C%fixed_output_dir_suffix) // '/'
-      
+
       INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
       IF (ex) THEN
         CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
       END IF
-      
+
     END IF
-    
+
     ! Create the directory
     IF (master) THEN
       CALL system('mkdir ' // TRIM(C%output_dir))
@@ -1669,7 +1689,7 @@ CONTAINS
       WRITE(0,*) ''
     END IF
     CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
-    
+
     ! Copy the config file to the output directory
     IF (master) THEN
       IF     (config_mode == 'single_config') THEN
@@ -1682,39 +1702,38 @@ CONTAINS
       END IF ! IF (config_mode == 'single_config') THEN
     END IF ! IF (master) THEN
     CALL MPI_BARRIER( MPI_COMM_WORLD, ierr)
-    
+
     ! Set up the subroutine resource tracker
     ! ======================================
-    
+
     ! Allocate space to track up to 1,000 subroutines. That should be enough for a while...
     n = 1000
     ALLOCATE( resource_tracker( n))
-    
+
     ! Initialise values
     DO i = 1, n
       resource_tracker( i)%routine_path = 'subroutine_placeholder'
       resource_tracker( i)%tstart       = 0._dp
       resource_tracker( i)%tcomp       = 0._dp
     END DO
-    
+
   END SUBROUTINE initialise_model_configuration
 
   SUBROUTINE read_config_file( config_filename)
     ! Use a NAMELIST containing all the "_config" variables to read
     ! an external config file, and overwrite the default values of
     ! the specified variables with the values from the file.
-    
+
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=256),INTENT(IN) :: config_filename
-    
     ! Local variables:
     CHARACTER(LEN=256)            :: namelist_filename
     INTEGER, PARAMETER            :: config_unit   = 1337
     INTEGER, PARAMETER            :: namelist_unit = 1338
     INTEGER                       :: ios, ierr, cerr
-    
+
     ! The NAMELIST that's used to read the external config file.
 
     NAMELIST /CONFIG/start_time_of_run_config,                        &
@@ -1752,6 +1771,7 @@ CONTAINS
                      do_write_global_scalar_output_config,            &
                      do_write_debug_data_config,                      &
                      do_check_for_NaN_config,                         &
+                     do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
                      ISMIP_output_group_code_config,                  &
                      ISMIP_output_model_code_config,                  &
@@ -1927,7 +1947,11 @@ CONTAINS
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
                      basal_roughness_filename_config,                 &
+                     do_smooth_phi_restart_config,                    &
+                     r_smooth_phi_restart_config,                     &
                      do_BIVgeo_config,                                &
+                     BIVgeo_t_start_config,                           &
+                     BIVgeo_t_end_config,                             &
                      choice_BIVgeo_method_config,                     &
                      BIVgeo_dt_config,                                &
                      BIVgeo_PDC2012_hinv_config,                      &
@@ -1945,6 +1969,9 @@ CONTAINS
                      BIVgeo_Berends2022_u_scale_config,               &
                      BIVgeo_target_velocity_filename_config,          &
                      BIVgeo_filename_output_config,                   &
+                     BIVgeo_Bernales2017_hinv_config,                 &
+                     BIVgeo_Bernales2017_tol_diff_config,             &
+                     BIVgeo_Bernales2017_tol_frac_config,             &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -1988,11 +2015,13 @@ CONTAINS
                      choice_ocean_model_config,                       &
                      choice_idealised_ocean_config,                   &
                      filename_PD_obs_ocean_config,                    &
-                     name_ocean_temperature_config,                   &
-                     name_ocean_salinity_config,                      &
+                     name_ocean_temperature_obs_config,               &
+                     name_ocean_salinity_obs_config,                  &
                      filename_GCM_ocean_snapshot_PI_config,           &
                      filename_GCM_ocean_snapshot_warm_config,         &
                      filename_GCM_ocean_snapshot_cold_config,         &
+                     name_ocean_temperature_GCM_config,               &
+                     name_ocean_salinity_GCM_config,                  &
                      ocean_temperature_PD_config,                     &
                      ocean_temperature_cold_config,                   &
                      ocean_temperature_warm_config,                   &
@@ -2152,9 +2181,9 @@ CONTAINS
                      SELEN_lith_thickness_config,                     &
                      SELEN_visc_n_config,                             &
                      SELEN_visc_prof_config,                          &
-                     SELEN_TABOO_CDE_config,                          & 
-                     SELEN_TABOO_TLOVE_config,                        & 
-                     SELEN_TABOO_DEG1_config,                         & 
+                     SELEN_TABOO_CDE_config,                          &
+                     SELEN_TABOO_TLOVE_config,                        &
+                     SELEN_TABOO_DEG1_config,                         &
                      SELEN_TABOO_RCMB_config,                         &
                      help_field_01_config,                            &
                      help_field_02_config,                            &
@@ -2206,21 +2235,21 @@ CONTAINS
                      help_field_48_config,                            &
                      help_field_49_config,                            &
                      help_field_50_config
-                      
+
     IF (config_filename == '') RETURN
-    
+
     ! Write the CONFIG namelist to a temporary file
     namelist_filename = 'config_namelist_temp.txt'
     OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
     WRITE( UNIT = namelist_unit, NML  = CONFIG)
     CLOSE( UNIT = namelist_unit)
-    
+
     ! Check the config file for validity
     CALL check_config_file_validity( config_filename, namelist_filename)
-    
+
     ! Delete the temporary CONFIG namelist file
     CALL system('rm -f ' // TRIM( namelist_filename))
-    
+
     ! Open the config file
     OPEN(  UNIT = config_unit, FILE = TRIM( config_filename), STATUS = 'OLD', ACTION = 'READ', IOSTAT = ios)
     IF (ios /= 0) THEN
@@ -2234,20 +2263,20 @@ CONTAINS
       WRITE(0,'(A,A,A)') colour_string('ERROR: error while reading config file "' // TRIM( config_filename),'red') // '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    
+
     ! Close the config file
     CLOSE( UNIT = config_unit)
 
   END SUBROUTINE read_config_file
-  
+
   SUBROUTINE check_config_file_validity( config_filename, namelist_filename)
     ! Check if the provided config file is valid
-    ! 
+    !
     ! Do this by reading one line at a time of the config file, determining the name of the variable
     ! declared in that line, and checking if that variable also exists in the namelist file
-    ! 
+    !
     ! Assumes that the CONFIG namelist has already been written to the specified file.
-    
+
     IMPLICIT NONE
 
     ! In/output variables:
@@ -2268,33 +2297,33 @@ CONTAINS
       WRITE(0,'(A)') colour_string('ERROR','red') // ': config file "' // TRIM( config_filename) // '" not found!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    
+
     ! Read one line at a time of the config file, determine the name of the variable
     ! declared in that line, and check if that variable also exists in the namelist file
-    
+
     found_end_of_file_config = .FALSE.
     line_counter_config      = 0
     found_mismatch           = .FALSE.
-    
+
     DO WHILE (.NOT. found_end_of_file_config)
-    
+
       line_counter_config = line_counter_config + 1
-      
+
       ! Read a single line from the config file
       READ( UNIT = config_unit, FMT = '(A)', IOSTAT = ios) single_line_config
-      
+
       ! If we've reached the end of the file before finding the terminating forward slash, this config file is not valid.
       IF (ios < 0) THEN
         WRITE(0,'(A)') colour_string('ERROR','red') // ': config file "' // TRIM( config_filename) // '" is not terminated with a forward slash!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
-      
+
       ! Remove all leading spaces
       CALL remove_leading_spaces( single_line_config)
-      
+
       ! The variable name is the part of the string left of the first (, =, or space.
       single_line_config = single_line_config( 1:SCAN( single_line_config, '( =')-1)
-      
+
       ! Get config variable in all caps for case-insensitive comparison
       CALL capitalise_string( single_line_config)
 
@@ -2302,64 +2331,64 @@ CONTAINS
       IF (single_line_config == '/') THEN
         found_end_of_file_config = .TRUE.
       END IF
-      
+
       ! Disregard empty lines, commented lines, and the header line
       IF (single_line_config == '' .OR. single_line_config == '&CONFIG' .OR. single_line_config( 1:1) == '!') THEN
         CYCLE
       END IF
-      
+
       ! Open the namelist file
       OPEN( UNIT = namelist_unit, FILE = namelist_filename)
       IF (ios /= 0) THEN
         WRITE(0,'(A)') colour_string('ERROR','red') // ': namelist file "' // TRIM( namelist_filename) // '" not found!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
       END IF
-      
+
       ! Read all variables from the namelist file and check if any of them match the current config variable
-      
+
       found_end_of_file_namelist = .FALSE.
       line_counter_namelist      = 0
       found_match                = .FALSE.
-      
+
       DO WHILE ((.NOT. found_end_of_file_namelist) .AND. (.NOT. found_match))
-        
+
         line_counter_namelist = line_counter_namelist + 1
-      
+
         ! Read a single line from the namelist file
         READ( UNIT = namelist_unit, FMT = '(A)', IOSTAT = ios) single_line_namelist
-        
+
         ! If we've reached the end of the file before finding the terminating forward slash, this namelist file is not valid.
         IF (ios < 0) THEN
           WRITE(0,'(A)') colour_string('ERROR','red') // ': namelist file "' // TRIM( namelist_filename) // '" is not terminated with a forward slash!'
           CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
-        
+
         ! Remove all leading spaces
         CALL remove_leading_spaces( single_line_namelist)
-        
+
         ! The variable name is the part of the string left of the first (, =, or space.
         single_line_namelist = single_line_namelist( 1:SCAN( single_line_namelist, '( =')-1)
-        
+
         ! Get namelist variable in all caps for case-insensitive comparison
         CALL capitalise_string( single_line_namelist)
-  
+
         ! The forward slash at the end terminates the config file
         IF (single_line_namelist == '/') THEN
           found_end_of_file_namelist = .TRUE.
         END IF
-        
+
         ! Disregard empty lines, commented lines, and the header line
         IF (single_line_namelist == '' .OR. single_line_namelist == '&CONFIG' .OR. single_line_namelist( 1:1) == '!') THEN
           CYCLE
         END IF
-        
+
         ! Check if this namelist variable matches the config variable
         IF (single_line_namelist == single_line_config) THEN
           found_match = .TRUE.
         END IF
-        
+
       END DO ! DO WHILE ((.NOT. found_end_of_file_namelist) .AND. (.NOT. found_match))
-      
+
       ! If no matching variable was found in the namelist file, print an error
       IF (.NOT. found_match) THEN
         WRITE(0,'(A,I4)') colour_string('ERROR','red') // ': invalid config variable "' // TRIM( single_line_config) // &
@@ -2369,27 +2398,27 @@ CONTAINS
 
       ! Close the namelist file
       CLOSE( UNIT = namelist_unit)
-     
+
     END DO ! DO WHILE (.NOT. found_end_of_file_config)
 
     ! Close the config file
     CLOSE( UNIT = config_unit)
-    
+
     ! If an invalid config variable was found, crash.
     IF (found_mismatch) CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    
+
   END SUBROUTINE check_config_file_validity
 
   SUBROUTINE copy_variables_to_struct
     ! Overwrite the values in the fields of the "C" type with the values
     ! of the "_config" variables, some which by now have had their default
     ! values overwritten by the values specified in the external config file.
-    
+
     IMPLICIT NONE
-    
+
    ! Time steps and range
    !=====================
-   
+
     C%start_time_of_run                        = start_time_of_run_config
     C%end_time_of_run                          = end_time_of_run_config
     C%dt_coupling                              = dt_coupling_config
@@ -2402,15 +2431,15 @@ CONTAINS
     C%dt_bedrock_ELRA                          = dt_bedrock_ELRA_config
     C%dt_SELEN                                 = dt_SELEN_config
     C%dt_output                                = dt_output_config
-    
+
     ! Which ice sheets do we simulate?
     ! ================================
-    
+
     C%do_NAM                                   = do_NAM_config
     C%do_EAS                                   = do_EAS_config
     C%do_GRL                                   = do_GRL_config
     C%do_ANT                                   = do_ANT_config
-    
+
     ! Benchmark experiments
     ! =====================
 
@@ -2433,34 +2462,35 @@ CONTAINS
 
     ! MISOMIP1 (see Asay-Davis et al., 2016)
     C%MISOMIP1_scenario                        = MISOMIP1_scenario_config
-    
+
     ! Whether or not to let IMAU_ICE dynamically create its own output folder
     ! =======================================================================
-   
+
     C%create_procedural_output_dir             = create_procedural_output_dir_config
     C%fixed_output_dir                         = fixed_output_dir_config
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
-    
+
     ! Debugging
     ! =========
-    
+
     C%do_write_debug_data                      = do_write_debug_data_config
     C%do_check_for_NaN                         = do_check_for_NaN_config
-  
+    C%do_time_display                          = do_time_display_config
+
     ! ISMIP-style output
     ! ==================
-    
+
     C%do_write_ISMIP_output                    = do_write_ISMIP_output_config
     C%ISMIP_output_group_code                  = ISMIP_output_group_code_config
     C%ISMIP_output_model_code                  = ISMIP_output_model_code_config
     C%ISMIP_output_experiment_code             = ISMIP_output_experiment_code_config
     C%ISMIP_output_basetime                    = ISMIP_output_basetime_config
-  
+
     ! Grids
     ! =====
-    
+
     ! North America
     C%lambda_M_NAM                             = lambda_M_NAM_config
     C%phi_M_NAM                                = phi_M_NAM_config
@@ -2470,7 +2500,7 @@ CONTAINS
     C%ymin_NAM                                 = ymin_NAM_config
     C%ymax_NAM                                 = ymax_NAM_config
     C%dx_NAM                                   = dx_NAM_config
-    
+
     ! Eurasia
     C%lambda_M_EAS                             = lambda_M_EAS_config
     C%phi_M_EAS                                = phi_M_EAS_config
@@ -2480,7 +2510,7 @@ CONTAINS
     C%ymin_EAS                                 = ymin_EAS_config
     C%ymax_EAS                                 = ymax_EAS_config
     C%dx_EAS                                   = dx_EAS_config
-    
+
     ! Greenland
     C%lambda_M_GRL                             = lambda_M_GRL_config
     C%phi_M_GRL                                = phi_M_GRL_config
@@ -2490,7 +2520,7 @@ CONTAINS
     C%ymin_GRL                                 = ymin_GRL_config
     C%ymax_GRL                                 = ymax_GRL_config
     C%dx_GRL                                   = dx_GRL_config
-    
+
     ! Antarctica
     C%lambda_M_ANT                             = lambda_M_ANT_config
     C%phi_M_ANT                                = phi_M_ANT_config
@@ -2501,16 +2531,16 @@ CONTAINS
     C%ymax_ANT                                 = ymax_ANT_config
     C%dx_ANT                                   = dx_ANT_config
 
-    ! Scaled vertical coordinate zeta  
+    ! Scaled vertical coordinate zeta
     ! ===============================
-    
+
     C%nz                                       = nz_config
     ALLOCATE( C%zeta( C%nz))
     C%zeta                                     = zeta_config( 1:C%nz)
 
     ! Reference geometries (initial, present-day, and GIA equilibrium)
     ! ================================================================
-  
+
     ! Initial geometry
     C%choice_refgeo_init_NAM                   = choice_refgeo_init_NAM_config
     C%choice_refgeo_init_EAS                   = choice_refgeo_init_EAS_config
@@ -2525,7 +2555,7 @@ CONTAINS
     C%filename_refgeo_init_EAS                 = filename_refgeo_init_EAS_config
     C%filename_refgeo_init_GRL                 = filename_refgeo_init_GRL_config
     C%filename_refgeo_init_ANT                 = filename_refgeo_init_ANT_config
-  
+
     ! Present-day geometry
     C%choice_refgeo_PD_NAM                     = choice_refgeo_PD_NAM_config
     C%choice_refgeo_PD_EAS                     = choice_refgeo_PD_EAS_config
@@ -2536,7 +2566,7 @@ CONTAINS
     C%filename_refgeo_PD_EAS                   = filename_refgeo_PD_EAS_config
     C%filename_refgeo_PD_GRL                   = filename_refgeo_PD_GRL_config
     C%filename_refgeo_PD_ANT                   = filename_refgeo_PD_ANT_config
-  
+
     ! GIA equilibrium geometry
     C%choice_refgeo_GIAeq_NAM                  = choice_refgeo_GIAeq_NAM_config
     C%choice_refgeo_GIAeq_EAS                  = choice_refgeo_GIAeq_EAS_config
@@ -2549,36 +2579,36 @@ CONTAINS
     C%filename_refgeo_GIAeq_ANT                = filename_refgeo_GIAeq_ANT_config
 
     C%remove_Lake_Vostok                       = remove_Lake_Vostok_config
-  
+
     ! Global forcing (insolation, CO2, d18O, geothermal heat flux)
     ! ============================================================
-    
+
     C%choice_forcing_method                    = choice_forcing_method_config
-     
+
     ! Insolation forcing (NetCDF)
     C%choice_insolation_forcing                = choice_insolation_forcing_config
     C%static_insolation_time                   = static_insolation_time_config
     C%filename_insolation                      = filename_insolation_config
-    
+
     ! CO2 record (ASCII text file, so the number of rows needs to be specified)
     C%filename_CO2_record                      = filename_CO2_record_config
     C%CO2_record_length                        = CO2_record_length_config
-    
+
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     C%filename_d18O_record                     = filename_d18O_record_config
     C%d18O_record_length                       = d18O_record_length_config
-    
+
     ! Geothermal heat flux
     C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
     C%constant_geothermal_heat_flux            = constant_geothermal_heat_flux_config
     C%filename_geothermal_heat_flux            = filename_geothermal_heat_flux_config
-  
+
     ! Parameters for calculating modelled benthic d18O
     C%do_calculate_benthic_d18O                = do_calculate_benthic_d18O_config
     C%dT_deepwater_averaging_window            = dT_deepwater_averaging_window_config
     C%dT_deepwater_dT_surf_ratio               = dT_deepwater_dT_surf_ratio_config
     C%d18O_dT_deepwater_ratio                  = d18O_dT_deepwater_ratio_config
-    
+
     ! Parameters for the inverse routine
     C%dT_glob_inverse_averaging_window         = dT_glob_inverse_averaging_window_config
     C%inverse_d18O_to_dT_glob_scaling          = inverse_d18O_to_dT_glob_scaling_config
@@ -2588,7 +2618,7 @@ CONTAINS
 
     ! Ice dynamics - velocity
     ! =======================
-    
+
     C%choice_ice_dynamics                      = choice_ice_dynamics_config
     C%n_flow                                   = n_flow_config
     C%m_enh_sheet                              = m_enh_sheet_config
@@ -2598,7 +2628,7 @@ CONTAINS
     C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
     C%do_smooth_geometry                       = do_smooth_geometry_config
     C%r_smooth_geometry                        = r_smooth_geometry_config
-    
+
     ! Some parameters for numerically solving the SSA/DIVA
     C%DIVA_visc_it_norm_dUV_tol                = DIVA_visc_it_norm_dUV_tol_config
     C%DIVA_visc_it_nit                         = DIVA_visc_it_nit_config
@@ -2621,10 +2651,10 @@ CONTAINS
     C%DIVA_SOR_omega                           = DIVA_SOR_omega_config
     C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
     C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
-  
+
     ! Ice dynamics - time integration
     ! ===============================
-    
+
     C%choice_timestepping                      = choice_timestepping_config
     C%choice_ice_integration_method            = choice_ice_integration_method_config
     C%dHi_choice_matrix_solver                 = dHi_choice_matrix_solver_config
@@ -2633,7 +2663,7 @@ CONTAINS
     C%dHi_SOR_omega                            = dHi_SOR_omega_config
     C%dHi_PETSc_rtol                           = dHi_PETSc_rtol_config
     C%dHi_PETSc_abstol                         = dHi_PETSc_abstol_config
-    
+
     ! Predictor-corrector ice-thickness update
     C%pc_epsilon                               = pc_epsilon_config
     C%pc_k_I                                   = pc_k_I_config
@@ -2642,7 +2672,7 @@ CONTAINS
     C%pc_max_timestep_iterations               = pc_max_timestep_iterations_config
     C%pc_redo_tol                              = pc_redo_tol_config
     C%dt_min                                   = dt_min_config
-  
+
     ! Ice thickness boundary conditions
     C%ice_thickness_west_BC                    = ice_thickness_west_BC_config
     C%ice_thickness_east_BC                    = ice_thickness_east_BC_config
@@ -2664,7 +2694,7 @@ CONTAINS
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
-  
+
     ! Sliding laws
     C%choice_sliding_law                       = choice_sliding_law_config
     C%choice_idealised_sliding_law             = choice_idealised_sliding_law_config
@@ -2676,12 +2706,12 @@ CONTAINS
     C%slid_ZI_p                                = slid_ZI_p_config
     C%include_basal_freezing                   = include_basal_freezing_config
     C%deltaT_basal_freezing                    = deltaT_basal_freezing_config
-    
+
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
     C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
-    
+
     ! Basal roughness / friction
     C%choice_basal_roughness                   = choice_basal_roughness_config
     C%uniform_Weertman_beta_sq                 = uniform_Weertman_beta_sq_config
@@ -2696,9 +2726,13 @@ CONTAINS
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
     C%basal_roughness_filename                 = basal_roughness_filename_config
-  
+    C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
+    C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
+
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config
+    C%BIVgeo_t_start                           = BIVgeo_t_start_config
+    C%BIVgeo_t_end                             = BIVgeo_t_end_config
     C%choice_BIVgeo_method                     = choice_BIVgeo_method_config
     C%BIVgeo_dt                                = BIVgeo_dt_config
     C%BIVgeo_PDC2012_hinv                      = BIVgeo_PDC2012_hinv_config
@@ -2716,20 +2750,23 @@ CONTAINS
     C%BIVgeo_Berends2022_u_scale               = BIVgeo_Berends2022_u_scale_config
     C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
     C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
-  
+    C%BIVgeo_Bernales2017_hinv                 = BIVgeo_Bernales2017_hinv_config
+    C%BIVgeo_Bernales2017_tol_diff             = BIVgeo_Bernales2017_tol_diff_config
+    C%BIVgeo_Bernales2017_tol_frac             = BIVgeo_Bernales2017_tol_frac_config
+
     ! Ice dynamics - calving
     ! ======================
-    
+
     C%choice_calving_law                       = choice_calving_law_config
     C%calving_threshold_thickness              = calving_threshold_thickness_config
     C%do_remove_shelves                        = do_remove_shelves_config
     C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
     C%continental_shelf_calving                = continental_shelf_calving_config
     C%continental_shelf_min_height             = continental_shelf_min_height_config
-  
+
     ! Thermodynamics and rheology
     ! ===========================
-    
+
     C%choice_initial_ice_temperature           = choice_initial_ice_temperature_config
     C%uniform_ice_temperature                  = uniform_ice_temperature_config
     C%choice_thermo_model                      = choice_thermo_model_config
@@ -2739,69 +2776,71 @@ CONTAINS
     C%uniform_ice_heat_capacity                = uniform_ice_heat_capacity_config
     C%choice_ice_thermal_conductivity          = choice_ice_thermal_conductivity_config
     C%uniform_ice_thermal_conductivity         = uniform_ice_thermal_conductivity_config
-  
+
     ! Climate
     ! =======
-  
+
     C%choice_climate_model                     = choice_climate_model_config
     C%choice_idealised_climate                 = choice_idealised_climate_config
-    
+
     ! NetCDF files containing direct global/regional climate forcing
     C%filename_direct_global_climate           = filename_direct_global_climate_config
     C%filename_direct_regional_climate_NAM     = filename_direct_regional_climate_NAM_config
     C%filename_direct_regional_climate_EAS     = filename_direct_regional_climate_EAS_config
     C%filename_direct_regional_climate_GRL     = filename_direct_regional_climate_GRL_config
     C%filename_direct_regional_climate_ANT     = filename_direct_regional_climate_ANT_config
-    
+
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     C%filename_PD_obs_climate                  = filename_PD_obs_climate_config
-    
+
     ! GCM snapshots in the matrix_warm_cold option
     C%filename_climate_snapshot_PI             = filename_climate_snapshot_PI_config
     C%filename_climate_snapshot_warm           = filename_climate_snapshot_warm_config
     C%filename_climate_snapshot_cold           = filename_climate_snapshot_cold_config
-    
+
     C%constant_lapserate                       = constant_lapserate_config
-    
+
     ! Scaling factor for CO2 vs ice weights
     C%climate_matrix_CO2vsice_NAM              = climate_matrix_CO2vsice_NAM_config
     C%climate_matrix_CO2vsice_EAS              = climate_matrix_CO2vsice_EAS_config
     C%climate_matrix_CO2vsice_GRL              = climate_matrix_CO2vsice_GRL_config
     C%climate_matrix_CO2vsice_ANT              = climate_matrix_CO2vsice_ANT_config
-    
+
     ! Orbit time and CO2 concentration of the warm and cold snapshots
     C%matrix_high_CO2_level                    = matrix_high_CO2_level_config
     C%matrix_low_CO2_level                     = matrix_low_CO2_level_config
     C%matrix_warm_orbit_time                   = matrix_warm_orbit_time_config
     C%matrix_cold_orbit_time                   = matrix_cold_orbit_time_config
-    
+
     ! Whether or not to apply a bias correction to the GCM snapshots
     C%climate_matrix_biascorrect_warm          = climate_matrix_biascorrect_warm_config
     C%climate_matrix_biascorrect_cold          = climate_matrix_biascorrect_cold_config
-    
+
     C%switch_glacial_index_precip              = switch_glacial_index_precip_config
-    
+
     ! Ocean
     ! =====
-    
+
     C%choice_ocean_model                       = choice_ocean_model_config
     C%choice_idealised_ocean                   = choice_idealised_ocean_config
-    
-    ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)  
+
+    ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
-    C%name_ocean_temperature                   = name_ocean_temperature_config
-    C%name_ocean_salinity                      = name_ocean_salinity_config
-    
+    C%name_ocean_temperature_obs               = name_ocean_temperature_obs_config
+    C%name_ocean_salinity_obs                  = name_ocean_salinity_obs_config
+
     ! GCM snapshots in the matrix_warm_cold option
     C%filename_GCM_ocean_snapshot_PI           = filename_GCM_ocean_snapshot_PI_config
     C%filename_GCM_ocean_snapshot_warm         = filename_GCM_ocean_snapshot_warm_config
     C%filename_GCM_ocean_snapshot_cold         = filename_GCM_ocean_snapshot_cold_config
-    
+    C%name_ocean_temperature_GCM               = name_ocean_temperature_GCM_config
+    C%name_ocean_salinity_GCM                  = name_ocean_salinity_GCM_config
+
     ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
     C%ocean_temperature_PD                     = ocean_temperature_PD_config
     C%ocean_temperature_cold                   = ocean_temperature_cold_config
     C%ocean_temperature_warm                   = ocean_temperature_warm_config
-    
+
     ! Parameters used when choice_ocean_model = "matrix_warm_cold"
     C%choice_ocean_vertical_grid               = choice_ocean_vertical_grid_config
     C%ocean_vertical_grid_max_depth            = ocean_vertical_grid_max_depth_config
@@ -2814,31 +2853,31 @@ CONTAINS
     C%ocean_extrap_hires_geo_filename_GRL      = ocean_extrap_hires_geo_filename_GRL_config
     C%ocean_extrap_hires_geo_filename_ANT      = ocean_extrap_hires_geo_filename_ANT_config
     C%ocean_w_tot_hist_averaging_window        = ocean_w_tot_hist_averaging_window_config
-    
+
     ! Scaling factor for CO2 vs ice weights
     C%ocean_matrix_CO2vsice_NAM                = ocean_matrix_CO2vsice_NAM_config
     C%ocean_matrix_CO2vsice_EAS                = ocean_matrix_CO2vsice_EAS_config
     C%ocean_matrix_CO2vsice_GRL                = ocean_matrix_CO2vsice_GRL_config
     C%ocean_matrix_CO2vsice_ANT                = ocean_matrix_CO2vsice_ANT_config
-  
+
     ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
     C%ocean_T_surf_per_basin                   = ocean_T_surf_per_basin_config
     C%ocean_dT_dz_per_basin                    = ocean_dT_dz_per_basin_config
-    
+
     ! Surface mass balance
     ! ====================
-    
+
     C%choice_SMB_model                         = choice_SMB_model_config
     C%choice_idealised_SMB                     = choice_idealised_SMB_config
     C%SMB_uniform                              = SMB_uniform_config
-    
+
     ! NetCDF file containing direct global/regional SMB forcing
     C%filename_direct_global_SMB               = filename_direct_global_SMB_config
     C%filename_direct_regional_SMB_NAM         = filename_direct_regional_SMB_NAM_config
     C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
     C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
     C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
-    
+
     ! Tuning parameters for the IMAU-ITM SMB model
     C%SMB_IMAUITM_choice_init_firn_NAM         = SMB_IMAUITM_choice_init_firn_NAM_config
     C%SMB_IMAUITM_choice_init_firn_EAS         = SMB_IMAUITM_choice_init_firn_EAS_config
@@ -2861,10 +2900,10 @@ CONTAINS
     C%SMB_IMAUITM_C_refr_EAS                   = SMB_IMAUITM_C_refr_EAS_config
     C%SMB_IMAUITM_C_refr_GRL                   = SMB_IMAUITM_C_refr_GRL_config
     C%SMB_IMAUITM_C_refr_ANT                   = SMB_IMAUITM_C_refr_ANT_config
-    
+
     ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
     ! ==============================================================
-    
+
     C%ISMIP_forcing_filename_SMB_baseline      = ISMIP_forcing_filename_SMB_baseline_config
     C%ISMIP_forcing_filename_ST_baseline       = ISMIP_forcing_filename_ST_baseline_config
     C%ISMIP_forcing_foldername_aSMB            = ISMIP_forcing_foldername_aSMB_config
@@ -2875,10 +2914,10 @@ CONTAINS
     C%ISMIP_forcing_basefilename_aST           = ISMIP_forcing_basefilename_aST_config
     C%ISMIP_forcing_foldername_dSTdz           = ISMIP_forcing_foldername_dSTdz_config
     C%ISMIP_forcing_basefilename_dSTdz         = ISMIP_forcing_basefilename_dSTdz_config
-    
+
     ! Basal mass balance - sub-shelf melt
     ! ===================================
-    
+
     C%choice_BMB_shelf_model                   = choice_BMB_shelf_model_config
     C%choice_idealised_BMB_shelf               = choice_idealised_BMB_shelf_config
     C%choice_BMB_sheet_model                   = choice_BMB_sheet_model_config
@@ -2888,7 +2927,7 @@ CONTAINS
     C%do_asynchronous_BMB                      = do_asynchronous_BMB_config
     C%BMB_max                                  = BMB_max_config
     C%BMB_min                                  = BMB_min_config
-    
+
     C%choice_basin_scheme_NAM                  = choice_basin_scheme_NAM_config
     C%choice_basin_scheme_EAS                  = choice_basin_scheme_EAS_config
     C%choice_basin_scheme_GRL                  = choice_basin_scheme_GRL_config
@@ -2899,28 +2938,28 @@ CONTAINS
     C%filename_basins_ANT                      = filename_basins_ANT_config
     C%do_merge_basins_ANT                      = do_merge_basins_ANT_config
     C%do_merge_basins_GRL                      = do_merge_basins_GRL_config
-    
+
     C%choice_BMB_shelf_amplification           = choice_BMB_shelf_amplification_config
     C%basin_BMB_amplification_n_ANT            = basin_BMB_amplification_n_ANT_config
     ALLOCATE( C%basin_BMB_amplification_factor_ANT( C%basin_BMB_amplification_n_ANT))
     C%basin_BMB_amplification_factor_ANT       = basin_BMB_amplification_factor_ANT_config( 1:C%basin_BMB_amplification_n_ANT)
     C%basin_BMB_amplification_n_GRL            = basin_BMB_amplification_n_GRL_config
-    ALLOCATE( C%basin_BMB_amplification_factor_GRL( C%basin_BMB_amplification_n_GRL)) 
+    ALLOCATE( C%basin_BMB_amplification_factor_GRL( C%basin_BMB_amplification_n_GRL))
     C%basin_BMB_amplification_factor_GRL       = basin_BMB_amplification_factor_GRL_config( 1:C%basin_BMB_amplification_n_GRL)
-    
+
     ! Parameters for the three simple melt parameterisations from Favier et al. (2019)
     C%BMB_Favier2019_lin_GammaT                = BMB_Favier2019_lin_GammaT_config
     C%BMB_Favier2019_quad_GammaT               = BMB_Favier2019_quad_GammaT_config
     C%BMB_Favier2019_Mplus_GammaT              = BMB_Favier2019_Mplus_GammaT_config
-    
+
     ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
     C%BMB_Lazeroms2018_GammaT                  = BMB_Lazeroms2018_GammaT_config
     C%BMB_Lazeroms2018_find_GL_scheme          = BMB_Lazeroms2018_find_GL_scheme_config
-  
+
     ! Parameters for the PICO BMB model
     C%BMB_PICO_nboxes                          = BMB_PICO_nboxes_config
     C%BMB_PICO_GammaTstar                      = BMB_PICO_GammaTstar_config
-    
+
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
     C%T_ocean_mean_PD_EAS                      = T_ocean_mean_PD_EAS_config
@@ -2934,7 +2973,7 @@ CONTAINS
     C%T_ocean_mean_warm_EAS                    = T_ocean_mean_warm_EAS_config
     C%T_ocean_mean_warm_GRL                    = T_ocean_mean_warm_GRL_config
     C%T_ocean_mean_warm_ANT                    = T_ocean_mean_warm_ANT_config
-    
+
     C%BMB_deepocean_PD_NAM                     = BMB_deepocean_PD_NAM_config
     C%BMB_deepocean_PD_EAS                     = BMB_deepocean_PD_EAS_config
     C%BMB_deepocean_PD_GRL                     = BMB_deepocean_PD_GRL_config
@@ -2947,7 +2986,7 @@ CONTAINS
     C%BMB_deepocean_warm_EAS                   = BMB_deepocean_warm_EAS_config
     C%BMB_deepocean_warm_GRL                   = BMB_deepocean_warm_GRL_config
     C%BMB_deepocean_warm_ANT                   = BMB_deepocean_warm_ANT_config
-    
+
     C%BMB_shelf_exposed_PD_NAM                 = BMB_shelf_exposed_PD_NAM_config
     C%BMB_shelf_exposed_PD_EAS                 = BMB_shelf_exposed_PD_EAS_config
     C%BMB_shelf_exposed_PD_GRL                 = BMB_shelf_exposed_PD_GRL_config
@@ -2960,32 +2999,32 @@ CONTAINS
     C%BMB_shelf_exposed_warm_EAS               = BMB_shelf_exposed_warm_EAS_config
     C%BMB_shelf_exposed_warm_GRL               = BMB_shelf_exposed_warm_GRL_config
     C%BMB_shelf_exposed_warm_ANT               = BMB_shelf_exposed_warm_ANT_config
-    
+
     C%subshelf_melt_factor_NAM                 = subshelf_melt_factor_NAM_config
     C%subshelf_melt_factor_EAS                 = subshelf_melt_factor_EAS_config
     C%subshelf_melt_factor_GRL                 = subshelf_melt_factor_GRL_config
     C%subshelf_melt_factor_ANT                 = subshelf_melt_factor_ANT_config
-    
+
     C%deep_ocean_threshold_depth_NAM           = deep_ocean_threshold_depth_NAM_config
     C%deep_ocean_threshold_depth_EAS           = deep_ocean_threshold_depth_EAS_config
     C%deep_ocean_threshold_depth_GRL           = deep_ocean_threshold_depth_GRL_config
     C%deep_ocean_threshold_depth_ANT           = deep_ocean_threshold_depth_ANT_config
-  
+
     ! Englacial isotope tracing
     ! ========================
-    
+
     C%choice_ice_isotopes_model                = choice_ice_isotopes_model_config
     C%uniform_ice_d18O                         = uniform_ice_d18O_config
-  
+
     ! Sea level and GIA
     ! =================
-    
+
     C%do_ocean_floodfill                       = do_ocean_floodfill_config
     C%choice_sealevel_model                    = choice_sealevel_model_config
     C%fixed_sealevel                           = fixed_sealevel_config
     C%filename_sealevel_record                 = filename_sealevel_record_config
     C%sealevel_record_length                   = sealevel_record_length_config
-  
+
     C%choice_GIA_model                         = choice_GIA_model_config
     C%dx_GIA                                   = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config
@@ -2994,42 +3033,42 @@ CONTAINS
 
     ! SELEN
     ! =====
-    
+
     C%SELEN_run_at_t_start                     = SELEN_run_at_t_start_config
     C%SELEN_n_TDOF_iterations                  = SELEN_n_TDOF_iterations_config
     C%SELEN_n_recursion_iterations             = SELEN_n_recursion_iterations_config
     C%SELEN_use_rotational_feedback            = SELEN_use_rotational_feedback_config
     C%SELEN_n_harmonics                        = SELEN_n_harmonics_config
     C%SELEN_display_progress                   = SELEN_display_progress_config
-    
+
     C%SELEN_dir                                = SELEN_dir_config
     C%SELEN_global_topo_filename               = SELEN_global_topo_filename_config
     C%SELEN_TABOO_init_filename                = SELEN_TABOO_init_filename_config
     C%SELEN_LMJ_VALUES_filename                = SELEN_LMJ_VALUES_filename_config
-    
+
     C%SELEN_irreg_time_n                       = SELEN_irreg_time_n_config
     ALLOCATE( C%SELEN_irreg_time_window( C%SELEN_irreg_time_n))
     C%SELEN_irreg_time_window                  = SELEN_irreg_time_window_config( 1:C%SELEN_irreg_time_n)
-    
+
     C%SELEN_lith_thickness                     = SELEN_lith_thickness_config
     C%SELEN_visc_n                             = SELEN_visc_n_config
     ALLOCATE( C%SELEN_visc_prof( C%SELEN_visc_n))
     C%SELEN_visc_prof      = SELEN_visc_prof_config( 1:C%SELEN_visc_n)
-    
+
     C%SELEN_TABOO_CDE                          = SELEN_TABOO_CDE_config
     C%SELEN_TABOO_TLOVE                        = SELEN_TABOO_TLOVE_config
     C%SELEN_TABOO_DEG1                         = SELEN_TABOO_DEG1_config
     C%SELEN_TABOO_RCMB                         = SELEN_TABOO_RCMB_config
-    
+
     ! Fill in some derived values
     C%SELEN_jmax       = (C%SELEN_n_harmonics + 1) * (C%SELEN_n_harmonics + 2) / 2
     C%SELEN_reg_time_n = MAX(1, INT(SUM(C%SELEN_irreg_time_window( 1:C%SELEN_irreg_time_n)))) * INT(1000. / C%dt_SELEN)
-    
+
     CALL initialize_TABOO_config
-  
+
     ! Which data fields will be written to the help_fields output file
     ! ================================================================
-    
+
     C%help_field_01                            = help_field_01_config
     C%help_field_02                            = help_field_02_config
     C%help_field_03                            = help_field_03_config
@@ -3080,7 +3119,7 @@ CONTAINS
     C%help_field_48                            = help_field_48_config
     C%help_field_49                            = help_field_49_config
     C%help_field_50                            = help_field_50_config
-    
+
     ! Values to be filled into the total mask (used only for diagnostic output)
     ! ==========================================================================
 
@@ -3095,7 +3134,7 @@ CONTAINS
     C%type_calvingfront                        = 8
 
   END SUBROUTINE copy_variables_to_struct
-  
+
   SUBROUTINE initialize_TABOO_config
 
     ! Taboo settings
@@ -3108,7 +3147,7 @@ CONTAINS
     C_TABOO%DEG1             = C%SELEN_TABOO_DEG1
     C_TABOO%LTH              = C%SELEN_lith_thickness
     C_TABOO%RCMB             = C%SELEN_TABOO_RCMB
-    
+
   END SUBROUTINE initialize_TABOO_config
 
   SUBROUTINE get_procedural_output_dir_name( output_dir)
@@ -3116,7 +3155,7 @@ CONTAINS
     ! Keep increasing the counter at the end until a directory is available.
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(20),                       INTENT(INOUT) :: output_dir
 
@@ -3292,7 +3331,7 @@ CONTAINS
          output_dir(19:19) = '9'
        ELSE IF (output_dir(19:19) == '9') THEN
          output_dir(19:19) = '0'
- 
+
          IF      (output_dir(18:18) == '0') THEN
            output_dir(18:18) = '1'
          ELSE IF (output_dir(18:18) == '1') THEN
@@ -3314,7 +3353,7 @@ CONTAINS
          ELSE IF (output_dir(18:18) == '9') THEN
            output_dir(18:18) = '0'
          END IF
- 
+
        END IF
 
      END IF
@@ -3324,108 +3363,108 @@ CONTAINS
     END DO
 
   END SUBROUTINE get_procedural_output_dir_name
-  
+
   SUBROUTINE write_total_model_time_to_screen( tstart, tstop)
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     REAL(dp),                            INTENT(IN)    :: tstart, tstop
-    
+
     ! Local variables
     REAL(dp)                                           :: dt
     INTEGER                                            :: nr, ns, nm, nh, nd
-      
+
     dt = tstop - tstart
-    
+
     ns = CEILING(dt)
-    
+
     nr = MOD(ns, 60*60*24)
     nd = (ns - nr) / (60*60*24)
     ns = ns - (nd*60*60*24)
-    
+
     nr = MOD(ns, 60*60)
     nh = (ns - nr) / (60*60)
     ns = ns - (nh*60*60)
-    
+
     nr = MOD(ns, 60)
     nm = (ns - nr) / (60)
-    ns = ns - (nm*60) 
-    
+    ns = ns - (nm*60)
+
     WRITE(0,'(A)') ''
     WRITE(0,'(A)') ' ================================================================================'
     WRITE(0,'(A,I2,A,I2,A,I2,A,I2,A)') ' ===== Simulation finished in ', nd, ' days, ', nh, ' hours, ', nm, ' minutes and ', ns, ' seconds! ====='
     WRITE(0,'(A)') ' ================================================================================'
     WRITE(0,'(A)') ''
-    
+
   END SUBROUTINE write_total_model_time_to_screen
-  
+
   ! Routines for the extended error messaging / debugging system
   SUBROUTINE init_routine( routine_name)
     ! Initialise an IMAU-ICE subroutine; update the routine path
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
-    
+
     ! Local variables:
     INTEGER                                            :: len_path_tot, len_path_used, len_name
     INTEGER                                            :: ierr, cerr
     INTEGER                                            :: i
-    
+
     ! Check if routine_name has enough memory
     len_path_tot  = LEN(      routine_path)
     len_path_used = LEN_TRIM( routine_path)
     len_name      = LEN_TRIM( routine_name)
-    
+
     IF (len_path_used + 1 + len_name > len_path_tot) THEN
       WRITE(0,*) 'init_routine - ERROR: routine_path = "', TRIM( routine_path), '", no more space to append routine_name = "', TRIM( routine_name), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
-    
+
     ! Append this routine to the routine path
     routine_path = TRIM( routine_path) // '/' // TRIM( routine_name)
-    
+
     ! Initialise the computation time tracker
     CALL find_subroutine_in_resource_tracker( i)
     resource_tracker( i)%tstart = MPI_WTIME()
-    
+
     ! Check maximum MPI window at the start of the routine
     resource_tracker( i)%n_MPI_windows_init = n_MPI_windows
-    
+
   END SUBROUTINE init_routine
   SUBROUTINE finalise_routine( routine_name)
     ! Finalise; remove the current routine name from the routine path
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
-    
+
     ! Local variables:
     INTEGER                                            :: len_path_tot, i, ii
     INTEGER                                            :: ierr, cerr
     REAL(dp)                                           :: dt
-    
+
     ! Add computation time to the resource tracker
     CALL find_subroutine_in_resource_tracker( i)
     dt = MPI_WTIME() - resource_tracker( i)%tstart
     resource_tracker( i)%tcomp = resource_tracker( i)%tcomp + dt
-    
+
     ! Check maximum MPI window at the end of the routine
     resource_tracker( i)%n_MPI_windows_final = n_MPI_windows
-    
+
     ! If it is larger than at the start, mention this
     ii = INDEX( routine_path, 'IMAU_ICE_program/initialise_')
     IF (ii == 0 .AND. resource_tracker( i)%n_MPI_windows_final > resource_tracker( i)%n_MPI_windows_init) THEN
       CALL warning('shared memory was allocated but not freed, possibly memory leak!')
     END IF
-    
+
     ! Find where in the string exactly the current routine name is located
     len_path_tot = LEN( routine_path)
     i = INDEX( routine_path, routine_name)
-    
+
     IF (i == 0) THEN
       WRITE(0,*) 'finalise_routine - ERROR: routine_name = "', TRIM( routine_name), '" not found in routine_path = "', TRIM( routine_path), '"!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -3433,21 +3472,21 @@ CONTAINS
 
     ! Remove the current routine name from the routine path
     routine_path( i-1:len_path_tot) = ' '
-    
+
   END SUBROUTINE finalise_routine
   SUBROUTINE find_subroutine_in_resource_tracker( i)
     ! Find the current subroutine in the resource tracker. If it's not there yet, add it.
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     INTEGER,                             INTENT(OUT)   :: i
-    
+
     ! Local variables:
     INTEGER                                            :: n
-    
+
     n = SIZE( resource_tracker)
-    
+
     DO i = 1, n
       IF     (resource_tracker( i)%routine_path == routine_path) THEN
         ! The current subroutine is listed at this position in the resource tracker
@@ -3458,52 +3497,52 @@ CONTAINS
         RETURN
       END IF
     END DO
-    
+
     ! If we've reached this point, then the resource tracker is overflowing
     CALL crash('Resource tracker overflows! Allocate more memory for it in initialise_model_configuration.')
-    
+
   END SUBROUTINE find_subroutine_in_resource_tracker
   SUBROUTINE reset_computation_times
     ! Reset the computation times in the resource tracker
 
     IMPLICIT NONE
-    
+
     ! Local variables:
     INTEGER                                            :: i,n
-    
+
     n = SIZE( resource_tracker)
-    
+
     DO i = 1, n
       resource_tracker( i)%tstart = 0._dp
       resource_tracker( i)%tcomp  = 0._dp
     END DO
-    
+
   END SUBROUTINE reset_computation_times
   SUBROUTINE crash( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
                               dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
     ! Crash the model, write the error message to the screen
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(IN)    :: err_msg
     INTEGER,  INTENT(IN), OPTIONAL                     :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
     REAL(dp), INTENT(IN), OPTIONAL                     ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
-    
+
     ! Local variables:
     CHARACTER(LEN=1024)                                :: err_msg_loc
     INTEGER                                            :: ierr, cerr, pari, parn, nc
     CHARACTER(LEN=9)                                   :: fmt
     CHARACTER(LEN=:), ALLOCATABLE                      :: process_str
-    
+
     ! Get local, edit-able copy of error message string
     err_msg_loc = err_msg
-  
+
     ! Get rank of current process and total number of processes
     ! (needed because the configuration_module cannot access the par structure)
     CALL MPI_COMM_RANK( MPI_COMM_WORLD, pari, ierr)
     CALL MPI_COMM_SIZE( MPI_COMM_WORLD, parn, ierr)
-    
+
     ! Set the process string (e.g. "05/16")
     IF     (parn < 10) THEN
       nc = 1
@@ -3516,11 +3555,11 @@ CONTAINS
     ELSE
       nc = 5
     END IF
-    
+
     WRITE( fmt,'(A,I1,A,I1,A)') '(I', nc, ',A,I', nc, ')'
     ALLOCATE(CHARACTER(2*nc+1) :: process_str)
     WRITE( process_str,fmt) pari, '/', parn
-    
+
     ! Insert numbers into string if needed
     IF (PRESENT( int_01)) CALL insert_val_into_string_int( err_msg_loc, '{int_01}', int_01)
     IF (PRESENT( int_02)) CALL insert_val_into_string_int( err_msg_loc, '{int_02}', int_02)
@@ -3532,7 +3571,7 @@ CONTAINS
     IF (PRESENT( int_08)) CALL insert_val_into_string_int( err_msg_loc, '{int_08}', int_08)
     IF (PRESENT( int_09)) CALL insert_val_into_string_int( err_msg_loc, '{int_09}', int_09)
     IF (PRESENT( int_10)) CALL insert_val_into_string_int( err_msg_loc, '{int_10}', int_10)
-    
+
     IF (PRESENT( dp_01 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_01}' , dp_01 )
     IF (PRESENT( dp_02 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_02}' , dp_02 )
     IF (PRESENT( dp_03 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_03}' , dp_03 )
@@ -3543,40 +3582,40 @@ CONTAINS
     IF (PRESENT( dp_08 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_08}' , dp_08 )
     IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
     IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
-    
+
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string('ERROR: ' // TRIM( err_msg_loc),'red') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
-    
+
     ! Stop the program
     CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    
+
   END SUBROUTINE crash
   SUBROUTINE warning( err_msg, int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10, &
                                 dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10)
     ! Write the warning message to the screen, but don't crash the model
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(IN)    :: err_msg
     INTEGER,  INTENT(IN), OPTIONAL                     :: int_01, int_02, int_03, int_04, int_05, int_06, int_07, int_08, int_09, int_10
     REAL(dp), INTENT(IN), OPTIONAL                     ::  dp_01,  dp_02,  dp_03,  dp_04,  dp_05,  dp_06,  dp_07,  dp_08,  dp_09,  dp_10
-    
+
     ! Local variables:
     CHARACTER(LEN=1024)                                :: err_msg_loc
     INTEGER                                            :: ierr, pari, parn, nc
     CHARACTER(LEN=9)                                   :: fmt
     CHARACTER(LEN=:), ALLOCATABLE                      :: process_str
-    
+
     ! Get local, edit-able copy of error message string
     err_msg_loc = err_msg
-  
+
     ! Get rank of current process and total number of processes
     ! (needed because the configuration_module cannot access the par structure)
     CALL MPI_COMM_RANK( MPI_COMM_WORLD, pari, ierr)
     CALL MPI_COMM_SIZE( MPI_COMM_WORLD, parn, ierr)
-    
+
     ! Set the process string (e.g. "05/16")
     IF     (parn < 10) THEN
       nc = 1
@@ -3589,11 +3628,11 @@ CONTAINS
     ELSE
       nc = 5
     END IF
-    
+
     WRITE( fmt,'(A,I1,A,I1,A)') '(I', nc, ',A,I', nc, ')'
     ALLOCATE(CHARACTER(2*nc+1) :: process_str)
     WRITE( process_str,fmt) pari, '/', parn
-    
+
     ! Insert numbers into string if needed
     IF (PRESENT( int_01)) CALL insert_val_into_string_int( err_msg_loc, '{int_01}', int_01)
     IF (PRESENT( int_02)) CALL insert_val_into_string_int( err_msg_loc, '{int_02}', int_02)
@@ -3605,7 +3644,7 @@ CONTAINS
     IF (PRESENT( int_08)) CALL insert_val_into_string_int( err_msg_loc, '{int_08}', int_08)
     IF (PRESENT( int_09)) CALL insert_val_into_string_int( err_msg_loc, '{int_09}', int_09)
     IF (PRESENT( int_10)) CALL insert_val_into_string_int( err_msg_loc, '{int_10}', int_10)
-    
+
     IF (PRESENT( dp_01 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_01}' , dp_01 )
     IF (PRESENT( dp_02 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_02}' , dp_02 )
     IF (PRESENT( dp_03 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_03}' , dp_03 )
@@ -3616,18 +3655,18 @@ CONTAINS
     IF (PRESENT( dp_08 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_08}' , dp_08 )
     IF (PRESENT( dp_09 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_09}' , dp_09 )
     IF (PRESENT( dp_10 )) CALL insert_val_into_string_dp(  err_msg_loc, '{dp_10}' , dp_10 )
-    
+
     ! Write the error to the screen
     WRITE(0,'(A,A,A,A,A,A)') colour_string('WARNING: ' // TRIM( err_msg_loc),'yellow') // ' in ' // colour_string( TRIM(routine_path),'light blue') // &
       ' on process ', colour_string( process_str,'light blue'), ' (0 = master)'
-    
+
     ! Clean up after yourself
     DEALLOCATE( process_str)
-    
+
   END SUBROUTINE warning
   FUNCTION colour_string( str, col) RESULT( str_col)
     ! Add colour to a string for writing to the terminal
-    
+
     IMPLICIT NONE
 
     ! Input variables:
@@ -3665,29 +3704,29 @@ CONTAINS
     ! Example: str    = 'Johnny has {int_01} apples.'
     !          marker = '{int_01}'
     !          val    = 5
-    ! 
+    !
     ! This returns: str = 'Johnny has 5 apples'
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(INOUT) :: str
     CHARACTER(LEN=*),                    INTENT(IN)    :: marker
     INTEGER,                             INTENT(IN)    :: val
-    
+
     ! Local variables:
     INTEGER                                            :: ci
     INTEGER                                            :: nc
     CHARACTER(LEN=4)                                   :: fmt
     CHARACTER(LEN=:), ALLOCATABLE                      :: val_str
     INTEGER                                            :: len_str, len_marker
-    
+
     ! Find position ci in str where i_str occurs
     ci = INDEX( str, marker)
-    
+
     ! Safety
     IF (ci == 0) CALL crash('insert_val_into_string_int: couldnt find marker "' // TRIM( marker) // '" in string "' // TRIM( str) // '"!')
-    
+
     ! Write val to a string
     IF     (ABS( val) < 10) THEN
       nc = 1
@@ -3710,21 +3749,21 @@ CONTAINS
     END IF
     ! Add room for a minus sign if needed
     IF (val < 0) nc = nc + 1
-    
+
     WRITE( fmt,'(A,I1,A)') '(I', nc, ')'
     ALLOCATE(CHARACTER(nc) :: val_str)
     WRITE( val_str,fmt) val
-    
+
     ! Find total string length right now
     len_str    = LEN( str)
     len_marker = LEN( marker)
-    
+
     ! Insert the integer string into the string
     str = str(1:ci-1) // val_str // str(ci+len_marker:len_str)
-    
+
     ! Clean up after yourself
     DEALLOCATE( val_str)
-    
+
   END SUBROUTINE insert_val_into_string_int
   SUBROUTINE insert_val_into_string_dp( str, marker, val)
     ! Replace marker in str with val (where val is a double-precision number)
@@ -3732,42 +3771,43 @@ CONTAINS
     ! Example: str    = 'Johnny weighs {dp_01} kg.'
     !          marker = '{dp_01}'
     !          val    = 57.098
-    ! 
+    !
     ! This returns: str = 'Johnny weighs 57.098 kg'
 
     IMPLICIT NONE
-    
+
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(INOUT) :: str
     CHARACTER(LEN=*),                    INTENT(IN)    :: marker
     REAL(dp),                            INTENT(IN)    :: val
-    
+
     ! Local variables:
     INTEGER                                            :: ci
     CHARACTER(LEN=11)                                  :: val_str
     INTEGER                                            :: len_str, len_marker
-    
+
     ! Find position ci in str where i_str occurs
     ci = INDEX( str, marker)
-    
+
     ! Safety
     IF (ci == 0) CALL crash('insert_val_into_string_dp: couldnt find marker "' // TRIM( marker) // '" in string "' // TRIM( str) // '"!')
-    
+
     ! Write val to a string
     WRITE( val_str,'(E11.5)') val
-    
+
     ! Find total string length right now
     len_str    = LEN( str)
     len_marker = LEN( marker)
-    
+
     ! Insert the integer string into the string
     str = str(1:ci-1) // val_str // str(ci+len_marker:len_str)
-    
+
   END SUBROUTINE insert_val_into_string_dp
+
   SUBROUTINE capitalise_string( str)
     ! Changes a string which contains lower case letters to a string with upper case letters
     ! Useful for case-insensitive string comparison
-    
+
     IMPLICIT NONE
 
     ! In/output variables:
@@ -3778,17 +3818,17 @@ CONTAINS
 
     CHARACTER(26), PARAMETER                            :: cap = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
     CHARACTER(26), PARAMETER                            :: low = 'abcdefghijklmnopqrstuvwxyz'
-    
+
     DO i = 1, LEN_TRIM( str)
       index_cap = INDEX( low, str( i:i))
       IF (index_cap > 0) str( i:i) = cap( index_cap:index_cap)
     END DO
-    
+
   END SUBROUTINE capitalise_string
   SUBROUTINE remove_leading_spaces( str)
     ! Changes a string which contains lower case letters to a string with upper case letters
     ! Useful for case-insensitive string comparison
-    
+
     IMPLICIT NONE
 
     ! In/output variables:
@@ -3796,14 +3836,13 @@ CONTAINS
 
     ! Local variables:
     INTEGER                                             :: lstr
-    
+
     DO WHILE (str( 1:1) == ' ' .AND. LEN_TRIM( str) > 0)
       lstr = LEN_TRIM( str)
       str( 1:lstr-1) = str( 2:lstr)
       str( lstr:lstr) = ' '
     END DO
-    
+
   END SUBROUTINE remove_leading_spaces
-  
 
 END MODULE configuration_module
