@@ -1742,27 +1742,15 @@ CONTAINS
     pa = [xa,ya]
     pb = [xb,yb]
 
-    IF (par%master) CALL warning('x = [{dp_01},{dp_02}], y = [{dp_03},{dp_04}]',dp_01 = grid%xmin, dp_02 = grid%xmax, dp_03 = grid%ymin, dp_04 = grid%ymax)
-    IF (par%master) CALL warning('pa = [{dp_01},{dp_02}], pb = [{dp_03},{dp_04}]', dp_01 = pa(1), dp_02 = pa(2), dp_03 = pb(1), dp_04 = pb(2))
-
     DO i = grid%i1, grid%i2
       yl_ab = pa(2) + (grid%x(i) - pa(1))*(pb(2)-pa(2))/(pb(1)-pa(1))
       DO j = 1, grid%ny
         IF (grid%y(j) > pa(2) .AND. grid%y(j) > yl_ab .AND. grid%x(i) < pb(1)) THEN
-          WRITE(0,*) 'beep'
           mask_noice( j,i) = 1
         END IF
       END DO
     END DO
     CALL sync
-
-    ! DENK DRM
-    IF (par%master) THEN
-      debug%int_2D_01 = mask_noice
-      CALL write_to_debug_file
-    END IF
-    CALL sync
-!    CALL crash('whoopsiedaisy')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
