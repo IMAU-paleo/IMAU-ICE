@@ -59,7 +59,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: routine_name
     REAL(dp)                                           :: tstart, tstop, t1, t2, dt_ave
     INTEGER                                            :: it
-    CHARACTER(LEN=9)                                   :: r_time, r_step, r_adv, r_ave
+    CHARACTER(LEN=9)                                   :: r_time, r_step, r_adv
 
 
     ! Add routine to path

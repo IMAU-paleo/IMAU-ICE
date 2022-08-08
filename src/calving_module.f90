@@ -20,7 +20,7 @@ MODULE calving_module
                                              is_floating, map_square_to_square_cons_2nd_order_2D, transpose_dp_2D
 
   IMPLICIT NONE
-  
+
 CONTAINS
 
 ! == The main routines that should be called from the main ice model/program
@@ -34,13 +34,13 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_calving_law'
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Apply the selected calving law
     IF     (C%choice_calving_law == 'none') THEN
       ! No calving at all
@@ -49,12 +49,12 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_calving_law"' // TRIM(C%choice_calving_law) // '"!')
     END IF
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE apply_calving_law
-  
+
 ! == Routines for different calving laws
 ! ======================================
 
@@ -66,14 +66,14 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'threshold_thickness_calving'
     INTEGER                                            :: i,j
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Apply calving law
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -83,15 +83,15 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE threshold_thickness_calving
-  
+
 ! == Routines for applying a prescribed retreat mask
 ! ==================================================
-  
+
   SUBROUTINE apply_prescribed_retreat_mask( grid, ice, time, refgeo_init)
     ! Apply a prescribed retreat mask (e.g. as in ISMIP6-Greenland or PROTECT-Greenland)
 
@@ -102,52 +102,52 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: time
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
-    
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_prescribed_retreat_mask'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: wt0, wt1
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Check if the requested time is enveloped by the two timeframes;
     ! if not, read the two relevant timeframes from the NetCDF file
     IF (time < ice%ice_fraction_retreat_mask_t0 .OR. time > ice%ice_fraction_retreat_mask_t1) THEN
-      
+
       ! Find and read the two global time frames
       CALL sync
       CALL update_prescribed_retreat_mask_timeframes( grid, ice, time)
-      
+
     END IF ! IF (time < ice%ice_fraction_retreat_mask_t0 .OR. time > ice%ice_fraction_retreat_mask_t1) THEN
 
     ! Interpolate the two timeframes in time
     wt0 = MAX( 0._dp, MIN( 1._dp, (ice%ice_fraction_retreat_mask_t1 - time) / (ice%ice_fraction_retreat_mask_t1 - ice%ice_fraction_retreat_mask_t0) ))
     wt1 = 1._dp - wt0
-    
+
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    
+
       ice%ice_fraction_retreat_mask( j,i) = (wt0 * ice%ice_fraction_retreat_mask0( j,i)) + &
                                             (wt1 * ice%ice_fraction_retreat_mask1( j,i))
-                                                    
+
     END DO
     END DO
     CALL sync
-    
+
     ! Apply the retreat mask following the ISMIP protocol
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (ice%ice_fraction_retreat_mask( j,i) < 0.999_dp) THEN 
+      IF (ice%ice_fraction_retreat_mask( j,i) < 0.999_dp) THEN
         ice%Hi_a( j,i) = MIN( ice%Hi_a( j,i), refgeo_init%Hi( j,i) * ice%ice_fraction_retreat_mask( j,i))
       END IF
     END DO
     END DO
     CALL sync
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE apply_prescribed_retreat_mask
   SUBROUTINE update_prescribed_retreat_mask_timeframes( grid, ice, time)
     ! Update the two timeframes of the prescribed retreat mask
@@ -158,7 +158,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: time
-    
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_prescribed_retreat_mask_timeframes'
     INTEGER                                            :: i,j
@@ -168,17 +168,17 @@ CONTAINS
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  ice_fraction_retreat_mask_raw1
     INTEGER                                            :: wice_fraction_retreat_mask_raw0
     INTEGER                                            :: wice_fraction_retreat_mask_raw1
-    
-    
+
+
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Inquire into the NetCDF file
     CALL allocate_shared_int_0D( grid_raw%nx, grid_raw%wnx)
     CALL allocate_shared_int_0D( grid_raw%ny, grid_raw%wny)
     CALL inquire_prescribed_retreat_mask_file( netcdf, grid_raw%nx, grid_raw%ny)
     CALL sync
-    
+
     ! Allocate memory, read data
     CALL allocate_shared_dp_1D( grid_raw%nx,              grid_raw%x                    , grid_raw%wx                    )
     CALL allocate_shared_dp_1D(              grid_raw%ny, grid_raw%y                    , grid_raw%wy                    )
@@ -187,21 +187,21 @@ CONTAINS
     CALL read_prescribed_retreat_mask_file( netcdf, grid_raw%x, grid_raw%y, time, ice_fraction_retreat_mask_raw0, ice_fraction_retreat_mask_raw1, &
       ice%ice_fraction_retreat_mask_t0, ice%ice_fraction_retreat_mask_t1)
     CALL sync
-    
+
     ! Safety
     CALL check_for_NaN_dp_2D( ice_fraction_retreat_mask_raw0, 'ice_fraction_retreat_mask_raw0')
     CALL check_for_NaN_dp_2D( ice_fraction_retreat_mask_raw1, 'ice_fraction_retreat_mask_raw1')
-        
+
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
     CALL transpose_dp_2D( ice_fraction_retreat_mask_raw0, wice_fraction_retreat_mask_raw0)
     CALL transpose_dp_2D( ice_fraction_retreat_mask_raw1, wice_fraction_retreat_mask_raw1)
-    
+
     ! Map (transposed) raw data to the model grid
     CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, &
       ice_fraction_retreat_mask_raw0, ice%ice_fraction_retreat_mask0)
     CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, &
       ice_fraction_retreat_mask_raw1, ice%ice_fraction_retreat_mask1)
-      
+
     ! Limit ice fractions to [0,1]
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -210,7 +210,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
+
     ! Deallocate raw data
     CALL deallocate_shared( grid_raw%wnx                   )
     CALL deallocate_shared( grid_raw%wny                   )
@@ -218,10 +218,10 @@ CONTAINS
     CALL deallocate_shared( grid_raw%wy                    )
     CALL deallocate_shared( wice_fraction_retreat_mask_raw0)
     CALL deallocate_shared( wice_fraction_retreat_mask_raw1)
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-    
+
   END SUBROUTINE update_prescribed_retreat_mask_timeframes
-  
+
 END MODULE calving_module

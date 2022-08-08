@@ -6549,6 +6549,8 @@ CONTAINS
   SUBROUTINE inquire_prescribed_retreat_mask_file( netcdf, nx, ny)
     ! Check if the right dimensions and variables are present in the file.
 
+    USE netcdf, ONLY: nf90_get_att
+
     ! In/output variables:
     TYPE(type_netcdf_prescribed_retreat_mask), INTENT(INOUT) :: netcdf
     INTEGER,                                   INTENT(OUT)   :: nx, ny
@@ -6579,6 +6581,9 @@ CONTAINS
     CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_y           , (/                  netcdf%id_dim_y                     /), netcdf%id_var_y           )
     CALL inquire_int_var(              netcdf%ncid, netcdf%name_var_time        , (/                                   netcdf%id_dim_time /), netcdf%id_var_time        )
     CALL inquire_single_or_double_var( netcdf%ncid, netcdf%name_var_ice_fraction, (/ netcdf%id_dim_x, netcdf%id_dim_y, netcdf%id_dim_time /), netcdf%id_var_ice_fraction)
+
+    ! Inquire into the units of the time dimension (ISMIP uses "days since XXX", paleo stuff just uses "years")
+    CALL handle_error( nf90_get_att( netcdf%ncid, netcdf%id_var_time, 'units', netcdf%time_units))
 
     ! Close the netcdf file
     CALL close_netcdf_file( netcdf%ncid)
@@ -6634,12 +6639,22 @@ CONTAINS
     CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_time, times_in_file_int, start = (/ 1 /) ))
     times_in_file_dp = REAL( times_in_file_int, dp)
 
+    ! Convert time to model years
+    IF (netcdf%time_units == 'years') THEN
+      ! No need to do anything
+    ELSE
+      WRITE(0,*) 'time_units = ', netcdf%time_units
+      CALL crash('DENK DROM - still need to implement unit conversion for future retreat masks, where time is in days since 1900something')
+    END IF
+
     ! Determine which timeframes to read
     ti0 = 1
     DO WHILE (times_in_file_dp( ti0) <= time .AND. ti0 < ntimes_in_file-1)
       ti0 = ti0 + 1
     END DO
-    ti1 = ti0 + 1
+    ti0 = MAX( 1, ti0 - 1)
+    ti1 = MIN( ntimes_in_file, ti0 + 1)
+    ti0 = ti1 - 1
 
     ice_fraction_retreat_mask_t0 = times_in_file_dp( ti0)
     ice_fraction_retreat_mask_t1 = times_in_file_dp( ti1)
