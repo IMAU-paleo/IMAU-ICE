@@ -334,7 +334,7 @@ MODULE configuration_module
   LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
   LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-  
+
   ! Prescribed retreat mask
   LOGICAL             :: do_apply_prescribed_retreat_mask_config     = .FALSE.                          ! Whether or not to apply an externally prescribed retreat mask
   CHARACTER(LEN=256)  :: prescribed_retreat_mask_filename_config     = ''                               ! NetCDF file containing a prescribed retreat mask
@@ -395,6 +395,8 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_Berends2022_u0_config                = 250._dp                          ! First  velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
   REAL(dp)            :: BIVgeo_Berends2022_Hi_scale_config          = 300._dp                          ! Second thickness scale in the Berends2022 geometry/velocity-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Berends2022_u_scale_config           = 3000._dp                         ! Second velocity  scale in the Berends2022 geometry/velocity-based basal inversion method [m/yr]
+  REAL(dp)            :: BIVgeo_Berends2022_phimin_config            = 0.1_dp                           ! Smallest allowed value for the inverted till friction angle phi
+  REAL(dp)            :: BIVgeo_Berends2022_phimax_config            = 30._dp                           ! Largest  allowed value for the inverted till friction angle phi
   CHARACTER(LEN=256)  :: BIVgeo_target_velocity_filename_config      = ''                               ! NetCDF file where the target velocities are read in the CISM+ and Berends2022 geometry/velocity-based basal inversion methods
   CHARACTER(LEN=256)  :: BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
   REAL(dp)            :: BIVgeo_Bernales2017_hinv_config             = 100._dp                          ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
@@ -1066,7 +1068,7 @@ MODULE configuration_module
     LOGICAL                             :: fixed_shelf_geometry
     LOGICAL                             :: fixed_sheet_geometry
     LOGICAL                             :: fixed_grounding_line
-  
+
     ! Prescribed retreat mask
     LOGICAL                             :: do_apply_prescribed_retreat_mask
     CHARACTER(LEN=256)                  :: prescribed_retreat_mask_filename
@@ -1127,6 +1129,8 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_Berends2022_u0
     REAL(dp)                            :: BIVgeo_Berends2022_Hi_scale
     REAL(dp)                            :: BIVgeo_Berends2022_u_scale
+    REAL(dp)                            :: BIVgeo_Berends2022_phimin
+    REAL(dp)                            :: BIVgeo_Berends2022_phimax
     CHARACTER(LEN=256)                  :: BIVgeo_target_velocity_filename
     CHARACTER(LEN=256)                  :: BIVgeo_filename_output
     REAL(dp)                            :: BIVgeo_Bernales2017_hinv
@@ -1967,6 +1971,8 @@ CONTAINS
                      BIVgeo_Berends2022_u0_config,                    &
                      BIVgeo_Berends2022_Hi_scale_config,              &
                      BIVgeo_Berends2022_u_scale_config,               &
+                     BIVgeo_Berends2022_phimin_config,                &
+                     BIVgeo_Berends2022_phimax_config,                &
                      BIVgeo_target_velocity_filename_config,          &
                      BIVgeo_filename_output_config,                   &
                      BIVgeo_Bernales2017_hinv_config,                 &
@@ -2239,7 +2245,7 @@ CONTAINS
     IF (config_filename == '') RETURN
 
     ! Write the CONFIG namelist to a temporary file
-    namelist_filename = 'config_namelist_temp.txt'
+    namelist_filename = TRIM( config_filename) // '_namelist_temp.txt'
     OPEN(  UNIT = namelist_unit, FILE = TRIM( namelist_filename))
     WRITE( UNIT = namelist_unit, NML  = CONFIG)
     CLOSE( UNIT = namelist_unit)
@@ -2687,7 +2693,7 @@ CONTAINS
     C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
     C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
     C%fixed_grounding_line                     = fixed_grounding_line_config
-  
+
     ! Prescribed retreat mask
     C%do_apply_prescribed_retreat_mask         = do_apply_prescribed_retreat_mask_config
     C%prescribed_retreat_mask_filename         = prescribed_retreat_mask_filename_config
@@ -2748,6 +2754,8 @@ CONTAINS
     C%BIVgeo_Berends2022_u0                    = BIVgeo_Berends2022_u0_config
     C%BIVgeo_Berends2022_Hi_scale              = BIVgeo_Berends2022_Hi_scale_config
     C%BIVgeo_Berends2022_u_scale               = BIVgeo_Berends2022_u_scale_config
+    C%BIVgeo_Berends2022_phimin                = BIVgeo_Berends2022_phimin_config
+    C%BIVgeo_Berends2022_phimax                = BIVgeo_Berends2022_phimax_config
     C%BIVgeo_target_velocity_filename          = BIVgeo_target_velocity_filename_config
     C%BIVgeo_filename_output                   = BIVgeo_filename_output_config
     C%BIVgeo_Bernales2017_hinv                 = BIVgeo_Bernales2017_hinv_config
