@@ -570,16 +570,17 @@ CONTAINS
         ! Model time beyond end of CO2 record; using constant extrapolation
         forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
       ELSE
-        iu = 1
-        DO WHILE (forcing%CO2_time( iu) * 1000._dp < time)
+
+        iu = 2
+        DO WHILE (forcing%CO2_time( iu) * 1000._dp < time .AND. iu < C%CO2_record_length)
           iu = iu+1
         END DO
-        il = iu-1
+        il = iu - 1
 
-        wl = (forcing%CO2_time( iu)*1000._dp - time) / ((forcing%CO2_time( iu) - forcing%CO2_time( il))*1000._dp)
+        wl = MAX( 0._dp, MIN( 1._dp, (forcing%CO2_time( iu)*1000._dp - time) / ((forcing%CO2_time( iu) - forcing%CO2_time( il))*1000._dp) ))
         wu = 1._dp - wl
 
-        forcing%CO2_obs = forcing%CO2_record(il) * wl + forcing%CO2_record(iu) * wu
+        forcing%CO2_obs = forcing%CO2_record( il) * wl + forcing%CO2_record( iu) * wu
 
       END IF
     END IF
