@@ -700,6 +700,8 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_ZoetIverson'
     TYPE(type_BIV_bed_roughness)                       :: BIV
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: r_smooth
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -733,6 +735,23 @@ CONTAINS
 
     ! Map (transposed) raw data to the model grid
     CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%phi_fric, ice%phi_fric_a)
+
+    ! Smooth input bed roughness (for restarts with a different resolution)
+    IF (C%do_smooth_phi_restart) THEN
+      ! Smooth with a 2-D Gaussian filter with a standard deviation of 1/2 grid cell
+      r_smooth = grid%dx * C%r_smooth_phi_restart
+
+      ! Apply smoothing to the bed roughness
+      CALL smooth_Gaussian_2D( grid, ice%phi_fric_a, r_smooth)
+
+      ! Limit bed roughness
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ice%phi_fric_a( j,i) = MAX( 0.1_dp, MIN( 30._dp, ice%phi_fric_a( j,i)))
+      END DO
+      END DO
+      CALL sync
+    END IF
 
     ! Deallocate raw data
     CALL deallocate_shared( BIV%wnx      )
@@ -1798,6 +1817,7 @@ CONTAINS
     REAL(dp)                                           :: Hs_mod, Hs_target, u_mod, u_target
     REAL(dp)                                           :: I1, I2, I3, I_tot
     REAL(dp)                                           :: R
+    REAL(dp)                                           :: h_delta, h_dfrac
     REAL(dp)                                           :: sigma
 
     ! Add routine to path
@@ -1889,8 +1909,24 @@ CONTAINS
       ! Berends et al. (2022), Eq. 6
       I_tot = (I1 + I2 + I3) * R
 
-      ! Calculate rate of change of bed roughness (Berends et al. (2022), Eq. 8)
-      dphi_dt( j,i) = -ice%phi_fric_a( j,i) * I_tot / C%BIVgeo_Berends2022_tauc
+      ! Ice thickness difference w.r.t. reference thickness
+      h_delta = ice%Hi_a(j,i) - refgeo_PD%Hi(j,i)
+      ! Ratio between this difference and the reference ice thickness
+      h_dfrac = h_delta / MAX( refgeo_PD%Hi(j,i), 1._dp)
+
+      ! If the difference/fraction is outside the specified tolerance
+      IF (ABS( h_delta) >= C%BIVgeo_Bernales2017_tol_diff .OR. &
+          ABS( h_dfrac) >= C%BIVgeo_Bernales2017_tol_frac) THEN
+
+        ! Further adjust only where the previous value is not improving the result
+        IF ( (h_delta > 0._dp .AND. ice%dHi_dt_a( j,i) >= 0.0_dp) .OR. &
+             (h_delta < 0._dp .AND. ice%dHi_dt_a( j,i) <= 0.0_dp) ) THEN
+
+          ! Calculate rate of change of bed roughness (Berends et al. (2022), Eq. 8)
+          dphi_dt( j,i) = -ice%phi_fric_a( j,i) * I_tot / C%BIVgeo_Berends2022_tauc
+
+        END IF
+      END IF
 
     END DO
     END DO
@@ -1907,7 +1943,7 @@ CONTAINS
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( 1E-3_dp, MIN( 60._dp, ice%phi_fric_a( j,i) + dphi_dt( j,i) * dt ))
+      ice%phi_fric_a( j,i) = MAX( C%BIVgeo_Berends2022_phimin, MIN( C%BIVgeo_Berends2022_phimax, ice%phi_fric_a( j,i) + dphi_dt( j,i) * dt ))
     END DO
     END DO
     CALL sync
@@ -2078,9 +2114,10 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (C%choice_sliding_law == 'Coulomb' .OR. &
-        C%choice_sliding_law == 'Coulomb_regularised') THEN
+        C%choice_sliding_law == 'Coulomb_regularised' .OR. &
+        C%choice_sliding_law == 'Zoet-Iverson') THEN
 
-      CALL update_bed_roughness_Bernales2017_Coulomb( grid, ice, refgeo_PD)
+      CALL update_bed_roughness_Bernales2017_CoulombZoetIverson( grid, ice, refgeo_PD)
 
     ELSE
       CALL crash('not implemented for sliding law "' // TRIM(C%choice_sliding_law) // '"!')
@@ -2090,10 +2127,10 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_Bernales2017
-  SUBROUTINE update_bed_roughness_Bernales2017_Coulomb( grid, ice, refgeo)
+  SUBROUTINE update_bed_roughness_Bernales2017_CoulombZoetIverson( grid, ice, refgeo)
     ! Update the bed roughness according to Bernales et al. (2017)
     !
-    ! For the case of a (regularised) Coulomb sliding law: update phi_fric
+    ! For the case of a (regularised) Coulomb or Zoet-Iverson sliding law: update phi_fric
 
     IMPLICIT NONE
 
@@ -2103,14 +2140,14 @@ CONTAINS
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_bed_roughness_Bernales2017_Coulomb'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_bed_roughness_Bernales2017_CoulombZoetIverson'
     INTEGER                                            :: i,j
     INTEGER,  DIMENSION(:,:  ), POINTER                ::  mask
     INTEGER                                            :: wmask
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  dz
     INTEGER                                            :: wdz
     REAL(dp), PARAMETER                                :: sigma = 500._dp
-    REAL(dp)                                           :: h_scale, h_delta, h_dfrac, new_val
+    REAL(dp)                                           :: h_scale, h_delta, h_dfrac
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2191,7 +2228,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE update_bed_roughness_Bernales2017_Coulomb
+  END SUBROUTINE update_bed_roughness_Bernales2017_CoulombZoetIverson
 
   SUBROUTINE extrapolate_updated_bed_roughness( grid, mask, d)
     ! The different geometry-based basal inversion routine only yield values
