@@ -23,7 +23,7 @@ MODULE IMAU_ICE_main_model
   USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
                                                  create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
                                                  create_regional_scalar_output_file, create_ISMIP_output_files, write_to_ISMIP_output_files
-  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional
+  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
   USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
@@ -337,6 +337,21 @@ CONTAINS
     ! ============================
 
     CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
+
+    ! ===== Set sea level if prescribed externally =====
+    ! ==================================================
+
+    IF     (C%choice_sealevel_model == 'fixed') THEN
+      region%ice%SL_a( :,region%grid%i1:region%grid%i2) = C%fixed_sealevel
+    ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+      ! FIXME
+    ELSEIF     (C%choice_sealevel_model == 'prescribed') THEN
+      CALL update_sealevel_record_at_model_time( C%start_time_of_run)
+      region%ice%SL_a( :,region%grid%i1:region%grid%i2) = forcing%sealevel_obs
+    ELSE
+      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
+    END IF
+    CALL sync
 
     ! ===== Define ice basins =====
     ! =============================

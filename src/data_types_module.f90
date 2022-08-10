@@ -243,6 +243,11 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_m_ij2n_v
     INTEGER,  DIMENSION(:,:  ), POINTER     :: DIVA_m_n2ij_uv
     TYPE(type_sparse_matrix_CSR)            :: DIVA_m
+    INTEGER                                 :: DIVA_SOR_nit
+    REAL(dp)                                :: DIVA_SOR_tol
+    REAL(dp)                                :: DIVA_SOR_omega
+    REAL(dp)                                :: DIVA_PETSc_rtol
+    REAL(dp)                                :: DIVA_PETSc_abstol
     INTEGER :: wu_cx_prev, wv_cy_prev, wDIVA_err_cx, wDIVA_err_cy
     INTEGER :: wDIVA_mask_combi, wDIVA_isfront_inner, wDIVA_isfront_outer
     INTEGER :: wDIVA_m_ij2n_u, wDIVA_m_ij2n_v, wDIVA_m_n2ij_uv
@@ -266,7 +271,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask1    !         Second    prescribed retreat mask timeframe
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask     ! Time-interpolated prescribed retreat mask
     INTEGER :: wice_fraction_retreat_mask_t0, wice_fraction_retreat_mask_t1, wice_fraction_retreat_mask0, wice_fraction_retreat_mask1, wice_fraction_retreat_mask
-    
+
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
     REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_tau

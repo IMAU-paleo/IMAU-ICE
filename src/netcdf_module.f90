@@ -20,7 +20,7 @@ MODULE netcdf_module
                                              type_SELEN_global, type_global_scalar_data, type_highres_ocean_data, &
                                              type_direct_climate_forcing_global, type_direct_climate_forcing_regional, &
                                              type_direct_SMB_forcing_global, type_direct_SMB_forcing_regional, type_BIV_target_velocity, &
-                                             type_BIV_bed_roughness
+                                             type_BIV_bed_roughness, type_sparse_matrix_CSR
   USE data_types_netcdf_module
 
   IMPLICIT NONE
@@ -66,15 +66,17 @@ CONTAINS
     nz   = C%nZ
     ti   = region%restart%netcdf%ti
 
-    ! Geometry
+    ! Ice dynamics
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hi,               region%ice%Hi_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hb,               region%ice%Hb_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_Hs,               region%ice%Hs_a,             (/1, 1,    ti/))
+
+    ! Thermodynamics
+    CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, region%restart%netcdf%id_var_Ti,               region%ice%Ti_a,             (/1, 1, 1, ti/))
+
+    ! GIA
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_SL,               region%ice%SL_a,             (/1, 1,    ti/))
     CALL write_data_to_file_dp_2D( ncid, nx, ny,     region%restart%netcdf%id_var_dHb,              region%ice%dHb_a,            (/1, 1,    ti/))
-
-    ! Temperature
-    CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, region%restart%netcdf%id_var_Ti,               region%ice%Ti_a,             (/1, 1, 1, ti/))
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -1101,15 +1103,17 @@ CONTAINS
   ! ==== Create fields for the different model components =====
   ! ===========================================================
 
-    ! Geometry
+    ! Ice dynamics
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hi,               [x, y,       t], region%restart%netcdf%id_var_Hi,               long_name='Ice thickness', units='m')
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hb,               [x, y,       t], region%restart%netcdf%id_var_Hb,               long_name='Bedrock elevation', units='m')
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Hs,               [x, y,       t], region%restart%netcdf%id_var_Hs,               long_name='Surface elevation', units='m')
+
+    ! Thermodynamics
+    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Ti,               [x, y, z,    t], region%restart%netcdf%id_var_Ti,               long_name='Ice temperature', units='K')
+
+    ! GIA
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_SL,               [x, y,       t], region%restart%netcdf%id_var_SL,               long_name='Sea surface change',  units='m')
     CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_dHb,              [x, y,       t], region%restart%netcdf%id_var_dHb,              long_name='Bedrock deformation', units='m')
-
-    ! Temperature
-    CALL create_double_var( region%restart%netcdf%ncid, region%restart%netcdf%name_var_Ti,               [x, y, z,    t], region%restart%netcdf%id_var_Ti,               long_name='Ice temperature', units='K')
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -6677,6 +6681,75 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_prescribed_retreat_mask_file
+
+  ! Write CSR matrix to file
+  SUBROUTINE write_CSR_matrix_to_NetCDF( A_CSR, filename)
+    ! Write a CSR matrix to a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_sparse_matrix_CSR),        INTENT(IN)    :: A_CSR
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_CSR_matrix_to_NetCDF'
+    LOGICAL                                            :: file_exists
+    INTEGER                                            :: ncid
+    INTEGER                                            :: id_dim_m, id_dim_mp1, id_dim_n, id_dim_nnz
+    INTEGER                                            :: id_var_ptr, id_var_index, id_var_val
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+
+      ! Safety
+      INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
+      IF (file_exists) THEN
+        CALL crash('file "' // TRIM( filename) // '" already exists!')
+      END IF
+
+      WRITE(0,*) '   NOTE: writing CSR matrix to file "', TRIM(filename), '"'
+
+      ! Create netCDF file
+      CALL handle_error( nf90_create( TRIM(C%output_dir)//TRIM(filename), IOR(nf90_clobber,nf90_share), ncid))
+
+      ! Define dimensions:
+      CALL create_dim( ncid, 'm',      A_CSR%m      , id_dim_m  )
+      CALL create_dim( ncid, 'mplus1', A_CSR%m+1    , id_dim_mp1)
+      CALL create_dim( ncid, 'n',      A_CSR%n      , id_dim_n  )
+      CALL create_dim( ncid, 'nnz',    A_CSR%nnz_max, id_dim_nnz)
+
+      ! Define variables:
+      ! The order of the CALL statements for the different variables determines their
+      ! order of appearence in the netcdf file.
+
+      CALL create_int_var(    ncid, 'ptr',   [id_dim_mp1], id_var_ptr  , long_name = 'ptr'  )
+      CALL create_int_var(    ncid, 'index', [id_dim_nnz], id_var_index, long_name = 'index')
+      CALL create_double_var( ncid, 'val',   [id_dim_nnz], id_var_val  , long_name = 'val'  )
+
+      ! Leave definition mode
+      CALL handle_error( nf90_enddef( ncid))
+
+      ! Write data
+      CALL handle_error( nf90_put_var( ncid, id_var_ptr  , A_CSR%a_ptr  ))
+      CALL handle_error( nf90_put_var( ncid, id_var_index, A_CSR%a_index))
+      CALL handle_error( nf90_put_var( ncid, id_var_val  , A_CSR%a_val  ))
+
+      ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
+      CALL handle_error(nf90_sync( ncid))
+
+      ! Close the file
+      CALL close_netcdf_file( ncid)
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_CSR_matrix_to_NetCDF
 
 ! Some general useful stuff
 ! =========================
