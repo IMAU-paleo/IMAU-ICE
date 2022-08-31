@@ -1919,8 +1919,8 @@ CONTAINS
           ABS( h_dfrac) >= C%BIVgeo_Bernales2017_tol_frac) THEN
 
         ! Further adjust only where the previous value is not improving the result
-        IF ( (h_delta > 0._dp .AND. ice%dHi_dt_a( j,i) >= 0.0_dp) .OR. &
-             (h_delta < 0._dp .AND. ice%dHi_dt_a( j,i) <= 0.0_dp) ) THEN
+        IF ( (h_delta >= 0._dp .AND. ice%dHi_dt_a( j,i) >= 0.0_dp) .OR. &
+             (h_delta <= 0._dp .AND. ice%dHi_dt_a( j,i) <= 0.0_dp) ) THEN
 
           ! Calculate rate of change of bed roughness (Berends et al. (2022), Eq. 8)
           dphi_dt( j,i) = -ice%phi_fric_a( j,i) * I_tot / C%BIVgeo_Berends2022_tauc

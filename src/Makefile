@@ -4,8 +4,9 @@
 #     http://www.gnu.org/software/make/manual/make.html
 
 include Makefile_include_local.txt
-#include Makefile_include_Gemini.txt
-#include Makefile_include_Cartesius.txt
+#include Makefile_include_gemini.txt
+#include Makefile_include_snellius.txt
+#include Makefile_include_mac.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
@@ -14,7 +15,7 @@ MOD_PATH = module-files
 # Pattern rules for creating object files from *.f90 (fortran 90) source files
 $(OBJ_PATH)/%.o : %.f90
 	$(F90) $(F90FLAGS) -c -o $@ $<
-	
+
 $(OBJ_PATH)/%.o : %.F90
 	$(F90) $(F90FLAGS) -c -o $@ $<
 
@@ -102,7 +103,7 @@ IMAU_ICE_program_objects = \
         IMAU_ICE_main_model.o \
         IMAU_ICE_program.o
 endif
-        
+
 
 # The executable (the target) depends on the object files:
 IMAU_ICE_program : $(IMAU_ICE_program_objects:%=$(OBJ_PATH)/%)

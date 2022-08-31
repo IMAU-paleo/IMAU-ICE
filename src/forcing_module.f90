@@ -290,32 +290,53 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_mean_temperature_change_region'
     INTEGER                                            :: i,j,m
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: Hs_PD
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: T2m_PD
+    INTEGER                                            :: wHs_PD, wT2m_PD
     REAL(dp)                                           :: dT_lapse_mod, dT_lapse_PD, T_pot_mod, T_pot_PD
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D(     region%grid%ny, region%grid%nx, Hs_PD , wHs_PD )
+    CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, T2m_PD, wT2m_PD)
+
+    ! Obtain present-day orography and temperature from the climate model
+    IF     (C%choice_climate_model == 'PD_obs') THEN
+      Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%Hs(    :,region%grid%i1:region%grid%i2)
+      T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%T2m( :,:,region%grid%i1:region%grid%i2)
+    ELSEIF (C%choice_climate_model == 'matrix_warm_cold') THEN
+      Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%Hs(    :,region%grid%i1:region%grid%i2)
+      T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%T2m( :,:,region%grid%i1:region%grid%i2)
+    ELSE
+      CALL crash('present-day temperature not known for choice_climate_model "'//TRIM( C%choice_climate_model)//'"!')
+    END IF
+
     IF (par%master) THEN
+
       dT = 0._dp
-    END IF
 
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
-      dT_lapse_mod = region%ice%Hs_a(          j,i) * C%constant_lapserate
-      dT_lapse_PD  = region%climate_matrix%PD_obs%Hs( j,i) * C%constant_lapserate
-      DO m = 1, 12
-        T_pot_mod = region%climate_matrix%applied%T2m( m,j,i) - dT_lapse_mod
-        T_pot_PD  = region%climate_matrix%PD_obs%T2m(  m,j,i) - dT_lapse_PD
-        dT = dT + T_pot_mod - T_pot_PD
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
+        dT_lapse_mod = region%ice%Hs_a( j,i) * C%constant_lapserate
+        dT_lapse_PD  = Hs_PD(           j,i) * C%constant_lapserate
+        DO m = 1, 12
+          T_pot_mod = region%climate%T2m( m,j,i) - dT_lapse_mod
+          T_pot_PD  = T2m_PD(             m,j,i) - dT_lapse_PD
+          dT = dT + T_pot_mod - T_pot_PD
+        END DO
       END DO
-    END DO
-    END DO
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      END DO
 
-    IF (par%master) THEN
       dT = dT / (region%grid%nx * region%grid%ny * 12._dp)
-    END IF
+
+    END IF ! IF (par%master) THEN
     CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wHs_PD )
+    CALL deallocate_shared( wT2m_PD)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -554,7 +575,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
     INTEGER                                            :: ti1, ti2, til, tiu
     REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2
-    REAL(dp), PARAMETER                                :: dt_smooth = 30._dp
+    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)

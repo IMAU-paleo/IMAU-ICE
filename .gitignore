@@ -31,4 +31,10 @@ calving_test*
 MISMIP_mod/MISMIP_mod_*
 ABUMIP/ABUMIP_*
 BIVMIP/BIVMIP_*
-spinup_/*
+spinup_GRL/phase1_calib/hybrid_*
+spinup_GRL/phase2_glacial/hybrid_*
+spinup_GRL/phase3_termina/hybrid_*
+spinup_GRL/phase4_holocene/hybrid_*
+spinup_GRL/phase4_holocene_noPD/hybrid_*
+spinup_GRL/phase5_histor/hybrid_*
+PROTECT_projections/IMAUICE*

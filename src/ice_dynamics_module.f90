@@ -26,7 +26,7 @@ MODULE ice_dynamics_module
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
                                                  determine_masks_transitions
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
-  USE calving_module,                      ONLY: apply_calving_law, apply_prescribed_retreat_mask
+  USE calving_module,                      ONLY: apply_calving_law, apply_prescribed_retreat_mask, initialise_retreat_mask_refice
 
   IMPLICIT NONE
 
@@ -432,7 +432,7 @@ CONTAINS
   END SUBROUTINE run_ice_dynamics_pc
 
 ! == Update the ice thickness at the end of a model time loop
-  SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_init, refgeo_PD, refgeo_GIAeq, time)
+  SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_PD, refgeo_GIAeq, time)
     ! Update the ice thickness at the end of a model time loop
 
     IMPLICIT NONE
@@ -441,7 +441,6 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask_noice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
     REAL(dp),                            INTENT(IN)    :: time
@@ -637,7 +636,7 @@ CONTAINS
 
     ! Apply a prescribed retreat mask
     IF (C%do_apply_prescribed_retreat_mask) THEN
-      CALL apply_prescribed_retreat_mask( grid, ice, time, refgeo_init)
+      CALL apply_prescribed_retreat_mask( grid, ice, time)
     END IF
 
     ! Finally update the masks, slopes, etc.
@@ -1023,6 +1022,11 @@ CONTAINS
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
 
+    ! Initialise the reference ice thickness for a prescribed retreat mask
+    IF (C%do_apply_prescribed_retreat_mask) THEN
+      CALL initialise_retreat_mask_refice( grid, ice)
+    END IF
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1214,6 +1218,11 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask0  , ice%wice_fraction_retreat_mask0  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask1  , ice%wice_fraction_retreat_mask1  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask   , ice%wice_fraction_retreat_mask   )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%retreat_mask_Hi_ref         , ice%wretreat_mask_Hi_ref         )
+    IF (par%master) THEN
+      ice%ice_fraction_retreat_mask_t0 = C%start_time_of_run - 2._dp
+      ice%ice_fraction_retreat_mask_t1 = C%start_time_of_run - 1._dp
+    END IF
     END IF
 
     ! Ice dynamics - predictor/corrector ice thickness update
