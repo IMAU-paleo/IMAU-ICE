@@ -300,9 +300,9 @@ CONTAINS
     short_filename = 'restart_NAM.nc'
     short_filename(9:11) = region%name
     DO n = 1, 256
-      region%restart%netcdf%filename(n:n) = ' '
+      region%restart%filename(n:n) = ' '
     END DO
-    region%restart%netcdf%filename = TRIM(C%output_dir) // TRIM(short_filename)
+    region%restart%filename = TRIM(C%output_dir) // TRIM(short_filename)
 
     ! Help fields file
     short_filename = 'help_fields_NAM.nc'

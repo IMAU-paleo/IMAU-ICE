@@ -11,8 +11,9 @@ MODULE SMB_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_climate_model, &
-                                             type_restart_data, type_climate_model_direct_SMB
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_SMB, read_restart_file_SMB
+                                             type_climate_model_direct_SMB
+  USE data_types_netcdf_module,        ONLY: type_netcdf_restart
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, setup_grid_from_file, inquire_restart_file_SMB, read_restart_file_SMB
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
@@ -678,12 +679,16 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAU_ITM_firn_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
-    TYPE(type_restart_data)                            :: restart
+    TYPE(type_netcdf_restart)                          :: netcdf
+    TYPE(type_grid)                                    :: grid_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: FirnDepth_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: MeltPreviousYear_raw
+    INTEGER                                            :: wFirnDepth_raw, wMeltPreviousYear_raw
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Assume that SMB and geometry are read from the same restart file
+    ! Assume that temperature and geometry are read from the same restart file
     IF     (region_name == 'NAM') THEN
       filename_restart     = C%filename_refgeo_init_NAM
       time_to_restart_from = C%time_to_restart_from_NAM
@@ -698,50 +703,42 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
+    ! Set up the grid for this input file
+    netcdf%filename = filename_restart
+    CALL setup_grid_from_file( netcdf%filename, grid_raw)
+
     ! Inquire if all the required fields are present in the specified NetCDF file,
     ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file_SMB( restart)
-    END IF
-    CALL sync
+    CALL inquire_restart_file_SMB( netcdf)
 
     ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, FirnDepth_raw       , wFirnDepth_raw       )
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,     MeltPreviousYear_raw, wMeltPreviousYear_raw)
 
     ! Read data from input file
-    IF (par%master) CALL read_restart_file_SMB( restart, time_to_restart_from)
+    CALL read_restart_file_SMB( netcdf, time_to_restart_from, FirnDepth_raw, MeltPreviousYear_raw)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth'       )
-    CALL check_for_NaN_dp_2D( restart%MeltPreviousYear, 'restart%MeltPreviousYear')
+    CALL check_for_NaN_dp_3D( FirnDepth_raw       , 'FirnDepth_raw'       )
+    CALL check_for_NaN_dp_2D( MeltPreviousYear_raw, 'MeltPreviousYear_raw')
 
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_3D( restart%FirnDepth,        restart%wFirnDepth       )
-    CALL transpose_dp_2D( restart%MeltPreviousYear, restart%wMeltPreviousYear)
+    CALL transpose_dp_3D( FirnDepth_raw       , wFirnDepth_raw       )
+    CALL transpose_dp_2D( MeltPreviousYear_raw, wMeltPreviousYear_raw)
 
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%FirnDepth,        SMB%FirnDepth       )
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%MeltPreviousYear, SMB%MeltPreviousYear)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, FirnDepth_raw       , SMB%FirnDepth       )
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, MeltPreviousYear_raw, SMB%MeltPreviousYear)
 
     ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
+    CALL deallocate_shared( grid_raw%wnx         )
+    CALL deallocate_shared( grid_raw%wny         )
+    CALL deallocate_shared( grid_raw%wdx         )
+    CALL deallocate_shared( grid_raw%wx          )
+    CALL deallocate_shared( grid_raw%wy          )
+    CALL deallocate_shared( wFirnDepth_raw       )
+    CALL deallocate_shared( wMeltPreviousYear_raw)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -1147,8 +1147,7 @@ CONTAINS
 
     ! Map the data to the model grid
     CALL allocate_shared_dp_3D( 8, grid%ny, grid%nx, data_combi_mapped, wdata_combi_mapped)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, data_combi_raw, data_combi_mapped)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, data_combi_raw, data_combi_mapped)
 
     ! Get mapped data back from the 3-D combined array
     DO i = grid%i1, grid%i2
@@ -1283,12 +1282,9 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%ST_ref , ISMIP_style%wST_ref )
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%Hs_ref , ISMIP_style%wHs_ref )
 
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, SMB_raw, ISMIP_style%SMB_ref)
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, ST_raw , ISMIP_style%ST_ref )
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Hs_raw , ISMIP_style%Hs_ref )
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, SMB_raw, ISMIP_style%SMB_ref)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, ST_raw , ISMIP_style%ST_ref )
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hs_raw , ISMIP_style%Hs_ref )
 
     ! Clean up after yourself
     CALL deallocate_shared( grid_raw%wnx)
@@ -2248,16 +2244,11 @@ CONTAINS
     CALL sync
 
     ! Map data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Hs_raw, snapshot%Hs)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, T2m_raw, snapshot%T2m)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Precip_raw, snapshot%Precip)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Wind_LR_raw, snapshot%Wind_LR)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Wind_DU_raw, snapshot%Wind_DU)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hs_raw     , snapshot%Hs     )
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, T2m_raw    , snapshot%T2m    )
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, Precip_raw , snapshot%Precip )
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, Wind_LR_raw, snapshot%Wind_LR)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, Wind_DU_raw, snapshot%Wind_DU)
 
     ! Get precipitation back from logarithm
     DO i = grid%i1, grid%i2
@@ -2270,10 +2261,11 @@ CONTAINS
     CALL sync
 
     ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( grid_raw%wnx  )
+    CALL deallocate_shared( grid_raw%wny  )
+    CALL deallocate_shared( grid_raw%wdx  )
+    CALL deallocate_shared( grid_raw%wx   )
+    CALL deallocate_shared( grid_raw%wy   )
     CALL deallocate_shared( wHs_raw       )
     CALL deallocate_shared( wT2m_raw      )
     CALL deallocate_shared( wPrecip_raw   )

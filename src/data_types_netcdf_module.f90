@@ -523,8 +523,8 @@ MODULE data_types_netcdf_module
     ! ID for NetCDF file:
     INTEGER :: ncid
 
-    ! ID's for variables:
-    ! ===================
+  ! Dimensions
+  ! ==========
 
     ! Dimensions
     INTEGER :: id_dim_x
@@ -533,15 +533,21 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
 
-    ! Variables:
+  ! Variables
+  ! =========
+
+    ! Dimensions
     INTEGER :: id_var_x
     INTEGER :: id_var_y
+
+    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
+    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
+
+    ! Variables
     INTEGER :: id_var_Hi
     INTEGER :: id_var_Hb
     INTEGER :: id_var_Hs
 
-    CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
-    CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_Hi                    = 'Hi                   '
     CHARACTER(LEN=256) :: name_var_Hb                    = 'Hb                   '
     CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '

@@ -1316,8 +1316,8 @@ CONTAINS
   ! ============================================================================================
 
     IF (par%master) WRITE(0,*) '   Mapping high-resolution extrapolated ocean data to the ice-model grid...'
-    CALL map_square_to_square_cons_2nd_order_3D( hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%T_ocean, ocean_reg%T_ocean_ext)
-    CALL map_square_to_square_cons_2nd_order_3D( hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%S_ocean, ocean_reg%S_ocean_ext)
+    CALL map_square_to_square_cons_2nd_order_3D( hires%grid, region%grid, hires%T_ocean, ocean_reg%T_ocean_ext)
+    CALL map_square_to_square_cons_2nd_order_3D( hires%grid, region%grid, hires%S_ocean, ocean_reg%S_ocean_ext)
 
     ! Clean up after yourself
     CALL deallocate_shared( hires%grid%wnx          )
@@ -1566,7 +1566,7 @@ CONTAINS
     CALL sync
 
     ! Map double-precision basin ID from ice-model grid to high-resolution grid
-    CALL map_square_to_square_cons_2nd_order_2D( region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, basin_ID_dp_lores, basin_ID_dp_hires)
+    CALL map_square_to_square_cons_2nd_order_2D( region%grid, hires%grid, basin_ID_dp_lores, basin_ID_dp_hires)
 
     ! Remove all near-boundary cells
     DO i = hires%grid%i1, hires%grid%i2

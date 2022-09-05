@@ -10,10 +10,12 @@ MODULE thermodynamics_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_temperature, read_restart_file_temperature
+  USE netcdf_module,                   ONLY: debug, write_to_debug_file, setup_grid_from_file, &
+                                             inquire_restart_file_temperature, read_restart_file_temperature
   USE parameters_module
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, &
-                                             type_restart_data, type_ocean_snapshot_regional
+                                             type_ocean_snapshot_regional
+  USE data_types_netcdf_module,        ONLY: type_netcdf_restart
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              tridiagonal_solve, map_square_to_square_cons_2nd_order_3D, transpose_dp_3D, &
@@ -919,7 +921,10 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
-    TYPE(type_restart_data)                            :: restart
+    TYPE(type_netcdf_restart)                          :: netcdf
+    TYPE(type_grid)                                    :: grid_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER                ::  Ti_raw
+    INTEGER                                            :: wTi_raw
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -939,49 +944,37 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
+    ! Set up the grid for this input file
+    netcdf%filename = filename_restart
+    CALL setup_grid_from_file( netcdf%filename, grid_raw)
+
     ! Inquire if all the required fields are present in the specified NetCDF file,
     ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file_temperature( restart)
-    END IF
-    CALL sync
+    CALL inquire_restart_file_temperature( netcdf)
 
     ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, C%nz, Ti_raw, wTi_raw)
 
     ! Read data from input file
-    IF (par%master) CALL read_restart_file_temperature( restart, time_to_restart_from)
+    CALL read_restart_file_temperature( netcdf, time_to_restart_from, Ti_raw)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti')
+    CALL check_for_NaN_dp_3D( Ti_raw, 'Ti_raw')
 
     ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_3D( restart%Ti, restart%wTi)
+    CALL transpose_dp_3D( Ti_raw, wTi_raw)
 
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Ti, ice%Ti_a)
+    CALL map_square_to_square_cons_2nd_order_3D( grid_raw, grid, Ti_raw, ice%Ti_a)
 
     ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnz              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wzeta            )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wTi              )
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wdx)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wTi_raw     )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

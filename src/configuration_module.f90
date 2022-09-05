@@ -275,6 +275,8 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ice_margin_config                    = 'infinite_slab'                  ! Choice of ice margin boundary conditions: "BC", "infinite_slab"
   LOGICAL             :: include_SSADIVA_crossterms_config           = .TRUE.                           ! Whether or not to include the "cross-terms" of the SSA/DIVA
   LOGICAL             :: do_GL_subgrid_friction_config               = .TRUE.                           ! Whether or not to scale basal friction with the sub-grid grounded fraction (needed to get proper GL migration; only turn this off for showing the effect on the MISMIP_mod results!)
+  CHARACTER(LEN=256)  :: choice_subgrid_grounded_scheme_config       = 'CISM'                           ! Which scheme to use to determine sub-grid grounded fractions
+  INTEGER             :: subgrid_Hb_CDF_nbins_config                 = 25                               ! Number of density intervals for the sub-grid bedrock topography cumulative density functions
   LOGICAL             :: do_smooth_geometry_config                   = .FALSE.                          ! Whether or not to smooth the model geometry (bedrock + initial ice thickness)
   REAL(dp)            :: r_smooth_geometry_config                    = 0.5_dp                           ! Geometry smoothing radius (in number of grid cells)
 
@@ -1019,6 +1021,8 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_ice_margin
     LOGICAL                             :: include_SSADIVA_crossterms
     LOGICAL                             :: do_GL_subgrid_friction
+    CHARACTER(LEN=256)                  :: choice_subgrid_grounded_scheme
+    INTEGER                             :: subgrid_Hb_CDF_nbins
     LOGICAL                             :: do_smooth_geometry
     REAL(dp)                            :: r_smooth_geometry
 
@@ -1896,6 +1900,8 @@ CONTAINS
                      choice_ice_margin_config,                        &
                      include_SSADIVA_crossterms_config,               &
                      do_GL_subgrid_friction_config,                   &
+                     choice_subgrid_grounded_scheme_config,           &
+                     subgrid_Hb_CDF_nbins_config,                     &
                      do_smooth_geometry_config,                       &
                      r_smooth_geometry_config,                        &
                      DIVA_visc_it_norm_dUV_tol_config,                &
@@ -2661,6 +2667,8 @@ CONTAINS
     C%choice_ice_margin                        = choice_ice_margin_config
     C%include_SSADIVA_crossterms               = include_SSADIVA_crossterms_config
     C%do_GL_subgrid_friction                   = do_GL_subgrid_friction_config
+    C%choice_subgrid_grounded_scheme           = choice_subgrid_grounded_scheme_config
+    C%subgrid_Hb_CDF_nbins                     = subgrid_Hb_CDF_nbins_config
     C%do_smooth_geometry                       = do_smooth_geometry_config
     C%r_smooth_geometry                        = r_smooth_geometry_config
 

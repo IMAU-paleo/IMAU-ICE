@@ -89,6 +89,10 @@ MODULE data_types_module
     INTEGER :: wTAF_a, wTAF_cx, wTAF_cy, wTAF_b
     INTEGER :: wTi_a,  wTi_cx,  wTi_cy,  wTi_b
 
+    ! Sub-grid bedrock
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF
+    INTEGER :: wHb_CDF
+
     ! Ice velocities
     REAL(dp), DIMENSION(:,:,:), POINTER     :: u_3D_a                ! 3-D ice velocity [m yr^-1]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: v_3D_a
@@ -811,104 +815,19 @@ MODULE data_types_module
   END TYPE type_BMB_model
 
   TYPE type_reference_geometry
-    ! Data structure containing a reference ice-sheet geometry (either schematic or read from an external file).
+    ! Data structure containing a reference ice-sheet geometry
 
     ! NetCDF file containing the data
     TYPE(type_netcdf_reference_geometry)    :: netcdf
 
-    ! Raw data as read from a NetCDF file
-    INTEGER,                    POINTER     :: nx_raw, ny_raw
-    REAL(dp), DIMENSION(:    ), POINTER     :: x_raw, y_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_raw
-    INTEGER :: wnx_raw, wny_raw, wx_raw, wy_raw, wHi_raw, wHb_raw, wHs_raw
-
     ! Data on the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
-    INTEGER :: wHi, wHb, wHs
+    INTEGER :: wHi, wHb, wHb_CDF, wHs
 
   END TYPE type_reference_geometry
-
-  TYPE type_restart_data
-    ! Restart data and NetCDF file
-
-    ! NetCDF file
-    TYPE(type_netcdf_restart)               :: netcdf
-
-    ! Grid
-    INTEGER,                    POINTER     :: nx, ny, nz, nt
-    REAL(dp), DIMENSION(:    ), POINTER     :: x, y, zeta, time
-    INTEGER :: wnx, wny, wnz, wnt, wx, wy, wzeta, wtime
-
-    ! Data
-
-    ! Ice dynamics
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti
-    INTEGER :: wHi, wHb, wHs, wTi
-
-    ! GIA
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: SL
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb
-    INTEGER :: wSL, wdHb
-
-    ! SMB
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear
-    INTEGER :: wFirnDepth, wMeltPreviousYear
-
-    ! Isotopes
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: IsoIce
-    INTEGER :: wIsoIce
-
-  END TYPE type_restart_data
-
-  TYPE type_BIV_bed_roughness
-    ! Bed roughness field produced by a basal inversion procedure
-
-    ! NetCDF file
-    TYPE(type_netcdf_BIV_bed_roughness)     :: netcdf
-
-    ! Grid
-    INTEGER,                    POINTER     :: nx, ny
-    REAL(dp), DIMENSION(:    ), POINTER     :: x, y
-    INTEGER :: wnx, wny, wx, wy
-
-    ! Data
-
-    ! Ice dynamics
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: alpha_sq
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: beta_sq
-    INTEGER :: wphi_fric, walpha_sq, wbeta_sq
-
-  END TYPE type_BIV_bed_roughness
-
-  TYPE type_BIV_target_velocity
-    ! Target velocity fields used by the basal inversion routine
-
-    ! NetCDF file
-    TYPE(type_netcdf_BIV_target_velocity)   :: netcdf
-
-    ! Grid
-    INTEGER,                    POINTER     :: nx, ny
-    REAL(dp), DIMENSION(:    ), POINTER     :: x, y
-    INTEGER :: wnx, wny, wx, wy
-
-    ! Data
-
-    ! Ice dynamics
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_surf
-    INTEGER :: wu_surf, wv_surf, wuabs_surf
-
-  END TYPE type_BIV_target_velocity
 
   TYPE type_forcing_data
     ! Data structure containing model forcing data - CO2 record, d18O record, (global) insolation record
@@ -1260,7 +1179,7 @@ MODULE data_types_module
     TYPE(type_SELEN_regional)               :: SELEN                                     ! SELEN input and output data for this model region
 
     ! Output netcdf files
-    TYPE(type_restart_data)                 :: restart
+    TYPE(type_netcdf_restart)               :: restart
     TYPE(type_netcdf_help_fields)           :: help_fields
     TYPE(type_netcdf_scalars_regional)      :: scalars
 

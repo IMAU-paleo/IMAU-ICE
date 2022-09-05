@@ -19,7 +19,7 @@ PROGRAM IMAU_ICE_program
   ! problems during compiling, and makes the modules very clean and easy to read.
 
   USE mpi
-  USE parallel_module,                 ONLY: par, sync, cerr, ierr
+  USE parallel_module,                 ONLY: par, sync, ierr
   USE configuration_module,            ONLY: dp, C, routine_path, crash, warning, initialise_model_configuration, write_total_model_time_to_screen, &
                                              reset_computation_times
   USE data_types_module,               ONLY: type_model_region, type_ocean_matrix_global, type_SELEN_global, &
@@ -52,9 +52,11 @@ PROGRAM IMAU_ICE_program
   TYPE(type_ocean_matrix_global)         :: ocean_matrix_global
 
   ! SELEN
+# if (defined(DO_SELEN))
   TYPE(type_SELEN_global)                :: SELEN
   REAL(dp)                               :: ocean_area
   REAL(dp)                               :: ocean_depth
+# endif
 
   ! Global scalar data (sea level, CO2, d18O, etc.)
   TYPE(type_global_scalar_data)          :: global_data
@@ -179,7 +181,6 @@ PROGRAM IMAU_ICE_program
   IF (C%choice_GIA_model == 'SELEN' .OR. C%choice_sealevel_model == 'SELEN') THEN
     CALL initialise_SELEN( SELEN, NAM, EAS, GRL, ANT, version_number)
   END IF
-# endif
 
   ! Timers and switch
   IF (C%SELEN_run_at_t_start) THEN
@@ -189,6 +190,7 @@ PROGRAM IMAU_ICE_program
     SELEN%t0_SLE = C%start_time_of_run
     SELEN%t1_SLE = C%start_time_of_run + C%dt_SELEN
   END IF
+# endif
 
   ! Write global scalar data at the start of the simulation to output file
   CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, C%start_time_of_run)

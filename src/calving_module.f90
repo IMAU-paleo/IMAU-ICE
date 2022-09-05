@@ -215,10 +215,8 @@ CONTAINS
     CALL transpose_dp_2D( ice_fraction_retreat_mask_raw1, wice_fraction_retreat_mask_raw1)
 
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, &
-      ice_fraction_retreat_mask_raw0, ice%ice_fraction_retreat_mask0)
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, &
-      ice_fraction_retreat_mask_raw1, ice%ice_fraction_retreat_mask1)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, ice_fraction_retreat_mask_raw0, ice%ice_fraction_retreat_mask0)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, ice_fraction_retreat_mask_raw1, ice%ice_fraction_retreat_mask1)
 
     ! Limit ice fractions to [0,1]
     DO i = grid%i1, grid%i2
@@ -286,8 +284,7 @@ CONTAINS
     CALL transpose_dp_2D( Hi_raw, wHi_raw)
 
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, &
-      grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, Hi_raw, ice%retreat_mask_Hi_ref)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hi_raw, ice%retreat_mask_Hi_ref)
 
     ! Deallocate raw data
     CALL deallocate_shared( grid_raw%wnx)

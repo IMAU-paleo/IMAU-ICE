@@ -347,6 +347,38 @@ CONTAINS
 
 ! == Routines for calculating sub-grid grounded fractions
   SUBROUTINE determine_grounded_fractions( grid, ice)
+    ! Determine grounded fractions on all grids
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Use the specified sub-grid scheme
+    IF (C%choice_subgrid_grounded_scheme == 'CISM') THEN
+      ! Use the CISM scheme of bilinearly interpolating the thickness-above-floatation
+
+      CALL determine_grounded_fractions_CISM( grid, ice)
+
+    ELSEIF (C%choice_subgrid_grounded_scheme == 'Hb_CDF') THEN
+      ! Use the cumulative density function of the sub-grid bedrock topography
+
+    ELSE
+      CALL crash('unknown choice_subgrid_grounded_scheme "' // TRIM( C%choice_subgrid_grounded_scheme) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE determine_grounded_fractions
+  SUBROUTINE determine_grounded_fractions_CISM( grid, ice)
     ! Determine the grounded fraction of next-to-grounding-line pixels
     ! (used for determining basal friction in the DIVA)
     !
@@ -359,7 +391,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions_CISM'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  f_grnd_a_NW,  f_grnd_a_NE,  f_grnd_a_SW,  f_grnd_a_SE
     INTEGER                                            :: wf_grnd_a_NW, wf_grnd_a_NE, wf_grnd_a_SW, wf_grnd_a_SE
@@ -416,7 +448,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE determine_grounded_fractions
+  END SUBROUTINE determine_grounded_fractions_CISM
   SUBROUTINE determine_grounded_fractions_CISM_quads( grid, ice, f_grnd_a_NW, f_grnd_a_NE, f_grnd_a_SW, f_grnd_a_SE)
     ! Calculate grounded fractions of all four quadrants of each a-grid cell
     ! (using the approach from CISM, where grounded fractions are calculated

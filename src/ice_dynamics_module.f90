@@ -1075,6 +1075,9 @@ CONTAINS
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx  , ice%Ti_cy                , ice%wTi_cy                )
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx-1, ice%Ti_b                 , ice%wTi_b                 )
 
+    ! Sub-grid bedrock
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny, grid%nx, ice%Hb_CDF  , ice%wHb_CDF               )
+
     ! Ice velocities
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx  , ice%u_3D_a               , ice%wu_3D_a               )
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx  , ice%v_3D_a               , ice%wv_3D_a               )

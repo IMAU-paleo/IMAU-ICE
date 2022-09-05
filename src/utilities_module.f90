@@ -876,31 +876,24 @@ CONTAINS
   END SUBROUTINE SSA_Schoof2006_analytical_solution
 
 ! == Map data between two square grids using 2nd-order conservative remapping
-  SUBROUTINE map_square_to_square_cons_2nd_order_2D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst)
+  SUBROUTINE map_square_to_square_cons_2nd_order_2D( grid_src, grid_dst, d_src, d_dst)
     ! Map data from one square grid to another (e.g. PD ice thickness from the square grid in the input file to the model square grid)
 
     IMPLICIT NONE
 
     ! Input and output variables
-    INTEGER,                            INTENT(IN)    :: nx_src
-    INTEGER,                            INTENT(IN)    :: ny_src
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: x_src
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: y_src
-    INTEGER,                            INTENT(IN)    :: nx_dst
-    INTEGER,                            INTENT(IN)    :: ny_dst
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: x_dst
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: y_dst
-    REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: d_src
+    TYPE(type_grid),                    INTENT(IN)    :: grid_src
+    TYPE(type_grid),                    INTENT(IN)    :: grid_dst
+    REAL(dp), DIMENSION(:,:  ),         INTENT(INOUT) :: d_src
     REAL(dp), DIMENSION(:,:  ),         INTENT(OUT)   :: d_dst
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_square_to_square_cons_2nd_order_2D'
-    INTEGER                                           :: i,j,i_src,j_src,i_dst,j_dst,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
-    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst
-    INTEGER,  DIMENSION(nx_dst)                       :: il_src, iu_src
-    INTEGER,  DIMENSION(ny_dst)                       :: jl_src, ju_src
+    INTEGER                                           :: i,j,i_src,j_src,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: il_src, iu_src
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: jl_src, ju_src
     REAL(dp)                                          :: xomin, xomax, yomin, yomax, w0, w1x, w1y
-    REAL(dp)                                          :: Ad, Asd, Asum
+    REAL(dp)                                          :: A_dst, A_overlap, Asum
     REAL(dp), DIMENSION(:,:  ), POINTER               ::  ddx_src,  ddy_src
     INTEGER                                           :: wddx_src, wddy_src
     INTEGER,  DIMENSION(:,:  ), POINTER               ::  mask_dst_outside_src
@@ -910,20 +903,16 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D(  ny_src, nx_src, ddx_src,              wddx_src             )
-    CALL allocate_shared_dp_2D(  ny_src, nx_src, ddy_src,              wddy_src             )
-    CALL allocate_shared_int_2D( ny_dst, nx_dst, mask_dst_outside_src, wmask_dst_outside_src)
+    CALL allocate_shared_dp_2D(  grid_src%ny, grid_src%nx, ddx_src,              wddx_src             )
+    CALL allocate_shared_dp_2D(  grid_src%ny, grid_src%nx, ddy_src,              wddy_src             )
+    CALL allocate_shared_int_2D( grid_dst%ny, grid_dst%nx, mask_dst_outside_src, wmask_dst_outside_src)
 
-    ! Find grid spacings
-    dx_src = x_src(2) - x_src(1)
-    dy_src = y_src(2) - y_src(1)
-    dx_dst = x_dst(2) - x_dst(1)
-    dy_dst = y_dst(2) - y_dst(1)
-    Ad = dx_dst * dy_dst
+    ! Area of a dst grid cell
+    A_dst = grid_dst%dx**2
 
     ! If the grids are equal, the solution is trivial; just copy the data
-    IF (dx_src == dx_dst .AND. dy_src == dy_dst .AND. nx_src == nx_dst .AND. ny_src == ny_dst) THEN
-      CALL partition_list( nx_dst, par%i, par%n, i1, i2)
+    IF (grid_src%dx == grid_dst%dx .AND. grid_src%nx == grid_dst%nx .AND. grid_src%ny == grid_dst%ny) THEN
+      CALL partition_list( grid_dst%nx, par%i, par%n, i1, i2)
       d_dst( :,i1:i2) = d_src( :,i1:i2)
       CALL sync
       CALL deallocate_shared(  wddx_src             )
@@ -936,120 +925,39 @@ CONTAINS
     ! Find overlaps between grids
     ! dst cell [i,j] overlaps with src cells [il_src( i):iu_src( i), jl_src( j):ju_src( j)]
 
-    ! il
-    DO i_dst = 1, nx_dst
+    ALLOCATE( il_src( grid_dst%nx))
+    ALLOCATE( iu_src( grid_dst%nx))
+    ALLOCATE( jl_src( grid_dst%ny))
+    ALLOCATE( ju_src( grid_dst%ny))
 
-      IF (i_dst == 1) THEN
-        il_src( i_dst) = 1
-      ELSE
-        il_src( i_dst) = il_src( i_dst-1)
-      END IF
-
-      DO WHILE (x_src( il_src( i_dst)) + dx_src / 2._dp < x_dst( i_dst) - dx_dst / 2._dp)
-        il_src( i_dst) = il_src( i_dst) + 1
-        IF (il_src( i_dst) >= nx_src) THEN
-          EXIT
-        END IF
-      END DO
-      il_src( i_dst) = MAX( 1, MIN( nx_src, il_src( i_dst) ))
-
-    END DO ! DO i_dst = 1, nx_dst
-
-    il_src = il_src - 1
-    il_src = MAX( 1, MIN( nx_src, il_src))
-
-    ! iu
-    DO i_dst = nx_dst, 1, -1
-
-      IF (i_dst == nx_dst) THEN
-        iu_src( i_dst) = nx_src
-      ELSE
-        iu_src( i_dst) = il_src( i_dst+1)
-      END IF
-
-      DO WHILE (x_src( iu_src( i_dst)) - dx_src / 2._dp > x_dst( i_dst) + dx_dst / 2._dp)
-        iu_src( i_dst) = iu_src( i_dst) - 1
-        IF (iu_src( i_dst) <= 1) THEN
-          EXIT
-        END IF
-      END DO
-      iu_src( i_dst) = MAX( 1, MIN( nx_src, iu_src( i_dst) ))
-
-    END DO ! DO i_dst = nx_dst, 1, -1
-
-    iu_src = iu_src + 1
-    iu_src = MAX( 1, MIN( nx_src, iu_src))
-
-    ! jl
-    DO j_dst = 1, ny_dst
-
-      IF (j_dst == 1) THEN
-        jl_src( j_dst) = 1
-      ELSE
-        jl_src( j_dst) = jl_src( j_dst-1)
-      END IF
-
-      DO WHILE (y_src( jl_src( j_dst)) + dx_src / 2._dp < y_dst( j_dst) - dx_dst / 2._dp)
-        jl_src( j_dst) = jl_src( j_dst) + 1
-        IF (jl_src( j_dst) >= ny_src) THEN
-          EXIT
-        END IF
-      END DO
-      jl_src( j_dst) = MAX( 1, MIN( ny_src, jl_src( j_dst) ))
-
-    END DO ! DO j_dst = 1, ny_dst
-
-    jl_src = jl_src - 1
-    jl_src = MAX( 1, MIN( ny_src, jl_src))
-
-    ! ju
-    DO j_dst = ny_dst, 1, -1
-
-      IF (j_dst == ny_dst) THEN
-        ju_src( j_dst) = ny_src
-      ELSE
-        ju_src( j_dst) = jl_src( j_dst+1)
-      END IF
-
-      DO WHILE (y_src( ju_src( j_dst)) - dx_src / 2._dp > y_dst( j_dst) + dx_dst / 2._dp)
-        ju_src( j_dst) = ju_src( j_dst) - 1
-        IF (ju_src( j_dst) <= 1) THEN
-          EXIT
-        END IF
-      END DO
-      ju_src( j_dst) = MAX( 1, MIN( ny_src, ju_src( j_dst) ))
-
-    END DO ! DO j_dst = ny_dst, 1, -1
-
-    ju_src = ju_src + 1
-    ju_src = MAX( 1, MIN( ny_src, ju_src))
+    CALL calc_overlapping_grid_cell_ranges( grid_src, grid_dst, il_src, iu_src, jl_src, ju_src)
 
     ! Get derivatives of d_src
-    CALL partition_list( nx_src, par%i, par%n, i1, i2)
-    DO i = MAX(2,i1), MIN(nx_src-1,i2)
-    DO j = 2, ny_src-1
-      ddx_src( j,i) = (d_src( j,i+1) - d_src( j,i-1)) / (2._dp * dx_src)
-      ddy_src( j,i) = (d_src( j+1,i) - d_src( j-1,i)) / (2._dp * dy_src)
+    CALL partition_list( grid_src%nx, par%i, par%n, i1, i2)
+    DO i = MAX(2,i1), MIN(grid_src%nx-1,i2)
+    DO j = 2, grid_src%ny-1
+      ddx_src( j,i) = (d_src( j,i+1) - d_src( j,i-1)) / (2._dp * grid_src%dx)
+      ddy_src( j,i) = (d_src( j+1,i) - d_src( j-1,i)) / (2._dp * grid_src%dx)
     END DO
     END DO
     CALL sync
 
     ! Find parallelisation domains
-    CALL partition_list( nx_dst, par%i, par%n, i1, i2)
-    CALL partition_list( ny_dst, par%i, par%n, j1, j2)
+    CALL partition_list( grid_dst%nx, par%i, par%n, i1, i2)
+    CALL partition_list( grid_dst%ny, par%i, par%n, j1, j2)
 
     DO i = i1, i2
-    DO j = 1, ny_dst
+    DO j = 1, grid_dst%ny
 
       d_dst( j,i) = 0._dp
       Asum        = 0._dp
 
       ! If this dst cell lies (partly) outside of the src grid, mark it as such;
       ! in that case, use nearest-neighbour extrapolation instead of conservative remapping
-      IF (x_dst( i) - dx_dst/2._dp < MINVAL( x_src) - dx_src/2._dp .OR. &
-          x_dst( i) + dx_dst/2._dp > MAXVAL( x_src) + dx_src/2._dp .OR. &
-          y_dst( j) - dx_dst/2._dp < MINVAL( y_src) - dx_src/2._dp .OR. &
-          y_dst( j) + dx_dst/2._dp > MAXVAL( y_src) + dx_src/2._dp) THEN
+      IF (grid_dst%x( i) - grid_dst%dx/2._dp < MINVAL( grid_src%x) - grid_src%dx/2._dp .OR. &
+          grid_dst%x( i) + grid_dst%dx/2._dp > MAXVAL( grid_src%x) + grid_src%dx/2._dp .OR. &
+          grid_dst%y( j) - grid_dst%dx/2._dp < MINVAL( grid_src%y) - grid_src%dx/2._dp .OR. &
+          grid_dst%y( j) + grid_dst%dx/2._dp > MAXVAL( grid_src%y) + grid_src%dx/2._dp) THEN
         mask_dst_outside_src( j,i) = 1
         CYCLE
       ELSE
@@ -1059,25 +967,25 @@ CONTAINS
       DO i_src = il_src( i), iu_src( i)
       DO j_src = jl_src( j), ju_src( j)
 
-        xomin = MAX( x_dst( i) - dx_dst/2._dp, x_src( i_src) - dx_src/2._dp)
-        xomax = MIN( x_dst( i) + dx_dst/2._dp, x_src( i_src) + dx_src/2._dp)
-        yomin = MAX( y_dst( j) - dy_dst/2._dp, y_src( j_src) - dy_src/2._dp)
-        yomax = MIN( y_dst( j) + dy_dst/2._dp, y_src( j_src) + dy_src/2._dp)
+        xomin = MAX( grid_dst%x( i) - grid_dst%dx/2._dp, grid_src%x( i_src) - grid_src%dx/2._dp)
+        xomax = MIN( grid_dst%x( i) + grid_dst%dx/2._dp, grid_src%x( i_src) + grid_src%dx/2._dp)
+        yomin = MAX( grid_dst%y( j) - grid_dst%dx/2._dp, grid_src%y( j_src) - grid_src%dx/2._dp)
+        yomax = MIN( grid_dst%y( j) + grid_dst%dx/2._dp, grid_src%y( j_src) + grid_src%dx/2._dp)
 
         IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
 
-        Asd  = (xomax - xomin) * (yomax - yomin)
-        Asum = Asum + Asd
+        A_overlap  = (xomax - xomin) * (yomax - yomin)
+        Asum = Asum + A_overlap
 
-        w0  = Asd / Ad
-        w1x = 1._dp / Ad * (line_integral_mxydx( [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
-                            line_integral_mxydx( [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
-                            line_integral_mxydx( [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
-                            line_integral_mxydx( [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * x_src( i_src)
-        w1y = 1._dp / Ad * (line_integral_xydy(  [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
-                            line_integral_xydy(  [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
-                            line_integral_xydy(  [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
-                            line_integral_xydy(  [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * y_src( j_src)
+        w0  = A_overlap / A_dst
+        w1x = 1._dp / A_dst * (line_integral_mxydx( [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
+                               line_integral_mxydx( [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
+                               line_integral_mxydx( [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
+                               line_integral_mxydx( [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * grid_src%x( i_src)
+        w1y = 1._dp / A_dst * (line_integral_xydy(  [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
+                               line_integral_xydy(  [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
+                               line_integral_xydy(  [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
+                               line_integral_xydy(  [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * grid_src%y( j_src)
 
         d_dst( j,i) = d_dst( j,i) + w0  * d_src(   j_src,i_src) + &
                                     w1x * ddx_src( j_src,i_src) + &
@@ -1087,11 +995,12 @@ CONTAINS
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
 
       ! Safety
-      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
-        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, Ad = {dp_02}', int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = Ad)
+      IF (ABS( 1._dp - Asum / A_dst) > 1E-4_dp) THEN
+        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, A_dst = {dp_02}', &
+          int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = A_dst)
       END IF
 
-    END DO ! DO j = 1, ny_dst
+    END DO ! DO j = 1, grid_dst%ny
     END DO ! DO i = i1, i2
     CALL sync
 
@@ -1104,28 +1013,28 @@ CONTAINS
     jgmin = 0
     jgmax = 0
 
-    j = INT( REAL(ny_dst,dp)/2._dp)
-    DO i = 1, nx_dst
+    j = INT( REAL(grid_dst%ny,dp)/2._dp)
+    DO i = 1, grid_dst%nx
       IF (mask_dst_outside_src( j,i) == 0) THEN
         igmin = i
         EXIT
       END IF
     END DO
-    DO i = nx_dst, 1, -1
+    DO i = grid_dst%nx, 1, -1
       IF (mask_dst_outside_src( j,i) == 0) THEN
         igmax = i
         EXIT
       END IF
     END DO
 
-    i = INT( REAL(nx_dst,dp)/2._dp)
-    DO j = 1, ny_dst
+    i = INT( REAL(grid_dst%nx,dp)/2._dp)
+    DO j = 1, grid_dst%ny
       IF (mask_dst_outside_src( j,i) == 0) THEN
         jgmin = j
         EXIT
       END IF
     END DO
-    DO j = ny_dst, 1, -1
+    DO j = grid_dst%ny, 1, -1
       IF (mask_dst_outside_src( j,i) == 0) THEN
         jgmax = j
         EXIT
@@ -1137,11 +1046,11 @@ CONTAINS
       ! Southwest
       d_dst( 1      :jgmin-1 ,1      :igmin-1) = d_dst( jgmin,igmin)
       ! Southeast
-      d_dst( 1      :jgmin-1 ,igmax+1:nx_dst ) = d_dst( jgmin,igmax)
+      d_dst( 1      :jgmin-1 ,igmax+1:grid_dst%nx ) = d_dst( jgmin,igmax)
       ! Northwest
-      d_dst( jgmax+1:ny_dst  ,1      :igmin-1) = d_dst( jgmax,igmin)
+      d_dst( jgmax+1:grid_dst%ny  ,1      :igmin-1) = d_dst( jgmax,igmin)
       ! Northeast
-      d_dst( jgmax+1:ny_dst  ,igmax+1:nx_dst ) = d_dst( jgmax,igmax)
+      d_dst( jgmax+1:grid_dst%ny  ,igmax+1:grid_dst%nx ) = d_dst( jgmax,igmax)
     END IF ! IF (par%master) THEN
     CALL sync
 
@@ -1150,17 +1059,21 @@ CONTAINS
       ! South
       d_dst( 1      :jgmin-1,i) = d_dst( jgmin,i)
       ! North
-      d_dst( jgmax+1:ny_dst ,i) = d_dst( jgmax,i)
+      d_dst( jgmax+1:grid_dst%ny ,i) = d_dst( jgmax,i)
     END DO
     DO j = MAX(j1,jgmin), MIN(j2,jgmax)
       ! West
       d_dst( j,1      :igmin-1) = d_dst( j,igmin)
       ! East
-      d_dst( j,igmax+1:nx_dst ) = d_dst( j,igmax)
+      d_dst( j,igmax+1:grid_dst%nx ) = d_dst( j,igmax)
     END DO
     CALL sync
 
     ! Clean up after yourself
+    DEALLOCATE( il_src)
+    DEALLOCATE( iu_src)
+    DEALLOCATE( jl_src)
+    DEALLOCATE( ju_src)
     CALL deallocate_shared( wddx_src             )
     CALL deallocate_shared( wddy_src             )
     CALL deallocate_shared( wmask_dst_outside_src)
@@ -1169,31 +1082,24 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_square_to_square_cons_2nd_order_2D
-  SUBROUTINE map_square_to_square_cons_2nd_order_3D( nx_src, ny_src, x_src, y_src, nx_dst, ny_dst, x_dst, y_dst, d_src, d_dst)
+  SUBROUTINE map_square_to_square_cons_2nd_order_3D( grid_src, grid_dst, d_src, d_dst)
     ! Map data from one square grid to another (e.g. PD ice thickness from the square grid in the input file to the model square grid)
 
     IMPLICIT NONE
 
     ! Input and output variables
-    INTEGER,                            INTENT(IN)    :: nx_src
-    INTEGER,                            INTENT(IN)    :: ny_src
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: x_src
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: y_src
-    INTEGER,                            INTENT(IN)    :: nx_dst
-    INTEGER,                            INTENT(IN)    :: ny_dst
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: x_dst
-    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: y_dst
-    REAL(dp), DIMENSION(:,:,:),         INTENT(IN)    :: d_src
+    TYPE(type_grid),                    INTENT(IN)    :: grid_src
+    TYPE(type_grid),                    INTENT(IN)    :: grid_dst
+    REAL(dp), DIMENSION(:,:,:),         INTENT(INOUT) :: d_src
     REAL(dp), DIMENSION(:,:,:),         INTENT(OUT)   :: d_dst
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'map_square_to_square_cons_2nd_order_3D'
-    INTEGER                                           :: i,j,i_src,j_src,i_dst,j_dst,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2,k
-    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst
-    INTEGER,  DIMENSION(nx_dst)                       :: il_src, iu_src
-    INTEGER,  DIMENSION(ny_dst)                       :: jl_src, ju_src
+    INTEGER                                           :: i,j,i_src,j_src,i1,i2,igmin,igmax,jgmin,jgmax,j1,j2,k
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: il_src, iu_src
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: jl_src, ju_src
     REAL(dp)                                          :: xomin, xomax, yomin, yomax, w0, w1x, w1y
-    REAL(dp)                                          :: Ad, Asd, Asum
+    REAL(dp)                                          :: A_dst, A_overlap, Asum
     REAL(dp), DIMENSION(:,:,:), POINTER               ::  ddx_src,  ddy_src
     INTEGER                                           :: wddx_src, wddy_src
     INTEGER,  DIMENSION(:,:  ), POINTER               ::  mask_dst_outside_src
@@ -1202,26 +1108,17 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Safety
-    IF (SIZE( d_src,1) /= SIZE( d_dst,1)) THEN
-      CALL crash('data field sizes do not match!')
-    END IF
-
     ! Allocate shared memory
-    CALL allocate_shared_dp_3D(  SIZE( d_src,1), ny_src, nx_src, ddx_src,              wddx_src             )
-    CALL allocate_shared_dp_3D(  SIZE( d_src,1), ny_src, nx_src, ddy_src,              wddy_src             )
-    CALL allocate_shared_int_2D( ny_dst, nx_dst, mask_dst_outside_src, wmask_dst_outside_src)
+    CALL allocate_shared_dp_3D(  SIZE( d_dst,1), grid_src%ny, grid_src%nx, ddx_src,              wddx_src             )
+    CALL allocate_shared_dp_3D(  SIZE( d_dst,1), grid_src%ny, grid_src%nx, ddy_src,              wddy_src             )
+    CALL allocate_shared_int_2D(                 grid_dst%ny, grid_dst%nx, mask_dst_outside_src, wmask_dst_outside_src)
 
-    ! Find grid spacings
-    dx_src = x_src(2) - x_src(1)
-    dy_src = y_src(2) - y_src(1)
-    dx_dst = x_dst(2) - x_dst(1)
-    dy_dst = y_dst(2) - y_dst(1)
-    Ad = dx_dst * dy_dst
+    ! Area of a dst grid cell
+    A_dst = grid_dst%dx**2
 
     ! If the grids are equal, the solution is trivial; just copy the data
-    IF (dx_src == dx_dst .AND. dy_src == dy_dst .AND. nx_src == nx_dst .AND. ny_src == ny_dst) THEN
-      CALL partition_list( nx_dst, par%i, par%n, i1, i2)
+    IF (grid_src%dx == grid_dst%dx .AND. grid_src%nx == grid_dst%nx .AND. grid_src%ny == grid_dst%ny) THEN
+      CALL partition_list( grid_dst%nx, par%i, par%n, i1, i2)
       d_dst( :,:,i1:i2) = d_src( :,:,i1:i2)
       CALL sync
       CALL deallocate_shared(  wddx_src             )
@@ -1234,120 +1131,39 @@ CONTAINS
     ! Find overlaps between grids
     ! dst cell [i,j] overlaps with src cells [il_src( i):iu_src( i), jl_src( j):ju_src( j)]
 
-    ! il
-    DO i_dst = 1, nx_dst
+    ALLOCATE( il_src( grid_dst%nx))
+    ALLOCATE( iu_src( grid_dst%nx))
+    ALLOCATE( jl_src( grid_dst%ny))
+    ALLOCATE( ju_src( grid_dst%ny))
 
-      IF (i_dst == 1) THEN
-        il_src( i_dst) = 1
-      ELSE
-        il_src( i_dst) = il_src( i_dst-1)
-      END IF
-
-      DO WHILE (x_src( il_src( i_dst)) + dx_src / 2._dp < x_dst( i_dst) - dx_dst / 2._dp)
-        il_src( i_dst) = il_src( i_dst) + 1
-        IF (il_src( i_dst) >= nx_src) THEN
-          EXIT
-        END IF
-      END DO
-      il_src( i_dst) = MAX( 1, MIN( nx_src, il_src( i_dst) ))
-
-    END DO ! DO i_dst = 1, nx_dst
-
-    il_src = il_src - 1
-    il_src = MAX( 1, MIN( nx_src, il_src))
-
-    ! iu
-    DO i_dst = nx_dst, 1, -1
-
-      IF (i_dst == nx_dst) THEN
-        iu_src( i_dst) = nx_src
-      ELSE
-        iu_src( i_dst) = il_src( i_dst+1)
-      END IF
-
-      DO WHILE (x_src( iu_src( i_dst)) - dx_src / 2._dp > x_dst( i_dst) + dx_dst / 2._dp)
-        iu_src( i_dst) = iu_src( i_dst) - 1
-        IF (iu_src( i_dst) <= 1) THEN
-          EXIT
-        END IF
-      END DO
-      iu_src( i_dst) = MAX( 1, MIN( nx_src, iu_src( i_dst) ))
-
-    END DO ! DO i_dst = nx_dst, 1, -1
-
-    iu_src = iu_src + 1
-    iu_src = MAX( 1, MIN( nx_src, iu_src))
-
-    ! jl
-    DO j_dst = 1, ny_dst
-
-      IF (j_dst == 1) THEN
-        jl_src( j_dst) = 1
-      ELSE
-        jl_src( j_dst) = jl_src( j_dst-1)
-      END IF
-
-      DO WHILE (y_src( jl_src( j_dst)) + dx_src / 2._dp < y_dst( j_dst) - dx_dst / 2._dp)
-        jl_src( j_dst) = jl_src( j_dst) + 1
-        IF (jl_src( j_dst) >= ny_src) THEN
-          EXIT
-        END IF
-      END DO
-      jl_src( j_dst) = MAX( 1, MIN( ny_src, jl_src( j_dst) ))
-
-    END DO ! DO j_dst = 1, ny_dst
-
-    jl_src = jl_src - 1
-    jl_src = MAX( 1, MIN( ny_src, jl_src))
-
-    ! ju
-    DO j_dst = ny_dst, 1, -1
-
-      IF (j_dst == ny_dst) THEN
-        ju_src( j_dst) = ny_src
-      ELSE
-        ju_src( j_dst) = jl_src( j_dst+1)
-      END IF
-
-      DO WHILE (y_src( ju_src( j_dst)) - dx_src / 2._dp > y_dst( j_dst) + dx_dst / 2._dp)
-        ju_src( j_dst) = ju_src( j_dst) - 1
-        IF (ju_src( j_dst) <= 1) THEN
-          EXIT
-        END IF
-      END DO
-      ju_src( j_dst) = MAX( 1, MIN( ny_src, ju_src( j_dst) ))
-
-    END DO ! DO j_dst = ny_dst, 1, -1
-
-    ju_src = ju_src + 1
-    ju_src = MAX( 1, MIN( ny_src, ju_src))
+    CALL calc_overlapping_grid_cell_ranges( grid_src, grid_dst, il_src, iu_src, jl_src, ju_src)
 
     ! Get derivatives of d_src
-    CALL partition_list( nx_src, par%i, par%n, i1, i2)
-    DO i = MAX(2,i1), MIN(nx_src-1,i2)
-    DO j = 2, ny_src-1
-      ddx_src( :,j,i) = (d_src( :,j,i+1) - d_src( :,j,i-1)) / (2._dp * dx_src)
-      ddy_src( :,j,i) = (d_src( :,j+1,i) - d_src( :,j-1,i)) / (2._dp * dy_src)
+    CALL partition_list( grid_src%nx, par%i, par%n, i1, i2)
+    DO i = MAX(2,i1), MIN(grid_src%nx-1,i2)
+    DO j = 2, grid_src%ny-1
+      ddx_src( :,j,i) = (d_src( :,j,i+1) - d_src( :,j,i-1)) / (2._dp * grid_src%dx)
+      ddy_src( :,j,i) = (d_src( :,j+1,i) - d_src( :,j-1,i)) / (2._dp * grid_src%dx)
     END DO
     END DO
     CALL sync
 
     ! Find parallelisation domains
-    CALL partition_list( nx_dst, par%i, par%n, i1, i2)
-    CALL partition_list( ny_dst, par%i, par%n, j1, j2)
+    CALL partition_list( grid_dst%nx, par%i, par%n, i1, i2)
+    CALL partition_list( grid_dst%ny, par%i, par%n, j1, j2)
 
     DO i = i1, i2
-    DO j = 1, ny_dst
+    DO j = 1, grid_dst%ny
 
       d_dst( :,j,i) = 0._dp
       Asum          = 0._dp
 
       ! If this dst cell lies (partly) outside of the src grid, mark it as such;
       ! in that case, use nearest-neighbour extrapolation instead of conservative remapping
-      IF (x_dst( i) - dx_dst/2._dp < MINVAL( x_src) - dx_src/2._dp .OR. &
-          x_dst( i) + dx_dst/2._dp > MAXVAL( x_src) + dx_src/2._dp .OR. &
-          y_dst( j) - dx_dst/2._dp < MINVAL( y_src) - dx_src/2._dp .OR. &
-          y_dst( j) + dx_dst/2._dp > MAXVAL( y_src) + dx_src/2._dp) THEN
+      IF (grid_dst%x( i) - grid_dst%dx/2._dp < MINVAL( grid_src%x) - grid_src%dx/2._dp .OR. &
+          grid_dst%x( i) + grid_dst%dx/2._dp > MAXVAL( grid_src%x) + grid_src%dx/2._dp .OR. &
+          grid_dst%y( j) - grid_dst%dx/2._dp < MINVAL( grid_src%y) - grid_src%dx/2._dp .OR. &
+          grid_dst%y( j) + grid_dst%dx/2._dp > MAXVAL( grid_src%y) + grid_src%dx/2._dp) THEN
         mask_dst_outside_src( j,i) = 1
         CYCLE
       ELSE
@@ -1357,25 +1173,25 @@ CONTAINS
       DO i_src = il_src( i), iu_src( i)
       DO j_src = jl_src( j), ju_src( j)
 
-        xomin = MAX( x_dst( i) - dx_dst/2._dp, x_src( i_src) - dx_src/2._dp)
-        xomax = MIN( x_dst( i) + dx_dst/2._dp, x_src( i_src) + dx_src/2._dp)
-        yomin = MAX( y_dst( j) - dy_dst/2._dp, y_src( j_src) - dy_src/2._dp)
-        yomax = MIN( y_dst( j) + dy_dst/2._dp, y_src( j_src) + dy_src/2._dp)
+        xomin = MAX( grid_dst%x( i) - grid_dst%dx/2._dp, grid_src%x( i_src) - grid_src%dx/2._dp)
+        xomax = MIN( grid_dst%x( i) + grid_dst%dx/2._dp, grid_src%x( i_src) + grid_src%dx/2._dp)
+        yomin = MAX( grid_dst%y( j) - grid_dst%dx/2._dp, grid_src%y( j_src) - grid_src%dx/2._dp)
+        yomax = MIN( grid_dst%y( j) + grid_dst%dx/2._dp, grid_src%y( j_src) + grid_src%dx/2._dp)
 
         IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
 
-        Asd  = (xomax - xomin) * (yomax - yomin)
-        Asum = Asum + Asd
+        A_overlap  = (xomax - xomin) * (yomax - yomin)
+        Asum = Asum + A_overlap
 
-        w0  = Asd / Ad
-        w1x = 1._dp / Ad * (line_integral_mxydx( [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
-                            line_integral_mxydx( [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
-                            line_integral_mxydx( [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
-                            line_integral_mxydx( [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * x_src( i_src)
-        w1y = 1._dp / Ad * (line_integral_xydy(  [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
-                            line_integral_xydy(  [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
-                            line_integral_xydy(  [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
-                            line_integral_xydy(  [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * y_src( j_src)
+        w0  = A_overlap / A_dst
+        w1x = 1._dp / A_dst * (line_integral_mxydx( [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
+                               line_integral_mxydx( [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
+                               line_integral_mxydx( [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
+                               line_integral_mxydx( [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * grid_src%x( i_src)
+        w1y = 1._dp / A_dst * (line_integral_xydy(  [xomin,yomin], [xomax,yomin], 1E-9_dp) + &
+                               line_integral_xydy(  [xomax,yomin], [xomax,yomax], 1E-9_dp) + &
+                               line_integral_xydy(  [xomax,yomax], [xomin,yomax], 1E-9_dp) + &
+                               line_integral_xydy(  [xomin,yomax], [xomin,yomin], 1E-9_dp)) - w0 * grid_src%y( j_src)
 
         d_dst( :,j,i) = d_dst( :,j,i) + w0  * d_src(   :,j_src,i_src) + &
                                         w1x * ddx_src( :,j_src,i_src) + &
@@ -1385,11 +1201,12 @@ CONTAINS
       END DO ! DO i_src = ir_src( i,1), ir_src( i,2)
 
       ! Safety
-      IF (ABS( 1._dp - Asum / Ad) > 1E-4_dp) THEN
-        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, Ad = {dp_02}', int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = Ad)
+      IF (ABS( 1._dp - Asum / A_dst) > 1E-4_dp) THEN
+        CALL crash('dst grid cell [{int_01},{int_02}] couldnt be completely filled! Asum = {dp_01}, A_dst = {dp_02}', &
+          int_01 = j, int_02 = i, dp_01 = Asum, dp_02 = A_dst)
       END IF
 
-    END DO ! DO j = 1, ny_dst
+    END DO ! DO j = 1, grid_dst%ny
     END DO ! DO i = i1, i2
     CALL sync
 
@@ -1402,28 +1219,28 @@ CONTAINS
     jgmin = 0
     jgmax = 0
 
-    j = INT( REAL(ny_dst,dp)/2._dp)
-    DO i = 1, nx_dst
+    j = INT( REAL(grid_dst%ny,dp)/2._dp)
+    DO i = 1, grid_dst%nx
       IF (mask_dst_outside_src( j,i) == 0) THEN
         igmin = i
         EXIT
       END IF
     END DO
-    DO i = nx_dst, 1, -1
+    DO i = grid_dst%nx, 1, -1
       IF (mask_dst_outside_src( j,i) == 0) THEN
         igmax = i
         EXIT
       END IF
     END DO
 
-    i = INT( REAL(nx_dst,dp)/2._dp)
-    DO j = 1, ny_dst
+    i = INT( REAL(grid_dst%nx,dp)/2._dp)
+    DO j = 1, grid_dst%ny
       IF (mask_dst_outside_src( j,i) == 0) THEN
         jgmin = j
         EXIT
       END IF
     END DO
-    DO j = ny_dst, 1, -1
+    DO j = grid_dst%ny, 1, -1
       IF (mask_dst_outside_src( j,i) == 0) THEN
         jgmax = j
         EXIT
@@ -1432,37 +1249,41 @@ CONTAINS
 
     ! Corners
     IF (par%master) THEN
-      DO k = 1, SIZE( d_src,1)
+      DO k = 1, SIZE( d_dst,1)
         ! Southwest
         d_dst( k,1      :jgmin-1 ,1      :igmin-1) = d_dst( k,jgmin,igmin)
         ! Southeast
-        d_dst( k,1      :jgmin-1 ,igmax+1:nx_dst ) = d_dst( k,jgmin,igmax)
+        d_dst( k,1      :jgmin-1 ,igmax+1:grid_dst%nx ) = d_dst( k,jgmin,igmax)
         ! Northwest
-        d_dst( k,jgmax+1:ny_dst  ,1      :igmin-1) = d_dst( k,jgmax,igmin)
+        d_dst( k,jgmax+1:grid_dst%ny  ,1      :igmin-1) = d_dst( k,jgmax,igmin)
         ! Northeast
-        d_dst( k,jgmax+1:ny_dst  ,igmax+1:nx_dst ) = d_dst( k,jgmax,igmax)
+        d_dst( k,jgmax+1:grid_dst%ny  ,igmax+1:grid_dst%nx ) = d_dst( k,jgmax,igmax)
       END DO
     END IF ! IF (par%master) THEN
     CALL sync
 
     ! Borders
-    DO k = 1, SIZE( d_src,1)
-      DO i = MAX(i1,igmin), MIN(i2,igmax)
+    DO k = 1, SIZE( d_dst,1)
+      DO i = MAX( i1,igmin), MIN( i2,igmax)
         ! South
         d_dst( k,1      :jgmin-1,i) = d_dst( k,jgmin,i)
         ! North
-        d_dst( k,jgmax+1:ny_dst ,i) = d_dst( k,jgmax,i)
+        d_dst( k,jgmax+1:grid_dst%ny ,i) = d_dst( k,jgmax,i)
       END DO
-      DO j = MAX(j1,jgmin), MIN(j2,jgmax)
+      DO j = MAX(  j1,jgmin), MIN(  j2,jgmax)
         ! West
         d_dst( k,j,1      :igmin-1) = d_dst( k,j,igmin)
         ! East
-        d_dst( k,j,igmax+1:nx_dst ) = d_dst( k,j,igmax)
+        d_dst( k,j,igmax+1:grid_dst%nx ) = d_dst( k,j,igmax)
       END DO
     END DO
     CALL sync
 
     ! Clean up after yourself
+    DEALLOCATE( il_src)
+    DEALLOCATE( iu_src)
+    DEALLOCATE( jl_src)
+    DEALLOCATE( ju_src)
     CALL deallocate_shared( wddx_src             )
     CALL deallocate_shared( wddy_src             )
     CALL deallocate_shared( wmask_dst_outside_src)
@@ -1471,6 +1292,127 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE map_square_to_square_cons_2nd_order_3D
+
+  ! Calculate ranges of overlapping grid cells between two regular square grids
+  SUBROUTINE calc_overlapping_grid_cell_ranges( grid_src, grid_dst, il_src, iu_src, jl_src, ju_src)
+    ! Calculate ranges of overlapping grid cells between two regular square grids
+
+    ! dst cell [i,j] overlaps with src cells [il_src( i):iu_src( i), jl_src( j):ju_src( j)]
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                    INTENT(IN)    :: grid_src, grid_dst
+    INTEGER, DIMENSION(:    ),          INTENT(INOUT) :: il_src, iu_src, jl_src, ju_src
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'calc_overlapping_grid_cell_ranges'
+    INTEGER                                           :: i_dst,j_dst
+    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Calculate grid spacings
+    dx_src = grid_src%x( 2) - grid_src%x( 1)
+    dy_src = grid_src%y( 2) - grid_src%y( 1)
+    dx_dst = grid_dst%x( 2) - grid_dst%x( 1)
+    dy_dst = grid_dst%y( 2) - grid_dst%y( 1)
+
+    ! il
+    DO i_dst = 1, grid_dst%nx
+
+      IF (i_dst == 1) THEN
+        il_src( i_dst) = 1
+      ELSE
+        il_src( i_dst) = il_src( i_dst-1)
+      END IF
+
+      DO WHILE (grid_src%x( il_src( i_dst)) + dx_src / 2._dp < grid_dst%x( i_dst) - dx_dst / 2._dp)
+        il_src( i_dst) = il_src( i_dst) + 1
+        IF (il_src( i_dst) >= grid_src%nx) THEN
+          EXIT
+        END IF
+      END DO
+      il_src( i_dst) = MAX( 1, MIN( grid_src%nx, il_src( i_dst) ))
+
+    END DO ! DO i_dst = 1, grid_dst%nx
+
+    il_src = il_src - 1
+    il_src = MAX( 1, MIN( grid_src%nx, il_src))
+
+    ! iu
+    DO i_dst = grid_dst%nx, 1, -1
+
+      IF (i_dst == grid_dst%nx) THEN
+        iu_src( i_dst) = grid_src%nx
+      ELSE
+        iu_src( i_dst) = il_src( i_dst+1)
+      END IF
+
+      DO WHILE (grid_src%x( iu_src( i_dst)) - dx_src / 2._dp > grid_dst%x( i_dst) + dx_dst / 2._dp)
+        iu_src( i_dst) = iu_src( i_dst) - 1
+        IF (iu_src( i_dst) <= 1) THEN
+          EXIT
+        END IF
+      END DO
+      iu_src( i_dst) = MAX( 1, MIN( grid_src%nx, iu_src( i_dst) ))
+
+    END DO ! DO i_dst = grid_dst%nx, 1, -1
+
+    iu_src = iu_src + 1
+    iu_src = MAX( 1, MIN( grid_src%nx, iu_src))
+
+    ! jl
+    DO j_dst = 1, grid_dst%ny
+
+      IF (j_dst == 1) THEN
+        jl_src( j_dst) = 1
+      ELSE
+        jl_src( j_dst) = jl_src( j_dst-1)
+      END IF
+
+      DO WHILE (grid_src%y( jl_src( j_dst)) + dx_src / 2._dp < grid_dst%y( j_dst) - dx_dst / 2._dp)
+        jl_src( j_dst) = jl_src( j_dst) + 1
+        IF (jl_src( j_dst) >= grid_src%ny) THEN
+          EXIT
+        END IF
+      END DO
+      jl_src( j_dst) = MAX( 1, MIN( grid_src%ny, jl_src( j_dst) ))
+
+    END DO ! DO j_dst = 1, grid_dst%ny
+
+    jl_src = jl_src - 1
+    jl_src = MAX( 1, MIN( grid_src%ny, jl_src))
+
+    ! ju
+    DO j_dst = grid_dst%ny, 1, -1
+
+      IF (j_dst == grid_dst%ny) THEN
+        ju_src( j_dst) = grid_src%ny
+      ELSE
+        ju_src( j_dst) = jl_src( j_dst+1)
+      END IF
+
+      DO WHILE (grid_src%y( ju_src( j_dst)) - dx_src / 2._dp > grid_dst%y( j_dst) + dx_dst / 2._dp)
+        ju_src( j_dst) = ju_src( j_dst) - 1
+        IF (ju_src( j_dst) <= 1) THEN
+          EXIT
+        END IF
+      END DO
+      ju_src( j_dst) = MAX( 1, MIN( grid_src%ny, ju_src( j_dst) ))
+
+    END DO ! DO j_dst = grid_dst%ny, 1, -1
+
+    ju_src = ju_src + 1
+    ju_src = MAX( 1, MIN( grid_src%ny, ju_src))
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_overlapping_grid_cell_ranges
+
+  ! Line integrals used in conservative remapping
   FUNCTION line_integral_xdy(   p, q, tol_dist) RESULT( I_pq)
     ! Calculate the line integral x dy from p to q
 
@@ -1558,6 +1500,87 @@ CONTAINS
     I_pq = (1._dp/2._dp * (xp - yp*dx/dy) * (yq**2-yp**2)) + (1._dp/3._dp * dx/dy * (yq**3-yp**3))
 
   END FUNCTION line_integral_xydy
+
+  ! Calculate sub-grid cumulative density functions
+  SUBROUTINE calc_subgrid_CDF( grid_raw, d_raw, grid, CDF)
+    ! Initialise all three reference geometries
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                    INTENT(IN)    :: grid_raw
+    REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: d_raw
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:,:),         INTENT(IN)    :: CDF
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'calc_subgrid_CDF'
+    INTEGER                                           :: i,j,i_src,j_src
+    INTEGER                                           :: N_overlap_max
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: il_src, iu_src
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: jl_src, ju_src
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: dij_list
+    INTEGER                                           :: nij_list
+    REAL(dp)                                          :: d_min, d_max
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Everything here assumes that the src grid has a higher resolution than the dst grid; check if this is the case.
+    IF (grid_raw%dx > grid%dx) THEN
+      CALL crash('raw data should be on a higher resolution than the model grid!')
+    END IF
+
+    ! Calculate maximum number of overlapping cells
+    N_overlap_max = CEILING( 1.5_dp * grid%dx**2 / grid_raw%dx**2)
+
+    ! Find overlaps between grids
+    ! dst cell [i,j] overlaps with src cells [il_src( i):iu_src( i), jl_src( j):ju_src( j)]
+
+    ALLOCATE( il_src( grid%nx))
+    ALLOCATE( iu_src( grid%nx))
+    ALLOCATE( jl_src( grid%ny))
+    ALLOCATE( ju_src( grid%ny))
+
+    CALL calc_overlapping_grid_cell_ranges( grid_raw, grid, il_src, iu_src, jl_src, ju_src)
+
+    ! List bedrock elevations in overlapping src grid cells, and calculate CDFs
+
+    ALLOCATE( dij_list( N_overlap_max))
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! List all values of d_src within this d_dst cell
+
+      dij_list = 0._dp
+      nij_list = 0
+      d_min    =  1E7_dp
+      d_max    = -1E7_dp
+
+      DO i_src = il_src( i), iu_src( i)
+      DO j_src = jl_src( j), ju_src( j)
+
+      END DO ! DO j_src = jl_src( j), ju_src( j)
+      END DO ! DO i_src = il_src( i), iu_src( i)
+
+    END DO ! DO j = 1, grid%ny
+    END DO ! DO i = grid%i1, grid%i2
+    CALL sync
+
+    ! Clean up after yourself
+    DEALLOCATE( il_src)
+    DEALLOCATE( iu_src)
+    DEALLOCATE( jl_src)
+    DEALLOCATE( ju_src)
+
+    ! DENK DROM
+!    CALL crash('whaa!')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_subgrid_CDF
 
 ! == Map data from a global lon/lat-grid to the model y/x-grid
   SUBROUTINE map_glob_to_grid_2D( nlat, nlon, lat, lon, grid, d_glob, d_grid)
@@ -1870,7 +1893,7 @@ CONTAINS
 
   END FUNCTION cross2
 
-! == Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
+! == Switch between ij and ji indexing
   SUBROUTINE transpose_dp_2D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
 
