@@ -54,6 +54,30 @@ for mi = 1: length( model_versions)
         error('unknown system choice')
       end
       
+      % Exception for the MARv3.12 MPI-ESM masks, which for reasons
+      % unknown have deviated file names...
+      if     strcmpi( RCM_forcings( rfi).name,'MPI-ESM1-2-HR-ssp126_MARv3.12')
+        vars( vi).value = ['/home/berends/PROTECT/Greenland/data/retreat_masks/' ...
+          model_versions( mi).name '/retreatmasks_hist_med_v1_MARv3.12_MPIESM12HR-ssp126-' ...
+          Rfactors{ ri} '_PRO_' model_versions( mi).name '.nc'];
+      elseif strcmpi( RCM_forcings( rfi).name,'MPI-ESM1-2-HR-ssp245_MARv3.12')
+        vars( vi).value = ['/home/berends/PROTECT/Greenland/data/retreat_masks/' ...
+          model_versions( mi).name '/retreatmasks_hist_med_v1_MARv3.12_MPIESM12HR-ssp245-' ...
+          Rfactors{ ri} '_PRO_' model_versions( mi).name '.nc'];
+      elseif strcmpi( RCM_forcings( rfi).name,'MPI-ESM1-2-HR-ssp585_MARv3.12')
+        vars( vi).value = ['/home/berends/PROTECT/Greenland/data/retreat_masks/' ...
+          model_versions( mi).name '/retreatmasks_hist_med_v1_MARv3.12_MPIESM12HR-ssp585-' ...
+          Rfactors{ ri} '_PRO_' model_versions( mi).name '.nc'];
+      end
+      
+      % Another exception for the MARv3.12 UKESM masks, where probably
+      % Heiko forgot the change the name of the GCM
+      if strcmpi( RCM_forcings( rfi).name,'UKESM1-0-LL-ssp585_MARv3.12')
+        vars( vi).value = ['/home/berends/PROTECT/Greenland/data/retreat_masks/' ...
+          model_versions( mi).name '/retreatmasks_hist_med_v1_MARv3.12_UKESM1-CM6-ssp585-' ...
+          Rfactors{ ri} '_PRO_' model_versions( mi).name '.nc'];
+      end
+      
       %% Read, change, and write config file
       
       % New config filename

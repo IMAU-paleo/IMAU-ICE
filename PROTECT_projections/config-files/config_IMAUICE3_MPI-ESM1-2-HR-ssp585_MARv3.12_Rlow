@@ -274,7 +274,7 @@ fixed_grounding_line_config                 = .FALSE.                          !
 
 ! Prescribed retreat mask
 do_apply_prescribed_retreat_mask_config     = .TRUE.                           ! Whether or not to apply an externally prescribed retreat mask
-prescribed_retreat_mask_filename_config = '/home/berends/PROTECT/Greenland/data/retreat_masks/IMAUICE3/retreatmasks_hist_med_v1_MARv3.12_MPI-ESM1-2-HR-ssp585-Rlow_PRO_IMAUICE3.nc'
+prescribed_retreat_mask_filename_config = '/home/berends/PROTECT/Greenland/data/retreat_masks/IMAUICE3/retreatmasks_hist_med_v1_MARv3.12_MPIESM12HR-ssp585-Rlow_PRO_IMAUICE3.nc'
 prescribed_retreat_mask_varname_config      = 'sftgif'
 prescribed_retreat_mask_refice_filename_config = 'spinup_GRL/phase4_holocene/hybrid_ZoetIverson_PMIP3ens_20km/retreat_mask_refice.nc'
 

@@ -8,6 +8,7 @@ plotas            = 'plume';
 % plotas            = 'lines';
 
 scenarios = {...
+  'ctrl',...
   'rcp26',...
   'ssp126',...
   'rcp85',...
@@ -110,25 +111,26 @@ margin_top    = 50;
 wf = margin_left   + wa1 + margin_mid + wa2 + margin_right;
 hf = margin_bottom + ha + margin_top;
 
-xlim = [1960,2100];
-ylim = [-2,18];
+xlim  = [1960,2100];
+ylim  = [-2,22];
+ytick = -2:2:22;
 
 H.Fig = figure('position',[200,200,wf,hf],'color','w');
 H.Ax1  = axes('parent',H.Fig,'units','pixels','position',[margin_left,margin_bottom,wa1,ha],'fontsize',24,...
-  'xgrid','on','ygrid','on','xlim',xlim,'ylim',ylim);
+  'xgrid','on','ygrid','on','xlim',xlim,'ylim',ylim,'ytick',ytick);
 
 xlabel(H.Ax1,'Time (yr CE)')
 ylabel(H.Ax1,'Sea level contribution (cm)')
 
 % Empty objects for legend
-colors = linspecer( length( scenarios),'sequential');
+colors = [0,0,0; linspecer( length( scenarios)-1,'sequential')];
 for sci = 1: length( scenarios)
   patch('parent',H.Ax1,'xdata',[],'ydata',[],'facecolor',colors( sci,:),'edgecolor',colors( sci,:),'facealpha',0.5,'linewidth',2);
 end
 
 % Second axes for bars
 H.Ax2 = axes('parent',H.Fig,'units','pixels','position',[margin_left+wa1+margin_mid,margin_bottom,wa2,ha],...
-  'xlim',[-0.2,length(scenarios)+0.2],'ylim',ylim,'fontsize',24,'yaxislocation','right','ygrid','on');
+  'xlim',[-0.2,length(scenarios)+0.2],'ylim',ylim,'fontsize',24,'yaxislocation','right','ygrid','on','ytick',ytick);
 H.Ax2.XAxis.Visible = 'off';
 ylabel(H.Ax2,'Sea level contribution in 2100 (cm)')
 

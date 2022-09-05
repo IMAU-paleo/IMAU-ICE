@@ -9,12 +9,19 @@ foldernames = {...
   'phase1a_finecalibration/hybrid_ZoetIverson_16km',...          %  4
   'phase1a_finecalibration/hybrid_ZoetIverson_10km'};            %  5
 
-foldernames = {...
-  'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_40km',...          %  1
-  'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_30km',...          %  2
-  'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_20km',...          %  3
-  'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_16km',...          %  4
-  'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_10km'};            %  5
+% foldernames = {...
+%   'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_40km',...          %  1
+%   'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_30km',...          %  2
+%   'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_20km',...          %  3
+%   'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_16km',...          %  4
+%   'phase4_holocene/hybrid_ZoetIverson_PMIP3ens_10km'};            %  5
+% 
+% foldernames = {...
+%   'phase5_historicalperiod/hybrid_ZoetIverson_PMIP3ens_40km',...          %  1
+%   'phase5_historicalperiod/hybrid_ZoetIverson_PMIP3ens_30km',...          %  2
+%   'phase5_historicalperiod/hybrid_ZoetIverson_PMIP3ens_20km',...          %  3
+%   'phase5_historicalperiod/hybrid_ZoetIverson_PMIP3ens_16km',...          %  4
+%   'phase5_historicalperiod/hybrid_ZoetIverson_PMIP3ens_10km'};            %  5
 
 cmap_phi  = parula(256);
 cmap_Hs   = itmap(16);
@@ -63,7 +70,9 @@ end
 for fi = 1: length( foldernames)
   
   filename_restart     = [foldernames{fi} '/restart_GRL.nc'];
+  filename_restart = strrep( filename_restart,'phase1a_finecalibration','phase1_calibration');
   filename_restart = strrep( filename_restart,'phase4_holocene','phase1_calibration');
+  filename_restart = strrep( filename_restart,'phase5_historicalperiod','phase1_calibration');
   filename_restart = strrep( filename_restart,'PMIP3ens_','');
   filename_restart = strrep( filename_restart,'HadCM3_','');
   filename_restart = strrep( filename_restart,'CCSM_','');
