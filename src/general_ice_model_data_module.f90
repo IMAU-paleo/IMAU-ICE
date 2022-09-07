@@ -267,12 +267,22 @@ CONTAINS
         END IF
       END IF
 
-      ! Ice (sheet or shelf) bordering open ocean equals calvingfront
+!      ! Ice (sheet or shelf) bordering open ocean equals calvingfront
+!      IF (ice%mask_ice_a( j,i) == 1) THEN
+!        IF ((ice%mask_ocean_a( j-1,i  ) == 1 .AND. ice%mask_ice_a( j-1,i  ) == 0) .OR. &
+!            (ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) .OR. &
+!            (ice%mask_ocean_a( j  ,i-1) == 1 .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
+!            (ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
+!          ice%mask_cf_a( j,i) = 1
+!        END IF
+!      END IF
+
+      ! Ice bordering (partly) flooded ice-free cells equals calving front
       IF (ice%mask_ice_a( j,i) == 1) THEN
-        IF ((ice%mask_ocean_a( j-1,i  ) == 1 .AND. ice%mask_ice_a( j-1,i  ) == 0) .OR. &
-            (ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) .OR. &
-            (ice%mask_ocean_a( j  ,i-1) == 1 .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
-            (ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
+        IF ((ice%f_grnd_a( j-1,i  ) < 1._dp .AND. ice%mask_ice_a( j-1,i  ) == 0) .OR. &
+            (ice%f_grnd_a( j+1,i  ) < 1._dp .AND. ice%mask_ice_a( j+1,i  ) == 0) .OR. &
+            (ice%f_grnd_a( j  ,i-1) < 1._dp .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
+            (ice%f_grnd_a( j  ,i+1) < 1._dp .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
           ice%mask_cf_a( j,i) = 1
         END IF
       END IF
@@ -370,6 +380,8 @@ CONTAINS
     ELSEIF (C%choice_subgrid_grounded_scheme == 'Hb_CDF') THEN
       ! Use the cumulative density function of the sub-grid bedrock topography
 
+      CALL determine_grounded_fractions_Hb_CDF( grid, ice)
+
     ELSE
       CALL crash('unknown choice_subgrid_grounded_scheme "' // TRIM( C%choice_subgrid_grounded_scheme) // '"!')
     END IF
@@ -378,6 +390,119 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE determine_grounded_fractions
+  SUBROUTINE determine_grounded_fractions_Hb_CDF( grid, ice)
+    ! Determine grounded fractions on all grids.
+
+    ! Use the sub-grid bedrock elevation cumulative density functions.
+    ! Grounded fraction = fraction of bedrock within a grid cell that is above the floatation elevation
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_grounded_fractions_Hb_CDF'
+    INTEGER                                            :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! ===== a-grid =====
+    ! ==================
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      CALL calc_grounded_fraction_Hb_CDF( ice%Hi_a( j,i), ice%SL_a( j,i), ice%Hb_CDF_a( :,j,i), ice%f_grnd_a( j,i))
+    END DO
+    END DO
+
+    ! ===== b-grid =====
+    ! ==================
+
+    CALL map_a_to_b_2D( grid, ice%Hi_a, ice%Hi_b)
+    CALL map_a_to_b_2D( grid, ice%SL_a, ice%SL_b)
+
+    DO i = grid%i1, MIN( grid%i2, grid%nx-1)
+    DO j = 1, grid%ny-1
+      CALL calc_grounded_fraction_Hb_CDF( ice%Hi_b( j,i), ice%SL_b( j,i), ice%Hb_CDF_b( :,j,i), ice%f_grnd_b( j,i))
+    END DO
+    END DO
+
+    ! ===== cx-grid =====
+    ! ===================
+
+    CALL map_a_to_cx_2D( grid, ice%Hi_a, ice%Hi_cx)
+    CALL map_a_to_cx_2D( grid, ice%SL_a, ice%SL_cx)
+
+    DO i = grid%i1, MIN( grid%i2, grid%nx-1)
+    DO j = 1, grid%ny
+      CALL calc_grounded_fraction_Hb_CDF( ice%Hi_cx( j,i), ice%SL_cx( j,i), ice%Hb_CDF_cx( :,j,i), ice%f_grnd_cx( j,i))
+    END DO
+    END DO
+
+    ! ===== cy-grid =====
+    ! ===================
+
+    CALL map_a_to_cy_2D( grid, ice%Hi_a, ice%Hi_cy)
+    CALL map_a_to_cy_2D( grid, ice%SL_a, ice%SL_cy)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny-1
+      CALL calc_grounded_fraction_Hb_CDF( ice%Hi_cy( j,i), ice%SL_cy( j,i), ice%Hb_CDF_cy( :,j,i), ice%f_grnd_cy( j,i))
+    END DO
+    END DO
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE determine_grounded_fractions_Hb_CDF
+  SUBROUTINE calc_grounded_fraction_Hb_CDF( Hi, SL, Hb_CDF, f_grnd)
+    ! Calculate the grounded fraction of a grid cell based on the sub-grid bedrock elevation cumulative density function.
+
+    IMPLICIT NONE
+
+    ! In- and output variables
+    REAL(dp),                            INTENT(IN)    :: Hi, SL
+    REAL(dp), DIMENSION(C%subgrid_Hb_CDF_nbins), INTENT(IN) :: Hb_CDF
+    REAL(dp),                            INTENT(OUT)   :: f_grnd
+
+    ! Local variables:
+    REAL(dp)                                           :: Hb_float, frac0, frac1, w0, w1
+    INTEGER                                            :: k
+
+    ! Floatation bedrock elevation
+    Hb_float = SL - Hi * ice_density / seawater_density
+
+    IF     (Hb_CDF( C%subgrid_Hb_CDF_nbins) < Hb_float) THEN
+      ! All bedrock within this grid cell is below the floatation threshold
+
+      f_grnd = 0._dp
+
+    ELSEIF (Hb_CDF( 1) > Hb_float) THEN
+      ! All bedrock within the grid cell is above the floatation threshold
+
+      f_grnd = 1._dp
+
+    ELSE
+      ! This grid cell partly grounded; determine how much
+
+      k = 1
+      DO WHILE (Hb_float > Hb_CDF( k))
+        k = k + 1
+      END DO
+
+      frac0 = REAL( k-1,dp) / REAL( C%subgrid_Hb_CDF_nbins,dp)
+      frac1 = REAL( k  ,dp) / REAL( C%subgrid_Hb_CDF_nbins,dp)
+      w0 = (Hb_CDF( k) - Hb_float) / (Hb_CDF( k) - Hb_CDF( k-1))
+      w1 = 1._dp - w0
+
+      f_grnd = 1._dp - (w0 * frac0 + w1 * frac1)
+
+    END IF
+
+  END SUBROUTINE calc_grounded_fraction_Hb_CDF
   SUBROUTINE determine_grounded_fractions_CISM( grid, ice)
     ! Determine the grounded fraction of next-to-grounding-line pixels
     ! (used for determining basal friction in the DIVA)

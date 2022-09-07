@@ -1308,16 +1308,9 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'calc_overlapping_grid_cell_ranges'
     INTEGER                                           :: i_dst,j_dst
-    REAL(dp)                                          :: dx_src, dy_src, dx_dst, dy_dst
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    ! Calculate grid spacings
-    dx_src = grid_src%x( 2) - grid_src%x( 1)
-    dy_src = grid_src%y( 2) - grid_src%y( 1)
-    dx_dst = grid_dst%x( 2) - grid_dst%x( 1)
-    dy_dst = grid_dst%y( 2) - grid_dst%y( 1)
 
     ! il
     DO i_dst = 1, grid_dst%nx
@@ -1328,7 +1321,7 @@ CONTAINS
         il_src( i_dst) = il_src( i_dst-1)
       END IF
 
-      DO WHILE (grid_src%x( il_src( i_dst)) + dx_src / 2._dp < grid_dst%x( i_dst) - dx_dst / 2._dp)
+      DO WHILE (grid_src%x( il_src( i_dst)) + grid_src%dx / 2._dp < grid_dst%x( i_dst) - grid_dst%dx / 2._dp)
         il_src( i_dst) = il_src( i_dst) + 1
         IF (il_src( i_dst) >= grid_src%nx) THEN
           EXIT
@@ -1350,7 +1343,7 @@ CONTAINS
         iu_src( i_dst) = il_src( i_dst+1)
       END IF
 
-      DO WHILE (grid_src%x( iu_src( i_dst)) - dx_src / 2._dp > grid_dst%x( i_dst) + dx_dst / 2._dp)
+      DO WHILE (grid_src%x( iu_src( i_dst)) - grid_src%dx / 2._dp > grid_dst%x( i_dst) + grid_dst%dx / 2._dp)
         iu_src( i_dst) = iu_src( i_dst) - 1
         IF (iu_src( i_dst) <= 1) THEN
           EXIT
@@ -1372,7 +1365,7 @@ CONTAINS
         jl_src( j_dst) = jl_src( j_dst-1)
       END IF
 
-      DO WHILE (grid_src%y( jl_src( j_dst)) + dx_src / 2._dp < grid_dst%y( j_dst) - dx_dst / 2._dp)
+      DO WHILE (grid_src%y( jl_src( j_dst)) + grid_src%dx / 2._dp < grid_dst%y( j_dst) - grid_dst%dx / 2._dp)
         jl_src( j_dst) = jl_src( j_dst) + 1
         IF (jl_src( j_dst) >= grid_src%ny) THEN
           EXIT
@@ -1394,7 +1387,7 @@ CONTAINS
         ju_src( j_dst) = jl_src( j_dst+1)
       END IF
 
-      DO WHILE (grid_src%y( ju_src( j_dst)) - dx_src / 2._dp > grid_dst%y( j_dst) + dx_dst / 2._dp)
+      DO WHILE (grid_src%y( ju_src( j_dst)) - grid_src%dx / 2._dp > grid_dst%y( j_dst) + grid_dst%dx / 2._dp)
         ju_src( j_dst) = ju_src( j_dst) - 1
         IF (ju_src( j_dst) <= 1) THEN
           EXIT
@@ -1502,16 +1495,17 @@ CONTAINS
   END FUNCTION line_integral_xydy
 
   ! Calculate sub-grid cumulative density functions
-  SUBROUTINE calc_subgrid_CDF( grid_raw, d_raw, grid, CDF)
-    ! Initialise all three reference geometries
+  SUBROUTINE calc_subgrid_CDF( grid_raw, grid, d_raw, CDF, nbins)
+    ! Calculate sub-grid cumulative density functions
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_grid),                    INTENT(IN)    :: grid_raw
-    REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: d_raw
     TYPE(type_grid),                    INTENT(IN)    :: grid
-    REAL(dp), DIMENSION(:,:,:),         INTENT(IN)    :: CDF
+    REAL(dp), DIMENSION(:,:  ),         INTENT(IN)    :: d_raw
+    REAL(dp), DIMENSION(:,:,:),         INTENT(INOUT) :: CDF
+    INTEGER,                            INTENT(IN)    :: nbins
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'calc_subgrid_CDF'
@@ -1519,15 +1513,16 @@ CONTAINS
     INTEGER                                           :: N_overlap_max
     INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: il_src, iu_src
     INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: jl_src, ju_src
-    INTEGER,  DIMENSION(:    ), ALLOCATABLE           :: dij_list
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE           :: dij_list
     INTEGER                                           :: nij_list
     REAL(dp)                                          :: d_min, d_max
+    REAL(dp)                                          :: xomin, xomax, yomin, yomax
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Everything here assumes that the src grid has a higher resolution than the dst grid; check if this is the case.
-    IF (grid_raw%dx > grid%dx) THEN
+    IF (grid_raw%dx >= grid%dx) THEN
       CALL crash('raw data should be on a higher resolution than the model grid!')
     END IF
 
@@ -1561,8 +1556,23 @@ CONTAINS
       DO i_src = il_src( i), iu_src( i)
       DO j_src = jl_src( j), ju_src( j)
 
+        xomin = MAX( grid%x( i) - grid%dx/2._dp, grid_raw%x( i_src) - grid_raw%dx/2._dp)
+        xomax = MIN( grid%x( i) + grid%dx/2._dp, grid_raw%x( i_src) + grid_raw%dx/2._dp)
+        yomin = MAX( grid%y( j) - grid%dx/2._dp, grid_raw%y( j_src) - grid_raw%dx/2._dp)
+        yomax = MIN( grid%y( j) + grid%dx/2._dp, grid_raw%y( j_src) + grid_raw%dx/2._dp)
+
+        IF (xomax <= xomin .OR. yomax <= yomin) CYCLE
+
+        nij_list = nij_list + 1
+        dij_list( nij_list) = d_raw( j_src,i_src)
+        d_min = MIN( d_min, d_raw( j_src,i_src))
+        d_max = MAX( d_max, d_raw( j_src,i_src))
+
       END DO ! DO j_src = jl_src( j), ju_src( j)
       END DO ! DO i_src = il_src( i), iu_src( i)
+
+      ! Calculate cumulative density function from list of values
+      CALL calc_CDF( dij_list, nij_list, nbins, CDF( :,j,i))
 
     END DO ! DO j = 1, grid%ny
     END DO ! DO i = grid%i1, grid%i2
@@ -1574,13 +1584,80 @@ CONTAINS
     DEALLOCATE( jl_src)
     DEALLOCATE( ju_src)
 
-    ! DENK DROM
-!    CALL crash('whaa!')
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_subgrid_CDF
+  SUBROUTINE calc_CDF( d, n, nbins, CDF)
+    ! Calculate cumulative density function for a list of values
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),         INTENT(IN)    :: d
+    INTEGER,                            INTENT(IN)    :: n
+    INTEGER,                            INTENT(IN)    :: nbins
+    REAL(dp), DIMENSION(:    ),         INTENT(OUT)   :: CDF
+
+    ! Local variables:
+    REAL(dp), DIMENSION(n)                            :: d_sorted
+    INTEGER                                           :: i
+    REAL(dp)                                          :: isc
+    INTEGER                                           :: ii0,ii1
+    REAL(dp)                                          :: wii0,wii1
+    INTEGER                                           :: nmid
+
+    CDF = 0._dp
+
+    ! Inefficient but easy sorting of d
+    d_sorted = d( 1:n)
+    CALL sort_simple( d_sorted, n)
+
+    CDF( 1    ) = d( 1)
+    CDF( nbins) = d( n)
+
+    DO i = 2, nbins-1
+      isc  = 1._dp + (REAL( n,dp) - 1._dp) * (REAL( i,dp) - 1._dp) / (REAL( nbins,dp) - 1._dp)
+      ii0  = FLOOR( isc)
+      ii1  = CEILING( isc)
+      wii0 = (REAL( ii1,dp) - isc)
+      wii1 = 1._dp - wii0
+      CDF( i) = wii0 * d_sorted( ii0) + wii1 * d_sorted( ii1)
+    END DO
+
+    ! Safety
+    nmid = NINT( REAL( nbins,dp) / 2._dp)
+    DO i = nmid-1, 1, -1
+      CDF( i) = MIN( CDF( i), CDF( i+1) - 1E-7_dp)
+    END DO
+    DO i = nmid+1, nbins
+      CDF( i) = MAX( CDF( i), CDF( i-1) + 1E-7_dp)
+    END DO
+
+  END SUBROUTINE calc_CDF
+  SUBROUTINE sort_simple( d, n)
+    ! Sort values in D ascending. Not the most efficient, but it works.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),         INTENT(INOUT) :: d
+    INTEGER,                            INTENT(IN)    :: n
+
+    ! Local variables:
+    INTEGER                                           :: ii,jj
+
+    DO ii = 1, n-1
+      DO jj = ii+1, n
+        IF (d( ii) > d( jj)) THEN
+          d( ii) = d( ii) + d( jj)
+          d( jj) = d( ii) - d( jj)
+          d( ii) = d( ii) - d( jj)
+        END IF
+      END DO
+    END DO
+
+  END SUBROUTINE sort_simple
 
 ! == Map data from a global lon/lat-grid to the model y/x-grid
   SUBROUTINE map_glob_to_grid_2D( nlat, nlon, lat, lon, grid, d_glob, d_grid)

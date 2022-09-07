@@ -106,7 +106,7 @@
   xmax_GRL_config                             =   960000.0                       ! Eastern  boundary     of the Greenland domain [m]
   ymin_GRL_config                             = -3450000.0                       ! Southern boundary     of the Greenland domain [m]
   ymax_GRL_config                             =  -570000.0                       ! Northern boundary     of the Greenland domain [m]
-  dx_GRL_config                               = 20000.0                          ! Horizontal resolution of the Greenland domain [m]
+  dx_GRL_config                               = 40000.0                          ! Horizontal resolution of the Greenland domain [m]
 
   ! Antarctica
   lambda_M_ANT_config                         = 0.0                              ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]

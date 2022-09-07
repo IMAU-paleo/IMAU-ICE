@@ -420,7 +420,7 @@ CONTAINS
       CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, beta_sq_raw , wbeta_sq_raw )
 
       ! Read raw data from file
-      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq_raw)
+      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq  = beta_sq_raw )
 
       ! Safety
       CALL check_for_NaN_dp_2D( beta_sq_raw, 'beta_sq_raw')
@@ -441,7 +441,7 @@ CONTAINS
       CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, phi_fric_raw, wphi_fric_raw)
 
       ! Read raw data from file
-      CALL read_BIV_bed_roughness_file(    netcdf, phi_fric_raw)
+      CALL read_BIV_bed_roughness_file(    netcdf, phi_fric = phi_fric_raw)
 
       ! Safety
       CALL check_for_NaN_dp_2D( phi_fric_raw, 'phi_fric_raw')
@@ -462,8 +462,8 @@ CONTAINS
       CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, beta_sq_raw , wbeta_sq_raw )
 
       ! Read raw data from file
-      CALL read_BIV_bed_roughness_file(    netcdf, alpha_sq_raw)
-      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq_raw )
+      CALL read_BIV_bed_roughness_file(    netcdf, alpha_sq = alpha_sq_raw)
+      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq  = beta_sq_raw )
 
       ! Safety
       CALL check_for_NaN_dp_2D( alpha_sq_raw, 'alpha_sq_raw')
@@ -488,8 +488,8 @@ CONTAINS
       CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, beta_sq_raw , wbeta_sq_raw )
 
       ! Read raw data from file
-      CALL read_BIV_bed_roughness_file(    netcdf, alpha_sq_raw)
-      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq_raw )
+      CALL read_BIV_bed_roughness_file(    netcdf, alpha_sq = alpha_sq_raw)
+      CALL read_BIV_bed_roughness_file(    netcdf, beta_sq  = beta_sq_raw )
 
       ! Safety
       CALL check_for_NaN_dp_2D( alpha_sq_raw, 'alpha_sq_raw')
@@ -513,7 +513,7 @@ CONTAINS
       CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, phi_fric_raw, wphi_fric_raw)
 
       ! Read raw data from file
-      CALL read_BIV_bed_roughness_file(    netcdf, phi_fric_raw)
+      CALL read_BIV_bed_roughness_file(    netcdf, phi_fric = phi_fric_raw)
 
       ! Safety
       CALL check_for_NaN_dp_2D( phi_fric_raw, 'phi_fric_raw')

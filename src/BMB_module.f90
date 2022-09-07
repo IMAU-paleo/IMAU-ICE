@@ -1370,7 +1370,7 @@ CONTAINS
       ! Initialise
       BMB%BMB_shelf( j,i) = 0._dp
 
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
+      IF (ice%mask_ice_a( j,i) == 1 .AND. ice%f_grnd_a( j,i) < 0.99_dp) THEN
 
         ! Temperature forcing
         dT = BMB%T_ocean_base( j,i) - BMB%T_ocean_freeze_base( j,i)
@@ -1499,7 +1499,7 @@ CONTAINS
       ! Initialise at zero
       BMB%T_ocean_base( j,i) = 0._dp
 
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
+      IF (ice%mask_ice_a( j,i) == 1 .AND. ice%f_grnd_a( j,i) < 0.99_dp) THEN
 
         ! Calculate depth
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
@@ -1547,7 +1547,7 @@ CONTAINS
       ! Initialise at zero
       BMB%T_ocean_freeze_base( j,i) = 0._dp
 
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
+      IF (ice%mask_ice_a( j,i) == 1 .AND. ice%f_grnd_a( j,i) < 0.99_dp) THEN
 
         ! Calculate depth
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)

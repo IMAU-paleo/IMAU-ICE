@@ -4647,7 +4647,7 @@ CONTAINS
 
   ! Inverted basal roughness
   SUBROUTINE create_BIV_bed_roughness_file( grid, ice)
-    ! Create a new folder extrapolated ocean data file
+    ! Create a new inverted bed roughness file
 
     IMPLICIT NONE
 
@@ -4818,7 +4818,7 @@ CONTAINS
 
   END SUBROUTINE inquire_BIV_bed_roughness_file
   SUBROUTINE read_BIV_bed_roughness_file(    netcdf, alpha_sq, beta_sq, phi_fric)
-    ! Read the extrapolated ocean data netcdf file
+    ! Read the inverted bed roughness file
 
     IMPLICIT NONE
 
@@ -4845,19 +4845,19 @@ CONTAINS
       IF (PRESENT( beta_sq) .OR. PRESENT( phi_fric)) THEN
         CALL crash('can only read one friction parameter from file!')
       END IF
-      CALL handle_error(nf90_get_var( netcdf%ncid, netcdf%id_var_alpha_sq, alpha_sq ))
+      CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_alpha_sq, alpha_sq ))
     ELSEIF (PRESENT( beta_sq)) THEN
       ! Safety
       IF (PRESENT( alpha_sq) .OR. PRESENT( phi_fric)) THEN
         CALL crash('can only read one friction parameter from file!')
       END IF
-      CALL handle_error(nf90_get_var( netcdf%ncid, netcdf%id_var_beta_sq, beta_sq ))
+      CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_beta_sq, beta_sq ))
     ELSEIF (PRESENT( phi_fric)) THEN
       ! Safety
       IF (PRESENT( alpha_sq) .OR. PRESENT( beta_sq)) THEN
         CALL crash('can only read one friction parameter from file!')
       END IF
-      CALL handle_error(nf90_get_var( netcdf%ncid, netcdf%id_var_phi_fric, phi_fric ))
+      CALL handle_error( nf90_get_var( netcdf%ncid, netcdf%id_var_phi_fric, phi_fric ))
     ELSE
         CALL crash('must specify a friction parameter to read from file!')
     END IF

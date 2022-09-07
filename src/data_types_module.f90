@@ -90,8 +90,11 @@ MODULE data_types_module
     INTEGER :: wTi_a,  wTi_cx,  wTi_cy,  wTi_b
 
     ! Sub-grid bedrock
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF
-    INTEGER :: wHb_CDF
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_a
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_b
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_cx
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_cy
+    INTEGER :: wHb_CDF_a, wHb_CDF_b, wHb_CDF_cx, wHb_CDF_cy
 
     ! Ice velocities
     REAL(dp), DIMENSION(:,:,:), POINTER     :: u_3D_a                ! 3-D ice velocity [m yr^-1]
@@ -823,9 +826,15 @@ MODULE data_types_module
     ! Data on the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
-    INTEGER :: wHi, wHb, wHb_CDF, wHs
+    INTEGER :: wHi, wHb, wHs
+
+    ! Sub-grid bedrock
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_a
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_b
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_cx
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: Hb_CDF_cy
+    INTEGER :: wHb_CDF_a, wHb_CDF_b, wHb_CDF_cx, wHb_CDF_cy
 
   END TYPE type_reference_geometry
 

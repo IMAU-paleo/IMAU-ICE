@@ -3,8 +3,8 @@
   ! Time steps and range
   ! ====================
 
-  start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 100000.0                         ! End   time (in years) of the simulations
+  start_time_of_run_config                    = -120000.0                        ! Start time (in years) of the simulations
+  end_time_of_run_config                      =  -21000.0                        ! End   time (in years) of the simulations
   dt_coupling_config                          = 100.0                            ! Interval of coupling (in years) between the four ice-sheets
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
@@ -16,7 +16,7 @@
   dt_BMB_config                               = 10.0                             ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
-  dt_output_config                            = 1000.0                           ! Time step (in years) for writing output
+  dt_output_config                            = 5000.0                           ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -53,8 +53,8 @@
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
 
-  create_procedural_output_dir_config         = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = ''                               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  fixed_output_dir_config                     = 'spinup_GRL_new/phase2_glacialinception/hybrid_ZoetIverson_PMIP3ens_40km'                               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -106,7 +106,7 @@
   xmax_GRL_config                             =   960000.0                       ! Eastern  boundary     of the Greenland domain [m]
   ymin_GRL_config                             = -3450000.0                       ! Southern boundary     of the Greenland domain [m]
   ymax_GRL_config                             =  -570000.0                       ! Northern boundary     of the Greenland domain [m]
-  dx_GRL_config                               = 20000.0                          ! Horizontal resolution of the Greenland domain [m]
+  dx_GRL_config                               = 40000.0                          ! Horizontal resolution of the Greenland domain [m]
 
   ! Antarctica
   lambda_M_ANT_config                         = 0.0                              ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
@@ -124,16 +124,16 @@
   ! Initial geometry
   choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_GRL_config               = 'realistic'                      ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
+  choice_refgeo_init_GRL_config               = 'restart'                        ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0
-  time_to_restart_from_GRL_config             = 0.0
+  time_to_restart_from_GRL_config             = 100000.0
   time_to_restart_from_ANT_config             = 0.0
   choice_refgeo_init_idealised_config         = 'flatearth'                      ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/BedMachine_Greenland_v4/BedMachine_Greenland_v4_2km.nc'
+  filename_refgeo_init_GRL_config             = 'spinup_GRL_new/phase1_calibration/hybrid_ZoetIverson_40km/restart_GRL.nc'
   filename_refgeo_init_ANT_config             = '/Users/berends/Documents/Datasets/BedMachine_Antarctica/BedMachine_v1_Antarctica_5km.nc'
 
   ! Present-day geometry
@@ -168,7 +168,7 @@
   ! 'd18O_inverse_dT_glob' : Use the inverse routine with the specified d18O record to calculate a global temperature offset (e.g. de Boer et al., 2013)
   ! 'CO2_direct'           : Use the specified CO2 record to force the climate matrix (e.g. Berends et al., 2018)
   ! 'd18O_inverse_CO2'     : Use the inverse routine with the specified d18O record to calculate CO2 and then force the climate matrix (e.g. Berends et al., 2019)
-  choice_forcing_method_config                = 'none'
+  choice_forcing_method_config                = 'CO2_direct'
 
   ! Insolation forcing (NetCDF)
   choice_insolation_forcing_config            = 'static'                         ! Choice of insolation forcing: "none", "static", "realistic"
@@ -176,8 +176,8 @@
   filename_insolation_config                  = '/Users/berends/Documents/Datasets/Insolation/Insolation_Laskar_etal_2004.nc'
 
   ! CO2 record (ASCII text file in kyr, so the number of rows needs to be specified)
-  filename_CO2_record_config                  = ''
-  CO2_record_length_config                    = 0
+  filename_CO2_record_config                  = '/Users/berends/Documents/Datasets/CO2/EPICA_CO2_Bereiter_2015_800kyr.dat'
+  CO2_record_length_config                    = 1901
 
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
   filename_d18O_record_config                 = ''
@@ -301,7 +301,7 @@
   Martin2011_hydro_Hb_max_config              = 1000.0                           ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
   ! Basal roughness / friction
-  choice_basal_roughness_config               = 'uniform'                        ! "uniform"", parameterised", "prescribed"
+  choice_basal_roughness_config               = 'prescribed'                     ! "uniform"", parameterised", "prescribed"
   uniform_Weertman_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Weertman sliding law
   uniform_Coulomb_phi_fric_config             = 15.0                             ! Uniform value for phi_fric in (regularised) Coulomb sliding law
   uniform_Tsai2015_alpha_sq_config            = 0.5                              ! Uniform value for alpha_sq in Tsai2015 sliding law
@@ -313,12 +313,12 @@
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  basal_roughness_filename_config             = 'spinup_GRL_new/phase1_calibration/hybrid_ZoetIverson_40km/bed_roughness_inv.nc'                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   r_smooth_phi_restart_config                 = 0.5                              ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
-  do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
+  do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   BIVgeo_t_start_config                       = -9.9E9                           ! Minimum model time when the inversion is allowed
   BIVgeo_t_end_config                         = +9.9E9                           ! Maximum model time when the inversion is allowed
   choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
@@ -350,14 +350,14 @@
   choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
   calving_threshold_thickness_config          = 200.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
-  remove_shelves_larger_than_PD_config        = .TRUE.                           ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
+  remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   continental_shelf_min_height_config         = -2000.0                          ! Maximum depth of the continental shelf
 
   ! Thermodynamics and rheology
   ! ===========================
 
-  choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  choice_initial_ice_temperature_config       = 'restart'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   uniform_ice_temperature_config              = 270.0                            ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -370,7 +370,7 @@
   ! Climate
   ! =======
 
-  choice_climate_model_config                 = 'PD_obs'                         ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix", "direct", "ISMIP_style"
+  choice_climate_model_config                 = 'matrix'                         ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix", "direct", "ISMIP_style"
   choice_idealised_climate_config             = ''
 
   ! Folder with NetCDF files containing direct climate forcing
@@ -391,9 +391,9 @@
   filename_PD_obs_climate_config              = '/Users/berends/Documents/Datasets/ERA5/ERA5_climate_global_1950_1980_average.nc'
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_climate_snapshot_PI_config         = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-  filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
-  filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
+  filename_climate_snapshot_PI_config         = '/Users/berends/Documents/Datasets/GCM_snapshots/PMIP3_PI.nc'
+  filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/PMIP3_PI.nc'
+  filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/PMIP3_LGM.nc'
 
   constant_lapserate_config                   = 0.008                            ! Constant atmospheric lapse rate [K m^-1]
 
@@ -418,7 +418,7 @@
   ! Ocean
   ! =====
 
-  choice_ocean_model_config                   = 'PD_obs'                         ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
@@ -427,11 +427,11 @@
   name_ocean_salinity_obs_config              = 's_an' ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
   ! GCM snapshots in the matrix_warm_cold option
-  filename_GCM_ocean_snapshot_PI_config       = '/Users/berends/Documents/Datasets/COSMOS_ocean_data/COSMOS_PI_oceanTS_prep.nc'
-  filename_GCM_ocean_snapshot_warm_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_data/COSMOS_PI_oceanTS_prep.nc'
-  filename_GCM_ocean_snapshot_cold_config     = '/Users/berends/Documents/Datasets/COSMOS_ocean_data/COSMOS_LGM_oceanTS_prep.nc'
-  name_ocean_temperature_GCM_config           = 't_an'
-  name_ocean_salinity_GCM_config              = 's_an'
+  filename_GCM_ocean_snapshot_PI_config       = '/Users/berends/Documents/Datasets/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_warm_config     = '/Users/berends/Documents/Datasets/CMIP5/ocn/CCSM_CMIP5_piControl_ocean.nc'
+  filename_GCM_ocean_snapshot_cold_config     = '/Users/berends/Documents/Datasets/CMIP5/ocn/CCSM_CMIP5_lgm_ocean.nc'
+  name_ocean_temperature_GCM_config           = 't_ocean'
+  name_ocean_salinity_GCM_config              = 's_ocean'
 
   ! Uniform ocean temperature values used when choice_ocean_model = "uniform_warm_cold"
   ocean_temperature_PD_config                 = 271.46                           ! present day temperature of the ocean beneath the shelves [K; -1.7 Celsius]
@@ -615,10 +615,10 @@
   ! =================
 
   do_ocean_floodfill_config                   = .FALSE.                          ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  choice_sealevel_model_config                = 'prescribed'                     ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
-  filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
-  sealevel_record_length_config               = 1
+  filename_sealevel_record_config             = '/Users/berends/Documents/Datasets/Sealevel/Grant_500kyr_Lambeck_deglacial_merged_sealevel_curves.dat' ! Name of a file containing a sealevel record (in years)
+  sealevel_record_length_config               = 5001
 
   choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   dx_GIA_config                               = 100000.0                         ! Horizontal resolution of the square grid used for the GIA model

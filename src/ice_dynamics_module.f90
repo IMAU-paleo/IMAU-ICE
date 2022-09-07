@@ -941,7 +941,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
 
 ! == Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
 
@@ -950,7 +950,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init, refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -972,6 +972,17 @@ CONTAINS
       ice%Hi_a( j,i) = refgeo_init%Hi( j,i)
       ice%Hb_a( j,i) = refgeo_init%Hb( j,i)
       ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+
+      ice%Hb_CDF_a(  :,j,i) = refgeo_PD%Hb_CDF_a(  :,j,i)
+      IF (i < grid%nx .AND. j < grid%ny) THEN
+        ice%Hb_CDF_b(  :,j,i) = refgeo_PD%Hb_CDF_b(  :,j,i)
+      END IF
+      IF (i < grid%nx) THEN
+        ice%Hb_CDF_cx( :,j,i) = refgeo_PD%Hb_CDF_cx( :,j,i)
+      END IF
+      IF (j < grid%ny) THEN
+        ice%Hb_CDF_cy( :,j,i) = refgeo_PD%Hb_CDF_cy( :,j,i)
+      END IF
     END DO
     END DO
     CALL sync
@@ -1076,7 +1087,10 @@ CONTAINS
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx-1, ice%Ti_b                 , ice%wTi_b                 )
 
     ! Sub-grid bedrock
-    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny, grid%nx, ice%Hb_CDF  , ice%wHb_CDF               )
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny  , grid%nx  , ice%Hb_CDF_a , ice%wHb_CDF_a            )
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny-1, grid%nx-1, ice%Hb_CDF_b , ice%wHb_CDF_b            )
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny  , grid%nx-1, ice%Hb_CDF_cx, ice%wHb_CDF_cx           )
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny-1, grid%nx  , ice%Hb_CDF_cy, ice%wHb_CDF_cy           )
 
     ! Ice velocities
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx  , ice%u_3D_a               , ice%wu_3D_a               )

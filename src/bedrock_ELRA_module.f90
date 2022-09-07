@@ -33,7 +33,8 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ELRA_model'
-    INTEGER                                            :: i,j
+    INTEGER                                            :: i,j,k
+    REAL(dp)                                           :: dHb_PD
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -46,8 +47,25 @@ CONTAINS
     ! Update bedrock with last calculated deformation rate
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
+
       region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
       region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_GIAeq%Hb( j,i)
+
+      ! Sub-grid bedrock cumulative density function
+      dHb_PD = region%ice%Hb_a( j,i) - region%refgeo_PD%Hb( j,i)
+      DO k = 1, C%subgrid_Hb_CDF_nbins
+        region%ice%Hb_CDF_a(  :,j,i) = region%refgeo_PD%Hb_CDF_a(  :,j,i) + dHb_PD
+        IF (i < region%grid%nx .AND. j < region%grid%ny) THEN
+          region%ice%Hb_CDF_b(  :,j,i) = region%refgeo_PD%Hb_CDF_b(  :,j,i) + dHb_PD
+        END IF
+        IF (i < region%grid%nx) THEN
+          region%ice%Hb_CDF_cx( :,j,i) = region%refgeo_PD%Hb_CDF_cx( :,j,i) + dHb_PD
+        END IF
+        IF (j < region%grid%ny) THEN
+          region%ice%Hb_CDF_cy( :,j,i) = region%refgeo_PD%Hb_CDF_cy( :,j,i) + dHb_PD
+        END IF
+      END DO
+
     END DO
     END DO
     CALL sync

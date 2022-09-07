@@ -9,9 +9,9 @@ MODULE reference_fields_module
                                              allocate_shared_int_1D, allocate_shared_dp_1D, &
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
-                                             deallocate_shared
+                                             deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry
-  USE data_types_netcdf_module,        ONLY: type_netcdf_reference_geometry
+  USE data_types_netcdf_module,        ONLY: type_netcdf_reference_geometry, type_netcdf_restart
   USE parameters_module,               ONLY: seawater_density, ice_density, sec_per_year, pi
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
                                              inquire_reference_geometry_file, read_reference_geometry_file, &
@@ -109,6 +109,7 @@ CONTAINS
     ELSEIF (choice_refgeo_PD == 'realistic') THEN
       IF (par%master) WRITE(0,*) '  Initialising present-day     reference geometry from file ', TRIM( filename_refgeo_PD), '...'
       CALL initialise_reference_geometry_from_file( grid, refgeo_PD, filename_refgeo_PD, region_name)
+      CALL calc_Hb_CDF_refgeo_PD( grid, refgeo_PD, filename_refgeo_PD, region_name)
     ELSE
       CALL crash('unknown choice_refgeo_PD "' // TRIM( choice_refgeo_PD) // '"!')
     END IF
@@ -196,18 +197,14 @@ CONTAINS
     END IF
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi    )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb    )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb_CDF)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs    )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
 
     ! Map (transposed) raw data to the model grid
     CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hi_raw, refgeo%Hi)
     CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hb_raw, refgeo%Hb)
     CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hs_raw, refgeo%Hs)
-
-    ! Calculate cumulative density functions of sub-grid bedrock topography
-    CALL calc_subgrid_CDF( grid_raw, Hb_raw, grid, refgeo%Hb_CDF)
 
     ! Deallocate raw data
     CALL deallocate_shared( grid_raw%wnx)
@@ -239,70 +236,63 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_reference_geometry_from_restart_file'
     TYPE(type_grid)                               :: grid_raw
+    TYPE(type_netcdf_restart)                     :: netcdf
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  Hi_raw,  Hb_raw,  Hs_raw,  SL_raw,  dHb_raw
+    INTEGER                                       :: wHi_raw, wHb_raw, wHs_raw, wSL_raw, wdHb_raw
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL crash('fixme!')
+    ! Set up the grid for this input file
+    CALL setup_grid_from_file( filename_refgeo, grid_raw)
 
-!    ! Inquire if all the required fields are present in the specified NetCDF file,
-!    ! and determine the dimensions of the memory to be allocated.
-!    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-!    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-!    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-!    IF (par%master) THEN
-!      restart%netcdf%filename = filename_refgeo
-!      CALL inquire_restart_file_geometry( restart)
-!    END IF
-!    CALL sync
-!
-!    ! Allocate memory for raw data
-!    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-!    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-!    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-!
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-!
-!    ! Read data from input file
-!    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
-!    CALL sync
-!
-!    ! Safety
-!    CALL check_for_NaN_dp_2D( restart%Hi, 'restart%Hi')
-!    CALL check_for_NaN_dp_2D( restart%Hb, 'restart%Hb')
-!    CALL check_for_NaN_dp_2D( restart%Hs, 'restart%Hs')
-!
-!    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-!    CALL transpose_dp_2D( restart%Hi, restart%wHi)
-!    CALL transpose_dp_2D( restart%Hb, restart%wHb)
-!    CALL transpose_dp_2D( restart%Hs, restart%wHs)
-!
-!    ! Allocate shared memory
-!    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
-!    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
-!    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
-!
-!    ! Map (transposed) raw data to the model grid
-!    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hi, refgeo%Hi)
-!    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hb, refgeo%Hb)
-!    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hs, refgeo%Hs)
-!
-!    ! Deallocate raw data
-!    CALL deallocate_shared( restart%wnx              )
-!    CALL deallocate_shared( restart%wny              )
-!    CALL deallocate_shared( restart%wnt              )
-!    CALL deallocate_shared( restart%wx               )
-!    CALL deallocate_shared( restart%wy               )
-!    CALL deallocate_shared( restart%wtime            )
-!    CALL deallocate_shared( restart%wHi              )
-!    CALL deallocate_shared( restart%wHb              )
-!    CALL deallocate_shared( restart%wHs              )
-!    CALL deallocate_shared( restart%wSL              )
-!    CALL deallocate_shared( restart%wdHb             )
+    ! Inquire if all the required fields are present in the specified NetCDF file
+    netcdf%filename = filename_refgeo
+    CALL inquire_restart_file_geometry(    netcdf)
+    CALL sync
+
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hi_raw,  wHi_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hb_raw,  wHb_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hs_raw,  wHs_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  SL_raw,  wSL_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dHb_raw, wdHb_raw)
+
+    ! Read data from input file
+    CALL read_restart_file_geometry( netcdf, time_to_restart_from, Hi_raw, Hb_raw, Hs_raw, SL_raw, dHb_raw)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( Hi_raw, 'Hi_raw')
+    CALL check_for_NaN_dp_2D( Hb_raw, 'Hb_raw')
+    CALL check_for_NaN_dp_2D( Hs_raw, 'Hs_raw')
+
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( Hi_raw, wHi_raw)
+    CALL transpose_dp_2D( Hb_raw, wHb_raw)
+    CALL transpose_dp_2D( Hs_raw, wHs_raw)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
+
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hi_raw, refgeo%Hi)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hb_raw, refgeo%Hb)
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, Hs_raw, refgeo%Hs)
+
+    ! Deallocate raw data
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wdx)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wHi_raw     )
+    CALL deallocate_shared( wHb_raw     )
+    CALL deallocate_shared( wHs_raw     )
+    CALL deallocate_shared( wSL_raw     )
+    CALL deallocate_shared( wdHb_raw    )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -324,99 +314,90 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'adapt_initial_geometry_from_restart_file'
+    TYPE(type_grid)                               :: grid_raw
+    TYPE(type_netcdf_restart)                     :: netcdf
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  Hi_raw,  Hb_raw,  Hs_raw,  SL_raw,  dHb_raw
+    INTEGER                                       :: wHi_raw, wHb_raw, wHs_raw, wSL_raw, wdHb_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  SL,  dHb
+    INTEGER                                       :: wSL, wdHb
     INTEGER                                       :: i,j
-    REAL(dp), DIMENSION(:,:  ), POINTER           ::  dHb,  SL
-    INTEGER                                       :: wdHb, wSL
     REAL(dp)                                      :: Hs, Hs_max_float
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL crash('fixme!')
+    ! Set up the grid for this input file
+    CALL setup_grid_from_file( filename_refgeo_init, grid_raw)
 
-!    ! Inquire if all the required fields are present in the specified NetCDF file,
-!    ! and determine the dimensions of the memory to be allocated.
-!    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-!    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-!    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-!    IF (par%master) THEN
-!      restart%netcdf%filename = filename_refgeo_init
-!      CALL inquire_restart_file_geometry( restart)
-!    END IF
-!    CALL sync
-!
-!    ! Allocate memory for raw data
-!    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-!    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-!    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-!
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-!    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-!
-!    ! Read data from input file
-!    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
-!    CALL sync
-!
-!    ! Safety
-!    CALL check_for_NaN_dp_2D( restart%SL,  'restart%SL' )
-!    CALL check_for_NaN_dp_2D( restart%dHb, 'restart%dHb')
-!
-!    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-!    CALL transpose_dp_2D( restart%SL,  restart%wSL )
-!    CALL transpose_dp_2D( restart%dHb, restart%wdHb)
-!
-!    ! Allocate memory for data on the model grid
-!    CALL allocate_shared_dp_2D( grid%ny, grid%nx, SL,  wSL )
-!    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb, wdHb)
-!
-!    ! Map (transposed) raw data to the model grid
-!    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%SL,  SL )
-!    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%dHb, dHb)
-!
-!    DO i = grid%i1, grid%i2
-!    DO j = 1, grid%ny
-!
-!      ! Assume the mapped surface elevation is correct
-!      Hs = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
-!
-!      ! Define bedrock as PD bedrock + restarted deformation
-!      refgeo_init%Hb( j,i) = refgeo_PD%Hb( j,i) + dHb( j,i)
-!
-!      ! Surface elevation cannot be below bedrock
-!      Hs = MAX( Hs, refgeo_init%Hb( j,i))
-!
-!      ! Define ice thickness
-!      Hs_max_float = refgeo_init%Hb( j,i) + MAX( 0._dp, (SL( j,i) - refgeo_init%Hb( j,i)) * seawater_density / ice_density)
-!      IF (Hs > Hs_max_float) THEN
-!        ! Ice here must be grounded
-!        refgeo_init%Hi( j,i) = Hs - refgeo_init%Hb( j,i)
-!      ELSE
-!        ! Ice here must be floating
-!        refgeo_init%Hi( j,i) = MIN( Hs - refgeo_init%Hb( j,i), MAX( 0._dp, (Hs - SL( j,i))) / (1._dp - ice_density / seawater_density))
-!      END IF
-!
-!      ! Recalculate surface elevation
-!      refgeo_init%Hs( j,i) = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
-!
-!    END DO
-!    END DO
-!    CALL sync
-!
-!    ! Deallocate raw data
-!    CALL deallocate_shared( restart%wnx              )
-!    CALL deallocate_shared( restart%wny              )
-!    CALL deallocate_shared( restart%wnt              )
-!    CALL deallocate_shared( restart%wx               )
-!    CALL deallocate_shared( restart%wy               )
-!    CALL deallocate_shared( restart%wtime            )
-!    CALL deallocate_shared( restart%wHi              )
-!    CALL deallocate_shared( restart%wHb              )
-!    CALL deallocate_shared( restart%wHs              )
-!    CALL deallocate_shared( restart%wSL              )
-!    CALL deallocate_shared( restart%wdHb             )
+    ! Inquire if all the required fields are present in the specified NetCDF file
+    netcdf%filename = filename_refgeo_init
+    CALL inquire_restart_file_geometry( netcdf)
+    CALL sync
+
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hi_raw,  wHi_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hb_raw,  wHb_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  Hs_raw,  wHs_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,  SL_raw,  wSL_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dHb_raw, wdHb_raw)
+
+    ! Read data from input file
+    CALL read_restart_file_geometry( netcdf, time_to_restart_from, Hi_raw, Hb_raw, Hs_raw, SL_raw, dHb_raw)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D(  SL_raw,  'SL_raw')
+    CALL check_for_NaN_dp_2D( dHb_raw, 'dHb_raw')
+
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D(  SL_raw,  wSL_raw)
+    CALL transpose_dp_2D( dHb_raw, wdHb_raw)
+
+    ! Allocate shared memory for mapped data
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, SL , wSL )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb, wdHb)
+
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid,  SL_raw, SL )
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw, grid, dHb_raw, dHb)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Assume the mapped surface elevation is correct
+      Hs = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
+
+      ! Define bedrock as PD bedrock + restarted deformation
+      refgeo_init%Hb( j,i) = refgeo_PD%Hb( j,i) + dHb( j,i)
+
+      ! Surface elevation cannot be below bedrock
+      Hs = MAX( Hs, refgeo_init%Hb( j,i))
+
+      ! Define ice thickness
+      Hs_max_float = refgeo_init%Hb( j,i) + MAX( 0._dp, (SL( j,i) - refgeo_init%Hb( j,i)) * seawater_density / ice_density)
+      IF (Hs > Hs_max_float) THEN
+        ! Ice here must be grounded
+        refgeo_init%Hi( j,i) = Hs - refgeo_init%Hb( j,i)
+      ELSE
+        ! Ice here must be floating
+        refgeo_init%Hi( j,i) = MIN( Hs - refgeo_init%Hb( j,i), MAX( 0._dp, (Hs - SL( j,i))) / (1._dp - ice_density / seawater_density))
+      END IF
+
+      ! Recalculate surface elevation
+      refgeo_init%Hs( j,i) = surface_elevation( refgeo_init%Hi( j,i), refgeo_init%Hb( j,i), SL( j,i))
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Deallocate raw data
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wdx)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wSL         )
+    CALL deallocate_shared( wdHb        )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -935,6 +916,156 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE smooth_model_geometry
+
+  ! Calculate sub-grid bedrock topography cumulative density functions for the present day
+  SUBROUTINE calc_Hb_CDF_refgeo_PD( grid, refgeo_PD, filename_refgeo_PD, region_name)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_PD
+    CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo_PD
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'calc_Hb_CDF_refgeo_PD'
+    TYPE(type_grid)                               :: grid_raw
+    TYPE(type_netcdf_reference_geometry)          :: netcdf
+    REAL(dp), DIMENSION(:,:  ), POINTER           ::  Hi_raw,  Hb_raw,  Hs_raw
+    INTEGER                                       :: wHi_raw, wHb_raw, wHs_raw
+    TYPE(type_grid)                               :: grid_b, grid_cx, grid_cy
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Set up the grid for this input file
+    CALL setup_grid_from_file( filename_refgeo_PD, grid_raw)
+
+    ! Inquire if all the required fields are present in the specified NetCDF file
+    netcdf%filename = filename_refgeo_PD
+    CALL inquire_reference_geometry_file( netcdf)
+    CALL sync
+
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, Hi_raw, wHi_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, Hb_raw, wHb_raw)
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, Hs_raw, wHs_raw)
+
+    ! Read data from input file
+    CALL read_reference_geometry_file( netcdf, Hi_raw, Hb_raw, Hs_raw)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( Hi_raw, 'Hi_raw')
+    CALL check_for_NaN_dp_2D( Hb_raw, 'Hb_raw')
+    CALL check_for_NaN_dp_2D( Hs_raw, 'Hs_raw')
+
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( Hi_raw, wHi_raw)
+    CALL transpose_dp_2D( Hb_raw, wHb_raw)
+    CALL transpose_dp_2D( Hs_raw, wHs_raw)
+
+    ! Remove Lake Vostok from Antarctica (because it's annoying)
+    IF (region_name == 'ANT'.AND. C%remove_Lake_Vostok) THEN
+      CALL remove_Lake_Vostok( grid_raw%x, grid_raw%y, Hi_raw, Hb_raw, Hs_raw)
+    END IF
+
+    ! Calculate cumulative density functions of sub-grid bedrock topography on all staggered grids
+
+    ! a-grid
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny  , grid%nx  , refgeo_PD%Hb_CDF_a , refgeo_PD%wHb_CDF_a )
+    CALL calc_subgrid_CDF( grid_raw, grid, Hb_raw, refgeo_PD%Hb_CDF_a, C%subgrid_Hb_CDF_nbins)
+
+    ! b-grid
+    CALL allocate_shared_int_0D( grid_b%nx, grid_b%wnx)
+    CALL allocate_shared_int_0D( grid_b%ny, grid_b%wny)
+    CALL allocate_shared_dp_0D(  grid_b%dx, grid_b%wdx)
+    grid_b%nx = grid%nx - 1
+    grid_b%ny = grid%ny - 1
+    grid_b%dx = grid%dx
+    CALL partition_list( grid_b%nx, par%i, par%n, grid_b%i1, grid_b%i2)
+    CALL partition_list( grid_b%ny, par%i, par%n, grid_b%j1, grid_b%j2)
+    CALL allocate_shared_dp_1D( grid_b%nx, grid_b%x, grid_b%wx)
+    CALL allocate_shared_dp_1D( grid_b%ny, grid_b%y, grid_b%wy)
+    IF (par%master) THEN
+      grid_b%x = (grid%x( 1:grid%nx-1) + grid%x( 2:grid%nx)) / 2._dp
+      grid_b%y = (grid%y( 1:grid%ny-1) + grid%y( 2:grid%ny)) / 2._dp
+    END IF
+    CALL sync
+
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny-1, grid%nx-1, refgeo_PD%Hb_CDF_b , refgeo_PD%wHb_CDF_b )
+    CALL calc_subgrid_CDF( grid_raw, grid_b, Hb_raw, refgeo_PD%Hb_CDF_b, C%subgrid_Hb_CDF_nbins)
+
+    ! cx-grid
+    CALL allocate_shared_int_0D( grid_cx%nx, grid_cx%wnx)
+    CALL allocate_shared_int_0D( grid_cx%ny, grid_cx%wny)
+    CALL allocate_shared_dp_0D(  grid_cx%dx, grid_cx%wdx)
+    grid_cx%nx = grid%nx - 1
+    grid_cx%ny = grid%ny
+    grid_cx%dx = grid%dx
+    CALL partition_list( grid_cx%nx, par%i, par%n, grid_cx%i1, grid_cx%i2)
+    CALL partition_list( grid_cx%ny, par%i, par%n, grid_cx%j1, grid_cx%j2)
+    CALL allocate_shared_dp_1D( grid_cx%nx, grid_cx%x, grid_cx%wx)
+    CALL allocate_shared_dp_1D( grid_cx%ny, grid_cx%y, grid_cx%wy)
+    IF (par%master) THEN
+      grid_cx%x = (grid%x( 1:grid%nx-1) + grid%x( 2:grid%nx)) / 2._dp
+      grid_cx%y = grid%y
+    END IF
+    CALL sync
+
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny  , grid%nx-1, refgeo_PD%Hb_CDF_cx, refgeo_PD%wHb_CDF_cx)
+    CALL calc_subgrid_CDF( grid_raw, grid_cx, Hb_raw, refgeo_PD%Hb_CDF_cx, C%subgrid_Hb_CDF_nbins)
+
+    ! cy-grid
+    CALL allocate_shared_int_0D( grid_cy%nx, grid_cy%wnx)
+    CALL allocate_shared_int_0D( grid_cy%ny, grid_cy%wny)
+    CALL allocate_shared_dp_0D(  grid_cy%dx, grid_cy%wdx)
+    grid_cy%nx = grid%nx
+    grid_cy%ny = grid%ny - 1
+    grid_cy%dx = grid%dx
+    CALL partition_list( grid_cy%nx, par%i, par%n, grid_cy%i1, grid_cy%i2)
+    CALL partition_list( grid_cy%ny, par%i, par%n, grid_cy%j1, grid_cy%j2)
+    CALL allocate_shared_dp_1D( grid_cy%nx, grid_cy%x, grid_cy%wx)
+    CALL allocate_shared_dp_1D( grid_cy%ny, grid_cy%y, grid_cy%wy)
+    IF (par%master) THEN
+      grid_cy%x = grid%x
+      grid_cy%y = (grid%y( 1:grid%ny-1) + grid%y( 2:grid%ny)) / 2._dp
+    END IF
+    CALL sync
+
+    CALL allocate_shared_dp_3D( C%subgrid_Hb_CDF_nbins, grid%ny-1, grid%nx  , refgeo_PD%Hb_CDF_cy, refgeo_PD%wHb_CDF_cy)
+    CALL calc_subgrid_CDF( grid_raw, grid_cy, Hb_raw, refgeo_PD%Hb_CDF_cy, C%subgrid_Hb_CDF_nbins)
+
+    ! Deallocate raw data
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wdx)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wHi_raw     )
+    CALL deallocate_shared( wHb_raw     )
+    CALL deallocate_shared( wHs_raw     )
+    CALL deallocate_shared( grid_b%wnx  )
+    CALL deallocate_shared( grid_b%wny  )
+    CALL deallocate_shared( grid_b%wdx  )
+    CALL deallocate_shared( grid_b%wx   )
+    CALL deallocate_shared( grid_b%wy   )
+    CALL deallocate_shared( grid_cx%wnx )
+    CALL deallocate_shared( grid_cx%wny )
+    CALL deallocate_shared( grid_cx%wdx )
+    CALL deallocate_shared( grid_cx%wx  )
+    CALL deallocate_shared( grid_cx%wy  )
+    CALL deallocate_shared( grid_cy%wnx )
+    CALL deallocate_shared( grid_cy%wny )
+    CALL deallocate_shared( grid_cy%wdx )
+    CALL deallocate_shared( grid_cy%wx  )
+    CALL deallocate_shared( grid_cy%wy  )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calc_Hb_CDF_refgeo_PD
 
   ! Analytical solutions used to initialise some benchmark experiments
   FUNCTION Halfar_solution( x, y, t) RESULT(H)
