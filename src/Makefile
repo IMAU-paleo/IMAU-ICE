@@ -4,8 +4,6 @@
 #     http://www.gnu.org/software/make/manual/make.html
 
 include Makefile_include_local.txt
-#include Makefile_include_Gemini.txt
-#include Makefile_include_Cartesius.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
@@ -52,11 +50,12 @@ IMAU_ICE_program_objects = \
         ice_dynamics_module.o \
         thermodynamics_module.o \
         SMB_module.o \
+        auto_tuner_module.o \
         BMB_module.o \
-        ocean_module.o \
         climate_module.o \
         isotopes_module.o \
         bedrock_ELRA_module.o \
+        auto_tuner_module.o \
         SELEN_mapping_module.o \
         SELEN_harmonics_module.o \
         SELEN_fmvals_module.o \
@@ -96,3 +95,4 @@ clean :
 .PHONY : all
 
 all : $(all_programs)
+

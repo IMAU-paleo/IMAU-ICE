@@ -10,7 +10,7 @@ MODULE data_types_module
                                          type_netcdf_insolation, type_netcdf_restart, type_netcdf_help_fields, &
                                          type_netcdf_debug, type_netcdf_geothermal_heat_flux, type_netcdf_SELEN_output, &
                                          type_netcdf_SELEN_global_topo, type_netcdf_climate_forcing, &
-                                         type_netcdf_scalars_global, type_netcdf_scalars_regional
+                                         type_netcdf_scalars_global, type_netcdf_scalars_regional, type_netcdf_ice_mask_data
 
   IMPLICIT NONE
   
@@ -82,7 +82,11 @@ MODULE data_types_module
     INTEGER :: wSL_a,  wSL_cx,  wSL_cy,  wSL_b
     INTEGER :: wTAF_a, wTAF_cx, wTAF_cy, wTAF_b
     INTEGER :: wTi_a,  wTi_cx,  wTi_cy,  wTi_b
-    
+   
+    ! Initital Surface Height (for climate matrix)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_init  
+    INTEGER :: wHs_init
+
     ! Ice velocities
     REAL(dp), DIMENSION(:,:,:), POINTER     :: u_3D_a                ! 3-D ice velocity [m yr^-1]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: v_3D_a
@@ -138,13 +142,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_b
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: basin_ID              ! The drainage basin to which each grid cell belongs
-    INTEGER,                    POINTER     :: nbasins               ! Total number of basins defined for this region
     INTEGER :: wmask_land_a, wmask_ocean_a, wmask_lake_a, wmask_ice_a, wmask_sheet_a, wmask_shelf_a
     INTEGER :: wmask_coast_a, wmask_coast_cx, wmask_coast_cy, wmask_margin_a, wmask_margin_cx, wmask_margin_cy
     INTEGER :: wmask_gl_a, wmask_gl_cx, wmask_gl_cy, wmask_cf_a, wmask_cf_cx, wmask_cf_cy, wmask_a
     INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy, wf_grnd_b
-    INTEGER :: wbasin_ID, wnbasins
     
     ! Ice physical properties
     REAL(dp), DIMENSION(:,:,:), POINTER     :: A_flow_3D_a           ! Flow parameter [Pa^-3 y^-1]
@@ -428,29 +429,39 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south_north wind speed (m/s)
     INTEGER :: wHs, wT2m, wPrecip, wWind_WE, wWind_SN
     
-    ! Ocean
-    REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
-    INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
-    REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
-    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
-    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean
-
-    
     ! Paralelisation
     INTEGER                                 :: i1, i2                        ! Grid domain (:,i1:i2) of each process
   
   END TYPE type_subclimate_global
-  
+
+  TYPE type_ice_mask_snapshot_global
+    ! Global ice mask data, either from ice reconstructions or observations
+
+    ! NetCDF file containing the data
+    TYPE(type_netcdf_ice_mask_data)         :: netcdf
+
+    ! Grid
+    CHARACTER(LEN=256)                      :: name                   
+    INTEGER,                    POINTER     :: nlat, nlon
+    REAL(dp), DIMENSION(:    ), POINTER     :: lat
+    REAL(dp), DIMENSION(:    ), POINTER     :: lon
+    INTEGER :: wnlat, wnlon, wlat, wlon
+
+    ! General ice mask data
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_mask    ! Ice mask from ice reconstruction
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ocean_mask    ! Ocean mask in ice reconstruction
+    INTEGER :: wice_mask, wocean_mask
+
+    ! Paralelisation
+    INTEGER                                 ::  i1, i2 
+
+  END TYPE type_ice_mask_snapshot_global
+
   TYPE type_climate_matrix
     ! The climate matrix data structure. Contains all the different global GCM snapshots.
     
     ! The present-day observed climate (ERA40)
     TYPE(type_subclimate_global)            :: PD_obs
-    
-    ! The present-day observed ocean (WOA18)
-    TYPE(type_subclimate_global)            :: PD_obs_ocean
     
     ! The GCM snapshots.
     TYPE(type_subclimate_global)            :: GCM_PI
@@ -458,7 +469,18 @@ MODULE data_types_module
     TYPE(type_subclimate_global)            :: GCM_cold
   
   END TYPE type_climate_matrix
-  
+ 
+  TYPE type_ice_mask_matrix
+    ! Contains all the ice masks that are used in the climate matrix method
+
+    ! The ice mask of the ice reconstructions and observation corresponding to
+    ! the GCM snapshots
+    TYPE(type_ice_mask_snapshot_global)            :: glob_PI
+    TYPE(type_ice_mask_snapshot_global)            :: glob_warm
+    TYPE(type_ice_mask_snapshot_global)            :: glob_cold
+
+  END TYPE type_ice_mask_matrix
+ 
   TYPE type_subclimate_region
     ! Data from PD observations or a GCM snapshot, projected from their initial global grid onto the model region grid.
     
@@ -481,7 +503,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south-north wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_LR                       ! Monthly mean wind speed in the x-direction (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
-    INTEGER :: wHs, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU ! MPI windows to all these memory spaces
+    INTEGER :: wHs, wT2m, wPrecip, wWind_WE, wWind_SN, wWind_LR, wWind_DU ! MPI windows to all these memory spaces
     
     ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: lambda
@@ -499,19 +521,16 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: Q_TOA_jun_65N, Q_TOA_jan_80S
     INTEGER :: wQ_TOA, wAlbedo, wI_abs, wQ_TOA_jun_65N, wQ_TOA_jan_80S
     
-    ! Ocean
-    REAL(dp),                   POINTER     :: T_ocean_mean                  ! Regional mean ocean temperature (used for basal melt when no ocean temperature data is provided)
-    REAL(dp), DIMENSION(:    ), POINTER     :: z_ocean                       ! Vertical coordinate of the 3-D ocean fields [m below sea surface]
-    INTEGER,                    POINTER     :: nz_ocean                      ! Number of vertical layers in the 3-D ocean fields
-    INTEGER,  DIMENSION(:,:,:), POINTER     :: mask_ocean                    ! Mask showing where data is provided (1 = yes, 0 = no)
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean                       ! 3-D annual mean ocean temperature [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean                       ! 3-D annual mean ocean salinity    [PSU]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_ext                   ! 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_ext                   ! 3-D annual mean ocean salinity   , extrapolated beneath ice shelves [PSU]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
-    INTEGER :: wT_ocean_mean, wz_ocean, wnz_ocean, wmask_ocean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
-  
+    ! Ocean temperature (parameterised right now)
+    REAL(dp),                   POINTER     :: T_ocean_mean
+    INTEGER :: wT_ocean_mean
+ 
+    ! Ice mask from observations or reconstructions
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_mask
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: ocean_mask
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_ref
+    INTEGER :: wice_mask, wocean_mask, wHs_ref
+ 
   END TYPE type_subclimate_region
   
   TYPE type_climate_model
@@ -526,7 +545,10 @@ MODULE data_types_module
     ! GCM bias
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_T2m                  ! GCM temperature   bias (= [modelled PI temperature  ] - [observed PI temperature  ])
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Precip               ! GCM precipitation bias (= [modelled PI precipitation] / [observed PI precipitation])
-    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip
+
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: w_cold
+
+    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, ww_cold
           
   END TYPE type_climate_model
   
@@ -563,54 +585,6 @@ MODULE data_types_module
   TYPE type_BMB_model
     ! The different BMB components
     
-    ! General data fields
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB                           ! The basal mass balance (same as SMB: negative means ice loss, positive means ice gain!) [m/yr]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_sheet                     ! The basal mass balance underneath the land-based ice sheet [m/yr]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_shelf                     ! The basal mass balance underneath the floating   ice shelf [m/yr]
-    
-    ! The linear/quadratic models from Favier et al. (2019)
-    ! =====================================================
-    
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: T_ocean_base                  ! Ocean temperature    at the ice shelf base
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: T_ocean_freeze_base           ! Ocean freezing point at the ice shelf base (depends on pressure and salinity)
-    INTEGER :: wT_ocean_base, wT_ocean_freeze_base
-    
-    ! The Lazeroms (2018) plume model
-    ! ===============================
-    
-    ! NOTE: also uses T_ocean_base!
-    
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: search_directions             ! The 16 search directions
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: eff_plume_source_depth        ! Effective plume source depth (average source depth over all valid plume paths)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: eff_basal_slope               ! Effective basal slope        (average slope        over all valid plume paths)
-    INTEGER :: wsearch_directions, weff_plume_source_depth, weff_basal_slope
-    
-    ! The PICO model
-    ! ==============
-    
-    ! NOTE: also uses search_directions!
-    
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_d_GL                     ! Distance to grounding line [m]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_d_IF                     ! Distance to ice front      [m]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_r                        ! Relative distance to grounding line [0-1]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_A                        ! Area covered by each ocean box in each basin [n_basins x n_boxes]
-    INTEGER,  DIMENSION(:    ), POINTER     :: PICO_n_D                      ! Number of ocean boxes for each ice basin
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: PICO_k                        ! PICO ocean box number to which the shelf grid cells belong
-    INTEGER :: wPICO_d_GL, wPICO_d_IF, wPICO_r, wPICO_A, wPICO_n_D, wPICO_k
-    
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_T                        ! 2-D     ambient temperature [K]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_Tk                       ! Average ambient temperature within each basin-box
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_S                        ! 2-D     ambient salinity    [PSU]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_Sk                       ! Average ambient salinity    within each basin-box
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_p                        ! 2-D     basal pressure      [Pa]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_pk                       ! Average basal pressure      within each basin-box
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_m                        ! 2-D     melt rate           [m/yr]
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_mk                       ! Average melt rate           within each basin-box
-    INTEGER :: wPICO_T, wPICO_Tk, wPICO_S, wPICO_Sk, wPICO_p, wPICO_pk, wPICO_m, wPICO_mk
-    
-    ! The ANICE_legacy BMB model
-    ! ==========================
-    
     ! Tuning parameters (different for each region, set from config)
     REAL(dp),                   POINTER     :: T_ocean_mean_PD
     REAL(dp),                   POINTER     :: T_ocean_mean_cold
@@ -628,13 +602,32 @@ MODULE data_types_module
     INTEGER :: wBMB_shelf_exposed_PD, wBMB_shelf_exposed_cold, wBMB_shelf_exposed_warm
     INTEGER :: wsubshelf_melt_factor, wdeep_ocean_threshold_depth
     
-    ! Additional data fields
+    ! Data fields
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB                           ! The basal mass balance (same as SMB: negative means melt)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_sheet                     ! The basal mass balance underneath the land-based ice sheet
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: BMB_shelf                     ! The basal mass balance underneath the floating   ice shelf
     REAL(dp), DIMENSION(:,:  ), POINTER     :: sub_angle                     ! "subtended angle"      for the sub-shelf melt parameterisation
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dist_open                     ! distance to open ocean for the sub-shelf melt parameterisation
     INTEGER :: wBMB, wBMB_sheet, wBMB_shelf, wsub_angle, wdist_open
   
   END TYPE type_BMB_model
   
+  TYPE type_auto_tuner
+    ! Data structure containing data needed for the auto-tuner
+    
+    ! The value of the peak volumes, so the value furthest removed from 0 m
+    REAL(dp),                   POINTER     :: NAM_peak_SLC  ! (m) the highest or lowest (peak) SLC of North America
+    REAL(dp),                   POINTER     :: EAS_peak_SLC  ! (m) the highest or lowest (peak) SLC of Eurasia
+    REAL(dp),                   POINTER     :: GRL_peak_SLC  ! (m) the highest or lowest (peak) SLC of Greenland
+    REAL(dp),                   POINTER     :: ANT_peak_SLC  ! (m) the highest or lowest (peak) SLC of Antarctica
+    REAL(dp),                   POINTER     :: Glob_peak_SLC ! (m) the highest or lowest (peak) SLC of all domains combined
+    REAL(dp),                   POINTER     :: GMSL_initial  ! Initial SLC
+    INTEGER,                    POINTER     :: n_iteration   ! The number of the current auto-tuner iteration
+
+    INTEGER :: wNAM_peak_SLC, wEAS_peak_SLC, wGRL_peak_SLC, wANT_peak_SLC, wGlob_peak_SLC, wGMSL_initial, wn_iteration
+ 
+  END TYPE type_auto_tuner
+
   TYPE type_PD_data_fields
     ! Data structure containing data fields describing the present-day world.
     
@@ -652,7 +645,8 @@ MODULE data_types_module
     ! The data mapped to the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb
-    INTEGER :: wHi, wHb
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs
+    INTEGER :: wHi, wHb, wHs
               
   END TYPE type_PD_data_fields
   
@@ -717,7 +711,13 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), POINTER     :: CO2_record
     REAL(dp),                   POINTER     :: CO2_obs
     INTEGER :: wCO2_time, wCO2_record, wCO2_obs
-    
+   
+    ! External forcing: GMSL record
+    REAL(dp), DIMENSION(:    ), POINTER     :: GMSL_time
+    REAL(dp), DIMENSION(:    ), POINTER     :: GMSL_record
+    REAL(dp),                   POINTER     :: GMSL
+    INTEGER :: wGMSL_time, wGMSL_record, wGMSL
+
     ! External forcing: d18O record
     REAL(dp), DIMENSION(:    ), POINTER     :: d18O_time
     REAL(dp), DIMENSION(:    ), POINTER     :: d18O_record
@@ -1090,6 +1090,9 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: dT_dw                                     ! Deep-water temperature change
     INTEGER :: wdT_glob, wdT_dw
     
+    ! Auto-tuner
+    REAL(dp), POINTER                       ::  C_abl_constant                           ! The constant for the SMB parameterization
+
     ! Computation times for all regions combined
     REAL(dp), POINTER                       :: tcomp_total
     REAL(dp), POINTER                       :: tcomp_ice

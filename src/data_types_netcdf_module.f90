@@ -106,28 +106,24 @@ MODULE data_types_netcdf_module
     INTEGER :: id_dim_zeta
     INTEGER :: id_dim_time
     INTEGER :: id_dim_month
-    INTEGER :: id_dim_z_ocean
   
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_dim_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_dim_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
-    CHARACTER(LEN=256) :: name_dim_z_ocean               = 'z_ocean              '
   
     INTEGER :: id_var_x
     INTEGER :: id_var_y
     INTEGER :: id_var_time
     INTEGER :: id_var_zeta
     INTEGER :: id_var_month
-    INTEGER :: id_var_z_ocean
     
     CHARACTER(LEN=256) :: name_var_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_var_y                     = 'y                    '
     CHARACTER(LEN=256) :: name_var_time                  = 'time                 '
     CHARACTER(LEN=256) :: name_var_zeta                  = 'zeta                 '
     CHARACTER(LEN=256) :: name_var_month                 = 'month                '
-    CHARACTER(LEN=256) :: name_var_z_ocean               = 'z_ocean              '
     
   ! Variables
   ! =========
@@ -302,6 +298,7 @@ MODULE data_types_netcdf_module
     INTEGER :: id_var_SMB
     INTEGER :: id_var_BMB
     INTEGER :: id_var_MB
+    INTEGER :: id_var_C_abl_constant
     
     CHARACTER(LEN=256) :: name_var_ice_volume        = 'ice_volume           '
     CHARACTER(LEN=256) :: name_var_ice_volume_af     = 'ice_volume_af        '
@@ -315,7 +312,8 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_SMB               = 'SMB                  '
     CHARACTER(LEN=256) :: name_var_BMB               = 'BMB                  '
     CHARACTER(LEN=256) :: name_var_MB                = 'MB                   '
-  
+    CHARACTER(LEN=256) :: name_var_C_abl_constant    = 'C_abl_constant       '
+    
   END TYPE type_netcdf_scalars_regional
     
   TYPE type_netcdf_debug
@@ -484,9 +482,11 @@ MODULE data_types_netcdf_module
     ! Dimensions
     INTEGER :: id_dim_x
     INTEGER :: id_dim_y
+    INTEGER :: id_dim_month
     
     CHARACTER(LEN=256) :: name_dim_x                     = 'x                    '
     CHARACTER(LEN=256) :: name_dim_y                     = 'y                    '
+    CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
     
     ! Variables:
     INTEGER :: id_var_x
@@ -577,40 +577,64 @@ MODULE data_types_netcdf_module
     INTEGER :: id_dim_lon
     INTEGER :: id_dim_lat
     INTEGER :: id_dim_month
-    INTEGER :: id_dim_z_ocean
     
     CHARACTER(LEN=256) :: name_dim_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_dim_lat                   = 'lat                  '
     CHARACTER(LEN=256) :: name_dim_month                 = 'month                '
-    CHARACTER(LEN=256) :: name_dim_z_ocean               = 'depth                '
     
     ! Variables
     INTEGER :: id_var_lon
     INTEGER :: id_var_lat
-    INTEGER :: id_var_z_ocean
     INTEGER :: id_var_Hs
     INTEGER :: id_var_T2m
     INTEGER :: id_var_Precip
     INTEGER :: id_var_Wind_WE
     INTEGER :: id_var_Wind_SN
-    INTEGER :: id_var_mask_ocean
-    INTEGER :: id_var_T_ocean
-    INTEGER :: id_var_S_ocean
     
     CHARACTER(LEN=256) :: name_var_lon                   = 'lon                  '
     CHARACTER(LEN=256) :: name_var_lat                   = 'lat                  '
-    CHARACTER(LEN=256) :: name_var_z_ocean               = 'depth                '
     CHARACTER(LEN=256) :: name_var_Hs                    = 'Hs                   '
     CHARACTER(LEN=256) :: name_var_T2m                   = 'T2m                  '
     CHARACTER(LEN=256) :: name_var_Precip                = 'Precip               '
     CHARACTER(LEN=256) :: name_var_Wind_WE               = 'Wind_WE              '
     CHARACTER(LEN=256) :: name_var_Wind_SN               = 'Wind_SN              '
-    CHARACTER(LEN=256) :: name_var_mask_ocean            = '                     '
-    CHARACTER(LEN=256) :: name_var_T_ocean               = 't_an                 '
-    CHARACTER(LEN=256) :: name_var_S_ocean               = 's_an                 '
         
   END TYPE type_netcdf_climate_data
-    
+   
+
+
+  TYPE type_netcdf_ice_mask_data
+    ! For reading an input file. This type contains the data for the ice mask
+    ! from observations or reconstructions.
+
+    CHARACTER(LEN=256) :: filename
+
+    ! ID for NetCDF file:
+    INTEGER :: ncid
+
+    ! ID's for variables:
+    ! ===================
+
+    ! Dimensions
+    INTEGER :: id_dim_lon
+    INTEGER :: id_dim_lat
+
+    CHARACTER(LEN=256) :: name_dim_lon                   = 'long'
+    CHARACTER(LEN=256) :: name_dim_lat                   = 'lat'
+
+    ! Variables
+    INTEGER :: id_var_lon
+    INTEGER :: id_var_lat
+    INTEGER :: id_var_ice_mask
+    INTEGER :: id_var_ocean_mask
+
+    CHARACTER(LEN=256) :: name_var_lon                  = 'long'
+    CHARACTER(LEN=256) :: name_var_lat                  = 'lat'
+    CHARACTER(LEN=256) :: name_var_ice_mask             = 'sftgif'
+    CHARACTER(LEN=256) :: name_var_ocean_mask           = 'sftlf'
+
+  END TYPE type_netcdf_ice_mask_data
+ 
   TYPE type_netcdf_insolation
     ! For reading an input file containing an insolation history reconstruction (e.g. Lasker et al., 2004),
     ! describing top-of-the-atmosphere insolation for every month of the year at a latitudinal grid.

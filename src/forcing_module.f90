@@ -59,9 +59,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in inverse_routine_global_temperature_offset!'
@@ -105,24 +103,17 @@ CONTAINS
     
     ! Not needed for benchmark experiments
     IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+      IF (C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
           C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'mesh_generation_test' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream') THEN
         RETURN
       ELSE 
         WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in inverse_routine_global_temperature_offset!'
@@ -172,9 +163,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calculate_modelled_d18O!'
@@ -239,9 +228,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_global_mean_temperature_change_history!'
@@ -313,24 +300,17 @@ CONTAINS
     
     ! Not needed for benchmark experiments
     IF (C%do_benchmark_experiment) THEN
-      IF (C%choice_benchmark_experiment == 'Halfar'     .OR. &
-          C%choice_benchmark_experiment == 'Bueler'     .OR. &
-          C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
+      IF (C%choice_benchmark_experiment == 'EISMINT_1'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_2'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_3'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_4'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_5'  .OR. &
           C%choice_benchmark_experiment == 'EISMINT_6'  .OR. &
+          C%choice_benchmark_experiment == 'Halfar'     .OR. &
+          C%choice_benchmark_experiment == 'Bueler'     .OR. &
           C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'mesh_generation_test' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream') THEN
         RETURN
       ELSE 
         WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in calculate_mean_temperature_change_region!'
@@ -381,7 +361,8 @@ CONTAINS
     CALL allocate_shared_dp_0D( forcing%d18O_mod,                  forcing%wd18O_mod                 )
     CALL allocate_shared_dp_0D( forcing%CO2_obs,                   forcing%wCO2_obs                  )
     CALL allocate_shared_dp_0D( forcing%CO2_mod,                   forcing%wCO2_mod                  )
-    
+    CALL allocate_shared_dp_0D( forcing%GMSL,                      forcing%wGMSL                     )
+
     forcing%d18O_obs_PD = 3.23_dp
     
   END SUBROUTINE initialise_d18O_data
@@ -410,9 +391,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_inverse_routine_data!'
@@ -529,9 +508,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_CO2_at_model_time!'
@@ -577,6 +554,110 @@ CONTAINS
     CALL sync
     
   END SUBROUTINE update_CO2_at_model_time
+
+  ! =========================================
+  ! Read and update forcing data from records
+  ! =========================================
+
+  ! GMSL
+  SUBROUTINE update_GMSL_at_model_time( time)
+    ! Interpolate the data in forcing%CO2 to find the value at the queried time.
+    ! If time lies outside the range of forcing%CO2_time, return the first/last value
+    ! NOTE: assumes time is listed in kyr (so LGM would be -21000.0)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp),                            INTENT(IN)    :: time
+
+    ! Local variables
+    INTEGER                                            :: il, iu
+    REAL(dp)                                           :: wl, wu
+
+    ! Not needed for all forcing methods
+    IF (C%choice_sealevel_model == 'prescribed') THEN
+    
+    ELSE  ! Prescribed sealevel is not needed for other methods
+      RETURN
+    END IF
+
+    IF (par%master) THEN
+      IF     (time <= MINVAL( forcing%GMSL_time)) THEN ! times 1000 because forcing%CO2_time is in kyr
+        IF (par%master) WRITE(0,*) '  WARNING: model time before start of GMSL record, using constant extrapolation!'
+        forcing%GMSL = forcing%GMSL_record( 1)
+      ELSEIF (time > MAXVAL( forcing%GMSL_time)) THEN
+        IF (par%master) WRITE(0,*) '  WARNING: model time beyond end of GMSL record, using constant extrapolation!'
+        forcing%GMSL = forcing%GMSL_record( C%GMSL_record_length)
+      ELSE
+        iu = 1
+        DO WHILE (forcing%GMSL_time(iu) < time)
+          iu = iu+1
+        END DO
+        il = iu-1
+
+        wl = (forcing%GMSL_time(iu) - time) / ((forcing%GMSL_time(iu)-forcing%GMSL_time(il)))
+        wu = (time - forcing%GMSL_time(il)) / ((forcing%GMSL_time(iu)-forcing%GMSL_time(il)))
+
+        forcing%GMSL = forcing%GMSL_record(il) * wl + forcing%GMSL_record(iu) * wu
+
+      END IF
+    END IF
+    CALL sync
+
+  END SUBROUTINE update_GMSL_at_model_time
+
+
+  SUBROUTINE initialise_GMSL_record
+    ! Read the GMSL record specified in C%filename_GMSL_record. Assumes this is an ASCII text file with at least two columns (time in kyr and GMSL in ppmv)
+    ! and the number of rows being equal to C%GMSL_record_length
+    ! NOTE: assumes time is listed in kyr (so LGM would be -21.0)
+
+    IMPLICIT NONE
+
+    ! Local variables
+    INTEGER                                            :: i,ios
+
+    ! Not needed for benchmark experiments
+    IF (C%do_benchmark_experiment) THEN
+        RETURN
+    END IF ! IF (C%do_benchmark_experiment) THEN
+
+    ! Not needed for all forcing methods
+    IF (C%choice_sealevel_model == 'prescribed') THEN
+      ! Observed GMSL is needed for these forcing methods.
+    ELSE
+      RETURN
+    END IF
+
+    IF (par%master) WRITE(0,*) ' Reading GMSL record from ', TRIM(C%filename_GMSL_record), '...'
+
+    ! Allocate shared memory to take the data
+    CALL allocate_shared_dp_1D( C%GMSL_record_length, forcing%GMSL_time,   forcing%wGMSL_time  )
+    CALL allocate_shared_dp_1D( C%GMSL_record_length, forcing%GMSL_record, forcing%wGMSL_record)
+
+    ! Read GMSL record (time and values) from specified text file
+    OPEN(   UNIT = 1337, FILE=C%filename_GMSL_record, ACTION='READ')
+    DO i = 1, C%GMSL_record_length
+      READ( UNIT = 1337, FMT=*, IOSTAT=ios) forcing%GMSL_time(i), forcing%GMSL_record(i)
+      IF (ios /= 0) THEN
+        WRITE(0,*) ' read_GMSL_record - ERROR: length of text file "', TRIM(C%filename_GMSL_record), '" does not match C%GMSL_record_length = ', C%GMSL_record_length
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+    END DO
+    CLOSE( UNIT  = 1337)
+
+    ! Set the value for the current (starting) model time
+    CALL update_GMSL_at_model_time( C%start_time_of_run)
+
+  END SUBROUTINE initialise_GMSL_record
+
+
+
+
+
+
+
+
   SUBROUTINE initialise_CO2_record
     ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is an ASCII text file with at least two columns (time in kyr and CO2 in ppmv)
     ! and the number of rows being equal to C%CO2_record_length
@@ -604,9 +685,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_CO2_record!'
@@ -650,6 +729,34 @@ CONTAINS
     
   END SUBROUTINE initialise_CO2_record
   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   ! d18O
   SUBROUTINE update_d18O_at_model_time( time)
     ! Interpolate the data in forcing%d18O to find the value at the queried time.
@@ -682,9 +789,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_d18O_at_model_time!'
@@ -759,9 +864,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_d18O_record!'
@@ -847,9 +950,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_insolation_data!'
@@ -960,6 +1061,8 @@ CONTAINS
     ! Allocate shared memory for the forcing data fields
     
     IMPLICIT NONE
+    
+    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
         
     ! The times at which we have insolation fields from Laskar, between which we'll interpolate
     ! to find the insolation at model time (ins_t0 < model_time < ins_t1)
@@ -990,9 +1093,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_insolation_data!'
@@ -1002,8 +1103,6 @@ CONTAINS
     
     ! Exception: if we use external SMB forcing, insolation is not used anywhere
     IF (C%choice_forcing_method == 'SMB_direct') RETURN
-    
-    IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
     
     ! Inquire into the insolation forcing netcdf file    
     CALL allocate_shared_int_0D( forcing%ins_nyears, forcing%wins_nyears)
@@ -1051,9 +1150,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_geothermal_heat_flux!'
@@ -1126,9 +1223,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in update_climate_forcing_data!'
@@ -1222,9 +1317,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_climate_forcing_data!'

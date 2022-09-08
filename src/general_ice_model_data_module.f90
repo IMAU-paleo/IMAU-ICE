@@ -27,7 +27,7 @@ MODULE general_ice_model_data_module
 
 CONTAINS
   
-! ==Routines for calculating general ice model data - Hs, masks, ice physical properties
+  ! Routines for calculating general ice model data - Hs, masks, ice physical properties
   SUBROUTINE update_general_ice_model_data( grid, ice, time)
     
     IMPLICIT NONE
@@ -338,13 +338,6 @@ CONTAINS
         ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = 2.140373E-7_dp
         ice%A_flow_vav_a(   :,grid%i1:grid%i2) = 2.140373E-7_dp
         CALL sync
-        
-        RETURN
-        
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Don't change the flow factor here; set it once during initialisation (done in initialise_ice_model),
-        ! then only change it with the tuning subroutine!
         
         RETURN
         
@@ -776,38 +769,38 @@ CONTAINS
     ! The analytical solutions sometime give problems when one or more of the corner
     ! values is VERY close to zero; avoid this.
     IF (f_NW == 0._dp) THEN
-      f_NWp = ftol
+      f_NWp = ftol * 1.1_dp
     ELSEIF (f_NW > 0._dp) THEN
-      f_NWp = MAX(  ftol, f_NW)
+      f_NWp = MAX(  ftol * 1.1_dp, f_NW)
     ELSEIF (f_NW < 0._dp) THEN
-      f_NWp = MIN( -ftol, f_NW)
+      f_NWp = MIN( -ftol * 1.1_dp, f_NW)
     ELSE
       f_NWp = f_NW
     END IF
     IF (f_NE == 0._dp) THEN
-      f_NEp = ftol
+      f_NEp = ftol * 1.21_dp
     ELSEIF (f_NE > 0._dp) THEN
-      f_NEp = MAX(  ftol, f_NE)
+      f_NEp = MAX(  ftol * 1.21_dp, f_NE)
     ELSEIF (f_NE < 0._dp) THEN
-      f_NEp = MIN( -ftol, f_NE)
+      f_NEp = MIN( -ftol * 1.21_dp, f_NE)
     ELSE
       f_NEp = f_NE
     END IF
     IF (f_SW == 0._dp) THEN
-      f_SWp = ftol
+      f_SWp = ftol * 1.13_dp
     ELSEIF (f_SW > 0._dp) THEN
-      f_SWp = MAX(  ftol, f_SW)
+      f_SWp = MAX(  ftol * 1.13_dp, f_SW)
     ELSEIF (f_SW < 0._dp) THEN
-      f_SWp = MIN( -ftol, f_SW)
+      f_SWp = MIN( -ftol * 1.13_dp, f_SW)
     ELSE
       f_SWp = f_SW
     END IF
     IF (f_SE == 0._dp) THEN
-      f_SEp = ftol
+      f_SEp = ftol * 0.97_dp
     ELSEIF (f_SE > 0._dp) THEN
-      f_SEp = MAX(  ftol, f_SE)
+      f_SEp = MAX(  ftol * 0.97_dp, f_SE)
     ELSEIF (f_SE < 0._dp) THEN
-      f_SEp = MIN( -ftol, f_SE)
+      f_SEp = MIN( -ftol * 0.97_dp, f_SE)
     ELSE
       f_SEp = f_SE
     END IF
@@ -1028,47 +1021,5 @@ CONTAINS
     f_SW = fvals( 1)
     
   END SUBROUTINE rotate_quad
-  
-! == Automatically tuning the ice flow factor A for the grounding-line position in the MISMIPplus experiment
-  SUBROUTINE MISMIPplus_adapt_flow_factor( grid, ice)
-    
-    IMPLICIT NONE
-    
-    ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables:
-    INTEGER                                            :: i,jmid
-    REAL(dp)                                           :: TAF1,TAF2,lambda_GL, x_GL
-    REAL(dp)                                           :: A_flow_old, f, A_flow_new
-    
-    ! Determine mid-channel grounding-line position
-    jmid = CEILING( REAL(grid%ny,dp) / 2._dp)
-    i = 1
-    DO WHILE (ice%mask_sheet_a( jmid,i) == 1 .AND. i < grid%nx)
-      i = i+1
-    END DO
-    
-    TAF1 = ice%TAF_a( jmid,i-1)
-    TAF2 = ice%TAF_a( jmid,i  )
-    lambda_GL = TAF1 / (TAF1 - TAF2)
-    x_GL = lambda_GL * grid%x( i) + (1._dp - lambda_GL) * grid%x( i-1)
-    
-    ! Adjust for the fact that the IMAU-ICE coordinate system is different than the one used in MISMIPplus
-    x_GL = x_GL + 400000._dp
-    
-    ! Adjust the flow factor
-    A_flow_old = ice%A_flow_vav_a( 1,1)
-    f = 2._dp ** ((x_GL - C%MISMIPplus_xGL_target) / 80000._dp)
-    A_flow_new = A_flow_old * f
-    
-    ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = A_flow_new
-    ice%A_flow_vav_a(   :,grid%i1:grid%i2) = A_flow_new
-    CALL sync
-    
-    IF (par%master) WRITE(0,*) '    MISMIPplus_adapt_flow_factor: x_GL = ', x_GL/1E3, ' km; changed flow factor from ', A_flow_old, ' to ', A_flow_new
-    
-  END SUBROUTINE MISMIPplus_adapt_flow_factor
 
 END MODULE general_ice_model_data_module

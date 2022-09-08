@@ -19,7 +19,7 @@ MODULE parallel_module
   TYPE(parallel_info), SAVE :: par
   INTEGER                   :: cerr, ierr
   
-  LOGICAL :: debug_check_for_memory_leaks = .FALSE.
+  LOGICAL :: debug_check_for_memory_leaks = .FALSE. ! ! FALSE
 
 CONTAINS
 

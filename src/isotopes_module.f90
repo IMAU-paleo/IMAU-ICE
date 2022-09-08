@@ -64,9 +64,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_isotopes_model!'
@@ -285,9 +283,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
       ELSE 
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_isotopes_model!'

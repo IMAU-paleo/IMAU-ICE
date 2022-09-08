@@ -74,9 +74,7 @@ CONTAINS
         END IF
       ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         ! Don't do anything; the sliding term beta is calculated separately in these experiments
         RETURN
       ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN

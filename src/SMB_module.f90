@@ -79,12 +79,6 @@ CONTAINS
         SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
         CALL sync
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        SMB%SMB_year(   :,grid%i1:grid%i2) = 0.3_dp
-        SMB%SMB(      :,:,grid%i1:grid%i2) = 0.3_dp / 12._dp
-        CALL sync
-        RETURN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in run_SMB_model!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -143,7 +137,6 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       
@@ -173,8 +166,7 @@ CONTAINS
     
         ! NOTE: commented version is the old ANICE version, supposedly based on "physics" (which we cant check), but 
         !       the new version was tuned to RACMO output and produced significantly better snow fractions...
-    
-  !      snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp)))
+        ! snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m( m,j,i) - T0) / 3.5_dp)  / 1.25664_dp)))
         snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( m,j,i) - T0) / 5.95_dp) / 1.8566_dp)))
     
         SMB%Snowfall( m,j,i) = climate%Precip( m,j,i) *          snowfrac
@@ -200,13 +192,13 @@ CONTAINS
       
       SMB%Refreezing_year( j,i) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,j,i)))
       IF (ice%mask_ice_a( j,i)==0) SMB%Refreezing_year( j,i) = 0._dp
-  
+ 
       DO m = 1, 12
         SMB%Refreezing( m,j,i) = SMB%Refreezing_year( j,i) / 12._dp
         SMB%Runoff(     m,j,i) = SMB%Melt( m,j,i) + SMB%Rainfall( m,j,i) - SMB%Refreezing( m,j,i)
         SMB%SMB(        m,j,i) = SMB%Snowfall( m,j,i) + SMB%Refreezing( m,j,i) - SMB%Melt( m,j,i)
       END DO
-      
+
       SMB%SMB_year( j,i) = SUM(SMB%SMB( :,j,i))
       
       ! Calculate total melt over this year, to be used for determining next year's albedo
@@ -303,7 +295,7 @@ CONTAINS
         liquid_water = SMB%Rainfall( m,j,i) + SMB%Melt( m,j,i)
         SMB%Refreezing( m,j,i) = MIN( MIN( sup_imp_wat, liquid_water), climate%Precip( m,j,i))
         IF (ice%mask_ice_a( j,i) == 0 .OR. mask_noice( j,i) == 1) SMB%Refreezing( m,j,i) = 0._dp
-        
+
         ! Calculate runoff and total SMB
         SMB%Runoff( m,j,i) = SMB%Melt(     m,j,i) + SMB%Rainfall(   m,j,i) - SMB%Refreezing( m,j,i)
         SMB%SMB(    m,j,i) = SMB%Snowfall( m,j,i) + SMB%Refreezing( m,j,i) - SMB%Melt(       m,j,i)

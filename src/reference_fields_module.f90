@@ -126,10 +126,6 @@ CONTAINS
             C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
       PD%nx = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
       PD%ny = CEILING( C%ISMIP_HOM_L / C%dx_ANT)
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-      PD%nx = 161
-      PD%ny = 17
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_PD_data_fields_schematic_benchmarks!'
       STOP
@@ -227,25 +223,6 @@ CONTAINS
         
       END IF ! IF (par%master) THEN
       CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, PD%nx
-          PD%x(i) = -400000._dp + 800000._dp * (i-1) / (PD%nx-1)
-        END DO
-        DO j = 1, PD%ny
-          PD%y(j) =  -40000._dp +  80000._dp * (j-1) / (PD%ny-1)
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        PD%Hi_raw = 0._dp
-        PD%Hb_raw = 0._dp
-        PD%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
       
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_PD_data_fields_schematic_benchmarks!'
@@ -265,9 +242,11 @@ CONTAINS
     
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hi, PD%wHi)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hb, PD%wHb)
-    
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, PD%Hs, PD%wHs)
+ 
     CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hi_raw, PD%Hi)
     CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hb_raw, PD%Hb)
+    CALL map_square_to_square_cons_2nd_order_2D( PD%nx, PD%ny, PD%x, PD%y, grid%nx, grid%ny, grid%x, grid%y, PD%Hs_raw, PD%Hs)
     
   END SUBROUTINE map_PD_data_to_model_grid
   
@@ -283,146 +262,99 @@ CONTAINS
     TYPE(type_init_data_fields),    INTENT(INOUT) :: init
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
     
-    ! Exception for schematic benchmark experiments
     IF (C%do_benchmark_experiment) THEN
-      IF (.NOT. C%is_restart) THEN
-        CALL initialise_init_data_fields_schematic_benchmarks( init)
-      ELSE
-        CALL initialise_init_data_fields_restart( init, region_name)
-      END IF
+      CALL initialise_init_data_fields_schematic_benchmarks( init)
       RETURN
-    END IF ! IF (C%do_benchmark_experiment) THEN
-    
-    ! Different routines for reading a fixed geometry file (only Hi,Hb,Hs),
-    ! and a restart file from a previous run (also Ti,MeltPreviousYear, and a time dimension)
-    IF (.NOT. C%is_restart) THEN
-      CALL initialise_init_data_fields_regular( init, region_name)
-    ELSE
-      CALL initialise_init_data_fields_restart( init, region_name)
     END IF
+    
+    ! Select the file to read from
+    IF      (region_name == 'NAM') THEN
+      init%netcdf%filename   = C%filename_init_NAM
+    ELSE IF (region_name == 'EAS') THEN
+      init%netcdf%filename   = C%filename_init_EAS
+    ELSE IF (region_name == 'GRL') THEN
+      init%netcdf%filename   = C%filename_init_GRL
+    ELSE IF (region_name == 'ANT') THEN
+      init%netcdf%filename   = C%filename_init_ANT
+    END IF
+    
+    CALL allocate_shared_int_0D( init%nx, init%wnx)
+    CALL allocate_shared_int_0D( init%ny, init%wny)
+    CALL allocate_shared_int_0D( init%nz, init%wnz)
+    CALL allocate_shared_int_0D( init%nt, init%wnt)
+  
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    IF (.NOT. C%is_restart) THEN
+      ! Use an externally generated initial file, containing only Hi,Hb,Hs without zeta or time dimensions
+      IF (par%master) CALL inquire_init_data_file( init)
+    ELSE
+      ! Use the restart file of an earlier IMAU-ICE run, which also contains Ti, FirnDepth and MeltPreviousYear (and zeta, time and month dimensions)
+      IF (par%master) CALL inquire_restart_file(   init)
+    END IF
+    CALL sync
+    
+    ! Read data from input file
+    IF (.NOT. C%is_restart) THEN
+      ! Use an externally generated initial file, containing only Hi,Hb,Hs without zeta or time dimensions
+  
+      ! Allocate memory - init
+      CALL allocate_shared_dp_1D( init%nx,          init%x,         init%wx     )
+      CALL allocate_shared_dp_1D(          init%ny, init%y,         init%wy     )
+      CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hi_raw,    init%wHi_raw)
+      CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hb_raw,    init%wHb_raw)
+      CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hs_raw,    init%wHs_raw)
+    
+      ! Read data from input file
+      IF (par%master) WRITE(0,*) '  Reading init    data from file ', TRIM(init%netcdf%filename), '...'
+      IF (par%master) CALL read_init_data_file( init)
+    
+      ! Safety
+      CALL check_for_NaN_dp_2D( init%Hi_raw, 'init%Hi_raw', 'initialise_init_data_fields')
+      CALL check_for_NaN_dp_2D( init%Hb_raw, 'init%Hb_raw', 'initialise_init_data_fields')
+      CALL check_for_NaN_dp_2D( init%Hs_raw, 'init%Hs_raw', 'initialise_init_data_fields')
+      
+      ! Since we want data represented as [j,i] internally, transpose the data we just read.
+      CALL transpose_dp_2D( init%Hi_raw, init%wHi_raw)
+      CALL transpose_dp_2D( init%Hb_raw, init%wHb_raw)
+      CALL transpose_dp_2D( init%Hs_raw, init%wHs_raw)
+    
+      ! Remove Lake Vostok from Antarctica (because it's annoying)
+      IF (region_name == 'ANT' .AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( init%x, init%y, init%Hi_raw, init%Hb_raw, init%Hs_raw)
+    
+    ELSE ! IF (.NOT. C%is_restart) THEN
+      ! Use the restart file of an earlier IMAU-ICE run, which also contains Ti, FirnDepth and MeltPreviousYear (and zeta, time and month dimensions)
+  
+      ! Allocate memory - init
+      CALL allocate_shared_dp_1D( init%nx,                   init%x,                    init%wx                   )
+      CALL allocate_shared_dp_1D(          init%ny,          init%y,                    init%wy                   )
+      CALL allocate_shared_dp_1D(                   init%nz, init%zeta,                 init%wzeta                )
+      CALL allocate_shared_dp_1D( init%nt,                   init%time,                 init%wtime                )
+      
+      CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hi_raw,               init%wHi_raw              )
+      CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hb_raw,               init%wHb_raw              )
+      CALL allocate_shared_dp_2D( init%nx, init%ny,          init%SL_raw,               init%wSL_raw              )
+      CALL allocate_shared_dp_2D( init%nx, init%ny,          init%dHb_raw,              init%wdHb_raw             )
+      CALL allocate_shared_dp_3D( init%nx, init%ny, init%nz, init%Ti_raw,               init%wTi_raw              )
+      CALL allocate_shared_dp_3D( init%nx, init%ny, 12,      init%FirnDepth_raw,        init%wFirnDepth_raw       )
+      CALL allocate_shared_dp_2D( init%nx, init%ny,          init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
+    
+      ! Read data from input file
+      IF (par%master) WRITE(0,*) '  Reading restart data from file ', TRIM(init%netcdf%filename), '...'
+      IF (par%master) CALL read_restart_file( init)
+      
+      ! Since we want data represented as [j,i] internally, transpose the data we just read.
+      CALL transpose_dp_2D( init%Hi_raw,               init%wHi_raw              )
+      CALL transpose_dp_2D( init%Hb_raw,               init%wHb_raw              )
+      CALL transpose_dp_2D( init%SL_raw,               init%wSL_raw              )
+      CALL transpose_dp_2D( init%dHb_raw,              init%wdHb_raw             )
+      CALL transpose_dp_3D( init%Ti_raw,               init%wTi_raw              )
+      CALL transpose_dp_3D( init%FirnDepth_raw,        init%wFirnDepth_raw       )
+      CALL transpose_dp_2D( init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
+    
+    END IF ! IF (.NOT. C%is_restart) THEN
     
   END SUBROUTINE initialise_init_data_fields
-  SUBROUTINE initialise_init_data_fields_regular( init, region_name)
-    ! Read data from a time-less geometry file (so containing only Hi,Hb,Hs)
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-    
-    ! Select the file to read from
-    IF      (region_name == 'NAM') THEN
-      init%netcdf%filename   = C%filename_init_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      init%netcdf%filename   = C%filename_init_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      init%netcdf%filename   = C%filename_init_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      init%netcdf%filename   = C%filename_init_ANT
-    END IF
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( init%nx, init%wnx)
-    CALL allocate_shared_int_0D( init%ny, init%wny)
-    CALL allocate_shared_int_0D( init%nz, init%wnz)
-    CALL allocate_shared_int_0D( init%nt, init%wnt)
-    IF (par%master) CALL inquire_init_data_file( init)
-    CALL sync
-  
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( init%nx,          init%x,         init%wx     )
-    CALL allocate_shared_dp_1D(          init%ny, init%y,         init%wy     )
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hi_raw,    init%wHi_raw)
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hb_raw,    init%wHb_raw)
-    CALL allocate_shared_dp_2D( init%nx, init%ny, init%Hs_raw,    init%wHs_raw)
-  
-    ! Read data from input file
-    IF (par%master) WRITE(0,*) '  Reading init    data from file ', TRIM(init%netcdf%filename), '...'
-    IF (par%master) CALL read_init_data_file( init)
-  
-    ! Safety
-    CALL check_for_NaN_dp_2D( init%Hi_raw, 'init%Hi_raw', 'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hb_raw, 'init%Hb_raw', 'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hs_raw, 'init%Hs_raw', 'initialise_init_data_fields')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( init%Hi_raw, init%wHi_raw)
-    CALL transpose_dp_2D( init%Hb_raw, init%wHb_raw)
-    CALL transpose_dp_2D( init%Hs_raw, init%wHs_raw)
-  
-    ! Remove Lake Vostok from Antarctica (because it's annoying)
-    IF (region_name == 'ANT' .AND. C%switch_remove_Lake_Vostok) CALL remove_Lake_Vostok( init%x, init%y, init%Hi_raw, init%Hb_raw, init%Hs_raw)
-    
-  END SUBROUTINE initialise_init_data_fields_regular
-  SUBROUTINE initialise_init_data_fields_restart( init, region_name)
-    ! Read data from the restart file of a previous run, which also contains Ti, FirnDepth and MeltPreviousYear (and zeta, time and month dimensions)
-     
-    IMPLICIT NONE
-      
-    ! In/output variables:
-    TYPE(type_init_data_fields),    INTENT(INOUT) :: init
-    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
-    
-    ! Select the file to read from
-    IF      (region_name == 'NAM') THEN
-      init%netcdf%filename   = C%filename_init_NAM
-    ELSE IF (region_name == 'EAS') THEN
-      init%netcdf%filename   = C%filename_init_EAS
-    ELSE IF (region_name == 'GRL') THEN
-      init%netcdf%filename   = C%filename_init_GRL
-    ELSE IF (region_name == 'ANT') THEN
-      init%netcdf%filename   = C%filename_init_ANT
-    END IF
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( init%nx, init%wnx)
-    CALL allocate_shared_int_0D( init%ny, init%wny)
-    CALL allocate_shared_int_0D( init%nz, init%wnz)
-    CALL allocate_shared_int_0D( init%nt, init%wnt)
-    IF (par%master) CALL inquire_restart_file( init)
-    CALL sync
-    
-    ! Allocate shared memory
-    CALL allocate_shared_dp_1D( init%nx,                   init%x,                    init%wx                   )
-    CALL allocate_shared_dp_1D(          init%ny,          init%y,                    init%wy                   )
-    CALL allocate_shared_dp_1D(                   init%nz, init%zeta,                 init%wzeta                )
-    CALL allocate_shared_dp_1D( init%nt,                   init%time,                 init%wtime                )
-    
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hi_raw,               init%wHi_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%Hb_raw,               init%wHb_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%SL_raw,               init%wSL_raw              )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%dHb_raw,              init%wdHb_raw             )
-    CALL allocate_shared_dp_3D( init%nx, init%ny, init%nz, init%Ti_raw,               init%wTi_raw              )
-    CALL allocate_shared_dp_3D( init%nx, init%ny, 12,      init%FirnDepth_raw,        init%wFirnDepth_raw       )
-    CALL allocate_shared_dp_2D( init%nx, init%ny,          init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
-  
-    ! Read data from input file
-    IF (par%master) WRITE(0,*) '  Reading restart data from file ', TRIM(init%netcdf%filename), '...'
-    IF (par%master) CALL read_restart_file( init)
-    CALL sync
-  
-    ! Safety
-    CALL check_for_NaN_dp_2D( init%Hi_raw,               'init%Hi_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%Hb_raw,               'init%Hb_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%SL_raw,               'init%SL_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%dHb_raw,              'init%dHb_raw',              'initialise_init_data_fields')
-    CALL check_for_NaN_dp_3D( init%Ti_raw,               'init%Ti_raw',               'initialise_init_data_fields')
-    CALL check_for_NaN_dp_3D( init%FirnDepth_raw,        'init%FirnDepth_raw',        'initialise_init_data_fields')
-    CALL check_for_NaN_dp_2D( init%MeltPreviousYear_raw, 'init%MeltPreviousYear_raw', 'initialise_init_data_fields')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( init%Hi_raw,               init%wHi_raw              )
-    CALL transpose_dp_2D( init%Hb_raw,               init%wHb_raw              )
-    CALL transpose_dp_2D( init%SL_raw,               init%wSL_raw              )
-    CALL transpose_dp_2D( init%dHb_raw,              init%wdHb_raw             )
-    CALL transpose_dp_3D( init%Ti_raw,               init%wTi_raw              )
-    CALL transpose_dp_3D( init%FirnDepth_raw,        init%wFirnDepth_raw       )
-    CALL transpose_dp_2D( init%MeltPreviousYear_raw, init%wMeltPreviousYear_raw)
-    
-  END SUBROUTINE initialise_init_data_fields_restart
   SUBROUTINE initialise_init_data_fields_schematic_benchmarks( init)
     ! Allocate memory for the reference data fields, initialise them
     ! for schematic benchmark experiments (Halfar dome, EISMINT, MISMIP, etc.)
@@ -472,10 +404,6 @@ CONTAINS
     ELSEIF (C%choice_benchmark_experiment == 'ISMIP_HOM_E') THEN
       init%nx = 51
       init%ny = 251
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-      init%nx = 161
-      init%ny = 17
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -590,25 +518,6 @@ CONTAINS
         
       END IF ! IF (par%master) THEN
       CALL sync
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      IF (par%master) THEN
-        DO i = 1, init%nx
-        DO j = 1, init%ny
-          init%x(i) = -400000._dp + 800000._dp * REAL(i-1,dp) / REAL(init%nx-1,dp)
-          init%y(j) =  -40000._dp +  80000._dp * REAL(j-1,dp) / REAL(init%ny-1,dp)
-        END DO
-        END DO
-        
-        ! Note: data set to zero for now, filled in after mapping to model grid to circumvent mapping errors
-        init%Hi_raw = 0._dp
-        init%Hb_raw = 0._dp
-        init%Hs_raw = 0._dp
-        
-      END IF ! IF (par%master) THEN
-      CALL sync
       
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_init_data_fields_schematic_benchmarks!'
@@ -616,7 +525,6 @@ CONTAINS
     END IF
     
   END SUBROUTINE initialise_init_data_fields_schematic_benchmarks
-  
   SUBROUTINE map_init_data_to_model_grid( grid, init)
      
     IMPLICIT NONE
@@ -628,7 +536,7 @@ CONTAINS
     ! Local variables:
     INTEGER                                       :: i,j
     
-    IF (C%do_benchmark_experiment .AND. (.NOT. C%is_restart)) THEN
+    IF (C%do_benchmark_experiment) THEN
       ! No need to map, just initialise the schematic world directly on the model grid
       CALL initialise_initial_model_state_schematic_benchmarks( grid, init)
       RETURN
@@ -711,24 +619,9 @@ CONTAINS
     
     ! Local variables:
     INTEGER                                       :: i,j
-    
-    ! ISMIP-HOM E,F
     REAL(dp)                                      :: x,Hs,Hb
     INTEGER                                       :: ios,slides
     REAL(dp)                                      :: H0,a0,sigma
-    
-    ! MISMIPplus
-    INTEGER                                       :: imid,jmid
-    REAL(dp)                                      :: y,xtilde,Bx,By
-    REAL(dp), PARAMETER                           :: B0     = -150._dp
-    REAL(dp), PARAMETER                           :: B2     = -728.8_dp
-    REAL(dp), PARAMETER                           :: B4     = 343.91_dp
-    REAL(dp), PARAMETER                           :: B6     = -50.57_dp
-    REAL(dp), PARAMETER                           :: xbar   = 300000._dp
-    REAL(dp), PARAMETER                           :: fc     = 4000._dp
-    REAL(dp), PARAMETER                           :: dc     = 500._dp
-    REAL(dp), PARAMETER                           :: wc     = 24000._dp
-    REAL(dp), PARAMETER                           :: zbdeep = -720._dp
     
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hi, init%wHi)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, init%Hb, init%wHb)
@@ -846,25 +739,6 @@ CONTAINS
         init%Hi( j,i) = Hs - init%Hb( j,i)
       END DO
       END DO
-    
-    ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-            C%choice_benchmark_experiment == 'MISOMIP1') THEN
-    
-      imid = CEILING( REAL(grid%nx,dp) / 2._dp)
-      jmid = CEILING( REAL(grid%nx,dp) / 2._dp)
-    
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-        x = grid%x( i) + 400000._dp
-        y = -40000._dp +  80000._dp * REAL(j-1,dp) / REAL(grid%ny-1,dp)
-        xtilde = x / xbar
-        Bx = B0 + (B2 * xtilde**2._dp) + (B4 * xtilde**4._dp) + (B6 * xtilde**6._dp)
-        By = (dc / (1 + EXP(-2._dp*(y - wc)/fc))) + &
-             (dc / (1 + EXP( 2._dp*(y + wc)/fc)))
-        init%Hi( j,i) = 100._dp
-        init%Hb( j,i) = MAX( Bx + By, zbdeep)
-      END DO
-      END DO
       
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_initial_model_state_schematic_benchmarks!'
@@ -978,7 +852,7 @@ CONTAINS
   
     CALL map_square_to_square_cons_2nd_order_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hi_raw, topo%Hi)
     CALL map_square_to_square_cons_2nd_order_2D( topo%nx, topo%ny, topo%x, topo%y, grid%nx, grid%ny, grid%x, grid%y, topo%Hb_raw, topo%Hb)
-  
+ 
   END SUBROUTINE map_topo_data_to_model_grid
 
   ! ===== Analytical solutions used to initialise some benchmark experiments =====

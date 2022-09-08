@@ -49,9 +49,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
               C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
               C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         ! No exceptions here; these experiments have evolving ice geometry
       ELSEIF (C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
@@ -95,6 +93,16 @@ CONTAINS
     
     ! Remove free-floating shelves not connected to any grounded ice
     CALL remove_unconnected_shelves( grid, ice, dt)
+
+    ! Remove later, to remove ice that is extremly thin
+    ! DO i = grid%i1, grid%i2
+    ! DO j = 1, grid%ny
+    !   IF (ice%Hi_a( j,i) < 0.01_dp) THEN
+    !     ice%Hi_a(   j,i) = 0
+    !   END IF
+    ! END DO
+    ! END DO
+    CALL sync
     
   END SUBROUTINE calc_dHi_dt
   
@@ -133,12 +141,12 @@ CONTAINS
         ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a( j,i+1) * grid%dx * dt
       END IF
       
-!      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-!      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
-!      ELSEIF (ice%mask_shelf_a( j  ,i+1) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i+1) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
-!      END IF
+      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0) THEN
+        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
+      ELSEIF (ice%mask_shelf_a( j  ,i+1) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
+        IF (ice%float_margin_frac_a( j  ,i+1) < 1._dp) ice%Qx_cx( j  ,i  ) = 0._dp
+      END IF
       
     END DO
     END DO
@@ -155,12 +163,12 @@ CONTAINS
         ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
       END IF
       
-!      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-!      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
-!      ELSEIF (ice%mask_shelf_a( j+1,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
-!        IF (ice%float_margin_frac_a( j+1,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
-!      END IF
+      ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
+      IF     (ice%mask_shelf_a( j  ,i  ) == 1 .AND. ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) THEN
+        IF (ice%float_margin_frac_a( j  ,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
+      ELSEIF (ice%mask_shelf_a( j+1,i  ) == 1 .AND. ice%mask_ocean_a( j  ,i  ) == 1 .AND. ice%mask_ice_a( j  ,i  ) == 0) THEN
+        IF (ice%float_margin_frac_a( j+1,i  ) < 1._dp) ice%Qy_cy( j  ,i  ) = 0._dp
+      END IF
       
     END DO
     END DO
@@ -778,18 +786,6 @@ CONTAINS
         ice%Hi_tplusdt_a( grid%j1:grid%j2,grid%nx        ) = 1000._dp
         CALL sync
         
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Note; the calving front at x = 640 km is already created by the no-ice mask
-      
-        ! Ice divides at west, south, and north boundaries
-        ice%Hi_a(     grid%j1:grid%j2,1              ) = ice%Hi_a( grid%j1:grid%j2,2              )
-        ice%Hi_a(     1,              grid%i1:grid%i2) = ice%Hi_a( 2,              grid%i1:grid%i2)
-        ice%Hi_a(     grid%ny,        grid%i1:grid%i2) = ice%Hi_a( grid%ny-1,      grid%i1:grid%i2)
-        ice%dHi_dt_a( grid%j1:grid%j2,1              ) = 0._dp
-        ice%dHi_dt_a( 1,              grid%i1:grid%i2) = 0._dp
-        ice%dHi_dt_a( grid%ny,        grid%i1:grid%i2) = 0._dp
-        
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in apply_ice_thickness_BC!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -892,7 +888,6 @@ CONTAINS
       DO i = 1, grid%nx
       DO j = 1, grid%ny
         IF (ice%mask_shelf_a( j,i) == 1 .AND. map( j,i) == 0) THEN
-          ice%Hi_a(         j,i) = 0._dp
           ice%dHi_dt_a(     j,i) = -ice%Hi_a( j,i) / dt
           ice%Hi_tplusdt_a( j,i) = 0._dp
         END IF

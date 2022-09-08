@@ -12,10 +12,10 @@ MODULE IMAU_ICE_main_model
                                              allocate_shared_bool_0D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_model_region, type_ice_model, type_PD_data_fields, type_init_data_fields, &
-                                             type_climate_model, type_climate_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
+                                             type_climate_model, type_climate_matrix, type_ice_mask_matrix, type_SMB_model, type_BMB_model, type_forcing_data, type_grid
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             inverse_oblique_sg_projection, surface_elevation, oblique_sg_projection, is_in_polygon
+                                             inverse_oblique_sg_projection, surface_elevation
   USE parameters_module,               ONLY: seawater_density, ice_density, T0
   USE reference_fields_module,         ONLY: initialise_PD_data_fields, initialise_init_data_fields, map_PD_data_to_model_grid, map_init_data_to_model_grid, &
                                              initialise_topo_data_fields, map_topo_data_to_model_grid
@@ -28,8 +28,7 @@ MODULE IMAU_ICE_main_model
   USE ice_dynamics_module,             ONLY: initialise_ice_model,       run_ice_model
   USE calving_module,                  ONLY: apply_calving_law
   USE thermodynamics_module,           ONLY: initialise_ice_temperature, run_thermo_model
-  USE ocean_module,                    ONLY: initialise_oceans_regional
-  USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model
+  USE climate_module,                  ONLY: initialise_climate_model,   run_climate_model, initialise_GCM_reference_topography
   USE SMB_module,                      ONLY: initialise_SMB_model,       run_SMB_model
   USE BMB_module,                      ONLY: initialise_BMB_model,       run_BMB_model
   USE isotopes_module,                 ONLY: initialise_isotopes_model,  run_isotopes_model
@@ -77,7 +76,6 @@ CONTAINS
     it = 0
     DO WHILE (region%time < t_end)
       it = it + 1
-      
     ! GIA
     ! ===
     
@@ -122,7 +120,7 @@ CONTAINS
     
       ! Run the BMB model
       IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%climate%applied, region%BMB, region%name, region%time)
+         CALL run_BMB_model( region%grid, region%ice, region%climate%applied, region%BMB, region%name)
       END IF
       
       t2 = MPI_WTIME()
@@ -187,7 +185,7 @@ CONTAINS
   END SUBROUTINE run_model
   
   ! Initialise the entire model region - read initial and PD data, initialise the ice dynamics, climate and SMB sub models
-  SUBROUTINE initialise_model( region, name, matrix)
+  SUBROUTINE initialise_model( region, name, matrix, ice_mask_matrix)
   
     USE climate_module, ONLY: map_glob_to_grid_2D
   
@@ -197,6 +195,7 @@ CONTAINS
     TYPE(type_model_region),         INTENT(INOUT)     :: region
     CHARACTER(LEN=3),                INTENT(IN)        :: name
     TYPE(type_climate_matrix),       INTENT(IN)        :: matrix
+    TYPE(type_ice_mask_matrix),      INTENT(IN)        :: ice_mask_matrix
     
     ! Local variables:
     CHARACTER(LEN=20)                                  :: short_filename
@@ -357,16 +356,14 @@ CONTAINS
     ! ===========================================
     
     CALL initialise_debug_fields( region)
-    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file(       region)
-    CALL associate_debug_fields(  region)
 
     ! ===== Map PD, topo, and init data to the model grid =====
     ! =========================================================
     
-    CALL map_PD_data_to_model_grid(   region%grid, region%PD  )
+    CALL map_PD_data_to_model_grid(   region%grid, region%PD)
     CALL map_topo_data_to_model_grid( region%grid, region%topo)
     CALL map_init_data_to_model_grid( region%grid, region%init)
-    
+  
     ! Smooth input geometry (bed and ice)
     IF (C%do_smooth_geometry) THEN
       CALL smooth_model_geometry( region%grid, region%PD%Hi,   region%PD%Hb  )
@@ -379,25 +376,10 @@ CONTAINS
     ! ==========================================================================================================
     
     CALL initialise_mask_noice( region)
-    
-    ! ===== Define ice basins =====
-    ! =============================
-    
-    CALL initialise_basins( region)
-        
-    ! ===== The climate model =====
-    ! =============================
-    
-    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice)
-    
-    ! ===== The climate model =====
-    ! =============================
-    
-    CALL initialise_oceans_regional( region%grid, region%ice, region%climate, matrix)   
        
-    ! ===== Regular output files =====
-    ! ================================
-
+    ! ===== Output files =====
+    ! ========================
+    
     ! Set output filenames for this region
     short_filename = 'restart_NAM.nc'
     short_filename(9:11) = region%name
@@ -414,8 +396,15 @@ CONTAINS
     region%help_fields%filename = TRIM(C%output_dir)//TRIM(short_filename)
 
     ! Let the Master create the (empty) NetCDF files
-    IF (par%master) CALL create_restart_file(     region, forcing)
-    IF (par%master) CALL create_help_fields_file( region)
+    IF (par%master)                             CALL create_restart_file(     region, forcing)
+    IF (par%master)                             CALL create_help_fields_file( region)
+    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file(       region)
+    CALL associate_debug_fields(  region)
+    
+    ! ===== The climate model =====
+    ! =============================
+    
+    CALL initialise_climate_model( region%grid, region%climate, matrix, region%name, region%mask_noice, ice_mask_matrix)    
     
     ! ===== The SMB model =====
     ! =========================    
@@ -425,13 +414,26 @@ CONTAINS
     ! ===== The BMB model =====
     ! =========================    
     
-    CALL initialise_BMB_model( region%grid, region%ice, region%BMB, region%name)       
+    CALL initialise_BMB_model( region%grid, region%BMB, region%name)       
   
     ! ===== The ice dynamics model
     ! ============================
     
     CALL initialise_ice_model( region%grid, region%ice, region%PD, region%init)
+   
+    ! ===== The reference topography  ===
+
+    ! Place the PD data into the Hs init, which is needed to get accurate
+    ! weights for the precipitation in the climate matrix
+    region%ice%Hs_init = region%PD%Hs
     
+    ! Create the reference topography for each snapshot 
+    CALL initialise_GCM_reference_topography(region%climate%GCM_PI,   region%ice, region%grid)
+    CALL initialise_GCM_reference_topography(region%climate%GCM_warm, region%ice, region%grid)
+    CALL initialise_GCM_reference_topography(region%climate%GCM_cold, region%ice, region%grid)
+
+    ! =====
+
     ! Geothermal heat flux
     IF     (C%choice_geothermal_heat_flux == 'constant') THEN
       region%ice%GHF_a( :,region%grid%i1:region%grid%i2) = C%constant_geothermal_heat_flux
@@ -442,10 +444,12 @@ CONTAINS
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
     END IF
     
-    ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
+    ! Run the climate, BMB and SMB models once, to get the correct surface temperature field for the ice temperature initialisation,
+    ! and so that all the relevant fields already have sensible values in the first time frame of the output file.
     CALL update_general_ice_model_data( region%grid, region%ice, region%time)
     CALL run_climate_model(             region%grid, region%ice, region%SMB, region%climate, region%name, C%start_time_of_run)
     CALL run_SMB_model(                 region%grid, region%ice, region%climate%applied, C%start_time_of_run, region%SMB, region%mask_noice)
+    CALL run_BMB_model(                 region%grid, region%ice, region%climate%applied, region%BMB, region%name)
     
     ! Initialise the ice temperature profile
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate%applied, region%init, region%SMB)
@@ -496,6 +500,9 @@ CONTAINS
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
     
+    ! CALL create_regional_scalar_output_file( region, '1')
+    
+
     CALL create_regional_scalar_output_file( region)
     CALL write_regional_scalar_data(         region, C%start_time_of_run)
     CALL sync
@@ -555,8 +562,8 @@ CONTAINS
       END IF
       
       ! Determine the number of grid cells we can fit in this domain (based on specified resolution, and the domain covered by the initial file)
-      nsx = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
-      nsy = FLOOR( (1._dp / region%grid%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
+      nsx = FLOOR( (1 / region%grid%dx) * (MAXVAL(region%init%x) + (region%init%x(2)-region%init%x(1))/2) - 1)
+      nsy = FLOOR( (1 / region%grid%dx) * (MAXVAL(region%init%y) + (region%init%y(2)-region%init%y(1))/2) - 1)
       
       IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'SSA_icestream') nsx = 3
       
@@ -736,41 +743,27 @@ CONTAINS
     ! Allocate shared memory
     CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%mask_noice, region%wmask_noice)
     
-    ! Initialise
     region%mask_noice(    :,region%grid%i1:region%grid%i2) = 0
     
     ! Exceptions for benchmark experiments
     IF (C%do_benchmark_experiment) THEN
-      IF     (C%choice_benchmark_experiment == 'Halfar' .OR. &
-              C%choice_benchmark_experiment == 'Bueler' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
-              C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
-              C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
-              C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
-        ! No-ice mask not needed in these benchmark experiments
+      IF (C%choice_benchmark_experiment == 'Halfar' .OR. &
+          C%choice_benchmark_experiment == 'Bueler' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_1' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_2' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_3' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_4' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_5' .OR. &
+          C%choice_benchmark_experiment == 'EISMINT_6' .OR. &
+          C%choice_benchmark_experiment == 'SSA_icestream' .OR. &
+          C%choice_benchmark_experiment == 'MISMIP_mod' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_A' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_B' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         RETURN
-      ELSEIF (C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
-        ! Don't allow ice for x > 640 km
-        
-        DO i = region%grid%i1, region%grid%i2
-        DO j = 1, region%grid%ny
-          IF (region%grid%x( i) > 240000._dp) region%mask_noice( j,i) = 1
-        END DO
-        END DO
-        CALL sync
-        RETURN
-
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in initialise_mask_noice!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -906,569 +899,6 @@ CONTAINS
     CALL deallocate_shared( wdHb   )
     
   END SUBROUTINE smooth_model_geometry
-  SUBROUTINE initialise_basins( region)
-    ! Define the ice basins mask from an external text file
-  
-    IMPLICIT NONE  
-    
-    ! In/output variables:
-    TYPE(type_model_region),         INTENT(INOUT)     :: region
-    
-    ! Local variables:
-    INTEGER                                            :: i,j,vi,vj,bi
-    CHARACTER(LEN=256)                                 :: choice_basin_scheme
-    CHARACTER(LEN=256)                                 :: filename_basins
-    LOGICAL                                            :: recognised_file
-    INTEGER                                            :: n_skip
-    INTEGER                                            :: n_header_lines, n_vertices
-    REAL(dp), DIMENSION(:    ), POINTER                :: Vlat, Vlon, Vx, Vy
-    INTEGER,  DIMENSION(:    ), POINTER                :: Vid
-    INTEGER                                            :: wVlat, wVlon, wVx, wVy, wVid
-    REAL(dp)                                           :: VID_dp
-    INTEGER                                            :: ios, dummy
-    INTEGER                                            :: vi1, vi2
-    REAL(dp), DIMENSION(:,:  ), POINTER                :: poly_bi
-    INTEGER                                            :: wpoly_bi
-    REAL(dp)                                           :: xmin,xmax,ymin,ymax
-    REAL(dp), DIMENSION(2)                             :: p
-    INTEGER,  DIMENSION(:,:  ), POINTER                ::  basin_ID,  basin_ID_ext
-    INTEGER                                            :: wbasin_ID, wbasin_ID_ext
-    INTEGER                                            :: n_front
-    INTEGER,  DIMENSION(:,:  ), POINTER                :: ij_front
-    INTEGER                                            :: wij_front
-    INTEGER                                            :: ii,jj,k,i_nearest,j_nearest
-    REAL(dp)                                           :: dist,dist_min
-    
-    ! Allocate shared memory
-    CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, region%ice%basin_ID, region%ice%wbasin_ID)
-    CALL allocate_shared_int_0D(                                 region%ice%nbasins,  region%ice%wnbasins )
-    
-    ! Determine what to do for this region
-    choice_basin_scheme = 'none'
-    filename_basins     = ''
-    IF (region%name == 'NAM') THEN
-      choice_basin_scheme = C%choice_basin_scheme_NAM
-      filename_basins     = C%filename_basins_NAM
-    ELSEIF (region%name == 'EAS') THEN
-      choice_basin_scheme = C%choice_basin_scheme_EAS
-      filename_basins     = C%filename_basins_EAS
-    ELSEIF (region%name == 'GRL') THEN
-      choice_basin_scheme = C%choice_basin_scheme_GRL
-      filename_basins     = C%filename_basins_GRL
-    ELSEIF (region%name == 'ANT') THEN
-      choice_basin_scheme = C%choice_basin_scheme_ANT
-      filename_basins     = C%filename_basins_ANT
-    END IF
-    
-    IF     (choice_basin_scheme == 'none') THEN
-      ! No basins are defined (i.e. the whole region is one big, big basin)
-      
-      region%ice%basin_ID( :,region%grid%i1:region%grid%i2) = 1
-      IF (par%master) region%ice%nbasins = 1
-      CALL sync
-      
-    ELSEIF (choice_basin_scheme == 'file') THEN
-      ! Define basins from an external text file describing the polygons
-      
-      IF (par%master) WRITE(0,*) '  Reading basins for ', TRIM(region%long_name), ' from file "', TRIM(filename_basins), '"'
-      
-      IF (region%name == 'ANT') THEN
-        ! Antarctica: ant_full_drainagesystem_polygons.txt
-        ! Can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
-        ! A text file with 7 header lines, followed by three columns of data:
-        !    Lat, Lon, basin ID
-        
-      ! ===== Check if this is really the file we're reading =====
-      ! ==========================================================
-        
-        recognised_file = .FALSE.
-        n_header_lines  = 0
-        n_vertices      = 0
-        n_skip          = 0
-        
-        DO i = 1, 256-36
-          IF (filename_basins(i:i+35) == 'ant_full_drainagesystem_polygons.txt') THEN
-            recognised_file = .TRUE.
-            n_header_lines  = 7
-            n_skip          = 5 ! Since the polygon file is at a ridiculously high resolution, downscale it a bit for efficiency
-            n_vertices      = CEILING( REAL(901322,dp) / REAL(n_skip,dp))
-          END IF
-        END DO
-        
-        IF ((.NOT. recognised_file) .AND. par%master) THEN
-          WRITE(0,*) ''
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) 'initialise_basins - WARNING: for Antarctica, we expect the file "ant_full_drainagesystem_polygons.txt"'
-          WRITE(0,*) '                             This can be downloaded from https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems'
-          WRITE(0,*) '                             If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins'
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) ''
-        END IF
-        
-        ! Allocate shared memory
-        CALL allocate_shared_dp_1D(  n_vertices, Vlat, wVlat)
-        CALL allocate_shared_dp_1D(  n_vertices, Vlon, wVlon)
-        CALL allocate_shared_dp_1D(  n_vertices, Vx,   wVx  )
-        CALL allocate_shared_dp_1D(  n_vertices, Vy,   wVy  )
-        CALL allocate_shared_int_1D( n_vertices, VID,  wVID )
-        
-      ! ===== Read the file =====
-      ! =========================
-        
-        IF (par%master) THEN
-          
-          ! Open the file
-          OPEN( UNIT = 1337, FILE=filename_basins, ACTION='READ')
-          
-          ! Skip the header lines
-          DO i = 1, n_header_lines
-            READ( UNIT = 1337, FMT=*, IOSTAT=ios) dummy
-          END DO
-          
-          ! Read the actual data
-          DO vi = 1, n_vertices
-            READ( UNIT = 1337, FMT=*, IOSTAT=ios) Vlat( vi), Vlon( vi), VID( vi)
-            IF (ios /= 0) THEN
-              WRITE(0,*) ' initialise_basins - ERROR: length of text file "', TRIM( filename_basins), '" does not match n_vertices = ', n_vertices
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-            END IF
-            
-            DO vj = 1, n_skip-1
-              READ( UNIT = 1337, FMT=*, IOSTAT=ios) dummy
-            END DO
-          END DO
-          
-          ! Close the file
-          CLOSE( UNIT = 1337)
-          
-        END IF ! IF (par%master) THEN
-        CALL sync
-        
-        ! Project [lat,lon] to [x,y]
-        CALL partition_list( n_vertices, par%i, par%n, vi1, vi2)
-        DO vi = vi1, vi2
-          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), region%grid%lambda_M, region%grid%phi_M, region%grid%alpha_stereo, Vx( vi), Vy( vi))
-        END DO
-        
-      ELSEIF (region%name == 'GRL') THEN
-        ! Greenland: grndrainagesystems_ekholm.txt
-        ! Can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems
-        ! A text file with 7 header lines, followed by three columns of data:
-        !    basin ID, Lat, Lon   (NOTE: here basin ID is a floating-point rather than an integer!)
-        
-      ! ===== Check if this is really the file we're reading =====
-      ! ==========================================================
-        
-        recognised_file = .FALSE.
-        n_header_lines  = 0
-        n_vertices      = 0
-        n_skip          = 0
-        
-        DO i = 1, 256-29
-          IF (filename_basins(i:i+28) == 'grndrainagesystems_ekholm.txt') THEN
-            recognised_file = .TRUE.
-            n_header_lines  = 7
-            n_skip          = 5 ! Since the polygon file is at a ridiculously high resolution, downscale it a bit for efficiency
-            n_vertices      = CEILING( REAL(272965,dp) / REAL(n_skip,dp))
-          END IF
-        END DO
-        
-        IF ((.NOT. recognised_file) .AND. par%master) THEN
-          WRITE(0,*) ''
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) 'initialise_basins - WARNING: for Greenland, we expect the file "grndrainagesystems_ekholm.txt"'
-          WRITE(0,*) '                             This can be downloaded from https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems'
-          WRITE(0,*) '                             If another file is used, make sure that it has 7 header lines, or alternatively just change the code in initialise_basins'
-          WRITE(0,*) ' ===== '
-          WRITE(0,*) ''
-        END IF
-        
-        ! Allocate shared memory
-        CALL allocate_shared_dp_1D(  n_vertices, Vlat,   wVlat  )
-        CALL allocate_shared_dp_1D(  n_vertices, Vlon,   wVlon  )
-        CALL allocate_shared_dp_1D(  n_vertices, Vx,     wVx    )
-        CALL allocate_shared_dp_1D(  n_vertices, Vy,     wVy    )
-        CALL allocate_shared_int_1D( n_vertices, VID,    wVID   )
-        
-      ! ===== Read the file =====
-      ! =========================
-        
-        IF (par%master) THEN
-          
-          ! Open the file
-          OPEN( UNIT = 1337, FILE=filename_basins, ACTION='READ')
-          
-          ! Skip the header lines
-          DO i = 1, n_header_lines
-            READ( UNIT = 1337, FMT=*, IOSTAT=ios) dummy
-          END DO
-          
-          ! Read the actual data
-          DO vi = 1, n_vertices
-            READ( UNIT = 1337, FMT=*, IOSTAT=ios) VID_dp, Vlat( vi), Vlon( vi)
-            IF (ios /= 0) THEN
-              WRITE(0,*) ' initialise_basins - ERROR: length of text file "', TRIM( filename_basins), '" does not match n_vertices = ', n_vertices
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-            END IF
-            
-            DO vj = 1, n_skip-1
-              READ( UNIT = 1337, FMT=*, IOSTAT=ios) dummy
-            END DO
-            
-            ! Convert basin ID from floating point to integer
-            IF     ( viD_dp == 1.1_dp) THEN
-              VID( vi) = 1
-            ELSEIF ( viD_dp == 1.2_dp) THEN
-              VID( vi) = 2
-            ELSEIF ( viD_dp == 1.3_dp) THEN
-              VID( vi) = 3
-            ELSEIF ( viD_dp == 1.4_dp) THEN
-              VID( vi) = 4
-            ELSEIF ( viD_dp == 2.1_dp) THEN
-              VID( vi) = 5
-            ELSEIF ( viD_dp == 2.2_dp) THEN
-              VID( vi) = 6
-            ELSEIF ( viD_dp == 3.1_dp) THEN
-              VID( vi) = 7
-            ELSEIF ( viD_dp == 3.2_dp) THEN
-              VID( vi) = 8
-            ELSEIF ( viD_dp == 3.3_dp) THEN
-              VID( vi) = 9
-            ELSEIF ( viD_dp == 4.1_dp) THEN
-              VID( vi) = 10
-            ELSEIF ( viD_dp == 4.2_dp) THEN
-              VID( vi) = 11
-            ELSEIF ( viD_dp == 4.3_dp) THEN
-              VID( vi) = 12
-            ELSEIF ( viD_dp == 5.0_dp) THEN
-              VID( vi) = 13
-            ELSEIF ( viD_dp == 6.1_dp) THEN
-              VID( vi) = 14
-            ELSEIF ( viD_dp == 6.2_dp) THEN
-              VID( vi) = 15
-            ELSEIF ( viD_dp == 7.1_dp) THEN
-              VID( vi) = 16
-            ELSEIF ( viD_dp == 7.2_dp) THEN
-              VID( vi) = 17
-            ELSEIF ( viD_dp == 8.1_dp) THEN
-              VID( vi) = 18
-            ELSEIF ( viD_dp == 8.2_dp) THEN
-              VID( vi) = 19
-            ELSE
-              WRITE(0,*) 'initialise_basins - ERROR: unrecognised floating-point basin ID in file "', TRIM( filename_basins), '"!'
-              CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-            END IF
-            
-          END DO
-          
-          ! Close the file
-          CLOSE( UNIT = 1337)
-          
-        END IF ! IF (par%master) THEN
-        CALL sync
-        
-        ! Project [lat,lon] to [x,y]
-        CALL partition_list( n_vertices, par%i, par%n, vi1, vi2)
-        DO vi = vi1, vi2
-          CALL oblique_sg_projection( Vlon( vi), Vlat( vi), region%grid%lambda_M, region%grid%phi_M, region%grid%alpha_stereo, Vx( vi), Vy( vi))
-        END DO
-        
-      END IF ! IF (region%name == 'ANT') THEN
-      
-    ! ===== Fill in the basins =====
-    ! ==============================
-    
-      ! Allocate shared memory
-      CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, basin_ID, wbasin_ID)
-      
-      ! Determine number of basins
-      IF (par%master) region%ice%nbasins = MAXVAL( VID)
-      CALL sync
-      
-      DO bi = 1, region%ice%nbasins
-        
-        ! Find range of vertices [vi1,vi2] for this basin
-        vi1 = 1
-        DO WHILE (VID( vi1) /= bi)
-          vi1 = vi1 + 1
-        END DO
-        vi2 = vi1
-        DO WHILE (VID( vi2) == bi .AND. vi2 < n_vertices)
-          vi2 = vi2 + 1
-        END DO
-        vi2 = vi2 - 1
-        
-        ! Copy these vertices to a single array
-        CALL allocate_shared_dp_2D( vi2+1-vi1, 2, poly_bi, wpoly_bi)
-        IF (par%master) THEN
-          poly_bi( :,1) = Vx( vi1:vi2)
-          poly_bi( :,2) = Vy( vi1:vi2)
-        END IF
-        CALL sync
-  
-        ! Determine maximum polygon extent, for quick checks
-        xmin = MINVAL( poly_bi(:,1))
-        xmax = MAXVAL( poly_bi(:,1))
-        ymin = MINVAL( poly_bi(:,2))
-        ymax = MAXVAL( poly_bi(:,2))
-        
-        ! Check which grid cells lie inside the polygon spanned by these vertices
-        DO i = region%grid%i1, region%grid%i2
-        DO j = 1, region%grid%ny
-          p = [region%grid%x( i), region%grid%y( j)]
-  
-          ! Quick test
-          IF (p(1) < xmin .OR. p(1) > xmax .OR. &
-              p(2) < ymin .OR. p(2) > ymax) THEN
-            ! p cannot lie in the polygon, don't bother checking
-          ElSE
-            IF (is_in_polygon( poly_bi, p)) basin_ID( j,i) = bi
-          END IF
-          
-        END DO
-        END DO
-        CALL sync
-        
-        ! Clean up this basin's polygon
-        CALL deallocate_shared( wpoly_bi)
-        
-      END DO ! DO bi = 1, region%ice%nbasins
-      
-      ! DENK DROM
-      IF (par%master) THEN
-        debug%int_2D_01 = basin_ID
-        CALL write_to_debug_file
-      END IF
-      CALL sync
-      
-    ! ===== Extend basins into the ocean =====
-    ! ========================================
-    
-      ! Allocate shared memory
-      CALL allocate_shared_int_2D( region%grid%ny, region%grid%nx, basin_ID_ext, wbasin_ID_ext)
-      
-      ! Copy data
-      basin_ID_ext( :,region%grid%i1:region%grid%i2) = basin_ID( :,region%grid%i1:region%grid%i2)
-      CALL sync
-      
-      ! Compile list of ice-front pixels and their basin ID's
-      IF (par%master) THEN
-        n_front = 0
-        DO i = 2, region%grid%nx-1
-        DO j = 2, region%grid%ny-1
-          IF (basin_ID( j,i) > 0) THEN
-            IF (MINVAL( basin_ID( j-1:j+1,i-1:i+1)) == 0) THEN
-              n_front = n_front + 1
-            END IF
-          END IF
-        END DO
-        END DO
-      END IF
-      CALL MPI_BCAST( n_front, 1, MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
-      
-      CALL allocate_shared_int_2D( n_front, 2, ij_front, wij_front)
-      
-      IF (par%master) THEN
-        k = 0
-        DO i = 2, region%grid%nx-1
-        DO j = 2, region%grid%ny-1
-          IF (basin_ID( j,i) > 0) THEN
-            IF (MINVAL( basin_ID( j-1:j+1,i-1:i+1)) == 0) THEN
-              k = k + 1
-              ij_front( k,:) = [i,j]
-            END IF
-          END IF
-        END DO
-        END DO
-      END IF
-      CALL sync
-      
-      ! For all non-assigned grid cells, find the nearest front cell and copy that basin ID
-      DO i = region%grid%i1, region%grid%i2
-      DO j = 1, region%grid%ny
-        
-        IF (basin_ID_ext( j,i) == 0) THEN
-          
-          ! Go over all front cells, find the nearest
-          dist_min  = REAL(MAX(region%grid%nx,region%grid%ny),dp) * region%grid%dx
-          i_nearest = 0
-          j_nearest = 0
-          DO k = 1, n_front
-            ii = ij_front( k,1)
-            jj = ij_front( k,2)
-            dist = SQRT( REAL(ii-i,dp)**2 + REAL(jj-j,dp)**2) * region%grid%dx
-            IF (dist < dist_min) THEN
-              dist_min = dist
-              i_nearest = ii
-              j_nearest = jj
-            END IF
-          END DO ! DO k = 1, n_front
-          
-          ! Assign basin ID of nearest front cell
-          basin_ID_ext( j,i) = basin_ID( j_nearest, i_nearest)
-          
-        END IF
-        
-      END DO
-      END DO
-      CALL sync
-      
-    ! ===== Copy final result to the ice structure =====
-    ! ==================================================
-      
-      region%ice%basin_ID( :,region%grid%i1:region%grid%i2) = basin_ID_ext( :,region%grid%i1:region%grid%i2)
-      CALL sync
-      
-      ! Clean up after yourself
-      CALL deallocate_shared( wVlat        )
-      CALL deallocate_shared( wVlon        )
-      CALL deallocate_shared( wVx          )
-      CALL deallocate_shared( wVy          )
-      CALL deallocate_shared( wVID         )
-      CALL deallocate_shared( wbasin_ID    )
-      CALL deallocate_shared( wbasin_ID_ext)
-      CALL deallocate_shared( wij_front    )
-      
-    ! ==== If so specified, merge certain ice basins =====
-    ! ====================================================
-      
-      IF     (region%name == 'ANT' .AND. C%do_merge_basins_ANT) THEN
-        CALL merge_basins_ANT( region%grid, region%ice)
-      ELSEIF (region%name == 'GRL' .AND. C%do_merge_basins_GRL) THEN
-        CALL merge_basins_GRL( region%grid, region%ice)
-      END IF
-      
-    ELSE
-      IF (par%master) WRITE(0,*) 'initialise_basins - ERROR: unknown choice_basin_scheme "', TRIM(choice_basin_scheme), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
-    
-  END SUBROUTINE initialise_basins
-  SUBROUTINE merge_basins_ANT( grid, ice)
-    ! Merge some of the Antarctic basins to match the more common definitions
-      
-    IMPLICIT NONE
-    
-    ! In- and output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables
-    INTEGER                                            :: i,j,k
-    INTEGER,  DIMENSION( 27)                           :: T
-    INTEGER,  DIMENSION(:,:  ), POINTER                ::  basin_ID_old
-    INTEGER                                            :: wbasin_ID_old
-    
-    ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, basin_ID_old, wbasin_ID_old)
-    
-    ! Copy data
-    basin_ID_old( :,grid%i1:grid%i2) = ice%basin_ID( :,grid%i1:grid%i2)
-    CALL sync
-    
-    ! Define the merging table
-    T(  1) = 1
-    T(  2) = 1
-    T(  3) = 1
-    T(  4) = 2
-    T(  5) = 3
-    T(  6) = 4
-    T(  7) = 5
-    T(  8) = 6
-    T(  9) = 6
-    T( 10) = 6
-    T( 11) = 6
-    T( 12) = 7
-    T( 13) = 8
-    T( 14) = 9
-    T( 15) = 10
-    T( 16) = 11
-    T( 17) = 11
-    T( 18) = 11
-    T( 19) = 11
-    T( 20) = 12
-    T( 21) = 13
-    T( 22) = 13
-    T( 23) = 13
-    T( 24) = 14
-    T( 25) = 15
-    T( 26) = 16
-    T( 27) = 17
-    
-    ! Perform the merge
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      DO k = 1, 27
-        IF (basin_ID_old( j,i) == k) ice%basin_ID( j,i) = T( k)
-      END DO
-    END DO
-    END DO
-    IF (par%master) ice%nbasins = 17
-    CALL sync
-    
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wbasin_ID_old)
-    
-  END SUBROUTINE merge_basins_ANT
-  SUBROUTINE merge_basins_GRL( grid, ice)
-    ! Merge some of the Greenland basins to match the more common definitions
-      
-    IMPLICIT NONE
-    
-    ! In- and output variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
-    
-    ! Local variables
-    INTEGER                                            :: i,j,k
-    INTEGER,  DIMENSION( 19)                           :: T
-    INTEGER,  DIMENSION(:,:  ), POINTER                ::  basin_ID_old
-    INTEGER                                            :: wbasin_ID_old
-    
-    ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, basin_ID_old, wbasin_ID_old)
-    
-    ! Copy data
-    basin_ID_old( :,grid%i1:grid%i2) = ice%basin_ID( :,grid%i1:grid%i2)
-    CALL sync
-    
-    ! Define the merging table
-    T(  1) = 1
-    T(  2) = 1
-    T(  3) = 1
-    T(  4) = 1
-    T(  5) = 2
-    T(  6) = 2
-    T(  7) = 3
-    T(  8) = 3
-    T(  9) = 3
-    T( 10) = 4
-    T( 11) = 4
-    T( 12) = 4
-    T( 13) = 5
-    T( 14) = 6
-    T( 15) = 6
-    T( 16) = 7
-    T( 17) = 7
-    T( 18) = 8
-    T( 19) = 8
-    
-    ! Perform the merge
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      DO k = 1, 19
-        IF (basin_ID_old( j,i) == k) ice%basin_ID( j,i) = T( k)
-      END DO
-    END DO
-    END DO
-    IF (par%master) ice%nbasins = 8
-    CALL sync
-    
-    ! Clean up after yourself
-    CALL deallocate_shared( wbasin_ID_old)
-    
-  END SUBROUTINE merge_basins_GRL
   
   ! Calculate this region's ice sheet's volume and area
   SUBROUTINE calculate_icesheet_volume_and_area( region)
@@ -1495,7 +925,7 @@ CONTAINS
         ice_area   = ice_area   + region%grid%dx * region%grid%dx * 1.0E-06_dp ! [km^3]
     
         ! Thickness above flotation
-        thickness_above_flotation = MAX(0._dp, region%ice%Hi_a( j,i) - MAX(0._dp, (region%ice%SL_a( j,i) - region%ice%Hb_a( j,i) * (seawater_density / ice_density))))
+        thickness_above_flotation = MAX(0._dp, region%ice%Hi_a( j,i) - MAX(0._dp, ((region%ice%SL_a( j,i) - region%ice%Hb_a( j,i)) * (seawater_density / ice_density))))
         
         ice_volume_above_flotation = ice_volume_above_flotation + thickness_above_flotation * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)
       END IF     
@@ -1511,7 +941,7 @@ CONTAINS
     ! Calculate GMSL contribution
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
     CALL sync
-    
+   
   END SUBROUTINE calculate_icesheet_volume_and_area
   SUBROUTINE calculate_PD_sealevel_contribution( region)
     
@@ -1526,7 +956,7 @@ CONTAINS
     
     ice_volume                 = 0._dp
     ice_volume_above_flotation = 0._dp
-    
+   
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
     
@@ -1544,9 +974,11 @@ CONTAINS
     END DO
     END DO
     
+    CALL sync
+
     CALL MPI_REDUCE( ice_volume                , region%ice_volume_PD,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation_PD, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-    
+   
   END SUBROUTINE calculate_PD_sealevel_contribution
 
 END MODULE IMAU_ICE_main_model

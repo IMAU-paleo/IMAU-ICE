@@ -20,8 +20,7 @@ MODULE ice_dynamics_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation
   USE ice_velocity_module,             ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA
-  USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
-                                             remove_unconnected_shelves
+  USE ice_thickness_module,            ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC
   USE general_ice_model_data_module,   ONLY: update_general_ice_model_data
 
   IMPLICIT NONE
@@ -288,22 +287,22 @@ CONTAINS
     
       ! Corrector step
       ! ==============
-      
-      ! Calculate "corrected" ice thickness based on new velocities
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
-      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
-      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old(   :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2))      )
-      CALL sync
-  
-      ! Determine truncation error
-      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
     
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
       ! and only go to new (corrected) ice thickness at the end of this time loop.
       region%ice%Hi_a(     :,i1:i2) = region%ice%Hi_old(   :,i1:i2)
-      region%ice%dHi_dt_a( :,i1:i2) = (region%ice%Hi_corr( :,i1:i2) - region%ice%Hi_a( :,i1:i2)) / region%dt_crit_ice
+      CALL update_general_ice_model_data( region%grid, region%ice, region%time)
+      
+      ! Calculate "corrected" ice thickness based on new velocities
+      ! CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%mask_noice)
+      region%ice%pc_f3(   :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      region%ice%pc_f4(   :,i1:i2) = region%ice%pc_f1(    :,i1:i2)
+      region%ice%Hi_corr( :,i1:i2) = MAX(0._dp, region%ice%Hi_old( :,i1:i2) + 0.5_dp * region%dt_crit_ice * (region%ice%pc_f3( :,i1:i2) + region%ice%pc_f4( :,i1:i2)))
       CALL sync
+  
+      ! Determine truncation error
+      CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice, region%dt_prev)
     
     END IF ! IF (do_update_ice_velocity) THEN
       
@@ -315,6 +314,16 @@ CONTAINS
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
     
+    !debug%dp_2D_01 = region%ice%Hi_tplusdt_a
+    !debug%dp_2D_02 = region%ice%Hi_a
+
+    !debug%dp_2D_03 = w_tot
+    !debug%dp_2D_04 = w_ice
+    !debug%dp_2D_05 = w_ins
+    !debug%dp_2D_06 = Hs_GCM
+
+    !CALL write_to_debug_file
+
   END SUBROUTINE run_ice_dynamics_pc
   
   ! Time stepping
@@ -595,66 +604,47 @@ CONTAINS
       END DO
       CALL sync
     
-    ELSE ! IF (.NOT. C%is_restart) THEN
+    ELSE
+      ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
+      ! Also, the current model resolution might be higher than that which was used to generate
+      ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
     
-      IF (C%do_benchmark_experiment) THEN
-        ! Exception for restarting benchmark experiments
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
       
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
-          ice%Hi_a( j,i) = init%Hi( j,i)
-          ice%Hb_a( j,i) = init%Hb( j,i)
-          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
-        END DO
-        END DO
-        CALL sync
+        ! Assume the mapped surface elevation is correct
+        Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
         
-      ELSE ! IF (C%do_benchmark_experiment) THEN
-        ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
-        ! Also, the current model resolution might be higher than that which was used to generate
-        ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
-      
-        DO i = grid%i1, grid%i2
-        DO j = 1, grid%ny
+        ! Define bedrock as PD bedrock + restarted deformation
+        ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
         
-          ! Assume the mapped surface elevation is correct
-          Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
-          
-          ! Define bedrock as PD bedrock + restarted deformation
-          ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
-          
-          ! Take geoid from restart file
-          ice%SL_a( j,i) = init%SL( j,i)
-          
-          ! Surface elevation cannot be below bedrock
-          Hs = MAX( Hs, ice%Hb_a( j,i))
-          
-          ! Define ice thickness
-          Hs_max_float = ice%Hb_a( j,i) + MAX( 0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density / ice_density)
-          IF (Hs > Hs_max_float) THEN
-            ! Ice here must be grounded
-            ice%Hi_a( j,i) = Hs - ice%Hb_a( j,i)
-          ELSE
-            ! Ice here must be floating
-            ice%Hi_a( j,i) = MIN( Hs - ice%Hb_a( j,i), MAX( 0._dp, (Hs - ice%SL_a( j,i))) / (1._dp - ice_density / seawater_density))
-          END IF
-          
-          ! Recalculate surface elevation
-          ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
-          
-        END DO
-        END DO
-        CALL sync
-      
-      END IF ! IF (C%do_benchmark_experiment) THEN
+        ! Take geoid from restart file
+        ice%SL_a( j,i) = init%SL( j,i)
+        
+        ! Surface elevation cannot be below bedrock
+        Hs = MAX( Hs, ice%Hb_a( j,i))
+        
+        ! Define ice thickness
+        Hs_max_float = ice%Hb_a( j,i) + MAX( 0._dp, (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density / ice_density)
+        IF (Hs > Hs_max_float) THEN
+          ! Ice here must be grounded
+          ice%Hi_a( j,i) = Hs - ice%Hb_a( j,i)
+        ELSE
+          ! Ice here must be floating
+          ice%Hi_a( j,i) = MIN( Hs - ice%Hb_a( j,i), MAX( 0._dp, (Hs - ice%SL_a( j,i))) / (1._dp - ice_density / seawater_density))
+        END IF
+        
+        ! Recalculate surface elevation
+        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+        
+      END DO
+      END DO
+      CALL sync
       
     END IF ! IF (.NOT. C%is_restart) THEN
     
     ! Make sure we already start with correct boundary conditions
-    CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
-    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
-    CALL remove_unconnected_shelves(    grid, ice, C%dt_min)
-    CALL update_general_ice_model_data( grid, ice, C%start_time_of_run)
+    CALL apply_ice_thickness_BC( grid, ice, C%dt_min)
     
     ! Initialise some numbers for the predictor/corrector ice thickness update method
     IF (par%master) THEN
@@ -680,17 +670,7 @@ CONTAINS
       END DO
       CALL sync
     END IF
-    
-    IF (C%do_benchmark_experiment .AND. ( &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1')) THEN
-      ! Set the ice flow factor only during initialisation; don't allow the "ice_physical_properties" routine
-      ! to change it, but instead let the tune-for-GL-position routine do that
-      ice%A_flow_3D_a(  :,:,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
-      ice%A_flow_vav_a(   :,grid%i1:grid%i2) = C%MISMIPplus_A_flow_initial
-      CALL sync
-    END IF
-    
+   
   END SUBROUTINE initialise_ice_model
   SUBROUTINE allocate_ice_model( grid, ice)  
       
@@ -717,6 +697,7 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%Hs_cx                , ice%wHs_cx                )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%Hs_cy                , ice%wHs_cy                )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx-1, ice%Hs_b                 , ice%wHs_b                 )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hs_init              , ice%wHs_init              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%SL_a                 , ice%wSL_a                 )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%SL_cx                , ice%wSL_cx                )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%SL_cy                , ice%wSL_cy                )

@@ -16,7 +16,8 @@ MODULE netcdf_module
                                              nf90_inq_varid, nf90_inquire_variable, nf90_get_var, nf90_noerr, nf90_strerror, nf90_float
   USE data_types_module,               ONLY: type_model_region, type_PD_data_fields, type_init_data_fields, type_forcing_data, &
                                              type_subclimate_global, type_debug_fields, type_SELEN_global, &
-                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data
+                                             type_netcdf_scalars_global, type_netcdf_scalars_regional, type_global_scalar_data, &
+                                             type_ice_mask_snapshot_global
   IMPLICIT NONE
   
   TYPE(type_debug_fields) :: debug_NAM, debug_EAS, debug_GRL, debug_ANT, debug
@@ -80,9 +81,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in write_to_restart_file!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -204,7 +203,7 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
-    INTEGER                                       :: ncid, nx, ny, ti, nz, nzo, i, j
+    INTEGER                                       :: ncid, nx, ny, ti, nz, i, j
     REAL(dp), DIMENSION( region%grid%ny, region%grid%nx) :: d_temp
     
     IF (.NOT. par%master) RETURN
@@ -215,7 +214,6 @@ CONTAINS
     ny   = region%grid%ny
     nz   = C%nZ
     ti   = region%help_fields%ti
-    nzo  = region%climate%applied%nz_ocean
     
     IF (field_name == 'none') THEN
       RETURN
@@ -232,10 +230,6 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%GHF_a,          (/1, 1        /))
-    
-    ! Ice basins
-    ELSEIF (field_name == 'basin_ID') THEN
-      CALL write_data_to_file_int_2D( ncid, nx, ny,    id_var,               region%ice%basin_ID,       (/1, 1        /))
 
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
@@ -287,7 +281,7 @@ CONTAINS
     ELSEIF (field_name == 'A_flow_3D') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_3D_a,    (/1, 1, 1, ti /))
     ELSEIF (field_name == 'A_flow_vav') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%A_flow_vav_a,   (/1, 1, 1, ti /))
+      CALL write_data_to_file_dp_3D( ncid, nx, ny, nz, id_var,               region%ice%A_flow_vav_a,   (/1, 1, 1, ti /))
       
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -358,6 +352,12 @@ CONTAINS
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%SMB%SMB,       (/1, 1, 1, ti /))
     ELSEIF (field_name == 'SMB_year') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%SMB%SMB_year,  (/1, 1,    ti /))
+    ELSEIF (field_name == 'BMB_sheet') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_sheet, (/1, 1,   ti /))
+    ELSEIF (field_name == 'BMB_shelf') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
+    ELSEIF (field_name == 'BMB') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB,       (/1, 1,   ti /))
     ELSEIF (field_name == 'Snowfall') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%SMB%Snowfall,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -458,19 +458,12 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dHb') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHb_a, (/1, 1,    ti /))
-      
-    ! Oceans and basal melt
-    ELSEIF (field_name == 'BMB') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB,       (/1, 1,   ti /))
-    ELSEIF (field_name == 'BMB_sheet') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_sheet, (/1, 1,   ti /))
-    ELSEIF (field_name == 'BMB_shelf') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
-    ELSEIF (field_name == 'T_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%T_ocean_corr_ext,       (/1, 1, 1, ti /))
-    ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL write_data_to_file_dp_3D( ncid, nx, ny, nzo, id_var,              region%climate%applied%S_ocean_corr_ext,       (/1, 1, 1, ti /))
-    
+   
+    ! Climate Matrix
+    ELSEIF (field_name == 'w_cold') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%climate%w_cold, (/1, 1,    ti /))
+
+ 
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in write_help_field!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -719,6 +712,11 @@ CONTAINS
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_BMB,           region%int_BMB,                    start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_MB,            region%int_MB,                     start = (/region%scalars%ti/)))
     
+    ! Add auto-tuner variable (if applicable)
+    IF (C%do_auto_tuner) THEN
+        CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_C_abl_constant,   region%SMB%C_abl_constant,      start = (/region%scalars%ti/)))
+    END IF
+    
     ! Close the file
     CALL close_netcdf_file(region%scalars%ncid)
     
@@ -810,9 +808,7 @@ CONTAINS
           C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
           C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-          C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-          C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-          C%choice_benchmark_experiment == 'MISOMIP1') THEN
+          C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
       ELSE
         IF (par%master) WRITE(0,*) '  ERROR: benchmark experiment "', TRIM(C%choice_benchmark_experiment), '" not implemented in create_restart_file!'
         CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -872,6 +868,7 @@ CONTAINS
 
     ! Local variables:
     LOGICAL                                       :: file_exists
+    INTEGER                                       :: x, y, z, m, t
     
     IF (.NOT. par%master) RETURN
     
@@ -891,20 +888,25 @@ CONTAINS
     CALL handle_error(nf90_create(region%help_fields%filename,IOR(nf90_clobber,nf90_share),region%help_fields%ncid))
         
     ! Define dimensions:
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_x,       region%grid%nx,                  region%help_fields%id_dim_x      )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_y,       region%grid%ny,                  region%help_fields%id_dim_y      )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_zeta,    C%nZ,                            region%help_fields%id_dim_zeta   )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_month,   12,                              region%help_fields%id_dim_month  )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_time,    nf90_unlimited,                  region%help_fields%id_dim_time   )
-    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_z_ocean, region%climate%applied%nz_ocean, region%help_fields%id_dim_z_ocean)
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_x,     region%grid%nx, region%help_fields%id_dim_x    )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_y,     region%grid%ny, region%help_fields%id_dim_y    )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_zeta,  C%nZ,           region%help_fields%id_dim_zeta )
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_month, 12,             region%help_fields%id_dim_month)
+    CALL create_dim( region%help_fields%ncid, region%help_fields%name_dim_time,  nf90_unlimited, region%help_fields%id_dim_time )
+    
+    ! Placeholders for the dimension ID's, for shorter code
+    x = region%help_fields%id_dim_x
+    y = region%help_fields%id_dim_y
+    z = region%help_fields%id_dim_zeta
+    m = region%help_fields%id_dim_month
+    t = region%help_fields%id_dim_time
     
     ! Dimension variables: zeta, month, time
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_x,       [region%help_fields%id_dim_x      ], region%help_fields%id_var_x,       long_name='X-coordinate', units='m')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_y,       [region%help_fields%id_dim_y      ], region%help_fields%id_var_y,       long_name='Y-coordinate', units='m')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_zeta,    [region%help_fields%id_dim_zeta   ], region%help_fields%id_var_zeta,    long_name='Vertical scaled coordinate', units='unitless')
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_month,   [region%help_fields%id_dim_month  ], region%help_fields%id_var_month,   long_name='Month', units='1-12'    )
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_time,    [region%help_fields%id_dim_time   ], region%help_fields%id_var_time,    long_name='Time', units='years'   )
-    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_z_ocean, [region%help_fields%id_dim_z_ocean], region%help_fields%id_var_z_ocean, long_name='Depth in ocean', units='m')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_x,     [region%help_fields%id_dim_x    ], region%help_fields%id_var_x,     long_name='X-coordinate', units='m')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_y,     [region%help_fields%id_dim_y    ], region%help_fields%id_var_y,     long_name='Y-coordinate', units='m')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_zeta,  [region%help_fields%id_dim_zeta ], region%help_fields%id_var_zeta,  long_name='Vertical scaled coordinate', units='unitless')
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_month, [region%help_fields%id_dim_month], region%help_fields%id_var_month, long_name='Month', units='1-12'    )
+    CALL create_double_var( region%help_fields%ncid, region%help_fields%name_var_time,  [region%help_fields%id_dim_time ], region%help_fields%id_var_time,  long_name='Time', units='years'   )
     
     ! Define data variables
     CALL create_help_field( region, region%help_fields%id_help_field_01, C%help_field_01)
@@ -966,7 +968,6 @@ CONTAINS
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_y,        region%grid%y                            ))
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_zeta,     C%zeta                                   ))
     CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_month,    (/1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12/)))
-    CALL handle_error( nf90_put_var( region%help_fields%ncid, region%help_fields%id_var_z_ocean,  region%climate%applied%z_ocean           ))
         
     ! Synchronize with disk (otherwise it doesn't seem to work on a MAC)
     CALL handle_error(nf90_sync( region%help_fields%ncid))
@@ -987,17 +988,16 @@ CONTAINS
     CHARACTER(LEN=*),               INTENT(IN)    :: field_name
     
     ! Local variables:
-    INTEGER                                       :: x, y, z, m, t, zo
+    INTEGER                                       :: x, y, z, m, t
     
     IF (.NOT. par%master) RETURN
     
     ! Placeholders for the dimension ID's, for shorter code
-    x  = region%help_fields%id_dim_x
-    y  = region%help_fields%id_dim_y
-    z  = region%help_fields%id_dim_zeta
-    m  = region%help_fields%id_dim_month
-    t  = region%help_fields%id_dim_time
-    zo = region%help_fields%id_dim_z_ocean
+    x = region%help_fields%id_dim_x
+    y = region%help_fields%id_dim_y
+    z = region%help_fields%id_dim_zeta
+    m = region%help_fields%id_dim_month
+    t = region%help_fields%id_dim_time
     
     IF (field_name == 'none') THEN
       RETURN
@@ -1014,10 +1014,6 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL create_double_var( region%help_fields%ncid, 'GHF',                      [x, y      ], id_var, long_name='Geothermal heat flux', units='J m^-2 yr^-1')
-      
-    ! Ice basins
-    ELSEIF (field_name == 'basin_ID') THEN
-      CALL create_int_var(    region%help_fields%ncid, 'basin_ID',                 [x, y      ], id_var, long_name='Basin ID')
  
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
@@ -1065,9 +1061,9 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'Ti_basal',                 [x, y,    t], id_var, long_name='Ice basal temperature', units='K')
     ELSEIF (field_name == 'Ti_pmp') THEN
       CALL create_double_var( region%help_fields%ncid, 'Ti_pmp',                   [x, y, z, t], id_var, long_name='Ice pressure melting point temperature', units='K')
-    ELSEIF (field_name == 'A_flow_3D') THEN
+    ELSEIF (field_name == 'A_flow') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_3D',                [x, y, z, t], id_var, long_name='Ice flow factor', units='Pa^-3 y^-1')
-    ELSEIF (field_name == 'A_flow_vav') THEN
+    ELSEIF (field_name == 'A_flow_mean') THEN
       CALL create_double_var( region%help_fields%ncid, 'A_flow_vav',               [x, y,    t], id_var, long_name='Vertically averaged ice flow factor', units='Pa^-3 y^-1')
       
     ! Velocity fields
@@ -1119,6 +1115,12 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'SMB',                      [x, y, m, t], id_var, long_name='Monthly surface mass balance', units='m ice equivalent')
     ELSEIF (field_name == 'SMB_year') THEN
       CALL create_double_var( region%help_fields%ncid, 'SMB_year',                 [x, y,    t], id_var, long_name='Annual surface mass balance', units='m ice equivalent')
+    ELSEIF (field_name == 'BMB_sheet') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB_sheet',                [x, y,    t], id_var, long_name='Annual basal mass balance for grounded ice', units='m ice equivalent')
+    ELSEIF (field_name == 'BMB_shelf') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB_shelf',                [x, y,    t], id_var, long_name='Annual basal mass balance for floating ice', units='m ice equivalent')
+    ELSEIF (field_name == 'BMB') THEN
+      CALL create_double_var( region%help_fields%ncid, 'BMB',                      [x, y,    t], id_var, long_name='Annual basal mass balance', units='m ice equivalent')
     ELSEIF (field_name == 'Snowfall') THEN
       CALL create_double_var( region%help_fields%ncid, 'Snowfall',                 [x, y, m, t], id_var, long_name='Monthly total snowfall', units='m water equivalent')
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -1189,19 +1191,9 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dHb') THEN
       CALL create_double_var( region%help_fields%ncid, 'dHb',                      [x, y,    t], id_var, long_name='Change in bedrock elevation w.r.t. PD', units='m')
-    
-    ! Oceans and basal melt
-    ELSEIF (field_name == 'BMB') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB',                      [x, y,    t], id_var, long_name='Annual basal mass balance', units='m ice equivalent')
-    ELSEIF (field_name == 'BMB_sheet') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB_sheet',                [x, y,    t], id_var, long_name='Annual basal mass balance for grounded ice', units='m ice equivalent')
-    ELSEIF (field_name == 'BMB_shelf') THEN
-      CALL create_double_var( region%help_fields%ncid, 'BMB_shelf',                [x, y,    t], id_var, long_name='Annual basal mass balance for floating ice', units='m ice equivalent')
-    ELSEIF (field_name == 'T_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'T_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean temperature', units='K')
-    ELSEIF (field_name == 'S_ocean_3D') THEN
-      CALL create_double_var( region%help_fields%ncid, 'S_ocean_3D',               [x, y, zo, t], id_var, long_name='3-D ocean salinity', units='PSU')
-      
+   
+     ELSEIF (field_name == 'w_cold') THEN
+      CALL create_double_var( region%help_fields%ncid, 'w_cold',                      [x, y,    t], id_var, long_name='w_cold precipitation (1 == LGM)', units='N/A') 
       
     ELSE
       WRITE(0,*) ' ERROR: help field "', TRIM(field_name), '" not implemented in create_help_field!'
@@ -1450,18 +1442,21 @@ CONTAINS
     CALL close_netcdf_file(SELEN%output%ncid)
     
   END SUBROUTINE create_SELEN_output_file
-  SUBROUTINE create_global_scalar_output_file( netcdf)
+  SUBROUTINE create_global_scalar_output_file( netcdf, number_filename)
     ! Create a new global scalar output file
    
     IMPLICIT NONE
     
     ! Input variables:
     TYPE(type_netcdf_scalars_global), INTENT(INOUT) :: netcdf
-
+    CHARACTER(LEN=1)               , INTENT(IN)    :: number_filename
+    
     ! Local variables:
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
-    
+    CHARACTER(LEN=30)                               :: short_filename    
+
+
     IF (.NOT. par%master) RETURN
     
     ! Set time frame index to 1
@@ -1469,7 +1464,19 @@ CONTAINS
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
-    netcdf%filename = TRIM(C%output_dir)//'/scalar_output_global.nc'
+
+    IF (C%do_auto_tuner) THEN
+        short_filename = '/scalar_output_global__.nc'
+        short_filename(23:23) = number_filename
+
+        netcdf%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    ELSE
+        netcdf%filename = TRIM(C%output_dir)//'/scalar_output_global.nc' 
+    END IF
+
+
+
+
     INQUIRE(EXIST=file_exists, FILE = TRIM(netcdf%filename))
     IF (file_exists) THEN
       WRITE(0,*) '  create_global_scalar_output_file - ERROR: ', TRIM(netcdf%filename), ' already exists!'
@@ -1583,18 +1590,21 @@ CONTAINS
     CALL close_netcdf_file(netcdf%ncid)
     
   END SUBROUTINE create_global_scalar_output_file
-  SUBROUTINE create_regional_scalar_output_file( region)
-    ! Create a new regional scalar output file
+  ! SUBROUTINE create_regional_scalar_output_file( region, number_filename)
+  SUBROUTINE create_regional_scalar_output_file( region)  
+  ! Create a new regional scalar output file
    
     IMPLICIT NONE
     
     ! Input variables:
     TYPE(type_model_region),          INTENT(INOUT) :: region
+    ! CHARACTER(LEN=1),                 INTENT(IN)    :: number_filename
 
     ! Local variables:
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
-    
+    ! CHARACTER(LEN=30)                               :: short_filename
+ 
     IF (.NOT. par%master) RETURN
     
     ! Set time frame index to 1
@@ -1602,6 +1612,17 @@ CONTAINS
     
     ! Generate filename
     region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
+
+    !IF (C%do_auto_tuner) THEN
+    !    short_filename = '/scalar_output_'//TRIM(regioN%name)//'__.nc'
+    !    short_filename(20:20) = number_filename
+    !
+    !    region%scalars%filename = TRIM(C%output_dir)//TRIM(short_filename)
+    !ELSE
+    !    region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
+    !END IF
+
+
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
@@ -1641,6 +1662,12 @@ CONTAINS
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_BMB,           [t], region%scalars%id_var_BMB,           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_MB,            [t], region%scalars%id_var_MB,            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
     
+    ! Add auto-tuner variable (if applicable)
+    IF (C%do_auto_tuner) THEN
+        CALL create_double_var( region%scalars%ncid, region%scalars%name_var_C_abl_constant, [t], region%scalars%id_var_C_abl_constant,            long_name='Ablation Constant', units='mm/yr ')
+        ! CALL handle_error( nf90_put_var( region%scalars%ncid,region%scalars%id_var_C_abl_constant,   region%SMB%C_abl_constant,      start = (/region%scalars%ti/)))
+    END IF
+
     ! Leave definition mode:
     CALL handle_error(nf90_enddef( region%scalars%ncid))
         
@@ -2594,68 +2621,6 @@ CONTAINS
     
   END SUBROUTINE read_PD_obs_data_file
   
-  ! Present-day observed global ocean (e.g. WOA18)
-  SUBROUTINE inquire_PD_obs_data_file_ocean( PD_obs_ocean) 
-    ! Check if the right dimensions and variables are present in the file.
-   
-    IMPLICIT NONE
-    
-    ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
- 
-    ! Local variables:
-    INTEGER                               :: int_dummy
-    
-    IF (.NOT. par%master) RETURN
-        
-    ! Open the netcdf file
-    CALL open_netcdf_file(PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
-    
-    ! Inquire dimensions id's. Check that all required dimensions exist return their lengths.
-    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_lat,     PD_obs_ocean%nlat,     PD_obs_ocean%netcdf%id_dim_lat    )
-    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_lon,     PD_obs_ocean%nlon,     PD_obs_ocean%netcdf%id_dim_lon    )
-    CALL inquire_dim( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_dim_z_ocean, PD_obs_ocean%nz_ocean, PD_obs_ocean%netcdf%id_dim_z_ocean)
-
-    ! Inquire variable id's. Make sure that each variable has the correct dimensions:
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lat,     (/ PD_obs_ocean%netcdf%id_dim_lat     /),  PD_obs_ocean%netcdf%id_var_lat    )
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_lon,     (/ PD_obs_ocean%netcdf%id_dim_lon     /),  PD_obs_ocean%netcdf%id_var_lon    )
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_z_ocean, (/ PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_z_ocean)
-
-    !CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_mask_ocean, (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_mask_ocean)
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_T_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_T_ocean)
-    CALL inquire_double_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%name_var_S_ocean,    (/ PD_obs_ocean%netcdf%id_dim_lon, PD_obs_ocean%netcdf%id_dim_lat, PD_obs_ocean%netcdf%id_dim_z_ocean /),  PD_obs_ocean%netcdf%id_var_S_ocean)
-        
-    ! Close the netcdf file
-    CALL close_netcdf_file(PD_obs_ocean%netcdf%ncid)
-    
-  END SUBROUTINE inquire_PD_obs_data_file_ocean
-  SUBROUTINE read_PD_obs_data_file_ocean( PD_obs_ocean)
-    ! Read the PD_obs_ocean netcdf file
-   
-    IMPLICIT NONE
-    
-    ! Input variables:
-    TYPE(type_subclimate_global), INTENT(INOUT) :: PD_obs_ocean
-    
-    IF (.NOT. par%master) RETURN
-    
-    ! Open the netcdf file
-    CALL open_netcdf_file(PD_obs_ocean%netcdf%filename, PD_obs_ocean%netcdf%ncid)
-    
-    ! Read the data
-    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_lon,     PD_obs_ocean%lon,     start = (/ 1       /) ))
-    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_lat,     PD_obs_ocean%lat,     start = (/ 1       /) ))
-    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_z_ocean, PD_obs_ocean%z_ocean, start = (/ 1       /) ))
-
-    !CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_mask_ocean,  PD_obs_ocean%mask_ocean,  start = (/ 1, 1, 1 /) ))
-    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_T_ocean,     PD_obs_ocean%T_ocean, start = (/ 1, 1, 1 /) ))
-    CALL handle_error(nf90_get_var( PD_obs_ocean%netcdf%ncid, PD_obs_ocean%netcdf%id_var_S_ocean,     PD_obs_ocean%S_ocean, start = (/ 1, 1, 1 /) ))
-        
-    ! Close the netcdf file
-    CALL close_netcdf_file(PD_obs_ocean%netcdf%ncid)
-    
-  END SUBROUTINE read_PD_obs_data_file_ocean
-  
   ! GCM global climate (climate matrix snapshots)
   SUBROUTINE inquire_GCM_snapshot( snapshot) 
     ! Check if the right dimensions and variables are present in the file.
@@ -2691,6 +2656,40 @@ CONTAINS
     CALL close_netcdf_file(snapshot%netcdf%ncid)
     
   END SUBROUTINE inquire_GCM_snapshot
+
+
+  ! GCM global climate (climate matrix snapshots)
+  SUBROUTINE inquire_ice_mask_snapshot( ice_mask_snapshot)
+    ! Check if the right dimensions and variables are present in the file.
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_ice_mask_snapshot_global), INTENT(INOUT) :: ice_mask_snapshot
+
+    IF (.NOT. par%master) RETURN
+
+    ! Open the netcdf file
+    CALL open_netcdf_file( ice_mask_snapshot%netcdf%filename, ice_mask_snapshot%netcdf%ncid)
+
+
+    ! Inquire dimensions id's. Check that all required dimensions exist return
+    ! their lengths.
+    CALL inquire_dim( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_dim_lat, ice_mask_snapshot%nlat,  ice_mask_snapshot%netcdf%id_dim_lat)
+    CALL inquire_dim( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_dim_lon, ice_mask_snapshot%nlon,  ice_mask_snapshot%netcdf%id_dim_lon)
+
+    ! Inquire variable id's. Make sure that each variable has the correct
+    ! dimensions:
+    CALL inquire_double_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_var_lat,      (/ ice_mask_snapshot%netcdf%id_dim_lat/),  ice_mask_snapshot%netcdf%id_var_lat)
+    CALL inquire_double_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_var_lon,      (/ ice_mask_snapshot%netcdf%id_dim_lon/),  ice_mask_snapshot%netcdf%id_var_lon)
+    CALL inquire_double_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_var_ice_mask, (/ ice_mask_snapshot%netcdf%id_dim_lon, ice_mask_snapshot%netcdf%id_dim_lat /),  ice_mask_snapshot%netcdf%id_var_ice_mask)
+    CALL inquire_double_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%name_var_ocean_mask, (/ ice_mask_snapshot%netcdf%id_dim_lon, ice_mask_snapshot%netcdf%id_dim_lat /),  ice_mask_snapshot%netcdf%id_var_ocean_mask)
+
+    ! Close the netcdf file
+    CALL close_netcdf_file(ice_mask_snapshot%netcdf%ncid)
+
+  END SUBROUTINE inquire_ice_mask_snapshot
+
   SUBROUTINE read_GCM_snapshot(    snapshot)
     ! Read the PD_obs0 netcdf file
    
@@ -2717,7 +2716,34 @@ CONTAINS
     CALL close_netcdf_file(snapshot%netcdf%ncid)
     
   END SUBROUTINE read_GCM_snapshot
-  
+ 
+
+
+  SUBROUTINE read_ice_mask_snapshot(    ice_mask_snapshot)
+    ! Read the PD_obs0 netcdf file
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_ice_mask_snapshot_global), INTENT(INOUT) :: ice_mask_snapshot
+
+    IF (.NOT. par%master) RETURN
+
+    ! Open the netcdf file
+    CALL open_netcdf_file(ice_mask_snapshot%netcdf%filename, ice_mask_snapshot%netcdf%ncid)
+
+    ! Read the data
+    CALL handle_error(nf90_get_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%id_var_lon,        ice_mask_snapshot%lon,        start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%id_var_lat,        ice_mask_snapshot%lat,        start = (/ 1       /) ))
+    CALL handle_error(nf90_get_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%id_var_ice_mask,   ice_mask_snapshot%ice_mask,   start = (/ 1, 1    /) ))
+    CALL handle_error(nf90_get_var( ice_mask_snapshot%netcdf%ncid, ice_mask_snapshot%netcdf%id_var_ocean_mask, ice_mask_snapshot%ocean_mask, start = (/ 1, 1    /) ))
+
+    ! Close the netcdf file
+    CALL close_netcdf_file(ice_mask_snapshot%netcdf%ncid)
+
+  END SUBROUTINE read_ice_mask_snapshot
+
+
   ! Insolation solution (e.g. Laskar 2004)
   SUBROUTINE inquire_insolation_data_file( forcing)
     IMPLICIT NONE

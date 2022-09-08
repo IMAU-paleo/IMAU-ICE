@@ -21,10 +21,10 @@ PROGRAM IMAU_ICE_program
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
   USE configuration_module,            ONLY: dp, C, initialise_model_configuration, write_total_model_time_to_screen
-  USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global, type_global_scalar_data
+  USE data_types_module,               ONLY: type_model_region, type_climate_matrix, type_SELEN_global, type_global_scalar_data, type_auto_tuner, type_ice_mask_matrix
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
-  USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_CO2_record, update_CO2_at_model_time, &
-                                             initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, &
+  USE forcing_module,                  ONLY: forcing, initialise_insolation_data, update_insolation_data, initialise_GMSL_record, initialise_CO2_record, update_CO2_at_model_time, &
+                                             initialise_d18O_record, update_d18O_at_model_time, initialise_d18O_data, update_global_mean_temperature_change_history, update_GMSL_at_model_time, &
                                              calculate_modelled_d18O, initialise_inverse_routine_data, inverse_routine_global_temperature_offset, inverse_routine_CO2, &
                                              initialise_geothermal_heat_flux, initialise_climate_SMB_forcing_data, update_climate_SMB_forcing_data
   USE climate_module,                  ONLY: initialise_climate_matrix
@@ -32,8 +32,8 @@ PROGRAM IMAU_ICE_program
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
   USE SELEN_main_module,               ONLY: initialise_SELEN, run_SELEN
   USE scalar_data_output_module,       ONLY: initialise_global_scalar_data, write_global_scalar_data
-  USE general_ice_model_data_module,   ONLY: MISMIPplus_adapt_flow_factor
-
+  USE auto_tuner_module,               ONLY: initialise_auto_tuner, auto_tuner_main
+  
   IMPLICIT NONE
   
   CHARACTER(LEN=256), PARAMETER          :: version_number = '2.0'
@@ -45,7 +45,8 @@ PROGRAM IMAU_ICE_program
   
   ! The global climate matrix
   TYPE(type_climate_matrix)              :: matrix
-  
+  TYPE(type_ice_mask_matrix)             :: ice_mask_matrix
+ 
   ! SELEN
   TYPE(type_SELEN_global)                :: SELEN
   REAL(dp)                               :: ocean_area
@@ -60,9 +61,9 @@ PROGRAM IMAU_ICE_program
   ! Computation time tracking
   REAL(dp)                               :: tstart, tstop
   
-  ! MISMIPplus flow factor tuning
-  REAL(dp)                               :: Hprev, Hcur
-  
+  ! Auto-tuner
+  TYPE(type_auto_tuner)                  :: auto_tuner
+
   ! ======================================================================================
   
   ! MPI Initialisation
@@ -112,7 +113,8 @@ PROGRAM IMAU_ICE_program
   CALL initialise_d18O_record
   CALL initialise_inverse_routine_data
   CALL initialise_geothermal_heat_flux
-    
+  CALL initialise_GMSL_record
+
   ! ===== Create the global scalar output file =====
   ! ================================================
   
@@ -124,16 +126,16 @@ PROGRAM IMAU_ICE_program
   IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) THEN
     CALL initialise_climate_SMB_forcing_data
   ELSE
-    CALL initialise_climate_matrix( matrix)
+    CALL initialise_climate_matrix( matrix, ice_mask_matrix)
   END IF
     
   ! ===== Initialise the model regions ======
   ! =========================================
   
-  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', matrix)
-  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', matrix)
-  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', matrix)
-  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', matrix)
+  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', matrix, ice_mask_matrix)
+  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', matrix, ice_mask_matrix)
+  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', matrix, ice_mask_matrix)
+  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', matrix, ice_mask_matrix)
     
   ! Set GMSL contributions of all simulated ice sheets
   IF (par%master) THEN
@@ -153,6 +155,8 @@ PROGRAM IMAU_ICE_program
     IF (par%master) global_data%GMSL = C%fixed_sealevel
   ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
     IF (par%master) global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
+  ELSEIF (C%choice_sealevel_model == 'prescribed') THEN
+    IF (par%master) global_data%GMSL = forcing%GMSL
   ELSE
     IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
     CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -182,12 +186,19 @@ PROGRAM IMAU_ICE_program
   ! Write global scalar data at the start of the simulation to output file
   CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, C%start_time_of_run)
   
-! =============================
-! ===== The big time loop =====
-! =============================
+  ! === Initialise the Auto-Tuner ===
+  ! =================================
+  IF(C%do_auto_tuner) THEN
+       IF (par%master) WRITE(0,*) 'Initialize auto-tuner...'
+       CALL initialise_auto_tuner( auto_tuner,global_data%GMSL)
+       IF (par%master) WRITE(0,*) 'Finished'
 
+       ! Replace the end-time of the simulation if the auto-tuner is being used
+       C%end_time_of_run = C%at_latest_stopping_time + 10000._dp 
+
+  END IF
+  
   t_coupling = C%start_time_of_run
-  Hcur       = 0._dp
   
   DO WHILE (t_coupling < C%end_time_of_run)
   
@@ -205,10 +216,12 @@ PROGRAM IMAU_ICE_program
     CALL update_insolation_data(    t_coupling)
     CALL update_CO2_at_model_time(  t_coupling)
     CALL update_d18O_at_model_time( t_coupling)
+    CALL update_GMSL_at_model_time( t_coupling)
+
     IF ((C%choice_forcing_method == 'SMB_direct') .OR. (C%choice_forcing_method == 'climate_direct')) CALL update_climate_SMB_forcing_data (t_coupling)
     
     ! Update regional sea level
-    IF (C%choice_sealevel_model == 'fixed' .OR. C%choice_sealevel_model == 'eustatic') THEN
+    IF (C%choice_sealevel_model == 'fixed' .OR. C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'prescribed') THEN
       ! Local sea level is equal to the eustatic signal
       IF (C%do_NAM) NAM%ice%SL_a( :,NAM%grid%i1:NAM%grid%i2) = global_data%GMSL
       IF (C%do_EAS) EAS%ice%SL_a( :,EAS%grid%i1:EAS%grid%i2) = global_data%GMSL
@@ -248,6 +261,8 @@ PROGRAM IMAU_ICE_program
       global_data%GMSL = C%fixed_sealevel
     ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
       global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT 
+    ELSEIF (C%choice_sealevel_model == 'prescribed') THEN
+      global_data%GMSL = forcing%GMSL
     ELSE
       IF (par%master) WRITE(0,*) '  ERROR: choice_sealevel_model "', TRIM(C%choice_sealevel_model), '" not implemented in IMAU_ICE_program!'
       CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
@@ -272,16 +287,11 @@ PROGRAM IMAU_ICE_program
     ! Write global scalar data to output file
     CALL write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, t_coupling)
     
-    ! MISMIP+ flow factor tuning for GL position
-    IF (C%do_benchmark_experiment .AND. C%choice_benchmark_experiment == 'MISMIPplus' .AND. C%MISMIPplus_do_tune_A_for_GL) THEN
-      Hprev = Hcur
-      Hcur  = ANT%ice%Hs_a( CEILING( REAL(ANT%grid%ny,dp)/2._dp), 1)
-      IF (par%master) WRITE(0,*) 'Hprev = ', Hprev, ', Hcur = ', Hcur
-      IF (ABS(1._dp - Hcur/Hprev) < 5.0E-3_dp) THEN
-        ! The model has converged to a steady state; adapt the flow factor
-        CALL MISMIPplus_adapt_flow_factor( ANT%grid, ANT%ice)
-      END IF
+    ! Run the Auto-tuner, if it is being used
+    IF(C%do_auto_tuner) THEN
+                CALL auto_tuner_main(NAM, EAS, GRL, ANT, auto_tuner, t_coupling,global_data%GMSL_NAM, global_data%GMSL_EAS, global_data%GMSL_GRL, global_data%GMSL_ANT, global_data%GMSL,forcing, global_data)
     END IF
+    
       
   END DO ! DO WHILE (t_coupling < C%end_time_of_run)
   

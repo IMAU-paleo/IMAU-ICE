@@ -58,9 +58,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
         ! Thermodynamics are not included in these experiments
         RETURN
       ELSE
@@ -71,7 +69,7 @@ CONTAINS
     
     ! Prescribe a simple temperature profile to newly ice-covered grid cells.
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
-    DO j = 2, grid%ny-1
+    DO j = 2, grid%ny-1 ! 1, grid%ny
       
       IF (ice%mask_ice_a( j,i) == 1 .AND. ice%mask_ice_a_prev( j,i) == 0) THEN
         ! This grid cell is newly ice-covered
@@ -110,6 +108,15 @@ CONTAINS
     
     ! If so specified, solve the heat equation
     IF (do_solve_heat_equation) CALL solve_heat_equation( grid, ice, climate, SMB)
+
+    !debug%dp_2D_01 = region%ice%Hi_tplusdt_a
+    !debug%dp_2D_02 = region%ice%Hi_a
+    debug%dp_3D_01 = ice%Ti_a
+    !debug%dp_2D_04 = w_ice
+    !debug%dp_2D_05 = w_ins
+    !debug%dp_2D_06 = Hs_GCM
+
+    CALL write_to_debug_file
     
     ! Safety
     CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a', 'run_thermo_model')
@@ -497,9 +504,7 @@ CONTAINS
               C%choice_benchmark_experiment == 'ISMIP_HOM_C' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_D' .OR. &
               C%choice_benchmark_experiment == 'ISMIP_HOM_E' .OR. &
-              C%choice_benchmark_experiment == 'ISMIP_HOM_F' .OR. &
-              C%choice_benchmark_experiment == 'MISMIPplus' .OR. &
-              C%choice_benchmark_experiment == 'MISOMIP1') THEN
+              C%choice_benchmark_experiment == 'ISMIP_HOM_F') THEN
               
         ice%Ti_a( :,:,grid%i1:grid%i2) = 270._dp
         CALL sync
