@@ -32,12 +32,12 @@ for mi = 1: length( model_versions)
       % Output folder
       vi = vi+1;
       vars( vi).name  = 'fixed_output_dir_config';
-      vars( vi).value = ['PROTECT_projections/' model_versions( mi).name '_' RCM_forcings( rfi).name '_' Rfactors{ ri}];
+      vars( vi).value = ['PROTECT_projections/' model_versions( mi).name '_' RCM_forcings( rfi).name '_' Rfactors{ ri}(2:end)];
 
       % ISMIP output experiment code
       vi = vi+1;
       vars( vi).name  = 'ISMIP_output_experiment_code_config';
-      vars( vi).value = [RCM_forcings( rfi).name '_' Rfactors{ ri}];
+      vars( vi).value = [RCM_forcings( rfi).name '_' Rfactors{ ri}(2:end)];
       
       % Retreat mask filename
       vi = vi+1;
@@ -81,7 +81,7 @@ for mi = 1: length( model_versions)
       %% Read, change, and write config file
       
       % New config filename
-      config_filename = ['config_' model_versions( mi).name '_' RCM_forcings( rfi).name '_' Rfactors{ ri}];
+      config_filename = ['config_' model_versions( mi).name '_' RCM_forcings( rfi).name '_' Rfactors{ ri}(2:end)];
 
       % Read the template config file
       fid = fopen( filename_template,'r');

@@ -5030,10 +5030,7 @@ CONTAINS
     END IF
 
     ! Create a subdirectory within the output directory
-    foldername = TRIM( C%output_dir) // TRIM(                icesheet_code  ) // '_' // &
-                                        TRIM( C%ISMIP_output_group_code     ) // '_' // &
-                                        TRIM( C%ISMIP_output_model_code     ) // '_' // &
-                                        TRIM( C%ISMIP_output_experiment_code)
+    foldername = TRIM( C%output_dir) // TRIM( C%ISMIP_output_experiment_code)
     CALL system('mkdir ' // foldername)
 
     ! Create all the ISMIP output files
@@ -5369,10 +5366,7 @@ CONTAINS
     END IF
 
     ! The folder where the ISMIp6 output files are located
-    foldername = TRIM( C%output_dir) // TRIM(                icesheet_code  ) // '_' // &
-                                        TRIM( C%ISMIP_output_group_code     ) // '_' // &
-                                        TRIM( C%ISMIP_output_model_code     ) // '_' // &
-                                        TRIM( C%ISMIP_output_experiment_code)
+    foldername = TRIM( C%output_dir) // TRIM( C%ISMIP_output_experiment_code)
 
     ! Calculate some quantities that are not natively in the ice model
 
