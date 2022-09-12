@@ -5445,7 +5445,7 @@ CONTAINS
       ! =================
 
       land_ice_mass                     = land_ice_mass                     + (region%ice%Hi_a(                  j,i) * region%grid%dx**2 * ice_density)    ! kg
-      mass_above_floatation             = mass_above_floatation             + (region%ice%TAF_a(                 j,i) * region%grid%dx**2 * ice_density)    ! kg
+      mass_above_floatation             = mass_above_floatation             + MAX( 0._dp, (region%ice%TAF_a(                 j,i) * region%grid%dx**2 * ice_density))    ! kg
       grounded_ice_sheet_area           = grounded_ice_sheet_area           + (grounded_ice_sheet_area_fraction( j,i) * region%grid%dx**2)                  ! m2
       floating_ice_sheet_area           = floating_ice_sheet_area           + (floating_ice_shelf_area_fraction( j,i) * region%grid%dx**2)                  ! m2
       total_SMB                         = total_SMB                         + (land_ice_area_fraction( j,i) * region%SMB%SMB_year(  j,i) * region%grid%dx**2 * ice_density / sec_per_year) ! kg s-1
