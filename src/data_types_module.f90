@@ -253,7 +253,8 @@ MODULE data_types_module
     ! Ice dynamics - calving
     REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_actual_cf_a        ! "actual" ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
-    INTEGER :: wfloat_margin_frac_a, wHi_actual_cf_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Calving               ! Ice thickness that is removed at the calving front
+    INTEGER :: wfloat_margin_frac_a, wHi_actual_cf_a,wCalving
     
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
@@ -272,8 +273,9 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_old
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_pred
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_corr
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MB_year       
     INTEGER :: wpc_zeta, wpc_tau, wpc_fcb, wpc_eta, wpc_eta_prev, wpc_beta1, wpc_beta2, wpc_beta3, wpc_beta4
-    INTEGER :: wpc_f1, wpc_f2, wpc_f3, wpc_f4, wHi_old, wHi_pred, wHi_corr
+    INTEGER :: wpc_f1, wpc_f2, wpc_f3, wpc_f4, wHi_old, wHi_pred, wHi_corr, wMB_year
     
     ! Thermodynamics
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_ice_a_prev        ! Ice mask from previous time step
@@ -1013,7 +1015,8 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: int_SMB
     REAL(dp), POINTER                       :: int_BMB
     REAL(dp), POINTER                       :: int_MB
-    INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB
+    REAL(dp), POINTER                       :: int_Calving
+    INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB, wint_Calving
     
     ! Variables related to the englacial isotope content
     REAL(dp), POINTER                       :: mean_isotope_content
