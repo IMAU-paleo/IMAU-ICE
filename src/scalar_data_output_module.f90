@@ -41,7 +41,8 @@ CONTAINS
     REAL(dp)                                      :: total_SMB
     REAL(dp)                                      :: total_BMB
     REAL(dp)                                      :: total_MB
-    
+    REAL(dp)                                      :: total_Calving
+
   ! ================================================
   ! ===== Exceptions for benchmark experiments =====
   ! ================================================
@@ -88,23 +89,32 @@ CONTAINS
     total_runoff               = 0._dp
     total_SMB                  = 0._dp
     total_BMB                  = 0._dp
-    
+    total_Calving              = 0._dp
+    total_MB                   = 0._dp
+
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-    
+
+      total_Calving = total_Calving + (region%ice%Calving( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+      total_MB      = total_MB      + (region%ice%MB_year( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+
       IF (region%ice%Hi_a( j,i) > 0._dp) THEN
         
-        total_BMB = total_BMB + (region%BMB%BMB( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          
+        total_BMB     = total_BMB     + (region%BMB%BMB(     j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+
+        ! Reset the value for calving and MB
+        region%ice%Calving( j,i) = 0._dp
+        region%ice%MB_year( j,i) = 0._dp
+
         DO m = 1, 12
-          total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-          total_SMB        = total_SMB        + (region%SMB%SMB(        m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-        END DO
-        
+          total_snowfall    = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          total_rainfall    = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          total_melt        = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          total_refreezing  = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          total_runoff      = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+          total_SMB         = total_SMB        + (region%SMB%SMB(        m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+       END DO
+       
       END IF
 
       T2m_mean = T2m_mean + SUM(region%climate%applied%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
@@ -121,8 +131,8 @@ CONTAINS
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB       , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-    
-    total_MB = total_SMB + total_BMB
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_Calving   , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_MB        , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     
     IF (par%master) THEN
       region%int_T2m        = T2m_mean
@@ -133,10 +143,12 @@ CONTAINS
       region%int_runoff     = total_runoff
       region%int_SMB        = total_SMB
       region%int_BMB        = total_BMB
-      region%int_MB         = total_MB
+      region%int_MB         = total_MB      / C%dt_coupling   
+      region%int_Calving    = total_Calving / C%dt_coupling
     END IF
+
     CALL sync
-    
+
     ! Write to NetCDF file
     CALL write_to_regional_scalar_output_file( region, time)
     

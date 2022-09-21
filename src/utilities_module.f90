@@ -135,16 +135,21 @@ CONTAINS
     IF (Hi < (SL - Hb) * seawater_density/ice_density) isso = .TRUE.
     
   END FUNCTION is_floating
-  FUNCTION surface_elevation( Hi, Hb, SL) RESULT( Hs)
+  FUNCTION surface_elevation( Hi, Hb, SL, mask_ocean) RESULT( Hs)
     ! The surface elevation equation
       
     IMPLICIT NONE
     
     REAL(dp),                            INTENT(IN)    :: Hi, Hb, SL
     REAL(dp)                                           :: Hs
-    
+    INTEGER,                             INTENT(IN)    :: mask_ocean
+
     Hs = Hi + MAX( SL - ice_density / seawater_density * Hi, Hb)
-    
+   
+    IF (mask_ocean == 0) THEN
+        Hs = Hi + Hb ! So Hs can be below sea level when no ocean
+    END IF
+
   END FUNCTION surface_elevation
   FUNCTION thickness_above_floatation( Hi, Hb, SL) RESULT( TAF)
     ! The thickness-above-floatation equation

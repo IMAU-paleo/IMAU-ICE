@@ -65,7 +65,7 @@ CONTAINS
     IF (C%do_remove_shelves) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i)) .AND. ice%mask_ocean_a( j,i) == 1) THEN
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO
@@ -115,13 +115,22 @@ CONTAINS
     DO j = 1, grid%ny
       
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%Hi_actual_cf_a( j,i) < C%calving_threshold_thickness) THEN
-        ice%Hi_a( j,i) = 0._dp
+
+          ! Adding the thickness that is removed as calving between this and previous output timestep
+          ice%Calving( j,i) = ice%Calving( j,i) - ice%Hi_a( j,i)
+
+          ! Remove ice below calving threshold
+          ice%Hi_a( j,i) = 0._dp
+    
+      ElSE
+          ! No calving
+          ice%Calving( j,i) = ice%Calving( j,i) - 0._dp
       END IF
       
     END DO
     END DO
     CALL sync
-    
+
   END SUBROUTINE threshold_thickness_calving
   
 END MODULE calving_module

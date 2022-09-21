@@ -358,6 +358,10 @@ CONTAINS
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB_shelf, (/1, 1,   ti /))
     ELSEIF (field_name == 'BMB') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%BMB%BMB,       (/1, 1,   ti /))
+    ELSEIF (field_name == 'Calving') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Calving, (/1, 1,   ti /))
+    ELSEIF (field_name == 'MB_year') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%MB_year, (/1, 1,   ti /))
     ELSEIF (field_name == 'Snowfall') THEN
       CALL write_data_to_file_dp_3D( ncid, nx, ny, 12, id_var,               region%SMB%Snowfall,  (/1, 1, 1, ti /))
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -711,6 +715,7 @@ CONTAINS
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_SMB,           region%int_SMB,                    start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_BMB,           region%int_BMB,                    start = (/region%scalars%ti/)))
     CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_MB,            region%int_MB,                     start = (/region%scalars%ti/)))
+    CALL handle_error( nf90_put_var( region%scalars%ncid, region%scalars%id_var_Calving,       region%int_Calving,                start = (/region%scalars%ti/)))
     
     ! Add auto-tuner variable (if applicable)
     IF (C%do_auto_tuner) THEN
@@ -1121,6 +1126,10 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'BMB_shelf',                [x, y,    t], id_var, long_name='Annual basal mass balance for floating ice', units='m ice equivalent')
     ELSEIF (field_name == 'BMB') THEN
       CALL create_double_var( region%help_fields%ncid, 'BMB',                      [x, y,    t], id_var, long_name='Annual basal mass balance', units='m ice equivalent')
+    ELSEIF (field_name == 'Calving') THEN
+      CALL create_double_var( region%help_fields%ncid, 'Calving',                  [x, y,    t], id_var, long_name='Annual calving', units='m ice equivalent')
+    ELSEIF (field_name == 'MB_year') THEN
+      CALL create_double_var( region%help_fields%ncid, 'MB_year',                  [x, y,    t], id_var, long_name='Annual total mass balance', units='m ice equivalent')
     ELSEIF (field_name == 'Snowfall') THEN
       CALL create_double_var( region%help_fields%ncid, 'Snowfall',                 [x, y, m, t], id_var, long_name='Monthly total snowfall', units='m water equivalent')
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -1598,12 +1607,10 @@ CONTAINS
     
     ! Input variables:
     TYPE(type_model_region),          INTENT(INOUT) :: region
-    ! CHARACTER(LEN=1),                 INTENT(IN)    :: number_filename
 
     ! Local variables:
     LOGICAL                                         :: file_exists
     INTEGER                                         :: t
-    ! CHARACTER(LEN=30)                               :: short_filename
  
     IF (.NOT. par%master) RETURN
     
@@ -1612,17 +1619,6 @@ CONTAINS
     
     ! Generate filename
     region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
-
-    !IF (C%do_auto_tuner) THEN
-    !    short_filename = '/scalar_output_'//TRIM(regioN%name)//'__.nc'
-    !    short_filename(20:20) = number_filename
-    !
-    !    region%scalars%filename = TRIM(C%output_dir)//TRIM(short_filename)
-    !ELSE
-    !    region%scalars%filename = TRIM(C%output_dir)//'/scalar_output_'//TRIM(regioN%name)//'.nc'
-    !END IF
-
-
 
     ! Create a new restart file if none exists and, to prevent loss of data, 
     ! stop with an error message if one already exists (not when differences are considered):
@@ -1661,11 +1657,12 @@ CONTAINS
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_SMB,           [t], region%scalars%id_var_SMB,           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_BMB,           [t], region%scalars%id_var_BMB,           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
     CALL create_double_var( region%scalars%ncid, region%scalars%name_var_MB,            [t], region%scalars%id_var_MB,            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
+    CALL create_double_var( region%scalars%ncid, region%scalars%name_var_Calving,       [t], region%scalars%id_var_Calving,       long_name='Ice-sheet integrated calving', units='Gigaton yr^-1')
+
     
     ! Add auto-tuner variable (if applicable)
     IF (C%do_auto_tuner) THEN
         CALL create_double_var( region%scalars%ncid, region%scalars%name_var_C_abl_constant, [t], region%scalars%id_var_C_abl_constant,            long_name='Ablation Constant', units='mm/yr ')
-        ! CALL handle_error( nf90_put_var( region%scalars%ncid,region%scalars%id_var_C_abl_constant,   region%SMB%C_abl_constant,      start = (/region%scalars%ti/)))
     END IF
 
     ! Leave definition mode:

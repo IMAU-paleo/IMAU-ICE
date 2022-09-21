@@ -298,6 +298,7 @@ MODULE data_types_netcdf_module
     INTEGER :: id_var_SMB
     INTEGER :: id_var_BMB
     INTEGER :: id_var_MB
+    INTEGER :: id_var_Calving
     INTEGER :: id_var_C_abl_constant
     
     CHARACTER(LEN=256) :: name_var_ice_volume        = 'ice_volume           '
@@ -312,6 +313,7 @@ MODULE data_types_netcdf_module
     CHARACTER(LEN=256) :: name_var_SMB               = 'SMB                  '
     CHARACTER(LEN=256) :: name_var_BMB               = 'BMB                  '
     CHARACTER(LEN=256) :: name_var_MB                = 'MB                   '
+    CHARACTER(LEN=256) :: name_var_Calving           = 'Calving              '
     CHARACTER(LEN=256) :: name_var_C_abl_constant    = 'C_abl_constant       '
     
   END TYPE type_netcdf_scalars_regional

@@ -43,7 +43,7 @@ CONTAINS
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i), ice%mask_ocean_a( j,i))
       ice%TAF_a( j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
     END DO
     END DO
@@ -128,7 +128,7 @@ CONTAINS
     
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
+        IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN 
           ice%mask_land_a(  j,i) = 0
           ice%mask_ocean_a( j,i) = 1
           ice%mask_a(       j,i) = C%type_ocean
@@ -479,6 +479,8 @@ CONTAINS
     CALL check_for_NaN_dp_2D( ice%Hi_actual_cf_a     , 'ice%Hi_actual_cf_a'     , 'determine_floating_margin_fraction')
     
   END SUBROUTINE determine_floating_margin_fraction
+
+
   SUBROUTINE ocean_floodfill( grid, ice)
     ! Use a simple floodfill algorithm to determine the ocean mask,
     ! to prevent the formation of (pro-/sub-glacial) lakes

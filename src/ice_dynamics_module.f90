@@ -313,16 +313,7 @@ CONTAINS
     region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
     
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_adv = ', dt_crit_adv, ', dt_from_pc = ', dt_from_pc, ', dt = ', region%dt
-    
-    !debug%dp_2D_01 = region%ice%Hi_tplusdt_a
-    !debug%dp_2D_02 = region%ice%Hi_a
 
-    !debug%dp_2D_03 = w_tot
-    !debug%dp_2D_04 = w_ice
-    !debug%dp_2D_05 = w_ins
-    !debug%dp_2D_06 = Hs_GCM
-
-    !CALL write_to_debug_file
 
   END SUBROUTINE run_ice_dynamics_pc
   
@@ -599,7 +590,7 @@ CONTAINS
       DO j = 1, grid%ny
         ice%Hi_a( j,i) = init%Hi( j,i)
         ice%Hb_a( j,i) = init%Hb( j,i)
-        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp,ice%mask_ocean_a( j,i))
       END DO
       END DO
       CALL sync
@@ -613,7 +604,7 @@ CONTAINS
       DO j = 1, grid%ny
       
         ! Assume the mapped surface elevation is correct
-        Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i))
+        Hs = surface_elevation( init%Hi( j,i), init%Hb( j,i), init%SL( j,i),1)
         
         ! Define bedrock as PD bedrock + restarted deformation
         ice%Hb_a( j,i) = PD%Hb( j,i) + init%dHb( j,i)
@@ -635,7 +626,7 @@ CONTAINS
         END IF
         
         ! Recalculate surface elevation
-        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+        ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i),ice%mask_ocean_a( j,i))
         
       END DO
       END DO
@@ -854,7 +845,8 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_actual_cf_a       , ice%wHi_actual_cf_a       )
-    
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Calving              , ice%wCalving       )
+
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%pc_tau               , ice%wpc_tau               )
@@ -872,7 +864,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_old               , ice%wHi_old               )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_pred              , ice%wHi_pred              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_corr              , ice%wHi_corr              )
-    
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%MB_year              , ice%wMB_year                )
+
     ! Thermodynamics
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_ice_a_prev      , ice%wmask_ice_a_prev      )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%frictional_heating_a , ice%wfrictional_heating_a )

@@ -180,9 +180,21 @@ CONTAINS
       ! Apply the sub-grid grounded fraction
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
-        IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
-      END DO
+        
+        ! When land, assume land fraction
+        IF (ice%mask_ocean_a(j,i) == 0) THEN
+                 IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i)
+                 IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i)
+        ! When surely ocean, use th sub-grid grouded fraction
+        ELSEIF  (ice%mask_ocean_a(j,i) == 1) THEN
+                 IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
+                 IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
+        END IF
+        
+        ! IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
+        ! IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
+      
+        END DO
       END DO
       CALL sync
       
@@ -1066,8 +1078,19 @@ CONTAINS
     IF (C%do_GL_subgrid_friction) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
-        IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
+        ! When land, assume land fraction
+        IF (ice%mask_ocean_a(j,i) == 0) THEN
+                 IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i)
+                 IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i)
+        
+        ! When surely ocean, use th sub-grid grouded fraction
+        ELSEIF  (ice%mask_ocean_a(j,i) == 1) THEN
+                 IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
+                 IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
+        END IF
+        
+        ! IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
+        ! IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
       END DO
       END DO
       CALL sync

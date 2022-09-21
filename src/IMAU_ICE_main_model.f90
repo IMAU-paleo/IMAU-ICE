@@ -149,14 +149,19 @@ CONTAINS
         CALL sync
       END IF
       
+      ! Save the change in Hi
+      region%ice%MB_year( :,region%grid%i1:region%grid%i2) = region%ice%MB_year( :,region%grid%i1:region%grid%i2) + region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2) - region%ice%Hi_a( :,region%grid%i1:region%grid%i2) 
+
       ! Update ice geometry and advance region time
       region%ice%Hi_a( :,region%grid%i1:region%grid%i2) = region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)
+      
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       CALL apply_calving_law( region%grid, region%ice, region%PD)
       CALL update_general_ice_model_data( region%grid, region%ice, region%time)
       IF (par%master) region%time = region%time + region%dt
       CALL sync
-      
+     
+
       ! DENK DROM
       !region%time = t_end
     
@@ -329,6 +334,7 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%int_SMB                      , region%wint_SMB                      )
     CALL allocate_shared_dp_0D( region%int_BMB                      , region%wint_BMB                      )
     CALL allocate_shared_dp_0D( region%int_MB                       , region%wint_MB                       )
+    CALL allocate_shared_dp_0D( region%int_Calving                  , region%wint_Calving                  )
     
     ! ===== Englacial isotope content =====
     ! =====================================
@@ -421,19 +427,21 @@ CONTAINS
     
     CALL initialise_ice_model( region%grid, region%ice, region%PD, region%init)
    
-    ! ===== The reference topography  ===
+    ! ===== Initialisation that needs both ice dynamics and climate matrix to be ready ===
+    ! Added by MS (2021-2022) to make IMAU-ICE v2 behave like ANICE & IMAU-ICE v1
 
     ! Place the PD data into the Hs init, which is needed to get accurate
     ! weights for the precipitation in the climate matrix
-    region%ice%Hs_init = region%PD%Hs
+    region%ice%Hs_init = region%PD%Hs ! EAS%ice%Hs_a
     
-    ! Create the reference topography for each snapshot 
+    ! Create the reference topography snapshot per 
     CALL initialise_GCM_reference_topography(region%climate%GCM_PI,   region%ice, region%grid)
     CALL initialise_GCM_reference_topography(region%climate%GCM_warm, region%ice, region%grid)
     CALL initialise_GCM_reference_topography(region%climate%GCM_cold, region%ice, region%grid)
 
     ! =====
 
+ 
     ! Geothermal heat flux
     IF     (C%choice_geothermal_heat_flux == 'constant') THEN
       region%ice%GHF_a( :,region%grid%i1:region%grid%i2) = C%constant_geothermal_heat_flux
@@ -859,7 +867,7 @@ CONTAINS
     ! Calculate original surface elevation
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      Hs( j,i) = surface_elevation( Hi( j,i), Hb( j,i), 0._dp)
+      Hs( j,i) = surface_elevation( Hi( j,i), Hb( j,i), 0._dp,1)
     END DO
     END DO
     CALL sync
@@ -888,7 +896,8 @@ CONTAINS
         ! Correct the surface elevation for this if necessary
         Hs( j,i) = Hi( j,i) + MAX( 0._dp - ice_density / seawater_density * Hi( j,i), Hb( j,i))
         
-      END IF
+      
+        END IF
       
     END DO
     END DO
@@ -942,6 +951,14 @@ CONTAINS
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
     CALL sync
    
+    ! REMOVE IN FINAL VERSION: Print out the Sea Level Contribution to check if the run is doing well
+    IF (par%master) THEN
+        PRINT*,(region%GMSL_contribution)
+    END IF
+
+    CALL sync
+
+
   END SUBROUTINE calculate_icesheet_volume_and_area
   SUBROUTINE calculate_PD_sealevel_contribution( region)
     
