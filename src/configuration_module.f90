@@ -339,6 +339,8 @@ MODULE configuration_module
   ! Prescribed retreat mask
   LOGICAL             :: do_apply_prescribed_retreat_mask_config     = .FALSE.                          ! Whether or not to apply an externally prescribed retreat mask
   CHARACTER(LEN=256)  :: prescribed_retreat_mask_filename_config     = ''                               ! NetCDF file containing a prescribed retreat mask
+  CHARACTER(LEN=256)  :: prescribed_retreat_mask_varname_config      = ''                               ! The name of the variable in the NetCDF file
+  CHARACTER(LEN=256)  :: prescribed_retreat_mask_refice_filename_config = ''                            ! NetCDF file containing the reference ice thickness for the prescribed retreat mask
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -433,12 +435,19 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
   CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
 
-  ! NetCDF files containing direct global/regional climate forcing
-  CHARACTER(LEN=256)  :: filename_direct_global_climate_config       = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_climate_NAM_config = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_climate_EAS_config = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_climate_GRL_config = ''
-  CHARACTER(LEN=256)  :: filename_direct_regional_climate_ANT_config = ''
+  ! Folder with NetCDF files containing direct climate forcing
+  CHARACTER(LEN=256)  :: direct_climate_foldername_NAM_config        = ''
+  CHARACTER(LEN=256)  :: direct_climate_foldername_EAS_config        = ''
+  CHARACTER(LEN=256)  :: direct_climate_foldername_GRL_config        = ''
+  CHARACTER(LEN=256)  :: direct_climate_foldername_ANT_config        = ''
+
+  CHARACTER(LEN=256)  :: direct_climate_basefilename_NAM_config      = ''
+  CHARACTER(LEN=256)  :: direct_climate_basefilename_EAS_config      = ''
+  CHARACTER(LEN=256)  :: direct_climate_basefilename_GRL_config      = ''
+  CHARACTER(LEN=256)  :: direct_climate_basefilename_ANT_config      = ''
+
+  ! Whether or not to apply geometry corrections to direct temperature/precipitation
+  LOGICAL             :: do_direct_climate_geo_corr_config           = .TRUE.
 
   ! NetCDF file containing the present-day observed climate (e.g. ERA40)
   CHARACTER(LEN=256)  :: filename_PD_obs_climate_config              = '/Users/berends/Documents/Datasets/ERA40/ERA40_climate_global.nc'
@@ -533,6 +542,7 @@ MODULE configuration_module
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      /)
+  LOGICAL             :: do_invert_linear_per_basin_config           = .FALSE.                          ! Whether or not to invert for ocean temperature based on thinning rates
 
   ! Surface mass balance
   ! ====================
@@ -574,8 +584,7 @@ MODULE configuration_module
   ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
   ! ==============================================================
 
-  CHARACTER(LEN=256)  :: ISMIP_forcing_filename_SMB_baseline_config  = ''                              ! NetCDF file containing the baseline SMB
-  CHARACTER(LEN=256)  :: ISMIP_forcing_filename_ST_baseline_config   = ''                              ! NetCDF file containing the baseline temperature
+  CHARACTER(LEN=256)  :: ISMIP_forcing_filename_baseline_config      = ''                              ! NetCDF file containing the baseline climate for the ISMIP-style forcing
   CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_aSMB_config        = ''                              ! Folder containing the single-year NetCDF files of the SMB anomaly
   CHARACTER(LEN=256)  :: ISMIP_forcing_basefilename_aSMB_config      = ''                              ! Filename without the year (e.g. if the actual file is "aSMB_MARv3.12-yearly-CESM2-ssp585-1950.nc",   then this variable should be "aSMB_MARv3.12-yearly-CESM2-ssp585-"
   CHARACTER(LEN=256)  :: ISMIP_forcing_foldername_dSMBdz_config      = ''                              ! Folder containing the single-year NetCDF files of the SMB lapse rate
@@ -1074,6 +1083,8 @@ MODULE configuration_module
     ! Prescribed retreat mask
     LOGICAL                             :: do_apply_prescribed_retreat_mask
     CHARACTER(LEN=256)                  :: prescribed_retreat_mask_filename
+    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_varname
+    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_refice_filename
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1168,12 +1179,19 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_climate_model
     CHARACTER(LEN=256)                  :: choice_idealised_climate
 
-    ! NetCDF files containing direct global/regional climate forcing
-    CHARACTER(LEN=256)                  :: filename_direct_global_climate
-    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_NAM
-    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_EAS
-    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_GRL
-    CHARACTER(LEN=256)                  :: filename_direct_regional_climate_ANT
+    ! Folder with NetCDF files containing direct climate forcing
+    CHARACTER(LEN=256)                  :: direct_climate_foldername_NAM
+    CHARACTER(LEN=256)                  :: direct_climate_foldername_EAS
+    CHARACTER(LEN=256)                  :: direct_climate_foldername_GRL
+    CHARACTER(LEN=256)                  :: direct_climate_foldername_ANT
+
+    CHARACTER(LEN=256)                  :: direct_climate_basefilename_NAM
+    CHARACTER(LEN=256)                  :: direct_climate_basefilename_EAS
+    CHARACTER(LEN=256)                  :: direct_climate_basefilename_GRL
+    CHARACTER(LEN=256)                  :: direct_climate_basefilename_ANT
+
+    ! Whether or not to apply geometry corrections to direct temperature/precipitation
+    LOGICAL                             :: do_direct_climate_geo_corr
 
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     CHARACTER(LEN=256)                  :: filename_PD_obs_climate
@@ -1190,10 +1208,6 @@ MODULE configuration_module
     REAL(dp)                            :: climate_matrix_CO2vsice_EAS
     REAL(dp)                            :: climate_matrix_CO2vsice_GRL
     REAL(dp)                            :: climate_matrix_CO2vsice_ANT
-
-    ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
-    REAL(dp), DIMENSION(100) :: ocean_T_surf_per_basin
-    REAL(dp), DIMENSION(100) :: ocean_dT_dz_per_basin
 
     ! Orbit time and CO2 concentration of the warm and cold snapshots
     REAL(dp)                            :: matrix_high_CO2_level
@@ -1251,6 +1265,11 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_matrix_CO2vsice_GRL
     REAL(dp)                            :: ocean_matrix_CO2vsice_ANT
 
+    ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
+    REAL(dp), DIMENSION(100)            :: ocean_T_surf_per_basin
+    REAL(dp), DIMENSION(100)            :: ocean_dT_dz_per_basin
+    LOGICAL                             :: do_invert_linear_per_basin
+
     ! Surface mass balance
     ! ====================
 
@@ -1291,8 +1310,7 @@ MODULE configuration_module
     ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
     ! ==============================================================
 
-    CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_SMB_baseline
-    CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_ST_baseline
+    CHARACTER(LEN=256)                  :: ISMIP_forcing_filename_baseline
     CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_aSMB
     CHARACTER(LEN=256)                  :: ISMIP_forcing_basefilename_aSMB
     CHARACTER(LEN=256)                  :: ISMIP_forcing_foldername_dSMBdz
@@ -1928,6 +1946,8 @@ CONTAINS
                      fixed_grounding_line_config,                     &
                      do_apply_prescribed_retreat_mask_config,         &
                      prescribed_retreat_mask_filename_config,         &
+                     prescribed_retreat_mask_varname_config,          &
+                     prescribed_retreat_mask_refice_filename_config,  &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -1998,11 +2018,15 @@ CONTAINS
                      uniform_ice_thermal_conductivity_config,         &
                      choice_climate_model_config,                     &
                      choice_idealised_climate_config,                 &
-                     filename_direct_global_climate_config,           &
-                     filename_direct_regional_climate_NAM_config,     &
-                     filename_direct_regional_climate_EAS_config,     &
-                     filename_direct_regional_climate_GRL_config,     &
-                     filename_direct_regional_climate_ANT_config,     &
+                     direct_climate_foldername_NAM_config,            &
+                     direct_climate_foldername_EAS_config,            &
+                     direct_climate_foldername_GRL_config,            &
+                     direct_climate_foldername_ANT_config,            &
+                     direct_climate_basefilename_NAM_config,          &
+                     direct_climate_basefilename_EAS_config,          &
+                     direct_climate_basefilename_GRL_config,          &
+                     direct_climate_basefilename_ANT_config,          &
+                     do_direct_climate_geo_corr_config,               &
                      filename_PD_obs_climate_config,                  &
                      filename_climate_snapshot_PI_config,             &
                      filename_climate_snapshot_warm_config,           &
@@ -2012,8 +2036,6 @@ CONTAINS
                      climate_matrix_CO2vsice_EAS_config,              &
                      climate_matrix_CO2vsice_GRL_config,              &
                      climate_matrix_CO2vsice_ANT_config,              &
-                     ocean_T_surf_per_basin_config,                   &
-                     ocean_dT_dz_per_basin_config,                    &
                      matrix_high_CO2_level_config,                    &
                      matrix_low_CO2_level_config,                     &
                      matrix_warm_orbit_time_config,                   &
@@ -2049,6 +2071,9 @@ CONTAINS
                      ocean_matrix_CO2vsice_EAS_config,                &
                      ocean_matrix_CO2vsice_GRL_config,                &
                      ocean_matrix_CO2vsice_ANT_config,                &
+                     ocean_T_surf_per_basin_config,                   &
+                     ocean_dT_dz_per_basin_config,                    &
+                     do_invert_linear_per_basin_config,               &
                      choice_SMB_model_config,                         &
                      choice_idealised_SMB_config,                     &
                      SMB_uniform_config,                              &
@@ -2078,8 +2103,7 @@ CONTAINS
                      SMB_IMAUITM_C_refr_EAS_config,                   &
                      SMB_IMAUITM_C_refr_GRL_config,                   &
                      SMB_IMAUITM_C_refr_ANT_config,                   &
-                     ISMIP_forcing_filename_SMB_baseline_config,      &
-                     ISMIP_forcing_filename_ST_baseline_config,       &
+                     ISMIP_forcing_filename_baseline_config,          &
                      ISMIP_forcing_foldername_aSMB_config,            &
                      ISMIP_forcing_basefilename_aSMB_config,          &
                      ISMIP_forcing_foldername_dSMBdz_config,          &
@@ -2701,6 +2725,8 @@ CONTAINS
     ! Prescribed retreat mask
     C%do_apply_prescribed_retreat_mask         = do_apply_prescribed_retreat_mask_config
     C%prescribed_retreat_mask_filename         = prescribed_retreat_mask_filename_config
+    C%prescribed_retreat_mask_varname          = prescribed_retreat_mask_varname_config
+    C%prescribed_retreat_mask_refice_filename  = prescribed_retreat_mask_refice_filename_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -2795,12 +2821,19 @@ CONTAINS
     C%choice_climate_model                     = choice_climate_model_config
     C%choice_idealised_climate                 = choice_idealised_climate_config
 
-    ! NetCDF files containing direct global/regional climate forcing
-    C%filename_direct_global_climate           = filename_direct_global_climate_config
-    C%filename_direct_regional_climate_NAM     = filename_direct_regional_climate_NAM_config
-    C%filename_direct_regional_climate_EAS     = filename_direct_regional_climate_EAS_config
-    C%filename_direct_regional_climate_GRL     = filename_direct_regional_climate_GRL_config
-    C%filename_direct_regional_climate_ANT     = filename_direct_regional_climate_ANT_config
+    ! Folder with NetCDF files containing direct climate forcing
+    C%direct_climate_foldername_NAM            = direct_climate_foldername_NAM_config
+    C%direct_climate_foldername_EAS            = direct_climate_foldername_EAS_config
+    C%direct_climate_foldername_GRL            = direct_climate_foldername_GRL_config
+    C%direct_climate_foldername_ANT            = direct_climate_foldername_ANT_config
+
+    C%direct_climate_basefilename_NAM          = direct_climate_basefilename_NAM_config
+    C%direct_climate_basefilename_EAS          = direct_climate_basefilename_EAS_config
+    C%direct_climate_basefilename_GRL          = direct_climate_basefilename_GRL_config
+    C%direct_climate_basefilename_ANT          = direct_climate_basefilename_ANT_config
+
+    ! Whether or not to apply geometry corrections to direct temperature/precipitation
+    C%do_direct_climate_geo_corr               = do_direct_climate_geo_corr_config
 
     ! NetCDF file containing the present-day observed climate (e.g. ERA40)
     C%filename_PD_obs_climate                  = filename_PD_obs_climate_config
@@ -2875,6 +2908,7 @@ CONTAINS
     ! Basin-dependent linear temperature profiles (used when choice_idealised_ocean = "linear_per_basin")
     C%ocean_T_surf_per_basin                   = ocean_T_surf_per_basin_config
     C%ocean_dT_dz_per_basin                    = ocean_dT_dz_per_basin_config
+    C%do_invert_linear_per_basin               = do_invert_linear_per_basin_config
 
     ! Surface mass balance
     ! ====================
@@ -2916,8 +2950,7 @@ CONTAINS
     ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
     ! ==============================================================
 
-    C%ISMIP_forcing_filename_SMB_baseline      = ISMIP_forcing_filename_SMB_baseline_config
-    C%ISMIP_forcing_filename_ST_baseline       = ISMIP_forcing_filename_ST_baseline_config
+    C%ISMIP_forcing_filename_baseline          = ISMIP_forcing_filename_baseline_config
     C%ISMIP_forcing_foldername_aSMB            = ISMIP_forcing_foldername_aSMB_config
     C%ISMIP_forcing_basefilename_aSMB          = ISMIP_forcing_basefilename_aSMB_config
     C%ISMIP_forcing_foldername_dSMBdz          = ISMIP_forcing_foldername_dSMBdz_config

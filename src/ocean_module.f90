@@ -12,7 +12,7 @@ MODULE ocean_module
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_ocean_snapshot_global, type_ocean_matrix_global, &
                                              type_ocean_snapshot_regional, type_ocean_matrix_regional, type_highres_ocean_data, &
-                                             type_climate_matrix_regional
+                                             type_climate_model, type_reference_geometry
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
                                              inquire_PD_obs_global_ocean_file, read_PD_obs_global_ocean_file, &
                                              inquire_GCM_global_ocean_file, read_GCM_global_ocean_file, &
@@ -26,7 +26,7 @@ MODULE ocean_module
                                              inverse_oblique_sg_projection, map_glob_to_grid_2D, map_glob_to_grid_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
                                              remap_cons_2nd_order_1D, surface_elevation, extrapolate_Gaussian_floodfill, &
-                                             transpose_dp_2D, transpose_dp_3D
+                                             transpose_dp_2D, transpose_dp_3D, linear_least_squares_fit
 
   IMPLICIT NONE
 
@@ -35,7 +35,7 @@ CONTAINS
 ! == The main routines that should be called from the main ice model/program
 ! ==========================================================================
 
-  SUBROUTINE run_ocean_model( grid, ice, ocean_matrix, climate_matrix, region_name, time)
+  SUBROUTINE run_ocean_model( grid, ice, ocean_matrix, climate, region_name, time, refgeo_PD)
     ! Run the regional ocean model
 
     IMPLICIT NONE
@@ -44,9 +44,10 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TyPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
-    TYPE(type_climate_matrix_regional),  INTENT(IN)    :: climate_matrix
+    TYPE(type_climate_model),            INTENT(IN)    :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model'
@@ -59,7 +60,7 @@ CONTAINS
     ELSEIF (C%choice_ocean_model == 'idealised') THEN
       ! Assign some idealised temperature/salinity ocean profiles
 
-      CALL run_ocean_model_idealised( grid, ice, ocean_matrix%applied, region_name, time)
+      CALL run_ocean_model_idealised( grid, ice, ocean_matrix%applied, region_name, time, refgeo_PD)
 
     ELSEIF (C%choice_ocean_model == 'uniform_warm_cold') THEN
       ! Uniform warm/cold ocean model (the old ANICE way)
@@ -74,7 +75,7 @@ CONTAINS
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Run the warm/cold ocean matrix
 
-      CALL run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name, time)
+      CALL run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate, region_name, time)
 
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
@@ -180,7 +181,7 @@ CONTAINS
 ! == Idealised ocean configurations
 ! =================================
 
-  SUBROUTINE run_ocean_model_idealised( grid, ice, ocean, region_name, time)
+  SUBROUTINE run_ocean_model_idealised( grid, ice, ocean, region_name, time, refgeo_PD)
     ! Run the regional ocean model
     !
     ! Assign some idealised temperature/salinity ocean profiles
@@ -193,6 +194,7 @@ CONTAINS
     TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised'
@@ -215,7 +217,7 @@ CONTAINS
     ELSEIF (C%choice_idealised_ocean == 'Reese2018_ANT') THEN
       CALL run_ocean_model_idealised_Reese2018_ANT( grid, ice, ocean, region_name)
     ELSEIF (C%choice_idealised_ocean == 'linear_per_basin') THEN
-      CALL run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name)
+      CALL run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name, time, refgeo_PD)
     ELSE
       CALL crash('unknown choice_idealised_ocean "' // TRIM( C%choice_idealised_ocean) // '"!')
     END IF
@@ -491,7 +493,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ocean_model_idealised_Reese2018_ANT
-  SUBROUTINE run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name)
+  SUBROUTINE run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name, time, refgeo_PD)
     ! Run the regional ocean model
     !
     ! Set the ocean temperature and salinity to depth- and basin-dependent values.
@@ -511,9 +513,11 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_studentdemo'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_linear_per_basin'
     INTEGER                                            :: i,j,k,bi
     REAL(dp)                                           :: T_surf, dT_dz, w, T, S
     REAL(dp), PARAMETER                                :: Szero     = 33.8_dp    ! Sea surface salinity    [PSU]
@@ -533,6 +537,11 @@ CONTAINS
                      'This can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems. ' // &
                      '...and you will also need to set do_merge_basins_ANT_config = .TRUE.')
       END IF
+    END IF
+
+    ! If so specified, invert for ocean temperatures based on modelled thinning rates
+    IF (C%do_invert_linear_per_basin) THEN
+      CALL invert_linear_per_basin( grid, ice, region_name, time, refgeo_PD)
     END IF
 
     ! Determine vertical temperature and salinity profiles per basin
@@ -572,6 +581,144 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ocean_model_idealised_linear_per_basin
+  SUBROUTINE invert_linear_per_basin( grid, ice, region_name, time, refgeo_PD)
+    ! Calculate a linear depth-dependent ocean temperature profile for each ice basin to get the closest
+    ! match to the modelled thinning rates (i.e. the melt rates required to maintain a stable shelf)
+
+    USE parameters_module, ONLY: sec_per_year, seawater_density, cp_ocean, ice_density, L_fusion
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    REAL(dp),                            INTENT(IN)    :: time
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'invert_linear_per_basin'
+    INTEGER                                            :: i,j,bi,n
+    REAL(dp), PARAMETER                                :: Szero   = 33.8_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: lambda1 = -0.0575_dp ! Liquidus slope                [degC PSU^-1] (Favier et al. (2019), Table 2)
+    REAL(dp), PARAMETER                                :: lambda2 = 0.0832_dp  ! Liquidus intercept            [degC]        (Favier et al. (2019), Table 2)
+    REAL(dp), PARAMETER                                :: lambda3 = 7.59E-4_dp ! Liquidus pressure coefficient [degC m^-1]   (Favier et al. (2019), Table 2)
+    REAL(dp)                                           :: T_freeze_surf
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: depths, delta_T_oceans
+    REAL(dp)                                           :: depth, delta_Hi, delta_Hi_rel, dHi_dt
+    REAL(dp), PARAMETER                                :: dHi_dT_scale   = 1000._dp
+    REAL(dp), PARAMETER                                :: dHidt_dT_scale = 10._dp
+    REAL(dp), PARAMETER                                :: t_scale        = 1000._dp
+    REAL(dp)                                           :: delta_T_ocean
+    REAL(dp)                                           :: deltaT_surf, deltaT_dz
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (.NOT. region_name == 'ANT') THEN
+      CALL crash('only applicable to Antarctica!')
+    END IF
+    IF (.NOT. (C%choice_basin_scheme_ANT == 'file' .AND. C%do_merge_basins_ANT)) THEN
+      IF (par%master) THEN
+        CALL warning('This really only works when using the external Antarctic ice basins file "ant_full_drainagesystem_polygons.txt". ' // &
+                     'This can be downloaded from: https://earth.gsfc.nasa.gov/cryo/data/polar-altimetry/antarctic-and-greenland-drainage-systems. ' // &
+                     '...and you will also need to set do_merge_basins_ANT_config = .TRUE.')
+      END IF
+    END IF
+
+    ! Freezing temperature of surface water
+    T_freeze_surf = lambda1 * Szero + lambda2
+
+    ! Let the Master do all the work
+    IF (par%master) THEN
+
+      ! Initialise with a nice and cold ocean
+      IF (time == C%start_time_of_run) THEN
+        DO bi = 1, ice%nbasins
+          C%ocean_T_surf_per_basin( bi) = T_freeze_surf
+          C%ocean_dT_dz_per_basin(  bi) = -lambda3
+        END DO
+      END IF
+
+      ! Allocate memory to store the list of depths and melt rates per basin
+      ALLOCATE( depths(         grid%nx*grid%ny))
+      ALLOCATE( delta_T_oceans( grid%nx*grid%ny))
+
+      ! DENK DROM
+      debug%dp_2D_01 = 0._dp
+
+      ! Loop over all the basins
+      DO bi = 1, ice%nbasins
+
+        ! Calculate required ocean temperature for all shelf grid cells in this basin
+        n = 0
+        DO i = 1, grid%nx
+        DO j = 1, grid%ny
+
+          IF (ice%basin_ID( j,i) == bi .AND. ice%mask_shelf_a( j,i) == 1 .AND. ice%mask_margin_a( j,i) == 0) THEN
+
+            ! Depth, ice thickness anomaly, and modelled thinning rate
+            depth        = ice%Hi_a( j,i) - ice%Hs_a( j,i)    ! Reversed because depth is positive below the surface
+            delta_Hi     = ice%Hi_a( j,i) - refgeo_PD%Hi( j,i)
+            delta_Hi_rel = delta_Hi / MAX( 0.1_dp, ice%Hi_a( j,i))
+            dHi_dt       = ice%dHi_dt_a( j,i)
+
+            ! Calculate by how much we want to change the ocean temperature at this depth
+            delta_T_ocean = -1._dp * (delta_Hi / dHi_dT_scale + dHi_dt / dHidt_dT_scale)
+
+            ! DENK DROM
+            debug%dp_2D_01( j,i) = delta_T_ocean
+
+!            ! If the difference/fraction is outside the specified tolerance
+!            IF (ABS( delta_Hi    ) >= C%BIVgeo_Bernales2017_tol_diff .OR. &
+!                ABS( delta_Hi_rel) >= C%BIVgeo_Bernales2017_tol_frac) THEN
+
+              ! Further adjust only where the previous value is not improving the result
+              IF ( delta_Hi * dHi_dt >= 0._dp ) THEN
+
+                ! Store the depth and ocean temperature in the arrays for performing a least-squares fit
+                n = n+1
+                depths(         n) = depth
+                delta_T_oceans( n) = delta_T_ocean
+
+              END IF
+
+!            END IF
+
+          END IF ! IF (ice%basin_ID( j,i) == bi .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+        END DO
+        END DO
+
+        ! Perform a least-squares fit of temperature vs depth
+        CALL linear_least_squares_fit( depths, delta_T_oceans, n, deltaT_surf, deltaT_dz)
+
+        ! Adjust the temperature profile
+        C%ocean_T_surf_per_basin( bi) = MAX( T_freeze_surf, MIN( 5._dp,    C%ocean_T_surf_per_basin( bi) + deltaT_surf * C%dt_ocean / t_scale ))
+        C%ocean_dT_dz_per_basin(  bi) = MAX( -0.005_dp    , MIN( 0.005_dp, C%ocean_dT_dz_per_basin(  bi) + deltaT_dz   * C%dt_ocean / t_scale ))
+
+      END DO ! DO bi = 1, ice%nbasins
+
+      ! DENK DROM
+      CALL write_to_debug_file
+!      CALL crash('beep')
+
+      ! Clean up after yourself
+      DEALLOCATE( depths        )
+      DEALLOCATE( delta_T_oceans)
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Broadcast results to all processes
+    CALL MPI_BCAST( C%ocean_T_surf_per_basin, SIZE( C%ocean_T_surf_per_basin,1), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+    CALL MPI_BCAST( C%ocean_dT_dz_per_basin , SIZE( C%ocean_dT_dz_per_basin ,1), MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE invert_linear_per_basin
 
 ! == Uniform warm/cold ocean model (the old ANICE way)
 ! ====================================================
@@ -701,7 +848,7 @@ CONTAINS
 ! == Ocean matrix with warm and cold snapshots
 ! ============================================
 
-  SUBROUTINE run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate_matrix, region_name, time)
+  SUBROUTINE run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate, region_name, time)
     ! Run the regional ocean model
     !
     ! Run the warm/cold ocean matrix
@@ -711,7 +858,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
-    TYPE(type_climate_matrix_regional),  INTENT(IN)    :: climate_matrix
+    TYPE(type_climate_model),            INTENT(IN)    :: climate
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
 
@@ -779,13 +926,13 @@ CONTAINS
       ! Calculate weighting field
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (    climate_matrix%applied%I_abs(  j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
-                                                           (    climate_matrix%GCM_warm%I_abs( j,i) -     climate_matrix%GCM_cold%I_abs( j,i)) ))
+        w_ins( j,i) = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (     climate%matrix%I_abs(          j,i) -      climate%matrix%GCM_cold%I_abs( j,i)) / &  ! Berends et al., 2018 - Eq. 3
+                                                             (     climate%matrix%GCM_warm%I_abs( j,i) -      climate%matrix%GCM_cold%I_abs( j,i)) ))
       END DO
       END DO
       CALL sync
-      w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM(climate_matrix%applied%I_abs )      - SUM(climate_matrix%GCM_cold%I_abs)     ) / &
-                                                           (SUM(climate_matrix%GCM_warm%I_abs)      - SUM(climate_matrix%GCM_cold%I_abs)     ) ))
+      w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
+                                                             (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
 
       ! Smooth the weighting field
       w_ins_smooth( :,grid%i1:grid%i2) = w_ins( :,grid%i1:grid%i2)

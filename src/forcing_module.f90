@@ -290,32 +290,53 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_mean_temperature_change_region'
     INTEGER                                            :: i,j,m
+    REAL(dp), DIMENSION(:,:  ), POINTER                :: Hs_PD
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: T2m_PD
+    INTEGER                                            :: wHs_PD, wT2m_PD
     REAL(dp)                                           :: dT_lapse_mod, dT_lapse_PD, T_pot_mod, T_pot_PD
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D(     region%grid%ny, region%grid%nx, Hs_PD , wHs_PD )
+    CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, T2m_PD, wT2m_PD)
+
+    ! Obtain present-day orography and temperature from the climate model
+    IF     (C%choice_climate_model == 'PD_obs') THEN
+      Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%Hs(    :,region%grid%i1:region%grid%i2)
+      T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%T2m( :,:,region%grid%i1:region%grid%i2)
+    ELSEIF (C%choice_climate_model == 'matrix_warm_cold') THEN
+      Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%Hs(    :,region%grid%i1:region%grid%i2)
+      T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%T2m( :,:,region%grid%i1:region%grid%i2)
+    ELSE
+      CALL crash('present-day temperature not known for choice_climate_model "'//TRIM( C%choice_climate_model)//'"!')
+    END IF
+
     IF (par%master) THEN
+
       dT = 0._dp
-    END IF
 
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
-      dT_lapse_mod = region%ice%Hs_a(          j,i) * C%constant_lapserate
-      dT_lapse_PD  = region%climate_matrix%PD_obs%Hs( j,i) * C%constant_lapserate
-      DO m = 1, 12
-        T_pot_mod = region%climate_matrix%applied%T2m( m,j,i) - dT_lapse_mod
-        T_pot_PD  = region%climate_matrix%PD_obs%T2m(  m,j,i) - dT_lapse_PD
-        dT = dT + T_pot_mod - T_pot_PD
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
+        dT_lapse_mod = region%ice%Hs_a( j,i) * C%constant_lapserate
+        dT_lapse_PD  = Hs_PD(           j,i) * C%constant_lapserate
+        DO m = 1, 12
+          T_pot_mod = region%climate%T2m( m,j,i) - dT_lapse_mod
+          T_pot_PD  = T2m_PD(             m,j,i) - dT_lapse_PD
+          dT = dT + T_pot_mod - T_pot_PD
+        END DO
       END DO
-    END DO
-    END DO
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+      END DO
 
-    IF (par%master) THEN
       dT = dT / (region%grid%nx * region%grid%ny * 12._dp)
-    END IF
+
+    END IF ! IF (par%master) THEN
     CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wHs_PD )
+    CALL deallocate_shared( wT2m_PD)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -540,7 +561,10 @@ CONTAINS
     ! Interpolate the data in forcing%CO2 to find the value at the queried time.
     ! If time lies outside the range of forcing%CO2_time, return the first/last value
     !
-    ! NOTE: assumes time is listed in kyr (so LGM would be -21000.0)
+    ! NOTE: assumes time is listed in yr BP, so LGM would be -21000.0, and 0.0 corresponds to January 1st 1900.
+    !
+    ! NOTE: calculates average value over the preceding 30 years. For paleo this doesn't matter
+    !       in the least, but for the historical period this makes everything more smooth.
 
     IMPLICIT NONE
 
@@ -549,8 +573,9 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_CO2_at_model_time'
-    INTEGER                                            :: il, iu
-    REAL(dp)                                           :: wl, wu
+    INTEGER                                            :: ti1, ti2, til, tiu
+    REAL(dp)                                           :: a, b, tl, tu, intCO2, dintCO2
+    REAL(dp), PARAMETER                                :: dt_smooth = 60._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -563,26 +588,46 @@ CONTAINS
     END IF
 
     IF (par%master) THEN
-      IF     (time < MINVAL( forcing%CO2_time) * 1000._dp) THEN ! times 1000 because forcing%CO2_time is in kyr
+
+      IF     (time < MINVAL( forcing%CO2_time)) THEN ! times 1000 because forcing%CO2_time is in kyr
         ! Model time before start of CO2 record; using constant extrapolation
         forcing%CO2_obs = forcing%CO2_record( 1)
-      ELSEIF (time > MAXVAL( forcing%CO2_time) * 1000._dp) THEN
+      ELSEIF (time > MAXVAL( forcing%CO2_time)) THEN
         ! Model time beyond end of CO2 record; using constant extrapolation
         forcing%CO2_obs = forcing%CO2_record( C%CO2_record_length)
       ELSE
 
-        iu = 2
-        DO WHILE (forcing%CO2_time( iu) * 1000._dp < time .AND. iu < C%CO2_record_length)
-          iu = iu+1
+        ! Find range of raw time frames enveloping model time
+        ti1 = 1
+        DO WHILE (forcing%CO2_time( ti1) < time - dt_smooth .AND. ti1 < C%CO2_record_length)
+          ti1 = ti1 + 1
         END DO
-        il = iu - 1
+        ti1 = MAX( 1, ti1 - 1)
 
-        wl = MAX( 0._dp, MIN( 1._dp, (forcing%CO2_time( iu)*1000._dp - time) / ((forcing%CO2_time( iu) - forcing%CO2_time( il))*1000._dp) ))
-        wu = 1._dp - wl
+        ti2 = 2
+        DO WHILE (forcing%CO2_time( ti2) < time             .AND. ti2 < C%CO2_record_length)
+          ti2 = ti2 + 1
+        END DO
 
-        forcing%CO2_obs = forcing%CO2_record( il) * wl + forcing%CO2_record( iu) * wu
+        ! Calculate conservatively-remapped time-averaged CO2
+        intCO2 = 0._dp
+        DO til = ti1, ti2 - 1
+          tiu = til + 1
+
+          ! Linear interpolation between til and tiu: CO2( t) = a + b*t
+          b = (forcing%CO2_record( tiu) - forcing%CO2_record( til)) / (forcing%CO2_time( tiu) - forcing%CO2_time( til))
+          a = forcing%CO2_record( til) - b*forcing%CO2_time( til)
+
+          ! Window of overlap between [til,tiu] and [t - dt_smooth, t]
+          tl = MAX( forcing%CO2_time( til), time - dt_smooth)
+          tu = MIN( forcing%CO2_time( tiu), time            )
+          dintCO2 = (tu - tl) * (a + b * (tl + tu) / 2._dp)
+          intCO2 = intCO2 + dintCO2
+        END DO
+        forcing%CO2_obs = intCO2 / dt_smooth
 
       END IF
+
     END IF
     CALL sync
 
@@ -593,7 +638,8 @@ CONTAINS
   SUBROUTINE initialise_CO2_record
     ! Read the CO2 record specified in C%filename_CO2_record. Assumes this is an ASCII text file with at least two columns (time in kyr and CO2 in ppmv)
     ! and the number of rows being equal to C%CO2_record_length
-    ! NOTE: assumes time is listed in kyr (so LGM would be -21.0)
+
+    ! NOTE: assumes time is listed in kyr BP (so LGM would be -21.0); converts to yr after reading!
 
     IMPLICIT NONE
 
@@ -638,6 +684,9 @@ CONTAINS
       IF (C%end_time_of_run/1000._dp > forcing%CO2_time(C%CO2_record_length)) THEN
          CALL warning(' Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case!')
       END IF
+
+      ! Convert from kyr to yr
+      forcing%CO2_time = forcing%CO2_time * 1000._dp
 
     END IF ! IF (par%master)
     CALL sync

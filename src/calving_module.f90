@@ -12,9 +12,10 @@ MODULE calving_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry
-  USE data_types_netcdf_module,        ONLY: type_netcdf_prescribed_retreat_mask
+  USE data_types_netcdf_module,        ONLY: type_netcdf_prescribed_retreat_mask, type_netcdf_prescribed_retreat_mask_refice
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_prescribed_retreat_mask_file, &
-                                             read_prescribed_retreat_mask_file
+                                             read_prescribed_retreat_mask_file, inquire_prescribed_retreat_mask_refice_file, &
+                                             read_prescribed_retreat_mask_refice_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              is_floating, map_square_to_square_cons_2nd_order_2D, transpose_dp_2D
@@ -92,7 +93,7 @@ CONTAINS
 ! == Routines for applying a prescribed retreat mask
 ! ==================================================
 
-  SUBROUTINE apply_prescribed_retreat_mask( grid, ice, time, refgeo_init)
+  SUBROUTINE apply_prescribed_retreat_mask( grid, ice, time)
     ! Apply a prescribed retreat mask (e.g. as in ISMIP6-Greenland or PROTECT-Greenland)
 
     IMPLICIT NONE
@@ -101,7 +102,6 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     REAL(dp),                            INTENT(IN)    :: time
-    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_prescribed_retreat_mask'
@@ -138,9 +138,27 @@ CONTAINS
     ! Apply the retreat mask following the ISMIP protocol
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
+
       IF (ice%ice_fraction_retreat_mask( j,i) < 0.999_dp) THEN
-        ice%Hi_a( j,i) = MIN( ice%Hi_a( j,i), refgeo_init%Hi( j,i) * ice%ice_fraction_retreat_mask( j,i))
+        ice%Hi_a( j,i) = MIN( ice%Hi_a( j,i), ice%retreat_mask_Hi_ref( j,i) * ice%ice_fraction_retreat_mask( j,i))
       END IF
+
+      ! Make sure it also works at the margin right from the start
+      IF (i > 1 .AND. i < grid%nx .AND. j > 1 .AND. j < grid%ny) THEN
+        IF (ice%ice_fraction_retreat_mask( j,i) >= 0.999_dp) THEN
+          IF (ice%ice_fraction_retreat_mask( j-1,i-1) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j-1,i  ) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j-1,i+1) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j  ,i-1) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j  ,i+1) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j+1,i-1) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j+1,i  ) < 0.999_dp .OR. &
+              ice%ice_fraction_retreat_mask( j+1,i+1) < 0.999_dp) THEN
+            ice%Hi_a( j,i) = MIN( ice%Hi_a( j,i), ice%retreat_mask_Hi_ref( j,i) * ice%ice_fraction_retreat_mask( j,i))
+          END IF
+        END IF
+      END IF
+
     END DO
     END DO
     CALL sync
@@ -223,5 +241,64 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_prescribed_retreat_mask_timeframes
+  SUBROUTINE initialise_retreat_mask_refice( grid, ice)
+    ! Initialise the reference ice thickness for a prescribed retreat mask
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_retreat_mask_refice'
+    TYPE(type_netcdf_prescribed_retreat_mask_refice)   :: netcdf
+    TYPE(type_grid)                                    :: grid_raw
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_raw
+    INTEGER                                            :: wHi_raw
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire if all the required fields are present in the specified NetCDF file,
+    ! and determine the dimensions of the memory to be allocated.
+    CALL allocate_shared_int_0D( grid_raw%nx, grid_raw%wnx)
+    CALL allocate_shared_int_0D( grid_raw%ny, grid_raw%wny)
+    IF (par%master) THEN
+      netcdf%filename = C%prescribed_retreat_mask_refice_filename
+      CALL inquire_prescribed_retreat_mask_refice_file( netcdf, grid_raw%nx, grid_raw%ny)
+    END IF
+    CALL sync
+
+    ! Allocate memory for raw data
+    CALL allocate_shared_dp_1D( grid_raw%nx,              grid_raw%x , grid_raw%wx )
+    CALL allocate_shared_dp_1D(              grid_raw%ny, grid_raw%y , grid_raw%wy )
+    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, Hi_raw     , wHi_raw     )
+
+    ! Read raw data
+    CALL read_prescribed_retreat_mask_refice_file( netcdf, grid_raw%x, grid_raw%y, Hi_raw)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( Hi_raw, 'Hi_raw')
+
+    ! Since we want data represented as [j,i] internally, transpose the data we just read.
+    CALL transpose_dp_2D( Hi_raw, wHi_raw)
+
+    ! Map (transposed) raw data to the model grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, &
+      grid_raw%y, grid%nx, grid%ny, grid%x, grid%y, Hi_raw, ice%retreat_mask_Hi_ref)
+
+    ! Deallocate raw data
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wHi_raw     )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_retreat_mask_refice
 
 END MODULE calving_module

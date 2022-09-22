@@ -22,14 +22,13 @@ PROGRAM IMAU_ICE_program
   USE parallel_module,                 ONLY: par, sync, cerr, ierr
   USE configuration_module,            ONLY: dp, C, routine_path, crash, warning, initialise_model_configuration, write_total_model_time_to_screen, &
                                              reset_computation_times
-  USE data_types_module,               ONLY: type_model_region, type_climate_matrix_global, type_ocean_matrix_global, type_SELEN_global, &
+  USE data_types_module,               ONLY: type_model_region, type_ocean_matrix_global, type_SELEN_global, &
                                              type_global_scalar_data, type_netcdf_resource_tracker
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
   USE forcing_module,                  ONLY: forcing, initialise_global_forcing, update_global_forcing, &
                                              update_global_mean_temperature_change_history, &
                                              calculate_modelled_d18O, inverse_routine_global_temperature_offset, &
                                              inverse_routine_CO2, update_sealevel_record_at_model_time
-  USE climate_module,                  ONLY: initialise_climate_model_global
   USE ocean_module,                    ONLY: initialise_ocean_model_global, initialise_ocean_vertical_grid
   USE derivatives_and_grids_module,    ONLY: initialise_zeta_discretisation
   USE IMAU_ICE_main_model,             ONLY: initialise_model, run_model
@@ -49,8 +48,7 @@ PROGRAM IMAU_ICE_program
   ! The four model regions
   TYPE(type_model_region)                :: NAM, EAS, GRL, ANT
 
-  ! The global climate and ocean matrices
-  TYPE(type_climate_matrix_global)       :: climate_matrix_global
+  ! The global ocean matrix
   TYPE(type_ocean_matrix_global)         :: ocean_matrix_global
 
   ! SELEN
@@ -128,11 +126,6 @@ PROGRAM IMAU_ICE_program
 
   CALL create_resource_tracking_file( resources)
 
-  ! ===== Initialise the climate matrix =====
-  ! =========================================
-
-  CALL initialise_climate_model_global( climate_matrix_global)
-
   ! ===== Initialise the ocean matrix =====
   ! =======================================
 
@@ -142,10 +135,10 @@ PROGRAM IMAU_ICE_program
   ! ===== Initialise the model regions ======
   ! =========================================
 
-  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', climate_matrix_global, ocean_matrix_global)
-  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', climate_matrix_global, ocean_matrix_global)
-  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', climate_matrix_global, ocean_matrix_global)
-  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', climate_matrix_global, ocean_matrix_global)
+  IF (C%do_NAM) CALL initialise_model( NAM, 'NAM', ocean_matrix_global)
+  IF (C%do_EAS) CALL initialise_model( EAS, 'EAS', ocean_matrix_global)
+  IF (C%do_GRL) CALL initialise_model( GRL, 'GRL', ocean_matrix_global)
+  IF (C%do_ANT) CALL initialise_model( ANT, 'ANT', ocean_matrix_global)
 
   ! Set GMSL contributions of all simulated ice sheets
   IF (par%master) THEN
@@ -251,10 +244,10 @@ PROGRAM IMAU_ICE_program
     ! Run all four model regions for 100 years
     t_end_models = MIN(C%end_time_of_run, t_coupling + C%dt_coupling)
 
-    IF (C%do_NAM) CALL run_model( NAM, climate_matrix_global, t_end_models)
-    IF (C%do_EAS) CALL run_model( EAS, climate_matrix_global, t_end_models)
-    IF (C%do_GRL) CALL run_model( GRL, climate_matrix_global, t_end_models)
-    IF (C%do_ANT) CALL run_model( ANT, climate_matrix_global, t_end_models)
+    IF (C%do_NAM) CALL run_model( NAM, t_end_models)
+    IF (C%do_EAS) CALL run_model( EAS, t_end_models)
+    IF (C%do_GRL) CALL run_model( GRL, t_end_models)
+    IF (C%do_ANT) CALL run_model( ANT, t_end_models)
 
     ! Advance coupling time
     t_coupling = t_end_models

@@ -12,7 +12,7 @@ MODULE thermodynamics_module
                                              deallocate_shared
   USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_temperature, read_restart_file_temperature
   USE parameters_module
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_snapshot_regional, type_SMB_model, &
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, &
                                              type_restart_data, type_ocean_snapshot_regional
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -35,7 +35,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     REAL(dp),                             INTENT(IN)    :: time
@@ -128,7 +128,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
 
@@ -390,7 +390,7 @@ CONTAINS
 
     ! In/output variables:
     TYPE(type_ice_model),                 INTENT(IN)    :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     REAL(dp), DIMENSION(:,:,:),           INTENT(INOUT) :: Ti
@@ -760,7 +760,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
@@ -838,7 +838,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_linear'
@@ -877,7 +877,7 @@ CONTAINS
     ! In- and output variables
     TYPE(type_grid),                      INTENT(IN)    :: grid
     TYPE(type_ice_model),                 INTENT(INOUT) :: ice
-    TYPE(type_climate_snapshot_regional), INTENT(IN)    :: climate
+    TYPE(type_climate_model)   ,          INTENT(IN)    :: climate
     TYPE(type_ocean_snapshot_regional),   INTENT(IN)    :: ocean
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
 

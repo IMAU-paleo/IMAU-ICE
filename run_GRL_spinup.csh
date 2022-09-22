@@ -1,9 +1,5 @@
 #! /bin/csh -f
 
-mpiexec -n 1 IMAU_ICE_program config-files/config_GRL_32km_spin01_calib_csm
-mpiexec -n 1 IMAU_ICE_program config-files/config_GRL_32km_spin02_glacial_csm
-mpiexec -n 1 IMAU_ICE_program config-files/config_GRL_32km_spin03_termina_csm
-mpiexec -n 1 IMAU_ICE_program config-files/config_GRL_32km_spin04_holocene_csm
+rm -rf results_20220728_001
 
-echo 'Done :)'
-echo ''
+mpiexec -n 2 IMAU_ICE_program spinup_GRL/phase1_calib/config-files/config_spinup_GRL_phase1_calib_hybrid_ZoetIverson_PMIP3ens_32km_invTijn

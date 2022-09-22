@@ -14,7 +14,7 @@ MODULE IMAU_ICE_main_model
                                                  deallocate_shared, partition_list
   USE data_types_module,                   ONLY: type_model_region, type_ice_model, type_reference_geometry, &
                                                  type_SMB_model, type_BMB_model, type_forcing_data, type_grid, &
-                                                 type_climate_matrix_global, type_ocean_matrix_global
+                                                 type_ocean_matrix_global
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                                  inverse_oblique_sg_projection, surface_elevation
@@ -29,7 +29,7 @@ MODULE IMAU_ICE_main_model
   USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
   USE thermodynamics_module,               ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
   USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model
-  USE climate_module,                      ONLY: initialise_climate_model_regional, run_climate_model
+  USE climate_module,                      ONLY: initialise_climate_model,          run_climate_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
@@ -44,14 +44,13 @@ MODULE IMAU_ICE_main_model
 
 CONTAINS
 
-  SUBROUTINE run_model( region, climate_matrix_global, t_end)
+  SUBROUTINE run_model( region, t_end)
     ! Run the model until t_end (usually a 100 years further)
 
     IMPLICIT NONE
 
     ! In/output variables:
     TYPE(type_model_region),             INTENT(INOUT) :: region
-    TYPE(type_climate_matrix_global),    INTENT(INOUT) :: climate_matrix_global
     REAL(dp),                            INTENT(IN)    :: t_end
 
     ! Local variables:
@@ -149,17 +148,17 @@ CONTAINS
 
       ! Run the climate model
       IF (region%do_climate) THEN
-        CALL run_climate_model( region, climate_matrix_global, region%time)
+        CALL run_climate_model( region, region%time)
       END IF
 
       ! Run the ocean model
       IF (region%do_ocean) THEN
-        CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate_matrix, region%name, region%time)
+        CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, region%time, region%refgeo_PD)
       END IF
 
       ! Run the SMB model
       IF (region%do_SMB) THEN
-        CALL run_SMB_model( region%grid, region%ice, region%climate_matrix, region%time, region%SMB, region%mask_noice)
+        CALL run_SMB_model( region%grid, region%ice, region%climate, region%time, region%SMB, region%mask_noice)
       END IF
 
       ! Run the BMB model
@@ -174,7 +173,7 @@ CONTAINS
     ! ==============
 
       t1 = MPI_WTIME()
-      CALL run_thermo_model( region%grid, region%ice, region%climate_matrix%applied, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
+      CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
 
@@ -204,7 +203,7 @@ CONTAINS
       END IF
 
       ! Update ice geometry and advance region time
-      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_init, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
       IF (par%master) region%time = region%time + region%dt
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
@@ -242,7 +241,7 @@ CONTAINS
   END SUBROUTINE run_model
 
   ! Initialise the entire model region - read initial and PD data, initialise the ice dynamics, climate and SMB sub models
-  SUBROUTINE initialise_model( region, name, climate_matrix_global, ocean_matrix_global)
+  SUBROUTINE initialise_model( region, name, ocean_matrix_global)
 
     USE climate_module, ONLY: map_glob_to_grid_2D
 
@@ -251,7 +250,6 @@ CONTAINS
     ! In/output variables:
     TYPE(type_model_region),          INTENT(INOUT)     :: region
     CHARACTER(LEN=3),                 INTENT(IN)        :: name
-    TYPE(type_climate_matrix_global), INTENT(INOUT)     :: climate_matrix_global
     TYPE(type_ocean_matrix_global),   INTENT(INOUT)     :: ocean_matrix_global
 
     ! Local variables:
@@ -366,7 +364,7 @@ CONTAINS
     ! ===== The climate model =====
     ! =============================
 
-    CALL initialise_climate_model_regional( region, climate_matrix_global)
+    CALL initialise_climate_model( region)
 
     ! ===== The ocean model =====
     ! ===========================
@@ -413,11 +411,11 @@ CONTAINS
     ! ==================================================
 
     ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
-    CALL run_climate_model( region, climate_matrix_global, C%start_time_of_run)
-    CALL run_SMB_model( region%grid, region%ice, region%climate_matrix, C%start_time_of_run, region%SMB, region%mask_noice)
+    CALL run_climate_model( region, C%start_time_of_run)
+    CALL run_SMB_model( region%grid, region%ice, region%climate, C%start_time_of_run, region%SMB, region%mask_noice)
 
     ! Initialise the temperature field
-    CALL initialise_ice_temperature( region%grid, region%ice, region%climate_matrix%applied, region%ocean_matrix%applied, region%SMB, region%name)
+    CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
 
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
