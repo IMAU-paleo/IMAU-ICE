@@ -3,6 +3,7 @@ arolla100.dat
 benchmark_experiments/*
 Datasets/*
 Datasets.zip
+data/*
 documentation/*
 imagesc3.m
 IMAU_ICE_program
