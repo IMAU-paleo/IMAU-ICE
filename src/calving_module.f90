@@ -47,6 +47,8 @@ CONTAINS
       ! No calving at all
     ELSEIF (C%choice_calving_law == 'threshold_thickness') THEN
       CALL threshold_thickness_calving( grid, ice)
+    ELSEIF (C%choice_calving_law == 'threshold_distance') THEN
+      CALL threshold_distance_calving( grid, ice)
     ELSE
       CALL crash('unknown choice_calving_law"' // TRIM(C%choice_calving_law) // '"!')
     END IF
@@ -89,6 +91,43 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE threshold_thickness_calving
+
+  SUBROUTINE threshold_distance_calving( grid, ice)
+    ! A simple threshold distance-from-center calving law
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'threshold_distance_calving'
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: radius
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Apply calving law
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      radius = sqrt( grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j))
+
+      IF (ice%mask_cf_a( j,i) == 1 .AND. &
+          ice%mask_shelf_a( j,i) == 1 .AND. &
+          radius > C%calving_threshold_distance * 1000._dp) THEN
+        ice%Hi_a( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE threshold_distance_calving
 
 ! == Routines for applying a prescribed retreat mask
 ! ==================================================

@@ -409,8 +409,9 @@ MODULE configuration_module
   ! Ice dynamics - calving
   ! ======================
 
-  CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  CHARACTER(LEN=256)  :: choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
   REAL(dp)            :: calving_threshold_thickness_config          = 200._dp                          ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  REAL(dp)            :: calving_threshold_distance_config           = 750._dp                          ! Threshold distance from center of domain in the "threshold_distance" calving law (in km)
   LOGICAL             :: do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   LOGICAL             :: continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
@@ -1155,6 +1156,7 @@ MODULE configuration_module
 
     CHARACTER(LEN=256)                  :: choice_calving_law
     REAL(dp)                            :: calving_threshold_thickness
+    REAL(dp)                            :: calving_threshold_distance
     LOGICAL                             :: do_remove_shelves
     LOGICAL                             :: remove_shelves_larger_than_PD
     LOGICAL                             :: continental_shelf_calving
@@ -2003,6 +2005,7 @@ CONTAINS
                      BIVgeo_Bernales2017_tol_frac_config,             &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
+                     calving_threshold_distance_config,               &
                      do_remove_shelves_config,                        &
                      remove_shelves_larger_than_PD_config,            &
                      continental_shelf_calving_config,                &
@@ -2797,6 +2800,7 @@ CONTAINS
 
     C%choice_calving_law                       = choice_calving_law_config
     C%calving_threshold_thickness              = calving_threshold_thickness_config
+    C%calving_threshold_distance               = calving_threshold_distance_config
     C%do_remove_shelves                        = do_remove_shelves_config
     C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
     C%continental_shelf_calving                = continental_shelf_calving_config
