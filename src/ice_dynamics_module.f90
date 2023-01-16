@@ -231,7 +231,7 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%time)
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
@@ -332,7 +332,7 @@ CONTAINS
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -398,7 +398,7 @@ CONTAINS
       ! ==============
 
       ! Calculate dHi_dt for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
 
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
@@ -575,12 +575,12 @@ CONTAINS
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
       CALL determine_floating_margin_fraction( grid, ice)
-      CALL apply_calving_law(                  grid, ice)
+      CALL apply_calving_law(                  grid, ice, time)
 
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
       CALL determine_floating_margin_fraction( grid, ice)
-      CALL apply_calving_law(                  grid, ice)
+      CALL apply_calving_law(                  grid, ice,  time)
 
       ! Remove unconnected shelves
       CALL determine_masks_ice(                grid, ice)
@@ -1210,6 +1210,8 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_rate_a          , ice%wcalving_rate_a       )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_frontxy          , ice%wcalving_frontxy<-       )
 
     ! Ice dynamics - prescribed retreat mask
     IF (C%do_apply_prescribed_retreat_mask) THEN
