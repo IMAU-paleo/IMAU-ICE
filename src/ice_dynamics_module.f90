@@ -231,7 +231,7 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%time)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt)
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
@@ -332,7 +332,7 @@ CONTAINS
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -398,7 +398,7 @@ CONTAINS
       ! ==============
 
       ! Calculate dHi_dt for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
       region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
 
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
@@ -575,12 +575,12 @@ CONTAINS
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
       CALL determine_floating_margin_fraction( grid, ice)
-      CALL apply_calving_law(                  grid, ice, time)
+      CALL apply_calving_law(                  grid, ice)
 
       CALL determine_masks_ice(                grid, ice)
       CALL determine_masks_transitions(        grid, ice)
       CALL determine_floating_margin_fraction( grid, ice)
-      CALL apply_calving_law(                  grid, ice,  time)
+      CALL apply_calving_law(                  grid, ice)
 
       ! Remove unconnected shelves
       CALL determine_masks_ice(                grid, ice)
@@ -790,7 +790,7 @@ CONTAINS
       ! Calculate truncation error (Robinson et al., 2020, Eq. 32)
       ice%pc_tau( j,i) = ABS( ice%pc_zeta * (ice%Hi_corr( j,i) - ice%Hi_pred( j,i)) / ((3._dp * ice%pc_zeta + 3._dp) * dt))
 
-!      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
+      ! IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
       IF (ice%mask_sheet_a( j,i) == 1 .AND. &
           ice%mask_gl_a( j+1,i-1) == 0 .AND. &
           ice%mask_gl_a( j+1,i  ) == 0 .AND. &

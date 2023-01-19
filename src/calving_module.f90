@@ -206,6 +206,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_prescribed_retreat_mask
+
   SUBROUTINE update_prescribed_retreat_mask_timeframes( grid, ice, time)
     ! Update the two timeframes of the prescribed retreat mask
 
@@ -280,6 +281,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_prescribed_retreat_mask_timeframes
+
   SUBROUTINE initialise_retreat_mask_refice( grid, ice)
     ! Initialise the reference ice thickness for a prescribed retreat mask
 
