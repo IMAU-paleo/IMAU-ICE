@@ -1211,7 +1211,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_rate_a          , ice%wcalving_rate_a       )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_frontxy          , ice%wcalving_frontxy<-       )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_x          , ice%wcalving_front_position_x      )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_y          , ice%wcalving_front_position_y      )
 
     ! Ice dynamics - prescribed retreat mask
     IF (C%do_apply_prescribed_retreat_mask) THEN
