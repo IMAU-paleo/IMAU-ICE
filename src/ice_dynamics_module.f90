@@ -982,6 +982,19 @@ CONTAINS
     CALL remove_unconnected_shelves(    grid, ice)
     CALL update_general_ice_model_data( grid, ice)
 
+    ! Initialise calving_front position
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ice%calving_front_position_x( 1, j, i) = grid%x( i) + grid%dx/2._dp
+        ice%calving_front_position_x( 2, j, i) = grid%x( i) - grid%dx/2._dp
+        ice%calving_front_position_y( 1, j, i) = grid%y( j) + grid%dx/2._dp
+        ice%calving_front_position_y( 2, j, i) = grid%y( j) - grid%dx/2._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+
     ! Allocate and initialise basal conditions
     CALL initialise_basal_conditions( grid, ice)
 
@@ -1211,8 +1224,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_rate_a          , ice%wcalving_rate_a       )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_x          , ice%wcalving_front_position_x      )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_y          , ice%wcalving_front_position_y      )
+    CALL allocate_shared_dp_3D( 2     ,grid%ny  , grid%nx  , ice%calving_front_position_x          , ice%wcalving_front_position_x      )
+    CALL allocate_shared_dp_3D( 2     ,grid%ny  , grid%nx  , ice%calving_front_position_y          , ice%wcalving_front_position_y      )
 
     ! Ice dynamics - prescribed retreat mask
     IF (C%do_apply_prescribed_retreat_mask) THEN
