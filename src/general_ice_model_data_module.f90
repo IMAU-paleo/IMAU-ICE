@@ -230,6 +230,7 @@ CONTAINS
     ice%mask_coast_a(  :,grid%i1:grid%i2) = 0
     ice%mask_margin_a( :,grid%i1:grid%i2) = 0
     ice%mask_gl_a(     :,grid%i1:grid%i2) = 0
+    ice%mask_glf_a(    :,grid%i1:grid%i2) = 0
     ice%mask_cf_a(     :,grid%i1:grid%i2) = 0
     CALL sync
 
@@ -257,13 +258,23 @@ CONTAINS
         END IF
       END IF
 
-      ! Sheet bordering shelf equals grounding line
+      ! Sheet bordering shelf equals grounding line (grounded side)
       IF (ice%mask_sheet_a( j,i) == 1) THEN
         IF (ice%mask_shelf_a( j-1,i  ) == 1 .OR. &
             ice%mask_shelf_a( j+1,i  ) == 1 .OR. &
             ice%mask_shelf_a( j  ,i-1) == 1 .OR. &
             ice%mask_shelf_a( j  ,i+1) == 1) THEN
           ice%mask_gl_a( j,i) = 1
+        END IF
+      END IF
+
+      ! Shelf bordering sheet equals grounding line (floating side)
+      IF (ice%mask_shelf_a( j,i) == 1) THEN
+        IF (ice%mask_sheet_a( j-1,i  ) == 1 .OR. &
+            ice%mask_sheet_a( j+1,i  ) == 1 .OR. &
+            ice%mask_sheet_a( j  ,i-1) == 1 .OR. &
+            ice%mask_sheet_a( j  ,i+1) == 1) THEN
+          ice%mask_glf_a( j,i) = 1
         END IF
       END IF
 
