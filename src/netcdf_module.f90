@@ -315,6 +315,18 @@ CONTAINS
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dx_a,       (/1, 1,    ti /))
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dy_a,       (/1, 1,    ti /))
+    ELSEIF (field_name == 'dHi') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHi_a,          (/1, 1,    ti /))
+    ELSEIF (field_name == 'dHs') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_a,          (/1, 1,    ti /))
+    ELSEIF (field_name == 'surf_slop') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_slop,      (/1, 1,    ti /))
+    ELSEIF (field_name == 'surf_curv') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_curv,      (/1, 1,    ti /))
+    ELSEIF (field_name == 'surf_peak') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_peak,      (/1, 1,    ti /))
+    ELSEIF (field_name == 'surf_sink') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_sink,      (/1, 1,    ti /))
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1406,6 +1418,18 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'dHs_dx',                   [x, y,    t], id_var, long_name='Surface slope in x-direction', units='m/m')
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL create_double_var( region%help_fields%ncid, 'dHs_dy',                   [x, y,    t], id_var, long_name='Surface slope in y-direction', units='m/m')
+    ELSEIF (field_name == 'dHi') THEN
+      CALL create_double_var( region%help_fields%ncid, 'dHi',                      [x, y,    t], id_var, long_name='Ice thickness difference w.r.t PD', units='m')
+    ELSEIF (field_name == 'dHs') THEN
+      CALL create_double_var( region%help_fields%ncid, 'dHs',                      [x, y,    t], id_var, long_name='Surface elevation difference w.r.t PD', units='m')
+    ELSEIF (field_name == 'surf_slop') THEN
+      CALL create_double_var( region%help_fields%ncid, 'surf_slop',                [x, y,    t], id_var, long_name='Surface slope', units='...')
+    ELSEIF (field_name == 'surf_curv') THEN
+      CALL create_double_var( region%help_fields%ncid, 'surf_curv',                [x, y,    t], id_var, long_name='Surface curvature', units='...')
+    ELSEIF (field_name == 'surf_peak') THEN
+      CALL create_double_var( region%help_fields%ncid, 'surf_peak',                [x, y,    t], id_var, long_name='Negative surface curvature', units='...')
+    ELSEIF (field_name == 'surf_sink') THEN
+      CALL create_double_var( region%help_fields%ncid, 'surf_sink',                [x, y,    t], id_var, long_name='Positive surface curvature', units='...')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN

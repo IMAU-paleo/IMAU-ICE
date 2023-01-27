@@ -548,6 +548,11 @@ CONTAINS
     ! Finally update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
 
+    ! Compute ice thickness/elevation difference w.r.t PD
+    ice%dHi_a( :,grid%i1:grid%i2) = ice%Hi_a( :,grid%i1:grid%i2) - refgeo_PD%Hi( :,grid%i1:grid%i2)
+    ice%dHs_a( :,grid%i1:grid%i2) = ice%Hs_a( :,grid%i1:grid%i2) - refgeo_PD%Hs( :,grid%i1:grid%i2)
+    CALL sync
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -956,7 +961,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
 
 ! == Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
 
@@ -966,6 +971,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -987,6 +993,11 @@ CONTAINS
       ice%Hi_a( j,i) = refgeo_init%Hi( j,i)
       ice%Hb_a( j,i) = refgeo_init%Hb( j,i)
       ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+
+      ! Differences w.r.t. present-day
+      ice%dHi_a( j,i)  = ice%Hi_a( j,i) - refgeo_PD%Hi( j,i)
+      ice%dHb_a( j,i)  = ice%Hb_a( j,i) - refgeo_PD%Hb( j,i)
+      ice%dHs_a( j,i)  = ice%Hs_a( j,i) - refgeo_PD%Hs( j,i)
     END DO
     END DO
     CALL sync
@@ -1260,6 +1271,14 @@ CONTAINS
 
     ! Isotopes
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_a_prev            , ice%wHi_a_prev            )
+
+    ! Useful extra stuff
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_slop            , ice%wsurf_slop            )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_curv            , ice%wsurf_curv            )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_peak            , ice%wsurf_peak            )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_sink            , ice%wsurf_sink            )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

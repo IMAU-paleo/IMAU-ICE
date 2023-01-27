@@ -334,7 +334,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
 
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%refgeo_PD)
 
     ! ===== Set sea level if prescribed externally =====
     ! ==================================================

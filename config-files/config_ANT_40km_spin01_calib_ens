@@ -580,5 +580,9 @@
   help_field_09_config                        = 'phi_fric'
   help_field_10_config                        = 'uabs_surf'
   help_field_11_config                        = 'uabs_base'
+  help_field_12_config                        = 'surf_slop'
+  help_field_13_config                        = 'surf_curv'
+  help_field_14_config                        = 'surf_peak'
+  help_field_15_config                        = 'surf_sink'
 
 /

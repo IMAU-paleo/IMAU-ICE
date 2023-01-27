@@ -20,7 +20,8 @@ MODULE general_ice_model_data_module
                                              is_in_polygon, oblique_sg_projection
   USE derivatives_and_grids_module,    ONLY: map_a_to_cx_2D, map_a_to_cy_2D, ddx_a_to_cx_2D, ddy_a_to_cy_2D, &
                                              ddy_a_to_cx_2D, ddx_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D, &
-                                             ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D
+                                             ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D, &
+                                             ddxx_a_to_a_2D, ddyy_a_to_a_2D, ddxy_a_to_a_2D
 
   IMPLICIT NONE
 
@@ -32,15 +33,22 @@ CONTAINS
     IMPLICIT NONE
 
     ! In- and output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_grid),      INTENT(IN)    :: grid
+    TYPE(type_ice_model), INTENT(INOUT) :: ice
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_general_ice_model_data'
-    INTEGER                                            :: i,j
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'update_general_ice_model_data'
+    INTEGER                             :: i,j
+    REAL(dp), DIMENSION(:,:), POINTER   ::  d2dx2,  d2dxdy,  d2dy2
+    INTEGER                             :: wd2dx2, wd2dxdy, wd2dy2
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Local allocations
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dx2,  wd2dx2)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dxdy, wd2dxdy)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dy2,  wd2dy2)
 
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
@@ -77,6 +85,39 @@ CONTAINS
     CALL ddy_a_to_cx_2D( grid, ice%Hs_a,          ice%dHs_dy_cx)
     CALL ddx_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dx_cy)
     CALL ddy_a_to_cy_2D( grid, ice%Hs_a,          ice%dHs_dy_cy)
+
+    ! Calculate absolute, negative, and positive surface curvatures
+    CALL ddxx_a_to_a_2D( grid, ice%Hs_a, d2dx2 )
+    CALL ddxy_a_to_a_2D( grid, ice%Hs_a, d2dxdy)
+    CALL ddyy_a_to_a_2D( grid, ice%Hs_a, d2dy2 )
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ! Absolute curvature
+      ice%surf_curv( j,i) = SQRT( d2dx2( j,i)**2 + d2dy2( j,i)**2 + d2dxdy( j,i)**2)
+      ! Negative curvature (peaks)
+      ice%surf_peak( j,i) = MAX( 0._dp, -d2dx2( j,i) - d2dy2( j,i) - d2dxdy( j,i))
+      ! Positive curvatures (sinks)
+      ice%surf_sink( j,i) = MAX( 0._dp,  d2dx2( j,i) + d2dy2( j,i) + d2dxdy( j,i))
+    END DO
+    END DO
+    CALL sync
+
+    ! Calculate surface slopeness (reuse curvature local variables for simplicity)
+    CALL ddx_a_to_a_2D( grid, ice%Hs_a, d2dx2) ! ddx
+    CALL ddy_a_to_a_2D( grid, ice%Hs_a, d2dy2) ! ddy
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%surf_slop( j,i) = SQRT(d2dx2( j,i)**2 + d2dy2( j,i)**2)
+    END DO
+    END DO
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd2dx2)
+    CALL deallocate_shared( wd2dxdy)
+    CALL deallocate_shared( wd2dy2)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

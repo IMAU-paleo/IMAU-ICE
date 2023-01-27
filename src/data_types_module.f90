@@ -323,6 +323,15 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
     INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
 
+    ! Useful extra stuff
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a         ! Ice thickness difference w.r.t. PD
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a         ! Ice elevation difference w.r.t. PD
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_curv     ! Surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_peak     ! Negative surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_sink     ! Positive surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_slop     ! Surface slope
+    INTEGER :: wdHi_a, wdHs_a, wsurf_curv, wsurf_peak, wsurf_sink, wsurf_slop
+
   END TYPE type_ice_model
 
   TYPE type_zeta_coefficients
