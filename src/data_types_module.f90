@@ -326,11 +326,11 @@ MODULE data_types_module
     ! Useful extra stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a         ! Ice thickness difference w.r.t. PD
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a         ! Ice elevation difference w.r.t. PD
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_curv     ! Surface curvature
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_peak     ! Negative surface curvature
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_sink     ! Positive surface curvature
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_slop     ! Surface slope
-    INTEGER :: wdHi_a, wdHs_a, wsurf_curv, wsurf_peak, wsurf_sink, wsurf_slop
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_curv_a   ! Surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_peak_a   ! Negative surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_sink_a   ! Positive surface curvature
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surf_slop_a   ! Surface slope
+    INTEGER :: wdHi_a, wdHs_a, wsurf_curv_a, wsurf_peak_a, wsurf_sink_a, wsurf_slop_a
 
   END TYPE type_ice_model
 

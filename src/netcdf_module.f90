@@ -320,13 +320,13 @@ CONTAINS
     ELSEIF (field_name == 'dHs') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_a,          (/1, 1,    ti /))
     ELSEIF (field_name == 'surf_slop') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_slop,      (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_slop_a,    (/1, 1,    ti /))
     ELSEIF (field_name == 'surf_curv') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_curv,      (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_curv_a,    (/1, 1,    ti /))
     ELSEIF (field_name == 'surf_peak') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_peak,      (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_peak_a,    (/1, 1,    ti /))
     ELSEIF (field_name == 'surf_sink') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_sink,      (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%surf_sink_a,    (/1, 1,    ti /))
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN

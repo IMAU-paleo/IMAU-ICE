@@ -1275,10 +1275,10 @@ CONTAINS
     ! Useful extra stuff
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_slop            , ice%wsurf_slop            )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_curv            , ice%wsurf_curv            )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_peak            , ice%wsurf_peak            )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_sink            , ice%wsurf_sink            )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_slop_a          , ice%wsurf_slop_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_curv_a          , ice%wsurf_curv_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_peak_a          , ice%wsurf_peak_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%surf_sink_a          , ice%wsurf_sink_a          )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

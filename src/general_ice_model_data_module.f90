@@ -46,9 +46,9 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Local allocations
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dx2,  wd2dx2)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dx2,  wd2dx2 )
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dxdy, wd2dxdy)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dy2,  wd2dy2)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d2dy2,  wd2dy2 )
 
     ! Calculate surface elevation and thickness above floatation
     DO i = grid%i1, grid%i2
@@ -94,22 +94,19 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ! Absolute curvature
-      ice%surf_curv( j,i) = SQRT( d2dx2( j,i)**2 + d2dy2( j,i)**2 + d2dxdy( j,i)**2)
+      ice%surf_curv_a( j,i) = SQRT( d2dx2( j,i)**2 + d2dy2( j,i)**2 + d2dxdy( j,i)**2)
       ! Negative curvature (peaks)
-      ice%surf_peak( j,i) = MAX( 0._dp, -d2dx2( j,i) - d2dy2( j,i) - d2dxdy( j,i))
+      ice%surf_peak_a( j,i) = MAX( 0._dp, -d2dx2( j,i) - d2dy2( j,i) - d2dxdy( j,i))
       ! Positive curvatures (sinks)
-      ice%surf_sink( j,i) = MAX( 0._dp,  d2dx2( j,i) + d2dy2( j,i) + d2dxdy( j,i))
+      ice%surf_sink_a( j,i) = MAX( 0._dp,  d2dx2( j,i) + d2dy2( j,i) + d2dxdy( j,i))
     END DO
     END DO
     CALL sync
 
-    ! Calculate surface slopeness (reuse curvature local variables for simplicity)
-    CALL ddx_a_to_a_2D( grid, ice%Hs_a, d2dx2) ! ddx
-    CALL ddy_a_to_a_2D( grid, ice%Hs_a, d2dy2) ! ddy
-
+    ! Calculate absolute surface slope
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%surf_slop( j,i) = SQRT(d2dx2( j,i)**2 + d2dy2( j,i)**2)
+      ice%surf_slop_a( j,i) = SQRT(ice%dHs_dx_a( j,i)**2 + ice%dHs_dy_a( j,i)**2)
     END DO
     END DO
     CALL sync
