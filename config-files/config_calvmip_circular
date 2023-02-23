@@ -263,6 +263,9 @@
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   continental_shelf_calving_config            = .TRUE.                           ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   continental_shelf_min_height_config         = -1648.8                          ! Maximum depth of the continental shelf
+  do_calv_inv_config                          = .TRUE.                           ! Whether or not to perform a calving rate inversion
+  
+  
 
   ! Thermodynamics and rheology
   ! ===========================
@@ -350,8 +353,8 @@
   help_field_02_config                        = 'Hi'
   help_field_03_config                        = 'uabs_surf'
   help_field_04_config                        = 'Hb'
-  help_field_05_config                        = 'cf_x'
-  help_field_06_config                        = 'cf_y'
+  help_field_05_config                        = 'c_r'
+  help_field_06_config                        = 'none'
   help_field_07_config                        = 'none'
   help_field_08_config                        = 'none'
   help_field_09_config                        = 'none'

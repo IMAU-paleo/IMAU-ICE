@@ -342,4 +342,57 @@ CONTAINS
 
   END SUBROUTINE initialise_retreat_mask_refice
 
+
+
+  SUBROUTINE calving_inversion_geo(grid, ice)
+    ! update the calving_rate according to the calving_front_position
+ 
+   IMPLICIT NONE
+    
+    ! input variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+   
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calving_inversion_geo'
+    INTEGER                                            :: i,j
+    REAL(dp)                                           :: cfp_scale, cfp_delta, dz
+ 
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    cfp_scale = .0002_dp
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      
+     IF (ice%mask_cf_a( j,i) == 1) THEN
+
+      ! Calving_front position difference w.r.t. target
+      cfp_delta = MAX(ABS(grid%x(i)), ABS(grid%y(j))) - 750000._dp
+
+      ! Scale the difference and restrict it to the [-1.5; 1.5] range
+      dz = MAX(-1.5_dp, MIN(1.5_dp, cfp_delta * cfp_scale))
+
+      ice%calving_rate_a( j,i) = MAX(0._dp, MIN( 10000._dp, ice%calving_rate_a( j,i) * (10._dp**(dz)) ))
+    
+     END IF
+    END DO
+    END DO
+   CALL sync
+ 
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+ 
+  END SUBROUTINE calving_inversion_geo
+
+
+
+     ! Increase the calving rate
+     !ice%calving_rate_a( j,i) = ice%calving_rate_a( j,i) + 100._dp
+     ! Limit rates at values above 0
+     !ice%calving_rate_a( j,i) = MAX(0._dp, ice%calving_rate_a( j,i))
+     !limit rates at values below 10 km/yr
+     !ice%calving_rate_a( j,i) = MIN(10000._dp, ice%calving_rate_a( j,i)
+
 END MODULE calving_module
