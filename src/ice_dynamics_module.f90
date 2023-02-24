@@ -911,16 +911,6 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_ELRA)
 
-      region%do_calv_inv     = .FALSE.
-      IF (C%do_calv_inv) THEN
-        IF (region%time == region%t_next_calv_inv) THEN
-          region%do_calv_inv         = .TRUE.
-          region%t_last_calv_inv     = region%time
-          region%t_next_calv_inv     = region%t_last_calv_inv + C%calv_inv_dt
-        END IF
-        t_next = MIN( t_next, region%t_next_calv_inv)
-      END IF ! IF (C%do_BIVgeo) THEN
-
       region%do_BIV     = .FALSE.
       IF (C%do_BIVgeo) THEN
         IF (region%time == region%t_next_BIV) THEN
@@ -930,7 +920,17 @@ CONTAINS
         END IF
         t_next = MIN( t_next, region%t_next_BIV)
       END IF ! IF (C%do_BIVgeo) THEN
-      
+
+      region%do_calv_inv     = .FALSE.
+      IF (C%do_calv_inv) THEN
+        IF (region%time == region%t_next_calv_inv) THEN
+          region%do_calv_inv     = .TRUE.
+          region%t_last_calv_inv = region%time
+          region%t_next_calv_inv = region%t_last_calv_inv + C%calv_inv_dt
+        END IF
+        t_next = MIN( t_next, region%t_next_calv_inv)
+      END IF
+
       region%do_output  = .FALSE.
       IF (region%time == region%t_next_output) THEN
         region%do_output      = .TRUE.

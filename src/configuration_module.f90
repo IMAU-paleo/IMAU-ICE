@@ -419,7 +419,7 @@ MODULE configuration_module
   LOGICAL             :: do_calv_inv_config                          = .FALSE.                          ! Whether or not to perform a calving rate inversion
   REAL(dp)            :: calv_inv_t_start_config                     = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
   REAL(dp)            :: calv_inv_t_end_config                       = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
-  REAL(dp)            :: calv_inv_dt_config                          = 1._dp                            ! Time step for updates calving_rate [yr]
+  REAL(dp)            :: calv_inv_dt_config                          = 10._dp                           ! Time step for updates calving_rate [yr]
 
   ! Thermodynamics and rheology
   ! ===========================
@@ -1168,7 +1168,7 @@ MODULE configuration_module
     LOGICAL(dp)                         :: do_calv_inv
     REAL(dp)                            :: calv_inv_t_start
     REAL(dp)                            :: calv_inv_t_end
-    REAL(dp)                            :: calv_inv_dt 
+    REAL(dp)                            :: calv_inv_dt
 
     ! Thermodynamics and rheology
     ! ===========================

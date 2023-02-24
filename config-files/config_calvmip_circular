@@ -62,7 +62,7 @@
   xmax_ANT_config                             =  800000.0                        ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -800000.0                        ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             =  800000.0                        ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 20000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 16000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -256,16 +256,17 @@
   ! Ice dynamics - calving
   ! ======================
 
-  choice_calving_law_config                   = 'none'                           ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
-  calving_threshold_thickness_config          = 500.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
+  calving_threshold_thickness_config          = 100.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   calving_threshold_distance_config           = 750.0                            ! Threshold distance from center of domain in the "threshold_distance" calving law (in km)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
-  continental_shelf_calving_config            = .TRUE.                           ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
+  continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   continental_shelf_min_height_config         = -1648.8                          ! Maximum depth of the continental shelf
   do_calv_inv_config                          = .TRUE.                           ! Whether or not to perform a calving rate inversion
-  
-  
+  calv_inv_t_start_config                     = -9.9E9                           ! Minimum model time when the inversion is allowed
+  calv_inv_t_end_config                       = +9.9E9                           ! Maximum model time when the inversion is allowed
+  calv_inv_dt_config                          = 5.0                              ! Time step for updates calving_rate [yr]
 
   ! Thermodynamics and rheology
   ! ===========================

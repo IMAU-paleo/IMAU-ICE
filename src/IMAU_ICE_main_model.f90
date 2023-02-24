@@ -82,9 +82,9 @@ CONTAINS
 
     tstart = MPI_WTIME()
 
-  ! ====================================
-  ! ===== The main model time loop =====
-  ! ====================================
+   ! ====================================
+   ! ===== The main model time loop =====
+   ! ====================================
 
     it = 0
     dt_ave = 0._dp
@@ -194,6 +194,7 @@ CONTAINS
 
     ! Calving_rate inversion
     ! ======================
+
       IF (region%do_calv_inv) THEN
         IF (region%time > C%calv_inv_t_start .AND. region%time < C%calv_inv_t_end) THEN
           CALL calving_inversion_geo( region%grid, region%ice)
@@ -582,9 +583,9 @@ CONTAINS
       region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_dt
       region%do_BIV         = .FALSE.
 
-      region%t_last_calv_inv     = C%start_time_of_run
-      region%t_next_calv_inv     = C%start_time_of_run + C%calv_inv_dt
-      region%do_calv_inv         = .FALSE.      
+      region%t_last_calv_inv = C%start_time_of_run
+      region%t_next_calv_inv = C%start_time_of_run + C%calv_inv_dt
+      region%do_calv_inv     = .FALSE.
 
       region%t_last_output  = C%start_time_of_run
       region%t_next_output  = C%start_time_of_run
