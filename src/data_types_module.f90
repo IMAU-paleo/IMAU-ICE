@@ -270,12 +270,14 @@ MODULE data_types_module
     INTEGER :: wQx_cx, wQy_cy, wdHi_ij2n
 
     ! Ice dynamics - calving
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_rate_a          ! calving rate
-    REAL(dp), DIMENSION(:,:,:  ), POINTER   :: calving_front_position_x          ! calving front position in x-direction
-    REAL(dp), DIMENSION(:,:,:  ), POINTER   :: calving_front_position_y          ! calving front position in y-direction
-    INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a, wcalving_rate_a, wcalving_front_position_x, wcalving_front_position_y
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a      ! Ice-covered fraction for calving front pixels
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a              ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_rate_x_a         ! Calving rate in x-direction
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_rate_y_a         ! Calving rate in y-direction
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: calving_front_position_x ! Calving front position in x-direction
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: calving_front_position_y ! Calving front position in y-direction
+    INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
+    INTEGER :: wcalving_rate_x_a, wcalving_rate_y_a, wcalving_front_position_x, wcalving_front_position_y
 
     ! Ice dynamics - prescribed retreat mask
     REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t0  ! Time of first     prescribed retreat mask timeframe ( <= region%time)

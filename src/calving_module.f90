@@ -359,43 +359,43 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ice%calving_rate_a = 0._dp
+    CALL crash(' Inversion of calving rates not being applied at the moment. Look at dHi_dt routinesa and set do_calv_inv_config to FALSE.')
 
-    cfp_scale = 1._dp / 200000._dp
+    ! ice%calving_rate_x_a = 0._dp
+    ! ice%calving_rate_y_a = 0._dp
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
+    ! cfp_scale = 1._dp / 200000._dp
 
-      IF (ice%mask_shelf_a( j,i) == 1) THEN
+    ! DO i = grid%i1, grid%i2
+    ! DO j = 1, grid%ny
 
-        ! Calving_front position difference w.r.t. target
-        cfp_delta = SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) - 750000._dp
+    !   ! IF (ice%mask_shelf_a( j,i) == 1) THEN
 
-        ! Scale the difference and restrict it to the [-1.5; 1.5] range
-        dz = MAX(-1.5_dp, MIN(1.5_dp, cfp_delta * cfp_scale))
+    !   IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) >= 750000._dp) THEN
 
-        ice%calving_rate_a( j,i) = ice%uabs_vav_a( j,i) * 2.0_dp**(dz)
+    !     ! Calving_front position difference w.r.t. target
+    !     cfp_delta = SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) - 750000._dp
 
-        ice%calving_rate_a( j,i) = MIN( 1E4_dp, MAX( 0._dp, ice%calving_rate_a( j,i)))
+    !     ! Scale the difference and restrict it to the [-1.5; 1.5] range
+    !     dz = MAX(-1.5_dp, MIN(1.5_dp, cfp_delta * cfp_scale))
 
-      END IF
+    !     ice%calving_rate_x_a( j,i) = ABS(ice%u_vav_a( j,i)) * 10.0_dp**(dz)
+    !     ice%calving_rate_y_a( j,i) = ABS(ice%v_vav_a( j,i)) * 10.0_dp**(dz)
 
-    END DO
-    END DO
-    CALL sync
+    !     ice%calving_rate_x_a( j,i) = MIN( 1E4_dp, MAX( 0._dp, ice%calving_rate_x_a( j,i)))
+    !     ice%calving_rate_y_a( j,i) = MIN( 1E4_dp, MAX( 0._dp, ice%calving_rate_y_a( j,i)))
+
+    !   END IF
+
+    !   ! END IF
+
+    ! END DO
+    ! END DO
+    ! CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calving_inversion_geo
-
-
-
-     ! Increase the calving rate
-     !ice%calving_rate_a( j,i) = ice%calving_rate_a( j,i) + 100._dp
-     ! Limit rates at values above 0
-     !ice%calving_rate_a( j,i) = MAX(0._dp, ice%calving_rate_a( j,i))
-     !limit rates at values below 10 km/yr
-     !ice%calving_rate_a( j,i) = MIN(10000._dp, ice%calving_rate_a( j,i)
 
 END MODULE calving_module

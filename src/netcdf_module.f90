@@ -304,23 +304,25 @@ CONTAINS
 
     ! Geometry
     ELSEIF (field_name == 'Hi') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hi_a,           (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hi_a,             (/1, 1,    ti /))
     ELSEIF (field_name == 'Hb') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hb_a,           (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hb_a,             (/1, 1,    ti /))
     ELSEIF (field_name == 'Hs') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hs_a,           (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%Hs_a,             (/1, 1,    ti /))
     ELSEIF (field_name == 'SL') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%SL_a,           (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%SL_a,             (/1, 1,    ti /))
     ELSEIF (field_name == 'dHs_dx') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dx_a,       (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dx_a,         (/1, 1,    ti /))
     ELSEIF (field_name == 'dHs_dy') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dy_a,       (/1, 1,    ti /))
-    ELSEIF (field_name == 'c_r') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_rate_a,       (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%dHs_dy_a,         (/1, 1,    ti /))
+    ELSEIF (field_name == 'cr_x') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_rate_x_a, (/1, 1,    ti /))
+    ELSEIF (field_name == 'cr_y') THEN
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_rate_y_a, (/1, 1,    ti /))
     ELSEIF (field_name == 'cf_x') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_x(1, :, :),       (/1, 1,    ti /)) 
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_x(1, :, :),       (/1, 1,    ti /))
     ELSEIF (field_name == 'cf_y') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_y(1, :, :),       (/1, 1,    ti /)) 
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_y(1, :, :),       (/1, 1,    ti /))
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1412,12 +1414,14 @@ CONTAINS
       CALL create_double_var( region%help_fields%ncid, 'dHs_dx',                   [x, y,    t], id_var, long_name='Surface slope in x-direction', units='m/m')
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL create_double_var( region%help_fields%ncid, 'dHs_dy',                   [x, y,    t], id_var, long_name='Surface slope in y-direction', units='m/m')
-    ELSEIF (field_name == 'c_r') THEN
-      CALL create_double_var( region%help_fields%ncid, 'c_r',                       [x, y,    t], id_var, long_name='calving rate', units='m/yr')
+    ELSEIF (field_name == 'cr_x') THEN
+      CALL create_double_var( region%help_fields%ncid, 'cr_x',                     [x, y,    t], id_var, long_name='calving rate in x-direction', units='m/yr')
+    ELSEIF (field_name == 'cr_y') THEN
+      CALL create_double_var( region%help_fields%ncid, 'cr_y',                     [x, y,    t], id_var, long_name='calving rate in y-direction', units='m/yr')
     ELSEIF (field_name == 'cf_x') THEN
-      CALL create_double_var( region%help_fields%ncid, 'cf_x',                      [x, y,    t], id_var, long_name='calving_front_position_x', units='m')
+      CALL create_double_var( region%help_fields%ncid, 'cf_x',                     [x, y,    t], id_var, long_name='calving_front_position_x', units='m')
     ELSEIF (field_name == 'cf_y') THEN
-      CALL create_double_var( region%help_fields%ncid, 'cf_y',                      [x, y,    t], id_var, long_name='calving_front_position_y', units='m')
+      CALL create_double_var( region%help_fields%ncid, 'cf_y',                     [x, y,    t], id_var, long_name='calving_front_position_y', units='m')
 
 
     ! Thermal properties

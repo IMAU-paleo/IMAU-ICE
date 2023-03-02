@@ -77,7 +77,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_explicit'
     INTEGER                                            :: i,j,n
-    REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor, dVi_calv_ex
+    REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor, dVi_calv_ex, MB_side
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB, dVi_calv
     INTEGER                                            :: wdVi_MB, wdVi_calv
 
@@ -102,17 +102,96 @@ CONTAINS
 
     END DO
     END DO
+    CALL sync
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
       ! Advective flow, so use upwind ice thickness
       IF (ice%v_vav_cy( j,i) > 0._dp) THEN
-        ! Ice moves from left to right, use left-hand ice thickness
+        ! Ice moves from down to up, use down-hand ice thickness
         ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j,i  ) * grid%dx * dt
       ELSE
-        ! Ice moves from right to left, use right-hand ice thickness
+        ! Ice moves from up to down, use up-hand ice thickness
         ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Inversion of calving rates
+    ! ==========================
+
+    ice%calving_rate_x_a = 0._dp
+    ice%calving_rate_y_a = 0._dp
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Skip domain margin vertices
+      IF (i == 1 .OR. i == grid%nx) CYCLE
+      IF (j == 1 .OR. j == grid%ny) CYCLE
+
+      ! Account for incoming and outgoing fluxes
+      IF (ice%u_vav_cx( j,i-1) > 0._dp) THEN
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i-1))
+      END IF
+
+      IF (ice%u_vav_cx( j,i) < 0._dp) THEN
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i))
+      END IF
+
+      IF (ice%v_vav_cy( j-1,i) > 0._dp) THEN
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j-1,i))
+      END IF
+
+      IF (ice%v_vav_cy( j,i) < 0._dp) THEN
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j,i))
+      END IF
+
+      ! Account for (positive) surface and basal mass balance
+      MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
+
+      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side / 2._dp)
+      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side / 2._dp)
+
+      ! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 740000._dp) THEN
+      !   ice%calving_rate_x_a( j,i) = 0._dp
+      !   ice%calving_rate_y_a( j,i) = 0._dp
+      ! END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Calculate the outflux due to continuous calving
+    ! ===============================================
+
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_calv, wdVi_calv)
+
+    dVi_calv = 0._dp
+
+    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+    DO j = 1, grid%ny
+
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i) * ice%Hi_a( j,i) * grid%dx * dt
+
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny-1
+
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_y_a( j,i) * ice%Hi_a( j,i) * grid%dx * dt
+
       END IF
 
     END DO
@@ -178,7 +257,6 @@ CONTAINS
     ! =================================================================
 
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_MB, wdVi_MB)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_calv, wdVi_calv)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -193,11 +271,6 @@ CONTAINS
         dVi_MB( j,i) = 0._dp
       ELSE
         dVi_MB( j,i) = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx * grid%dx * dt
-      END IF
-
-      ! Calving rates
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-        dVi_calv( j,i) = -ice%calving_rate_a( j,i) * grid%dx * ice%Hi_eff_cf_a( j,i) * dt
       END IF
 
       ! Check how much ice is available for melting or removing (in m^3)
@@ -304,6 +377,13 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
+! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) >= 700000._dp) THEN
+!   dVi_MB( j,i) = 0._dp
+! END IF
+IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
+   dVi_calv( j,i) = 0._dp
+END IF
+
       ! Rate of change
       ice%dHi_dt_a( j,i) = (dVi_MB( j,i) + dVi_calv( j,i)) / (grid%dx * grid%dx * dt) ! m/y
       IF (i > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qx_cx( j  ,i-1) / (grid%dx * grid%dx * dt)
@@ -320,6 +400,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+
+    ! Finalisation
+    ! ============
 
     ! Clean up after yourself
     CALL deallocate_shared( wdVi_MB)
