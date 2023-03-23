@@ -90,7 +90,7 @@ CONTAINS
 
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
-
+      
       ! Advective flow, so use upwind ice thickness
       IF (ice%u_vav_cx( j,i) > 0._dp) THEN
         ! Ice moves from left to right, use left-hand ice thickness
@@ -135,27 +135,29 @@ CONTAINS
 
       ! Account for incoming and outgoing fluxes
       IF (ice%u_vav_cx( j,i-1) > 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i-1))
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i-1)) * ice%Hi_a( j,i) 
       END IF
 
       IF (ice%u_vav_cx( j,i) < 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i))
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i)) * ice%Hi_a( j,i+1) 
       END IF
 
       IF (ice%v_vav_cy( j-1,i) > 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j-1,i))
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j-1,i)) * ice%Hi_a( j,i) 
       END IF
 
       IF (ice%v_vav_cy( j,i) < 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j,i))
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j,i)) * ice%Hi_a( j+1,i) 
       END IF
 
       ! Account for (positive) surface and basal mass balance
       MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
 
-      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side / 2._dp)
-      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side / 2._dp)
+      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) 
+      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) 
 
+      
+      !already commented out
       ! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 740000._dp) THEN
       !   ice%calving_rate_x_a( j,i) = 0._dp
       !   ice%calving_rate_y_a( j,i) = 0._dp
@@ -176,8 +178,8 @@ CONTAINS
     DO j = 1, grid%ny
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-
-        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i) * ice%Hi_a( j,i) * grid%dx * dt
+        
+        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i)  * grid%dx * dt
 
       END IF
 
@@ -257,6 +259,8 @@ CONTAINS
     ! =================================================================
 
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_MB, wdVi_MB)
+
+    dVi_MB = 0
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -377,12 +381,9 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) >= 700000._dp) THEN
-!   dVi_MB( j,i) = 0._dp
-! END IF
-IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
-   dVi_calv( j,i) = 0._dp
-END IF
+      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
+        dVi_calv( j,i) = 0._dp
+      END IF
 
       ! Rate of change
       ice%dHi_dt_a( j,i) = (dVi_MB( j,i) + dVi_calv( j,i)) / (grid%dx * grid%dx * dt) ! m/y
