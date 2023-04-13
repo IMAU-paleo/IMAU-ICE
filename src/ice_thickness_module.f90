@@ -82,7 +82,9 @@ CONTAINS
     REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor, dVi_calv_ex, MB_side
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB, dVi_calv
     INTEGER                                            :: wdVi_MB, wdVi_calv
-    REAL(dp)                                           :: Wv
+    REAL(dp)                                           :: Wv, t_change
+
+    t_change = 6000._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -93,7 +95,7 @@ CONTAINS
 
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
-      
+
       ! Advective flow, so use upwind ice thickness
       IF (ice%u_vav_cx( j,i) > 0._dp) THEN
         ! Ice moves from left to right, use left-hand ice thickness
@@ -131,8 +133,8 @@ CONTAINS
     ice%calving_rate_y_a = 0._dp
 
     !compute Wv
-    IF (time > 6000._dp) THEN
-      Wv = -300._dp * SIN(2._dp * pi * (time-6000._dp)/1000._dp)
+    IF (time > t_change) THEN
+      Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
     ELSE
       Wv = 0._dp
     END IF
@@ -164,15 +166,9 @@ CONTAINS
       ! Account for (positive) surface and basal mass balance
       MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
 
-      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) 
-      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) 
+      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i)
+      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i)
 
-      
-      !already commented out
-      ! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 740000._dp) THEN
-      !   ice%calving_rate_x_a( j,i) = 0._dp
-      !   ice%calving_rate_y_a( j,i) = 0._dp
-      ! END IF
     END DO
     END DO
     CALL sync
@@ -188,7 +184,7 @@ CONTAINS
     DO j = 1, grid%ny
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-        
+
         dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i) * grid%dx * dt
 
       END IF
@@ -391,8 +387,28 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < (750000._dp)) THEN
+      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
+      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
+          print*,''
+          print*, j, dVi_calv(j,i), -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+        END IF
+      END IF
+
+      ! Compute perfect counter to flux + mass balance [testing-only; remove after testing]
+      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+        dVi_calv(j,i) = -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+      END IF
+
+      ! Prevent calving during the initialisation period
+      IF (time <= t_change .AND. SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
         dVi_calv( j,i) = 0._dp
+      END IF
+
+      ! Apply time-dependent extra calving rates [testing-only; remove after testing; note the use of effective thickness]
+      IF (time > t_change .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+        Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
+        dVi_calv( j,i) = dVi_calv( j,i) + Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
       END IF
 
       ! Rate of change

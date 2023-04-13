@@ -356,7 +356,7 @@
   help_field_04_config                        = 'Hb'
   help_field_05_config                        = 'cr_x'
   help_field_06_config                        = 'cr_y'
-  help_field_07_config                        = 'cr_abs'
+  help_field_07_config                        = 'none'
   help_field_08_config                        = 'none'
   help_field_09_config                        = 'none'
   help_field_10_config                        = 'none'
