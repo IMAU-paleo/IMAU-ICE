@@ -23,7 +23,7 @@ MODULE ice_thickness_module
 CONTAINS
 
   ! The main routine that is called from "run_ice_model" in the ice_dynamics_module
-  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt)
+  SUBROUTINE calc_dHi_dt( grid, ice, SMB, BMB, dt, time)
     ! Use the total ice velocities to update the ice thickness
 
     IMPLICIT NONE
@@ -34,6 +34,7 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
+    REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt'
@@ -46,7 +47,7 @@ CONTAINS
       ice%dHi_dt_a( :,grid%i1:grid%i2) = 0._dp
       CALL sync
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL calc_dHi_dt_explicit(     grid, ice, SMB, BMB, dt)
+      CALL calc_dHi_dt_explicit(     grid, ice, SMB, BMB, dt, time)
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       CALL calc_dHi_dt_semiimplicit( grid, ice, SMB, BMB, dt)
     ELSE
@@ -62,7 +63,7 @@ CONTAINS
   END SUBROUTINE calc_dHi_dt
 
   ! Different solvers for the ice thickness equation (explicit & semi-implicit)
-  SUBROUTINE calc_dHi_dt_explicit( grid, ice, SMB, BMB, dt)
+  SUBROUTINE calc_dHi_dt_explicit( grid, ice, SMB, BMB, dt, time)
     ! The explicit solver for the ice thickness equation
 
     IMPLICIT NONE
@@ -73,6 +74,7 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_BMB_model),                INTENT(IN)    :: BMB
     REAL(dp),                            INTENT(IN)    :: dt
+    REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_explicit'
@@ -80,6 +82,7 @@ CONTAINS
     REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor, dVi_calv_ex, MB_side
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB, dVi_calv
     INTEGER                                            :: wdVi_MB, wdVi_calv
+    REAL(dp)                                           :: Wv
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -123,8 +126,16 @@ CONTAINS
     ! Inversion of calving rates
     ! ==========================
 
+    !initialisation
     ice%calving_rate_x_a = 0._dp
     ice%calving_rate_y_a = 0._dp
+
+    !compute Wv
+    IF (time > 6000._dp) THEN
+      Wv = -300._dp * SIN(2._dp * pi * (time-6000._dp)/1000._dp)
+    ELSE
+      Wv = 0._dp
+    END IF
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -135,19 +146,19 @@ CONTAINS
 
       ! Account for incoming and outgoing fluxes
       IF (ice%u_vav_cx( j,i-1) > 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i-1)) * ice%Hi_a( j,i) 
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + (ABS(ice%u_vav_cx( j,i)) + Wv) * ice%Hi_a( j,i)
       END IF
 
       IF (ice%u_vav_cx( j,i) < 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ABS(ice%u_vav_cx( j,i)) * ice%Hi_a( j,i+1) 
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + (ABS(ice%u_vav_cx( j,i)) + Wv) * ice%Hi_a( j,i+1)
       END IF
 
       IF (ice%v_vav_cy( j-1,i) > 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j-1,i)) * ice%Hi_a( j,i) 
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + (ABS(ice%v_vav_cy( j,i)) + Wv) * ice%Hi_a( j,i)
       END IF
 
       IF (ice%v_vav_cy( j,i) < 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ABS(ice%v_vav_cy( j,i)) * ice%Hi_a( j+1,i) 
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + (ABS(ice%v_vav_cy( j,i)) + Wv) * ice%Hi_a( j+1,i)
       END IF
 
       ! Account for (positive) surface and basal mass balance
@@ -162,7 +173,6 @@ CONTAINS
       !   ice%calving_rate_x_a( j,i) = 0._dp
       !   ice%calving_rate_y_a( j,i) = 0._dp
       ! END IF
-
     END DO
     END DO
     CALL sync
@@ -179,7 +189,7 @@ CONTAINS
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
         
-        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i)  * grid%dx * dt
+        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i) * grid%dx * dt
 
       END IF
 
@@ -192,7 +202,7 @@ CONTAINS
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
 
-        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_y_a( j,i) * ice%Hi_a( j,i) * grid%dx * dt
+        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_y_a( j,i) * grid%dx * dt
 
       END IF
 
@@ -381,7 +391,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
+      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < (750000._dp)) THEN
         dVi_calv( j,i) = 0._dp
       END IF
 
