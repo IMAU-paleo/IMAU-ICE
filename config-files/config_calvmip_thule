@@ -15,7 +15,7 @@
   dt_SMB_config                               = 10.0                             ! Time step (in years) for updating the SMB
   dt_BMB_config                               = 10.0                             ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
-  dt_output_config                            = 10.0                             ! Time step (in years) for writing output
+  dt_output_config                            = 50.0                              ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -256,7 +256,7 @@
   ! Ice dynamics - calving
   ! ======================
 
-  choice_calving_law_config                   = 'threshold_distance'             ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
+  choice_calving_law_config                   = 'none'                           ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
   calving_threshold_thickness_config          = 500.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   calving_threshold_distance_config           = 750.0                            ! Threshold distance from center of domain in the "threshold_distance" calving law (in km)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)

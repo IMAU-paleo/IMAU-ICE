@@ -62,7 +62,7 @@
   xmax_ANT_config                             =  1000000.0                       ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -1000000.0                       ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             =  1000000.0                       ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 10000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -257,7 +257,7 @@
   ! ======================
 
   choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
-  calving_threshold_thickness_config          = 100.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  calving_threshold_thickness_config          = 1.0                              ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   calving_threshold_distance_config           = 750.0                            ! Threshold distance from center of domain in the "threshold_distance" calving law (in km)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)

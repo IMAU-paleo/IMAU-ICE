@@ -125,20 +125,12 @@ CONTAINS
     END DO
     CALL sync
 
-
     ! Inversion of calving rates
     ! ==========================
 
     !initialisation
     ice%calving_rate_x_a = 0._dp
     ice%calving_rate_y_a = 0._dp
-
-    !compute Wv
-    !IF (time > t_change) THEN
-    !  Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
-    !ELSE
-    !  Wv = 0._dp
-    !END IF
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -164,17 +156,9 @@ CONTAINS
         ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
       END IF
 
-      ! Account for (positive) surface and basal mass balance
-      !MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
-
-      !ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) * grid%dx * dt
-      !ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) * grid%dx * dt
-
     END DO
     END DO
     CALL sync
-
-
 
     ! Calculate the outflux due to continuous calving
     ! ===============================================
@@ -196,8 +180,6 @@ CONTAINS
     END DO
     CALL sync
 
-
-
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
@@ -210,78 +192,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-
-!    DO i = grid%i1, grid%i2
-!    DO j = 1, grid%ny     
-!
-!      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
-!      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-!        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
-!          print*,''
-!          print*, j, "Q b4", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
-!          print*, j, "dVi_calv", dVi_calv(j,i)
-!        END IF
-!      END IF
-!
-!    END DO 
-!    END DO
-
- 
-
-    ! Correct fluxes at the calving front to account for partially-filled grid cells
-    ! ==============================================================================
-
-    ! ! x-direction
-    ! DO i = grid%i1, MIN(grid%nx-1,grid%i2)
-    ! DO j = 1, grid%ny
-
-    !   IF     (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Western source grid cell is shelf
-    !           ice%mask_ice_a( j  ,i+1) == 0 .AND. ice%mask_ocean_a( j  ,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
-
-    !     ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-    !     IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-    !       ice%Qx_cx( j,i) = 0._dp
-    !     END IF
-
-    !   ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j  ,i+1) == 1 .AND. &   ! Eastern source grid cell is shelf
-    !           ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Western destination grid cell is open ocean
-
-    !     ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-    !     IF (ice%float_margin_frac_a( j  ,i+1) < 0.99_dp) THEN
-    !       ice%Qx_cx( j,i) = 0._dp
-    !     END IF
-
-    !   END IF
-
-    ! END DO
-    ! END DO
-    ! CALL sync
-
-    ! ! y-direction
-    ! DO i = grid%i1, grid%i2
-    ! DO j = 1, grid%ny-1
-
-    !   IF     (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_shelf_a( j  ,i  ) == 1 .AND. &   ! Southern source grid cell is shelf
-    !           ice%mask_ice_a( j+1,i  ) == 0 .AND. ice%mask_ocean_a( j+1,i  ) == 1) THEN  ! Northern destination grid cell is open ocean
-
-    !     ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-    !     IF (ice%float_margin_frac_a( j  ,i  ) < 0.99_dp) THEN
-    !       ice%Qy_cy( j,i) = 0._dp
-    !     END IF
-
-    !   ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i  ) == 1 .AND. &   ! Northern source grid cell is shelf
-    !           ice%mask_ice_a( j  ,i  ) == 0 .AND. ice%mask_ocean_a( j  ,i  ) == 1) THEN  ! Southern destination grid cell is open ocean
-
-    !     ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-    !     IF (ice%float_margin_frac_a( j+1,i  ) < 0.99_dp) THEN
-    !       ice%Qy_cy( j,i) = 0._dp
-    !     END IF
-
-    !   END IF
-
-    ! END DO
-    ! END DO
-    ! CALL sync
 
     ! Correct outfluxes for possible resulting negative ice thicknesses
     ! =================================================================
@@ -363,13 +273,13 @@ CONTAINS
         IF (ice%mask_shelf_a( j,i-1) == 1 .AND. ice%mask_cf_a( j,i-1) == 0) n = n + 1
         IF (ice%mask_shelf_a( j+1,i) == 1 .AND. ice%mask_cf_a( j+1,i) == 0) n = n + 1
         IF (ice%mask_shelf_a( j-1,i) == 1 .AND. ice%mask_cf_a( j-1,i) == 0) n = n + 1
-      
+
         IF (n > 0) THEN
           dVi_calv_ex = MIN( 0._dp, dVi_calv( j,i) + (Vi_available + dVi_MB( j,i))) / REAL(n,dp)
         ELSE
           dVi_calv_ex = 0._dp
         END IF
-      
+
         IF (ice%mask_shelf_a( j,i+1) == 1 .AND. ice%mask_cf_a( j,i+1) == 0) dVi_calv( j,i+1) = dVi_calv( j,i+1) + dVi_calv_ex
         IF (ice%mask_shelf_a( j,i-1) == 1 .AND. ice%mask_cf_a( j,i-1) == 0) dVi_calv( j,i-1) = dVi_calv( j,i-1) + dVi_calv_ex
         IF (ice%mask_shelf_a( j+1,i) == 1 .AND. ice%mask_cf_a( j+1,i) == 0) dVi_calv( j+1,i) = dVi_calv( j+1,i) + dVi_calv_ex
@@ -383,7 +293,6 @@ CONTAINS
         ! Rescale outfluxes to zero
         rescale_factor = 0._dp
       END IF
-
 
       ! Rescale ice outfluxes out of this grid cell
       IF (rescale_factor < 1._dp) THEN
@@ -400,7 +309,7 @@ CONTAINS
           IF (ice%Qy_cy( j  ,i  ) > 0._dp) ice%Qy_cy( j  ,i  ) = ice%Qy_cy( j  ,i  ) * rescale_factor
         END IF
       END IF
-      
+
       IF (rescale_factor < 1._dp) THEN
         IF (i > 1) THEN
           IF (ice%calving_rate_x_a( j  ,i-1) < 0._dp) ice%calving_rate_x_a( j  ,i-1) = ice%calving_rate_x_a( j  ,i-1) * rescale_factor
@@ -416,24 +325,9 @@ CONTAINS
         END IF
       END IF
 
-
-
- !     ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
- !     IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
- !       IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
- !         print*,''
- !         print*, j, "Q inbetween", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
- !         print*, j, "dVi_calv inbetween", (ice%calving_rate_x_a( j,i-1) - ice%calving_rate_x_a( j,i) + ice%calving_rate_y_a( j-1,i) - ice%calving_rate_y_a( j,i))
- !       END IF
- !     END IF
-
-
-
     END DO
     END DO
     CALL sync
-
-
 
     ! Calculate the outflux due to continuous calving
     ! ===============================================
@@ -453,8 +347,6 @@ CONTAINS
     END DO
     CALL sync
 
-
-
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
@@ -468,53 +360,11 @@ CONTAINS
     END DO
     CALL sync
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
-      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
-          print*,''
-          print*, j, "Q", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i) + dVi_MB(j,i))
-        END IF
-      END IF
-
-    END DO 
-    END DO
-
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
-      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
-          print*,''
-          print*, j, "dVi_calv", dVi_calv(j,i)
-        END IF
-      END IF
-    
-    END DO 
-    END DO
-
     ! Calculate change in ice thickness over time at every vertex
     ! ===========================================================
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-
-      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
-      !IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-      !  IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
-      !    print*,''
-      !    print*, j, dVi_calv(j,i), -(ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
-      !  END IF
-      !END IF
-
-      ! Compute perfect counter to flux + mass balance [testing-only; remove after testing]
-      !IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-      !  dVi_calv(j,i) = -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
-      !END IF
 
       ! Prevent calving during the initialisation period
       IF (time <= t_change .AND. SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
@@ -523,7 +373,7 @@ CONTAINS
 
       ! Apply time-dependent extra calving rates [testing-only; remove after testing; note the use of effective thickness]
       IF (time > t_change .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        Wv = -750._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
+        Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
         dVi_calv( j,i) = dVi_calv( j,i) - Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
       END IF
 
@@ -540,12 +390,11 @@ CONTAINS
       ! Thickness at t+dt
       ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i) + ice%dHi_dt_a( j,i) * dt
 
-
-            ! Prevent calving from going further than initial state
-      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) > 750000._dp .AND. ice%mask_cf_a( j,i) == 1) THEN
-        ice%Hi_tplusdt_a( j,i) = 0._dp
-        ice%Hi_a( j,i) = 0._dp
-      END IF
+      ! ! Prevent calving from going further than initial state
+      ! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) > 750000._dp .AND. ice%mask_cf_a( j,i) == 1) THEN
+      !   ice%Hi_tplusdt_a( j,i) = 0._dp
+      !   ice%Hi_a( j,i) = 0._dp
+      ! END IF
 
     END DO
     END DO
@@ -567,6 +416,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_dHi_dt_explicit
+
   SUBROUTINE calc_dHi_dt_semiimplicit( grid, ice, SMB, BMB, dt)
     ! Calculate the ice thickness at time t+dt using an implicit matrix-based method
     ! (uses an explicit scheme around the calving front to improve stability)
