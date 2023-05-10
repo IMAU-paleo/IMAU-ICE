@@ -125,6 +125,7 @@ CONTAINS
     END DO
     CALL sync
 
+
     ! Inversion of calving rates
     ! ==========================
 
@@ -133,11 +134,11 @@ CONTAINS
     ice%calving_rate_y_a = 0._dp
 
     !compute Wv
-    IF (time > t_change) THEN
-      Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
-    ELSE
-      Wv = 0._dp
-    END IF
+    !IF (time > t_change) THEN
+    !  Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
+    !ELSE
+    !  Wv = 0._dp
+    !END IF
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -146,32 +147,34 @@ CONTAINS
       IF (i == 1 .OR. i == grid%nx) CYCLE
       IF (j == 1 .OR. j == grid%ny) CYCLE
 
-      ! Account for incoming and outgoing fluxes
-      IF (ice%u_vav_cx( j,i-1) > 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + (ABS(ice%u_vav_cx( j,i)) + Wv) * ice%Hi_a( j,i)
+      ! Account for incoming and outgoing fluxes (ice%calving_rate_y_a( j,i) + removed for testing)
+      IF (ice%u_vav_cx( j,i) > 0._dp) THEN
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_a( j,i  ) * grid%dx * dt
       END IF
 
       IF (ice%u_vav_cx( j,i) < 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + (ABS(ice%u_vav_cx( j,i)) + Wv) * ice%Hi_a( j,i+1)
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_a( j,i+1) * grid%dx * dt
       END IF
 
-      IF (ice%v_vav_cy( j-1,i) > 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + (ABS(ice%v_vav_cy( j,i)) + Wv) * ice%Hi_a( j,i)
+      IF (ice%v_vav_cy( j,i) > 0._dp) THEN
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_a( j,i) * grid%dx * dt
       END IF
 
       IF (ice%v_vav_cy( j,i) < 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + (ABS(ice%v_vav_cy( j,i)) + Wv) * ice%Hi_a( j+1,i)
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
       END IF
 
       ! Account for (positive) surface and basal mass balance
-      MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
+      !MB_side = (SMB%SMB_year( j,i) + BMB%BMB( j,i)) * grid%dx/ice%Hi_a( j,i) * ice%float_margin_frac_a( j,i)
 
-      ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i)
-      ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i)
+      !ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) * grid%dx * dt
+      !ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + MAX( 0._dp, MB_side/ 2._dp) * ice%Hi_a( j,i) * grid%dx * dt
 
     END DO
     END DO
     CALL sync
+
+
 
     ! Calculate the outflux due to continuous calving
     ! ===============================================
@@ -185,26 +188,45 @@ CONTAINS
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
 
-        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_x_a( j,i) * grid%dx * dt
+        dVi_calv( j,i) = dVi_calv(j,i) - ice%calving_rate_x_a(j,i) + ice%calving_rate_x_a(j,i-1)
 
       END IF
 
     END DO
     END DO
     CALL sync
+
+
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
       IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
 
-        dVi_calv( j,i) = dVi_calv( j,i) -ice%calving_rate_y_a( j,i) * grid%dx * dt
+        dVi_calv( j,i) = dVi_calv(j,i) + ice%calving_rate_y_a( j-1,i) - ice%calving_rate_y_a( j,i)
 
       END IF
 
     END DO
     END DO
     CALL sync
+
+!    DO i = grid%i1, grid%i2
+!    DO j = 1, grid%ny     
+!
+!      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
+!      IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+!        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
+!          print*,''
+!          print*, j, "Q b4", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+!          print*, j, "dVi_calv", dVi_calv(j,i)
+!        END IF
+!      END IF
+!
+!    END DO 
+!    END DO
+
+ 
 
     ! Correct fluxes at the calving front to account for partially-filled grid cells
     ! ==============================================================================
@@ -320,6 +342,7 @@ CONTAINS
 
       rescale_factor = 1._dp
 
+
       ! If all the ice already present melts away, there can be no outflux.
       IF (-dVi_MB( j,i) >= Vi_available) THEN
         ! All ice in this vertex melts, nothing remains to move around. Rescale outfluxes to zero.
@@ -340,13 +363,13 @@ CONTAINS
         IF (ice%mask_shelf_a( j,i-1) == 1 .AND. ice%mask_cf_a( j,i-1) == 0) n = n + 1
         IF (ice%mask_shelf_a( j+1,i) == 1 .AND. ice%mask_cf_a( j+1,i) == 0) n = n + 1
         IF (ice%mask_shelf_a( j-1,i) == 1 .AND. ice%mask_cf_a( j-1,i) == 0) n = n + 1
-
+      
         IF (n > 0) THEN
           dVi_calv_ex = MIN( 0._dp, dVi_calv( j,i) + (Vi_available + dVi_MB( j,i))) / REAL(n,dp)
         ELSE
           dVi_calv_ex = 0._dp
         END IF
-
+      
         IF (ice%mask_shelf_a( j,i+1) == 1 .AND. ice%mask_cf_a( j,i+1) == 0) dVi_calv( j,i+1) = dVi_calv( j,i+1) + dVi_calv_ex
         IF (ice%mask_shelf_a( j,i-1) == 1 .AND. ice%mask_cf_a( j,i-1) == 0) dVi_calv( j,i-1) = dVi_calv( j,i-1) + dVi_calv_ex
         IF (ice%mask_shelf_a( j+1,i) == 1 .AND. ice%mask_cf_a( j+1,i) == 0) dVi_calv( j+1,i) = dVi_calv( j+1,i) + dVi_calv_ex
@@ -360,6 +383,7 @@ CONTAINS
         ! Rescale outfluxes to zero
         rescale_factor = 0._dp
       END IF
+
 
       ! Rescale ice outfluxes out of this grid cell
       IF (rescale_factor < 1._dp) THEN
@@ -376,13 +400,73 @@ CONTAINS
           IF (ice%Qy_cy( j  ,i  ) > 0._dp) ice%Qy_cy( j  ,i  ) = ice%Qy_cy( j  ,i  ) * rescale_factor
         END IF
       END IF
+      
+      IF (rescale_factor < 1._dp) THEN
+        IF (i > 1) THEN
+          IF (ice%calving_rate_x_a( j  ,i-1) < 0._dp) ice%calving_rate_x_a( j  ,i-1) = ice%calving_rate_x_a( j  ,i-1) * rescale_factor
+        END IF
+        IF (i < grid%nx) THEN
+          IF (ice%calving_rate_x_a( j  ,i  ) > 0._dp) ice%calving_rate_x_a( j  ,i  ) = ice%calving_rate_x_a( j  ,i  ) * rescale_factor
+        END IF
+        IF (j > 1) THEN
+          IF (ice%calving_rate_y_a( j-1,i  ) < 0._dp) ice%calving_rate_y_a( j-1,i  ) = ice%calving_rate_y_a( j-1,i  ) * rescale_factor
+        END IF
+        IF (j < grid%ny) THEN
+          IF (ice%calving_rate_y_a( j  ,i  ) > 0._dp) ice%calving_rate_y_a( j  ,i  ) = ice%calving_rate_y_a( j  ,i  ) * rescale_factor
+        END IF
+      END IF
+
+
+
+ !     ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
+ !     IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+ !       IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
+ !         print*,''
+ !         print*, j, "Q inbetween", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+ !         print*, j, "dVi_calv inbetween", (ice%calving_rate_x_a( j,i-1) - ice%calving_rate_x_a( j,i) + ice%calving_rate_y_a( j-1,i) - ice%calving_rate_y_a( j,i))
+ !       END IF
+ !     END IF
+
+
 
     END DO
     END DO
     CALL sync
 
-    ! Calculate change in ice thickness over time at every vertex
-    ! ===========================================================
+
+
+    ! Calculate the outflux due to continuous calving
+    ! ===============================================
+
+    dVi_calv = 0._dp
+
+    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+    DO j = 1, grid%ny
+
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+        dVi_calv( j,i) = dVi_calv(j,i) - ice%calving_rate_x_a(j,i) + ice%calving_rate_x_a(j,i-1) + 0.5_dp * dVi_MB(j,i)
+
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny-1
+
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+        dVi_calv( j,i) = dVi_calv(j,i) + ice%calving_rate_y_a( j-1,i) - ice%calving_rate_y_a( j,i) + 0.5_dp * dVi_MB(j,i)
+
+      END IF
+
+    END DO
+    END DO
+    CALL sync
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -391,14 +475,46 @@ CONTAINS
       IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
         IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
           print*,''
-          print*, j, dVi_calv(j,i), -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+          print*, j, "Q", (ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i) + dVi_MB(j,i))
         END IF
       END IF
 
-      ! Compute perfect counter to flux + mass balance [testing-only; remove after testing]
+    END DO 
+    END DO
+
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
       IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        dVi_calv(j,i) = -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+        IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
+          print*,''
+          print*, j, "dVi_calv", dVi_calv(j,i)
+        END IF
       END IF
+    
+    END DO 
+    END DO
+
+    ! Calculate change in ice thickness over time at every vertex
+    ! ===========================================================
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Print real and ideal calving ice volumes at y=0 (midpoint of y) [testing-only; remove after testing]
+      !IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+      !  IF (j == CEILING(REAL(grid%nx,dp)/2._dp)) THEN
+      !    print*,''
+      !    print*, j, dVi_calv(j,i), -(ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+      !  END IF
+      !END IF
+
+      ! Compute perfect counter to flux + mass balance [testing-only; remove after testing]
+      !IF (i>1 .AND. i<grid%nx .AND. j>1 .AND. j<grid%ny .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+      !  dVi_calv(j,i) = -(dVi_MB(j,i) + ice%Qx_cx( j,i-1) - ice%Qx_cx( j,i) + ice%Qy_cy( j-1,i) - ice%Qy_cy( j,i))
+      !END IF
 
       ! Prevent calving during the initialisation period
       IF (time <= t_change .AND. SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) < 750000._dp) THEN
@@ -407,12 +523,12 @@ CONTAINS
 
       ! Apply time-dependent extra calving rates [testing-only; remove after testing; note the use of effective thickness]
       IF (time > t_change .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
-        dVi_calv( j,i) = dVi_calv( j,i) + Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
+        Wv = -750._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
+        dVi_calv( j,i) = dVi_calv( j,i) - Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
       END IF
 
       ! Rate of change
-      ice%dHi_dt_a( j,i) = (dVi_MB( j,i) + dVi_calv( j,i)) / (grid%dx * grid%dx * dt) ! m/y
+      ice%dHi_dt_a( j,i) = (dVi_MB( j,i) - dVi_calv( j,i)) / (grid%dx * grid%dx * dt) ! m/y
       IF (i > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qx_cx( j  ,i-1) / (grid%dx * grid%dx * dt)
       IF (i < grid%nx) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) - ice%Qx_cx( j  ,i  ) / (grid%dx * grid%dx * dt)
       IF (j > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qy_cy( j-1,i  ) / (grid%dx * grid%dx * dt)
@@ -423,6 +539,13 @@ CONTAINS
 
       ! Thickness at t+dt
       ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i) + ice%dHi_dt_a( j,i) * dt
+
+
+            ! Prevent calving from going further than initial state
+      IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) > 750000._dp .AND. ice%mask_cf_a( j,i) == 1) THEN
+        ice%Hi_tplusdt_a( j,i) = 0._dp
+        ice%Hi_a( j,i) = 0._dp
+      END IF
 
     END DO
     END DO
