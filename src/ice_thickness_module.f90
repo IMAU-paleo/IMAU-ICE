@@ -99,10 +99,10 @@ CONTAINS
       ! Advective flow, so use upwind ice thickness
       IF (ice%u_vav_cx( j,i) > 0._dp) THEN
         ! Ice moves from left to right, use left-hand ice thickness
-        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a( j,i  ) * grid%dx * dt
+        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a(j,i) * grid%dx * dt
       ELSE
         ! Ice moves from right to left, use right-hand ice thickness
-        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a( j,i+1) * grid%dx * dt
+        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_a(j,i+1) * grid%dx * dt
       END IF
 
     END DO
@@ -115,15 +115,53 @@ CONTAINS
       ! Advective flow, so use upwind ice thickness
       IF (ice%v_vav_cy( j,i) > 0._dp) THEN
         ! Ice moves from down to up, use down-hand ice thickness
-        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j,i  ) * grid%dx * dt
+        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a(j,i) * grid%dx * dt
       ELSE
         ! Ice moves from up to down, use up-hand ice thickness
-        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
+        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_a(j+1,i) * grid%dx * dt
       END IF
 
     END DO
     END DO
     CALL sync
+
+    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
+    DO j = 1, grid%ny
+
+      ! Advective flow, so use upwind ice thickness
+      IF (ice%u_vav_cx( j,i) > 0._dp .AND. ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
+      END IF
+
+      IF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ! Ice moves from right to left, use right-hand ice thickness
+        ice%Qx_cx( j,i) = ice%u_vav_cx( j,i) * ice%Hi_eff_cf_a(j,i+1) * grid%dx * dt
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny-1
+
+      ! Advective flow, so use upwind ice thickness
+      IF (ice%v_vav_cy( j,i) > 0._dp .AND. ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ! Ice moves from down to up, use down-hand ice thickness
+        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
+      END IF
+
+      IF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ! Ice moves from up to down, use up-hand ice thickness
+        ice%Qy_cy( j,i) = ice%v_vav_cy( j,i) * ice%Hi_eff_cf_a(j+1,i) * grid%dx * dt
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+
+
 
     ! Inversion of calving rates
     ! ==========================
@@ -141,58 +179,28 @@ CONTAINS
 
       ! Account for incoming and outgoing fluxes (ice%calving_rate_y_a( j,i) + removed for testing)
       IF (ice%u_vav_cx( j,i) > 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_a( j,i  ) * grid%dx * dt
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
       END IF
 
       IF (ice%u_vav_cx( j,i) < 0._dp) THEN
-        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_a( j,i+1) * grid%dx * dt
+        ice%calving_rate_x_a( j,i) = ice%calving_rate_x_a( j,i) + ice%u_vav_cx( j,i) * ice%Hi_eff_cf_a(j,i+1) * grid%dx * dt
       END IF
 
       IF (ice%v_vav_cy( j,i) > 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_a( j,i) * grid%dx * dt
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
       END IF
 
       IF (ice%v_vav_cy( j,i) < 0._dp) THEN
-        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_a( j+1,i) * grid%dx * dt
+        ice%calving_rate_y_a( j,i) = ice%calving_rate_y_a( j,i) + ice%v_vav_cy( j,i) * ice%Hi_eff_cf_a(j+1,i) * grid%dx * dt
       END IF
 
     END DO
     END DO
     CALL sync
-
-    ! Calculate the outflux due to continuous calving
-    ! ===============================================
 
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_calv, wdVi_calv)
 
-    dVi_calv = 0._dp
-
-    DO i = grid%i1, MIN(grid%nx-1,grid%i2)
-    DO j = 1, grid%ny
-
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-
-        dVi_calv( j,i) = dVi_calv(j,i) - ice%calving_rate_x_a(j,i) + ice%calving_rate_x_a(j,i-1)
-
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny-1
-
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
-
-        dVi_calv( j,i) = dVi_calv(j,i) + ice%calving_rate_y_a( j-1,i) - ice%calving_rate_y_a( j,i)
-
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
+!
     ! Correct outfluxes for possible resulting negative ice thicknesses
     ! =================================================================
 
@@ -372,10 +380,10 @@ CONTAINS
       END IF
 
       ! Apply time-dependent extra calving rates [testing-only; remove after testing; note the use of effective thickness]
-      IF (time > t_change .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
-        Wv = -300._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
-        dVi_calv( j,i) = dVi_calv( j,i) - Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
-      END IF
+!      IF (time > t_change + 1000._dp .AND. ice%mask_shelf_a(j,i)==1 .AND. ice%mask_cf_a(j,i)==1) THEN
+!        Wv = -750._dp * SIN(2._dp * pi * (time-t_change)/1000._dp)
+!        dVi_calv( j,i) = dVi_calv( j,i) - Wv * ice%Hi_eff_cf_a(j,i) * grid%dx * dt
+!      END IF
 
       ! Rate of change
       ice%dHi_dt_a( j,i) = (dVi_MB( j,i) - dVi_calv( j,i)) / (grid%dx * grid%dx * dt) ! m/y

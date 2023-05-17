@@ -120,6 +120,7 @@ CONTAINS
           radius > C%calving_threshold_distance * 1000._dp) THEN
         ice%Hi_a( j,i) = 0._dp
       END IF
+
     END DO
     END DO
     CALL sync
@@ -341,6 +342,30 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_retreat_mask_refice
+
+  SUBROUTINE calving_front_position( grid, ice)
+    ! Keep track of the calving_front_position
+
+    IMPLICIT NONE
+
+    ! input variables
+    TYPE(type_grid),      INTENT(IN)    :: grid
+    TYPE(type_ice_model), INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'calving_front_position'
+    INTEGER                             :: i,j
+    REAL(dp)                            :: cfp_scale, cfp_delta, dz
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calving_front_position
 
   SUBROUTINE calving_inversion_geo( grid, ice)
     ! update the calving_rate according to the calving_front_position
