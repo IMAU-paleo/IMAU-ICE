@@ -398,11 +398,35 @@ CONTAINS
       ! Thickness at t+dt
       ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i) + ice%dHi_dt_a( j,i) * dt
 
-      ! ! Prevent calving from going further than initial state
-      ! IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) > 750000._dp .AND. ice%mask_cf_a( j,i) == 1) THEN
-      !   ice%Hi_tplusdt_a( j,i) = 0._dp
-      !   ice%Hi_a( j,i) = 0._dp
-      ! END IF
+!      !tracking calving front
+!
+!      !creating Unit vector
+!
+!      unit_x(j,i) = ice%u_vav_cx(j,i)/SQRT(ice%u_vav_cx(j,i)**2 + ice%v_vav_cy(j,i)**2)
+!      unit_y(j,i) = ice%v_vav_cy(j,i)/SQRT(ice%u_vav_cx(j,i)**2 + ice%v_vav_cy(j,i)**2)
+!
+!      !angle of direction velocity
+!      angle = ATAND(unit_y(j,i)/unit_x(j,i))
+!
+!      IF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
+!      angle = angle
+!
+!      IF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
+!      angle = angle + 180._dp
+!
+!      IF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
+!      angle = angle + 180._dp
+!
+!      IF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
+!      angle = angle + 360._dp
+!
+!      IF (ice%float_margin_frac_a(j,i) > 50) THEN
+!      ice%calving_front_position_x(j,i) = grid%x(j,i) + (ice%float_margin_frac_a(j,i) - 0.5_dp) * unit_x(j,i) *
+!      ice%calving_front_position_y(j,i) = grid%y(j,i) + (ice%float_margin_frac_a(j,i) - 0.5_dp) * unit_y(j,i) *
+!
+!      IF (ice%float_margin_frac_a(j,i) < 50) THEN
+!      ice%calving_front_position_x(j,i) = grid%x(j,i) + (0.5_dp - ice%float_margin_frac_a(j,i)) * unit_x(j,i) *
+!      ice%calving_front_position_y(j,i) = grid%y(j,i) + (0.5_dp - ice%float_margin_frac_a(j,i)) * unit_y(j,i) *
 
     END DO
     END DO
