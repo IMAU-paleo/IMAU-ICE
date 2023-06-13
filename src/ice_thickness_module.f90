@@ -83,6 +83,8 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB, dVi_calv
     INTEGER                                            :: wdVi_MB, wdVi_calv
     REAL(dp)                                           :: Wv, t_change
+    REAL(dp), DIMENSION(:,:), POINTER                  :: x_change, y_change, z_full, z, angle, adjusted_angle
+    INTEGER                                            :: wangle, wx_change, wy_change, wz_full, wz, wadjusted_angle
 
     t_change = 6000._dp
 
@@ -371,6 +373,23 @@ CONTAINS
     ! Calculate change in ice thickness over time at every vertex
     ! ===========================================================
 
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, angle, wangle)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, z_full, wz_full)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, z, wz)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, x_change, wx_change)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, y_change, wy_change)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, adjusted_angle, wadjusted_angle)
+
+
+    angle = 0._dp
+    z_full = 0._dp
+    z = 0._dp
+    x_change = 0._dp
+    y_change = 0._dp
+    adjusted_angle = 0._dp
+    ice%calving_front_position_x = 0._dp
+    ice%calving_front_position_y = 0._dp
+
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
@@ -398,35 +417,68 @@ CONTAINS
       ! Thickness at t+dt
       ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i) + ice%dHi_dt_a( j,i) * dt
 
-!      !tracking calving front
-!
-!      !creating Unit vector
-!
-!      unit_x(j,i) = ice%u_vav_cx(j,i)/SQRT(ice%u_vav_cx(j,i)**2 + ice%v_vav_cy(j,i)**2)
-!      unit_y(j,i) = ice%v_vav_cy(j,i)/SQRT(ice%u_vav_cx(j,i)**2 + ice%v_vav_cy(j,i)**2)
-!
-!      !angle of direction velocity
-!      angle = ATAND(unit_y(j,i)/unit_x(j,i))
-!
-!      IF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
-!      angle = angle
-!
-!      IF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
-!      angle = angle + 180._dp
-!
-!      IF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
-!      angle = angle + 180._dp
-!
-!      IF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
-!      angle = angle + 360._dp
-!
-!      IF (ice%float_margin_frac_a(j,i) > 50) THEN
-!      ice%calving_front_position_x(j,i) = grid%x(j,i) + (ice%float_margin_frac_a(j,i) - 0.5_dp) * unit_x(j,i) *
-!      ice%calving_front_position_y(j,i) = grid%y(j,i) + (ice%float_margin_frac_a(j,i) - 0.5_dp) * unit_y(j,i) *
-!
-!      IF (ice%float_margin_frac_a(j,i) < 50) THEN
-!      ice%calving_front_position_x(j,i) = grid%x(j,i) + (0.5_dp - ice%float_margin_frac_a(j,i)) * unit_x(j,i) *
-!      ice%calving_front_position_y(j,i) = grid%y(j,i) + (0.5_dp - ice%float_margin_frac_a(j,i)) * unit_y(j,i) *
+      !tracking calving front (only at calving front)
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+
+       ! for values of u = 0 we get /0 issues
+       IF (ice%u_vav_cx(j,i) == 0._dp) THEN
+
+       ice%calving_front_position_x(j,i) = grid%x(i)
+       ice%calving_front_position_y(j,i) = grid%y(j) + grid%dx * (ice%float_margin_frac_a(j,i)-0.5_dp)
+
+       ELSE
+
+        !angle of direction velocity
+        angle(j,i) =  ATAND(ice%v_vav_cy(j,i)/ice%u_vav_cx(j,i)) !ice%v_vav_cy(j,i)/ice%u_vav_cx(j,i)
+
+        !angles too close to 90 also get too large values
+        angle(j,i) = NINT(angle(j,i))
+
+        !angle can not be 90 or -90 or the /cosd() will be 0
+        IF (angle(j,i) == 90._dp .OR. angle(j,i)==-90._dp) THEN
+
+        ice%calving_front_position_x(j,i) = grid%x(i)
+        ice%calving_front_position_y(j,i) = grid%y(j) + grid%dx * (ice%float_margin_frac_a(j,i)-0.5_dp)
+
+        ELSE
+
+         !z_full can not be larger than diagonal
+         IF (angle(j,i) > 45) THEN
+          adjusted_angle(j,i) = 90._dp - angle(j,i)
+          z_full(j,i) = grid%dx / COSD(adjusted_angle(j,i))
+
+         ELSEIF (angle(j,i)< -45) THEN
+          adjusted_angle(j,i) = -90 - angle(j,i)
+          z_full(j,i) = grid%dx / COSD(adjusted_angle(j,i))
+
+         ELSE
+          z_full(j,i) = grid%dx / COSD(angle(j,i))
+         END IF
+
+         z(j,i) = z_full(j,i) * (ice%float_margin_frac_a(j,i)-0.5_dp)
+
+         IF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
+          angle(j,i) = angle(j,i)
+
+         ELSEIF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) > 0) THEN
+          angle(j,i) = angle(j,i) + 180._dp
+
+         ELSEIF (ice%u_vav_cx(j,i) > 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
+          angle(j,i) = angle(j,i) + 360._dp
+
+         ELSEIF (ice%u_vav_cx(j,i) < 0 .AND. ice%v_vav_cy(j,i) < 0) THEN
+          angle(j,i) = angle(j,i) + 180._dp
+
+         END IF
+
+          x_change(j,i) = COSD(angle(j,i)) * z(j,i)
+          y_change(j,i) = SIND(angle(j,i)) * z(j,i)
+
+          ice%calving_front_position_x(j,i) = grid%x(i) + x_change(j,i)
+          ice%calving_front_position_y(j,i) = grid%y(j) + y_change(j,i)
+        END IF
+       END IF
+      END IF
 
     END DO
     END DO
@@ -438,6 +490,13 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( wdVi_MB)
     CALL deallocate_shared( wdVi_calv)
+    CALL deallocate_shared( wangle)
+    CALL deallocate_shared( wz_full)
+    CALL deallocate_shared( wz)
+    CALL deallocate_shared( wx_change)
+    CALL deallocate_shared( wy_change)
+    CALL deallocate_shared( wadjusted_angle)
+
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%Qx_cx   , 'ice%Qx_cx'   )

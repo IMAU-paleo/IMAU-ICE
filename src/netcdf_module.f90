@@ -320,9 +320,9 @@ CONTAINS
     ELSEIF (field_name == 'cr_y') THEN
       CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_rate_y_a, (/1, 1,    ti /))
     ELSEIF (field_name == 'cf_x') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_x(1, :, :),       (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_x,       (/1, 1,    ti /))
     ELSEIF (field_name == 'cf_y') THEN
-      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_y(1, :, :),       (/1, 1,    ti /))
+      CALL write_data_to_file_dp_2D( ncid, nx, ny,     id_var,               region%ice%calving_front_position_y,       (/1, 1,    ti /))
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
