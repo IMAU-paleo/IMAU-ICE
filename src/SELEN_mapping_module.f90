@@ -3,7 +3,7 @@ MODULE SELEN_mapping_module
   ! Routines for mapping data between the regional ice model square grid and the SELEN global unstructured grid
   
   USE mpi
-  USE configuration_module,          ONLY: dp, C
+  USE configuration_module,          ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,               ONLY: par, sync, cerr, ierr, &
                                            allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -29,12 +29,17 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     INTEGER,                             INTENT(IN)    :: region_label ! 1 = NAM, 2 = EAS, 3 = GRL, 4 = ANT
         
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_GIA_grid_to_SELEN_maps'
     INTEGER                                            :: nmax
     INTEGER                                            :: i,j,n
     REAL(dp)                                           :: lon_gr, lat_gr
     INTEGER                                            :: iapl,iapu,isll,islu,isl
     REAL(dp)                                           :: lon_sl, lat_sl
     REAL(dp)                                           :: deg, intarea, pixarea, w
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE(0,*) '   Creating icemodel-to-SELEN mapping arrays for region ', region%name, '...'
   
@@ -121,6 +126,9 @@ CONTAINS
     END DO ! DO j = 1, region%grid_GIA%ny
     END DO ! DO i = region%grid_GIA%i1, region%grid_GIA%i2
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
        
   END SUBROUTINE create_GIA_grid_to_SELEN_maps
   SUBROUTINE map_GIA_grid_to_SELEN( SELEN, region, d_gr, d_sl, do_scale)
@@ -135,11 +143,15 @@ CONTAINS
     LOGICAL,                             INTENT(IN)    :: do_scale
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_GIA_grid_to_SELEN'
     INTEGER                                            :: ierr
     INTEGER                                            :: i,j,n,isl
     REAL(dp)                                           :: w
     REAL(dp), DIMENSION(:    ), ALLOCATABLE            :: d_sl_temp
     REAL(dp)                                           :: int_gr, int_sl, R
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ALLOCATE( d_sl_temp( SELEN%mesh%nV))
     d_sl_temp = 0._dp
@@ -176,6 +188,9 @@ CONTAINS
       CALL sync
       
     END IF ! IF (do_scale)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_GIA_grid_to_SELEN
   

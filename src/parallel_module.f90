@@ -3,7 +3,7 @@ MODULE parallel_module
   ! A collection of different routines that make parallel programming a lot easier.
 
   USE mpi
-  USE configuration_module,        ONLY: dp
+  USE configuration_module,        ONLY: dp, n_MPI_windows
   USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER
   
   IMPLICIT NONE
@@ -18,8 +18,6 @@ MODULE parallel_module
     
   TYPE(parallel_info), SAVE :: par
   INTEGER                   :: cerr, ierr
-  
-  LOGICAL :: debug_check_for_memory_leaks = .FALSE.
 
 CONTAINS
 
@@ -74,14 +72,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_0D: win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p)
     
     ! Initialise memory with zeros
     IF (par%master) p = 0
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_int_0D  
   SUBROUTINE allocate_shared_int_1D(     n1,         p, win)
@@ -119,14 +118,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_1D: win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_int_1D  
   SUBROUTINE allocate_shared_int_2D(     n1, n2,     p, win)
@@ -164,14 +164,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_2D: win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_int_2D  
   SUBROUTINE allocate_shared_int_3D(     n1, n2, n3, p, win)
@@ -209,14 +210,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_int_3D: win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2, n3])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_int_3D  
   SUBROUTINE allocate_shared_dp_0D(                  p, win)
@@ -252,8 +254,6 @@ CONTAINS
       ! Get the baseptr, size and disp_unit values of the master's memory space.
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
-        
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_0D:  win = ', win
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p)
@@ -261,6 +261,9 @@ CONTAINS
     ! Initialise memory with zeros
     IF (par%master) p = 0
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_dp_0D  
   SUBROUTINE allocate_shared_dp_1D(      n1,         p, win)
@@ -299,14 +302,15 @@ CONTAINS
     END IF
     CALL sync
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_1D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0._dp
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_dp_1D  
   SUBROUTINE allocate_shared_dp_2D(      n1, n2,     p, win)
@@ -345,14 +349,15 @@ CONTAINS
     END IF
     CALL sync
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_2D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0._dp
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_dp_2D  
   SUBROUTINE allocate_shared_dp_3D(      n1, n2, n3, p, win)
@@ -391,14 +396,15 @@ CONTAINS
     END IF
     CALL sync
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_dp_3D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2, n3])
     
     ! Initialise memory with zeros
     IF (par%master) p = 0._dp
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_dp_3D  
   SUBROUTINE allocate_shared_bool_0D(                p, win)
@@ -437,6 +443,9 @@ CONTAINS
     
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p)
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_bool_0D
   SUBROUTINE allocate_shared_complex_1D( n1,         p, win)
@@ -474,14 +483,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_complex_1D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1])
     
     ! Initialise memory with zeros
     IF (par%master) p = (0.,0.)
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_complex_1D  
   SUBROUTINE allocate_shared_complex_2D( n1, n2,     p, win)
@@ -519,14 +529,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_complex_2D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2])
     
     ! Initialise memory with zeros
     IF (par%master) p = (0.,0.)
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_complex_2D 
   SUBROUTINE allocate_shared_complex_3D( n1, n2, n3, p, win)
@@ -564,14 +575,15 @@ CONTAINS
       CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
     END IF
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     allocate_shared_complex_3D:  win = ', win
-    
     ! Associate a pointer with this memory space.
     CALL C_F_POINTER(baseptr, p, [n1, n2, n3])
     
     ! Initialise memory with zeros
     IF (par%master) p = (0.,0.)
     CALL sync
+    
+    ! Update the max_window memory leak tracker
+    n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_complex_3D   
     
@@ -586,9 +598,9 @@ CONTAINS
     
     INTEGER                                            :: ierr
     
-    IF (par%master .AND. debug_check_for_memory_leaks) WRITE(0,*) '     deallocate_shared:      win = ', win
-    
     CALL MPI_WIN_FREE( win, ierr)
+    
+    n_MPI_windows = n_MPI_windows - 1
   
   END SUBROUTINE deallocate_shared
     
@@ -599,18 +611,39 @@ CONTAINS
     INTEGER,                    INTENT(IN)        :: ntot, i, n
     INTEGER,                    INTENT(OUT)       :: i1, i2
     
-    IF (ntot > n*2) THEN
-      i1 = MAX(1,    FLOOR(REAL(ntot *  i      / n)) + 1)
-      i2 = MIN(ntot, FLOOR(REAL(ntot * (i + 1) / n)))
-    ELSE
-      IF (i==0) THEN
-        i1 = 1
-        i2 = ntot
-      ELSE
-        i1 = 1
-        i2 = 0
+    ! Local variables:
+    INTEGER                                       :: vi
+    INTEGER, DIMENSION(:    ), ALLOCATABLE        :: to_which_process_do_I_belong
+    
+    ALLOCATE( to_which_process_do_I_belong( ntot))
+    
+    DO vi = 1, ntot
+      to_which_process_do_i_belong( vi) = NINT( REAL(vi-1,dp) * REAL(n-1,dp) / REAL(ntot-1,dp) )
+    END DO
+    
+    i1 = 1
+    DO WHILE (to_which_process_do_i_belong( i1) /= i)
+      i1 = i1+1
+      IF (i1 > ntot) THEN
+        i1 =  0
+        i2 = -1
+        DEALLOCATE( to_which_process_do_I_belong)
+        RETURN
       END IF
-    END IF
+    END DO
+    
+    i2 = ntot
+    DO WHILE (to_which_process_do_i_belong( i2) /= i)
+      i2 = i2-1
+      IF (i2 < 1) THEN
+        i1 =  0
+        i2 = -1
+        DEALLOCATE( to_which_process_do_I_belong)
+        RETURN
+      END IF
+    END DO
+    
+    DEALLOCATE( to_which_process_do_I_belong)
     
   END SUBROUTINE partition_list
   

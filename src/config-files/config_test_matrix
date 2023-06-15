@@ -28,8 +28,9 @@ dx_ANT_config                           = 40000
 ! Time stepping
 dt_max_config                           = 10       ! Maximum time step (in years) of the ice model
 dt_thermo_config                        = 1        ! Time step (in years) for updating the thermodynamics
-dt_output_config                        = 10       ! Time step (in years) for writing output
+dt_output_config                        = 1000       ! Time step (in years) for writing output
 dt_climate_config                       = 10       ! Time step (in years) for updating the climate and mass balance
+dt_ocean_config                         = 10
 dt_bedrock_ELRA_config                  = 50
 dt_SELEN_config                         = 1000
 
@@ -67,20 +68,31 @@ filename_GCM_snapshot_PI_config         = '/Users/3137902/Models/IMAU-ICE/Datase
 filename_GCM_snapshot_warm_config       = '/Users/3137902/Models/IMAU-ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
 filename_GCM_snapshot_cold_config       = '/Users/3137902/Models/IMAU-ICE/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
 
-filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
-choice_ocean_temperature_model_config   = 'WOA' ! schematic, WOA, matrix
+filename_GCM_ocean_snapshot_PI_config   = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+filename_GCM_ocean_snapshot_warm_config = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+filename_GCM_ocean_snapshot_cold_config = 'Datasets/COSMOS_ocean_examples/COSMOS_LGM_oceanTS_prep.nc'  
+
+
+!filename_PD_obs_ocean_config            = 'Datasets/WOA/woa18_decav_ts00_01_NaN.nc'
+!filename_PD_obs_ocean_config            = 'Datasets/COSMOS_ocean_examples/COSMOS_PI_oceanTS_prep.nc'
+name_ocean_temperature_config           = 't_an'
+name_ocean_salinity_config              = 's_an'
+
+choice_ocean_temperature_model_config   = 'matrix_warm_cold' ! schematic, WOA, matrix_warm_cold
+w_tot_hist_averaging_window_config       = 1500
+
 ! Choice of shelf BMB: "uniform", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP"
-choice_BMB_shelf_model_config           = 'uniform' 
+choice_BMB_shelf_model_config           = 'Lazeroms2018_plume' 
 
 filename_basins_ANT_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/ant_full_drainagesystem_polygons.txt'
 choice_basin_scheme_ANT_config          = 'file'
 do_merge_basins_ANT_config              = .TRUE.
 !choice_schematic_ocean_config           = 'Reese2018'
 
-climate_matrix_high_CO2_level_config    = 280.0
-climate_matrix_low_CO2_level_config     = 190.0
-climate_matrix_warm_orbit_time_config   = 0.0
-climate_matrix_cold_orbit_time_config   = -120000.0
+matrix_high_CO2_level_config            = 280.0
+matrix_low_CO2_level_config             = 190.0
+matrix_warm_orbit_time_config           = 0.0
+matrix_cold_orbit_time_config           = -120000.0
 
 climate_matrix_CO2vsice_NAM_config      = 0.5
 climate_matrix_CO2vsice_EAS_config      = 0.5
@@ -106,6 +118,7 @@ SMB_IMAUITM_C_abl_Q_ANT_config          = 0.513
 ! Forcing
 filename_insolation_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/Insolation/Laskar_etal_2004_insolation.nc'
 choice_forcing_method_config            = 'CO2_direct'
+!filename_GCM_climate_config             = 'Datasets/GCM_snapshots/Singarayer_Valdes_2010_record.nc'
 filename_CO2_record_config              = '/Users/3137902/Models/IMAU-ICE/Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat'
 CO2_record_length_config                = 8001
 
@@ -161,14 +174,22 @@ help_field_30_config                     = 'PD_obs_T2m'
 help_field_31_config                     = 'PD_obs_Precip'
 help_field_32_config                     = 'T_ocean_3D'
 help_field_33_config                     = 'S_ocean_3D'
-help_field_34_config                     = 'none'
-help_field_35_config                     = 'none'
-help_field_36_config                     = 'none'
-help_field_37_config                     = 'none'
-help_field_38_config                     = 'none'
-help_field_39_config                     = 'none'
-help_field_40_config                     = 'none'
-help_field_41_config                     = 'none'
+help_field_34_config                     = 'GCM_Warm_T_ocean_3D'
+help_field_35_config                     = 'GCM_Warm_S_ocean_3D'
+help_field_36_config                     = 'GCM_Cold_T_ocean_3D'
+help_field_37_config                     = 'GCM_Cold_S_ocean_3D'
+help_field_38_config                     = 'GCM_PI_T_ocean_3D'
+help_field_39_config                     = 'GCM_PI_S_ocean_3D'
+help_field_40_config                     = 'PD_obs_T_ocean_3D'
+help_field_41_config                     = 'PD_obs_S_ocean_3D'
+!help_field_34_config                     = 'none'
+!help_field_35_config                     = 'none'
+!help_field_36_config                     = 'none'
+!help_field_37_config                     = 'none'
+!help_field_38_config                     = 'none'
+!help_field_39_config                     = 'none'
+!help_field_40_config                     = 'none'
+!help_field_41_config                     = 'none'
 help_field_42_config                     = 'none'
 help_field_43_config                     = 'none'
 help_field_44_config                     = 'none'

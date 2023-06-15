@@ -5,7 +5,7 @@ MODULE derivatives_and_grids_module
 
   USE mpi
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, partition_list
-  USE configuration_module,            ONLY: dp, C
+  USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_zeta_coefficients
   USE netcdf_module,                   ONLY: debug
   
@@ -33,7 +33,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -48,6 +52,9 @@ CONTAINS
     dx_a( grid%j1:grid%j2,grid%nx) = (d_a( grid%j1:grid%j2,grid%nx) - d_a( grid%j1:grid%j2,grid%nx-1)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_a_to_a_2D
   SUBROUTINE ddy_a_to_a_2D(  grid, d_a, dy_a)
     ! Input:  scalar on the Aa grid
@@ -61,7 +68,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
@@ -76,6 +87,9 @@ CONTAINS
     dy_a( grid%ny,grid%i1:grid%i2) = (d_a( grid%ny,grid%i1:grid%i2) - d_a( grid%ny-1,grid%i1:grid%i2)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_a_to_a_2D
   SUBROUTINE ddxx_a_to_a_2D( grid, d_a, dxx_a)
     ! Input:  scalar on the Aa grid
@@ -89,7 +103,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dxx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddxx_a_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -104,6 +122,9 @@ CONTAINS
     dxx_a( grid%j1:grid%j2,grid%nx) = (d_a( grid%j1:grid%j2,grid%nx) + d_a( grid%j1:grid%j2,grid%nx-2) - 2._dp * d_a( grid%j1:grid%j2,grid%nx-1)) / grid%dx**2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddxx_a_to_a_2D
   SUBROUTINE ddyy_a_to_a_2D( grid, d_a, dyy_a)
     ! Input:  scalar on the Aa grid
@@ -117,7 +138,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dyy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddyy_a_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
@@ -132,6 +157,9 @@ CONTAINS
     dyy_a( grid%ny,grid%i1:grid%i2) = (d_a( grid%ny,grid%i1:grid%i2) + d_a( grid%ny-2,grid%i1:grid%i2) - 2._dp * d_a( grid%ny-1,grid%i1:grid%i2)) / grid%dx**2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddyy_a_to_a_2D
   SUBROUTINE ddxy_a_to_a_2D( grid, d_a, dxy_a)
     ! Input:  scalar on the Aa grid
@@ -145,7 +173,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dxy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddxy_a_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -163,6 +195,9 @@ CONTAINS
     dxy_a( grid%j1:grid%j2,grid%nx        ) = 0._dp
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddxy_a_to_a_2D
   ! 3D
   SUBROUTINE ddx_a_to_a_3D(  grid, d_a, dx_a)
@@ -177,7 +212,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -194,6 +233,9 @@ CONTAINS
     dx_a( :,grid%j1:grid%j2,grid%nx) = (d_a( :,grid%j1:grid%j2,grid%nx) - d_a( :,grid%j1:grid%j2,grid%nx-1)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_a_to_a_3D
   SUBROUTINE ddy_a_to_a_3D(  grid, d_a, dy_a)
     ! Input:  scalar on the Aa grid
@@ -207,7 +249,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
@@ -224,6 +270,9 @@ CONTAINS
     dy_a( :,grid%ny,grid%i1:grid%i2) = (d_a( :,grid%ny,grid%i1:grid%i2) - d_a( :,grid%ny-1,grid%i1:grid%i2)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_a_to_a_3D
   SUBROUTINE ddxx_a_to_a_3D( grid, d_a, dxx_a)
     ! Input:  scalar on the Aa grid
@@ -237,7 +286,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dxx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddxx_a_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -254,6 +307,9 @@ CONTAINS
     dxx_a( :,grid%j1:grid%j2,grid%nx) = (d_a( :,grid%j1:grid%j2,grid%nx) + d_a( :,grid%j1:grid%j2,grid%nx-2) - 2._dp * d_a( :,grid%j1:grid%j2,grid%nx-1)) / grid%dx**2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddxx_a_to_a_3D
   SUBROUTINE ddyy_a_to_a_3D( grid, d_a, dyy_a)
     ! Input:  scalar on the Aa grid
@@ -267,7 +323,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dyy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddyy_a_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
@@ -284,6 +344,9 @@ CONTAINS
     dyy_a( :,grid%ny,grid%i1:grid%i2) = (d_a( :,grid%ny,grid%i1:grid%i2) + d_a( :,grid%ny-2,grid%i1:grid%i2) - 2._dp * d_a( :,grid%ny-1,grid%i1:grid%i2)) / grid%dx**2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddyy_a_to_a_3D
   SUBROUTINE ddxy_a_to_a_3D( grid, d_a, dxy_a)
     ! Input:  scalar on the Aa grid
@@ -297,7 +360,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dxy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddxy_a_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -317,6 +384,9 @@ CONTAINS
     dxy_a( :,grid%j1:grid%j2,grid%nx        ) = 0._dp
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddxy_a_to_a_3D
   ! 3D upwind, for thermodynamics
   SUBROUTINE ddx_a_to_a_3D_upwind( grid, d_a, dx_a, U_3D_a)
@@ -332,7 +402,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(IN)    :: U_3D_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_a_3D_upwind'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Upwind one-sided differencing
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -352,6 +426,9 @@ CONTAINS
     dx_a( :,grid%j1:grid%j2,grid%nx) = 0._dp
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_a_to_a_3D_upwind
   SUBROUTINE ddy_a_to_a_3D_upwind( grid, d_a, dy_a, V_3D_a)
     ! Input:  scalar on the Aa grid
@@ -366,7 +443,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(IN)    :: V_3D_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_a_3D_upwind'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Upwind one-sided differencing
     DO i = grid%i1, grid%i2
@@ -386,6 +467,9 @@ CONTAINS
     dy_a( :,grid%ny,grid%i1:grid%i2) = 0._dp
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_a_to_a_3D_upwind
   
   ! Aa to Acx/Acy
@@ -403,7 +487,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dx_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -411,6 +499,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddx_a_to_cx_2D
   SUBROUTINE ddy_a_to_cy_2D( grid, d_a, dy_cy)
@@ -425,7 +516,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dy_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -433,6 +528,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddy_a_to_cy_2D
   SUBROUTINE ddx_a_to_cy_2D( grid, d_a, dx_cy)
@@ -447,7 +545,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dx_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -464,6 +566,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_a_to_cy_2D
   SUBROUTINE ddy_a_to_cx_2D( grid, d_a, dy_cx)
     ! Input:  scalar on the Aa grid
@@ -477,7 +582,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dy_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -494,6 +603,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_a_to_cx_2D
   ! 3D
   SUBROUTINE ddx_a_to_cx_3D( grid, d_a, dx_cx)
@@ -508,7 +620,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx-1), INTENT(OUT)   :: dx_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_cx_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -518,6 +634,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddx_a_to_cx_3D
   SUBROUTINE ddy_a_to_cy_3D( grid, d_a, dy_cy)
@@ -532,7 +651,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny-1, grid%nx  ), INTENT(OUT)   :: dy_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_cy_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -542,6 +665,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddy_a_to_cy_3D
   SUBROUTINE ddx_a_to_cy_3D( grid, d_a, dx_cy)
@@ -556,7 +682,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny-1, grid%nx  ), INTENT(OUT)   :: dx_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_a_to_cy_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -575,6 +705,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_a_to_cy_3D
   SUBROUTINE ddy_a_to_cx_3D( grid, d_a, dy_cx)
     ! Input:  scalar on the Aa grid
@@ -588,7 +721,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx-1), INTENT(OUT)   :: dy_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_a_to_cx_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -607,6 +744,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_a_to_cx_3D
   
   ! Acx/Acy to Aa
@@ -624,7 +764,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cx_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -636,6 +780,9 @@ CONTAINS
     dx_a( grid%j1:grid%j2,1      ) = dx_a( grid%j1:grid%j2,2        )
     dx_a( grid%j1:grid%j2,grid%nx) = dx_a( grid%j1:grid%j2,grid%nx-1)
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddx_cx_to_a_2D
   SUBROUTINE ddy_cy_to_a_2D( grid, d_cy, dy_a)
@@ -650,7 +797,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cy_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -662,6 +813,9 @@ CONTAINS
     dy_a( 1      ,grid%i1:grid%i2) = dy_a( 2        ,grid%i1:grid%i2)
     dy_a( grid%ny,grid%i1:grid%i2) = dy_a( grid%ny-1,grid%i1:grid%i2)
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddy_cy_to_a_2D
   SUBROUTINE ddy_cx_to_a_2D( grid, d_cx, dy_a)
@@ -676,7 +830,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cx_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -715,6 +873,9 @@ CONTAINS
     END IF
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cx_to_a_2D
   SUBROUTINE ddx_cy_to_a_2D( grid, d_cy, dx_a)
     ! Input:  scalar on the Acy grid
@@ -728,7 +889,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: dx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cy_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -767,6 +932,9 @@ CONTAINS
     END IF
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cy_to_a_2D
   ! 3D
   SUBROUTINE ddx_cx_to_a_3D( grid, d_cx, dx_a)
@@ -781,7 +949,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dx_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cx_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -791,6 +963,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddx_cx_to_a_3D
   SUBROUTINE ddy_cy_to_a_3D( grid, d_cy, dy_a)
@@ -805,7 +980,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: dy_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cy_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -815,6 +994,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddy_cy_to_a_3D
   
@@ -831,7 +1013,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dx_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cx_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = 2, grid%nx-2
@@ -846,6 +1032,9 @@ CONTAINS
     dx_cx( grid%j1:grid%j2,grid%nx-1) = (d_cx( grid%j1:grid%j2,grid%nx-1) - d_cx( grid%j1:grid%j2,grid%nx-2)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cx_to_cx_2D
   SUBROUTINE ddy_cx_to_cx_2D( grid, d_cx, dy_cx)
     ! Input:  scalar on the Acx grid
@@ -859,7 +1048,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dy_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cx_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -874,6 +1067,9 @@ CONTAINS
     dy_cx( grid%ny,grid%i1:grid%i2) = (d_cx( grid%ny,grid%i1:grid%i2) - d_cx( grid%ny-1,grid%i1:grid%i2)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cx_to_cx_2D
   SUBROUTINE ddx_cy_to_cy_2D( grid, d_cy, dx_cy)
     ! Input:  scalar on the Acy grid
@@ -887,7 +1083,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dx_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cy_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -902,6 +1102,9 @@ CONTAINS
     dx_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx) = (d_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx) - d_cy( grid%j1:MIN(grid%j2,grid%ny-1),grid%nx-1)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cy_to_cy_2D
   SUBROUTINE ddy_cy_to_cy_2D( grid, d_cy, dy_cy)
     ! Input:  scalar on the Acy grid
@@ -915,7 +1118,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dy_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cy_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
@@ -930,6 +1137,9 @@ CONTAINS
     dy_cy( grid%ny-1,grid%i1:grid%i2) = (d_cy( grid%ny-1,grid%i1:grid%i2) - d_cy( grid%ny-2,grid%i1:grid%i2)) / grid%dx
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cy_to_cy_2D
   SUBROUTINE ddx_cx_to_cy_2D( grid, d_cx, dx_cy)
     ! Input:  scalar on the Acx grid
@@ -943,7 +1153,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dx_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cx_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -962,6 +1176,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cx_to_cy_2D
   SUBROUTINE ddy_cx_to_cy_2D( grid, d_cx, dy_cy)
     ! Input:  scalar on the Acx grid
@@ -975,7 +1192,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: dy_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cx_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -996,6 +1217,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cx_to_cy_2D
   SUBROUTINE ddx_cy_to_cx_2D( grid, d_cy, dx_cx)
     ! Input:  scalar on the Acy grid
@@ -1009,7 +1233,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dx_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cy_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1030,6 +1258,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cy_to_cx_2D
   SUBROUTINE ddy_cy_to_cx_2D( grid, d_cy, dy_cx)
     ! Input:  scalar on the Acy grid
@@ -1043,7 +1274,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: dy_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cy_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1064,6 +1299,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cy_to_cx_2D
   
   ! Acx to Ab
@@ -1079,7 +1317,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: dx_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cx_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-2,grid%i2)
@@ -1098,6 +1340,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddx_cx_to_b_2D
   SUBROUTINE ddy_cy_to_b_2D( grid, d_cy, dy_b)
     ! Input:  scalar on the Acy grid
@@ -1111,7 +1356,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: dy_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cy_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-2,grid%i2)
@@ -1130,6 +1379,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE ddy_cy_to_b_2D
   SUBROUTINE ddx_cy_to_b_2D( grid, d_cy, dx_b)
     ! Input:  scalar on the Acy grid
@@ -1143,7 +1395,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: dx_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddx_cy_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1152,6 +1408,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddx_cy_to_b_2D
   SUBROUTINE ddy_cx_to_b_2D( grid, d_cx, dy_b)
@@ -1166,7 +1425,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: dy_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'ddy_cx_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1175,6 +1438,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE ddy_cx_to_b_2D
   
@@ -1197,7 +1463,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: d_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_a_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -1205,6 +1475,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_a_to_cx_2D
   SUBROUTINE map_a_to_cy_2D( grid, d_a, d_cy)
@@ -1219,7 +1492,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: d_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_a_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -1227,6 +1504,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_a_to_cy_2D
   ! 3D
@@ -1242,7 +1522,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx-1), INTENT(OUT)   :: d_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_a_to_cx_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -1252,6 +1536,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_a_to_cx_3D
   SUBROUTINE map_a_to_cy_3D( grid, d_a, d_cy)
@@ -1266,7 +1553,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny-1, grid%nx  ), INTENT(OUT)   :: d_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_a_to_cy_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -1276,6 +1567,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_a_to_cy_3D
   
@@ -1294,7 +1588,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: d_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cx_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -1306,6 +1604,9 @@ CONTAINS
     d_a( grid%j1:grid%j2,1      ) = d_cx( grid%j1:grid%j2,1        )
     d_a( grid%j1:grid%j2,grid%nx) = d_cx( grid%j1:grid%j2,grid%nx-1)
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_cx_to_a_2D
   SUBROUTINE map_cy_to_a_2D( grid, d_cy, d_a)
@@ -1320,7 +1621,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(OUT)   :: d_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cy_to_a_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -1332,6 +1637,9 @@ CONTAINS
     d_a( 1      ,grid%i1:grid%i2) = d_cy( 1        ,grid%i1:grid%i2)
     d_a( grid%ny,grid%i1:grid%i2) = d_cy( grid%ny-1,grid%i1:grid%i2)
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_cy_to_a_2D
   ! 3D
@@ -1347,7 +1655,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: d_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cx_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -1362,6 +1674,9 @@ CONTAINS
     d_a( :,grid%j1:grid%j2,grid%nx) = d_cx( :,grid%j1:grid%j2,grid%nx-1)
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_cx_to_a_3D
   SUBROUTINE map_cy_to_a_3D( grid, d_cy, d_a)
     ! Input:  scalar on the Acy grid
@@ -1375,7 +1690,11 @@ CONTAINS
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(OUT)   :: d_a
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cy_to_a_3D'
     INTEGER                                                         :: i,j,k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -1389,6 +1708,9 @@ CONTAINS
     d_a( :,1      ,grid%i1:grid%i2) = d_cy( :,1        ,grid%i1:grid%i2)
     d_a( :,grid%ny,grid%i1:grid%i2) = d_cy( :,grid%ny-1,grid%i1:grid%i2)
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_cy_to_a_3D
   
@@ -1405,7 +1727,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(OUT)   :: d_cy
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cx_to_cy_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
@@ -1424,6 +1750,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_cx_to_cy_2D
   SUBROUTINE map_cy_to_cx_2D( grid, d_cy, d_cx)
     ! Input:  scalar on the Acy grid
@@ -1437,7 +1766,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(OUT)   :: d_cx
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cy_to_cx_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
@@ -1456,6 +1789,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_cy_to_cx_2D
   
   ! Aa to Ab
@@ -1471,7 +1807,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: d_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_a_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1479,6 +1819,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_a_to_b_2D
   
@@ -1495,7 +1838,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: d_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cx_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1503,6 +1850,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_cx_to_b_2D
   SUBROUTINE map_cy_to_b_2D( grid, d_cy, d_b)
@@ -1517,7 +1867,11 @@ CONTAINS
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx-1), INTENT(OUT)   :: d_b
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'map_cy_to_b_2D'
     INTEGER                                                         :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1525,6 +1879,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE map_cy_to_b_2D
   
@@ -1543,8 +1900,12 @@ CONTAINS
     TYPE(type_ice_model),                             INTENT(INOUT) :: ice
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'calculate_zeta_derivatives'
     INTEGER                                                         :: i,j,k
     REAL(dp)                                                        :: inverse_Hi
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1562,6 +1923,9 @@ CONTAINS
     END DO
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE calculate_zeta_derivatives
   SUBROUTINE initialise_zeta_discretisation
     ! Initialise the coefficients for calculating df/dzeta
@@ -1570,7 +1934,11 @@ CONTAINS
     IMPLICIT NONE
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'initialise_zeta_discretisation'
     INTEGER :: k
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ALLOCATE( zeta%a_k(          2:C%nz  ))
     ALLOCATE( zeta%b_k(          1:C%nz-1))
@@ -1626,6 +1994,9 @@ CONTAINS
       zeta%b_zeta_minus( k) = ( zeta%a_k( k) + zeta%c_k( k)) / ( zeta%a_k( k) *   zeta%c_k( k)                )
     END DO
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_zeta_discretisation
   
 ! ======================================
@@ -1643,12 +2014,21 @@ CONTAINS
     TYPE(type_grid),                                  INTENT(IN)    :: grid
     REAL(dp), DIMENSION(       grid%ny  , grid%nx  ), INTENT(INOUT) :: d_a
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'Neumann_BC_a_2D'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     d_a( 1              ,grid%i1:grid%i2) = d_a( 2              ,grid%i1:grid%i2)
     d_a( grid%ny        ,grid%i1:grid%i2) = d_a( grid%ny-1      ,grid%i1:grid%i2)
     CALL sync
     d_a( grid%j1:grid%j2,1              ) = d_a( grid%j1:grid%j2,2              )
     d_a( grid%j1:grid%j2,grid%nx        ) = d_a( grid%j1:grid%j2,grid%nx-1      )
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE Neumann_BC_a_2D
   SUBROUTINE Neumann_BC_a_3D( grid, d_a)
@@ -1662,12 +2042,21 @@ CONTAINS
     TYPE(type_grid),                                  INTENT(IN)    :: grid
     REAL(dp), DIMENSION( C%nZ, grid%ny  , grid%nx  ), INTENT(INOUT) :: d_a
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'Neumann_BC_a_3D'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     d_a( :,1              ,grid%i1:grid%i2) = d_a( :,2              ,grid%i1:grid%i2)
     d_a( :,grid%ny        ,grid%i1:grid%i2) = d_a( :,grid%ny-1      ,grid%i1:grid%i2)
     CALL sync
     d_a( :,grid%j1:grid%j2,1              ) = d_a( :,grid%j1:grid%j2,2              )
     d_a( :,grid%j1:grid%j2,grid%nx        ) = d_a( :,grid%j1:grid%j2,grid%nx-1      )
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE Neumann_BC_a_3D
   SUBROUTINE Neumann_BC_cx_2D( grid, d_cx)
@@ -1681,12 +2070,21 @@ CONTAINS
     TYPE(type_grid),                                  INTENT(IN)    :: grid
     REAL(dp), DIMENSION(       grid%ny  , grid%nx-1), INTENT(INOUT) :: d_cx
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'Neumann_BC_cx_2D'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     d_cx( 1              ,grid%i1:MIN(grid%nx-1,grid%i2)) = d_cx( 2              ,grid%i1:MIN(grid%nx-1,grid%i2))
     d_cx( grid%ny        ,grid%i1:MIN(grid%nx-1,grid%i2)) = d_cx( grid%ny-1      ,grid%i1:MIN(grid%nx-1,grid%i2))
     CALL sync
     d_cx( grid%j1:grid%j2,1              ) = d_cx( grid%j1:grid%j2,2              )
     d_cx( grid%j1:grid%j2,grid%nx        ) = d_cx( grid%j1:grid%j2,grid%nx-1      )
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE Neumann_BC_cx_2D
   SUBROUTINE Neumann_BC_cy_2D( grid, d_cy)
@@ -1700,12 +2098,21 @@ CONTAINS
     TYPE(type_grid),                                  INTENT(IN)    :: grid
     REAL(dp), DIMENSION(       grid%ny-1, grid%nx  ), INTENT(INOUT) :: d_cy
     
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                                   :: routine_name = 'Neumann_BC_cy_2D'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
     d_cy( 1              ,grid%i1:grid%i2) = d_cy( 2              ,grid%i1:grid%i2)
     d_cy( grid%ny        ,grid%i1:grid%i2) = d_cy( grid%ny-1      ,grid%i1:grid%i2)
     CALL sync
     d_cy( grid%j1:MIN(grid%ny-1,grid%j2),1              ) = d_cy( grid%j1:MIN(grid%ny-1,grid%j2),2              )
     d_cy( grid%j1:MIN(grid%ny-1,grid%j2),grid%nx        ) = d_cy( grid%j1:MIN(grid%ny-1,grid%j2),grid%nx-1      )
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE Neumann_BC_cy_2D
 

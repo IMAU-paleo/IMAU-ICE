@@ -12,7 +12,7 @@ MODULE SELEN_main_module
   ! the (global) results to the output NetCDF file.
   
   USE mpi
-  USE configuration_module,              ONLY: dp, C
+  USE configuration_module,              ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
   USE parallel_module,                   ONLY: par, sync, cerr, ierr, &
                                                allocate_shared_int_0D, allocate_shared_dp_0D, &
@@ -49,7 +49,11 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: ocean_depth           ! Averaged depth of the worlds ocean's (m)
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SELEN'
     REAL(dp)                                           :: t1,t2
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE (0,'(A)') ''
     IF (par%master) WRITE (0,'(A)') '  Running SELEN to solve the sea-level equation'
@@ -75,6 +79,9 @@ CONTAINS
     
     IF (par%master) WRITE (0,'(A,F7.2,A)') '  Finished solving the sea-level equation in ', t2-t1, ' seconds'
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE run_SELEN
   SUBROUTINE map_SELEN_results_to_region_GIA_grid( SELEN, region)
   
@@ -85,11 +92,15 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'map_SELEN_results_to_region_GIA_grid'
     INTEGER                                            :: i,j
     COMPLEX*16, DIMENSION(:,:  ), POINTER              :: MEM_S
     COMPLEX*16, DIMENSION(:,:  ), POINTER              :: MEM_U  
     COMPLEX*16, DIMENSION(:    ), POINTER              ::  dHb_t_sh,  dHb_tplusdt_sh,  SL_t_sh,  SL_tplusdt_sh
     INTEGER                                            :: wdHb_t_sh, wdHb_tplusdt_sh, wSL_t_sh, wSL_tplusdt_sh
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Bind local pointers
     MEM_S( 1:C%SELEN_jmax, 0:C%SELEN_irreg_time_n) => SELEN%MEM_S
@@ -154,6 +165,9 @@ CONTAINS
     CALL deallocate_shared( wSL_t_sh       )
     CALL deallocate_shared( wSL_tplusdt_sh )
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE map_SELEN_results_to_region_GIA_grid
   SUBROUTINE apply_SELEN_bed_geoid_deformation_rates( region)
   
@@ -163,14 +177,18 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'apply_SELEN_bed_geoid_deformation_rates'
     INTEGER                                            :: i,j
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
       
       ! Bedrock
       region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
-      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%PD%Hb( j,i)
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_PD%Hb( j,i)
       
       ! Geoid
       region%ice%SL_a(  j,i) = region%ice%SL_a( j,i) + region%ice%dSL_dt_a( j,i) * region%dt
@@ -178,6 +196,9 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE apply_SELEN_bed_geoid_deformation_rates
 
@@ -190,6 +211,12 @@ CONTAINS
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     TYPE(type_model_region),             INTENT(INOUT) :: NAM, EAS, GRL, ANT
     CHARACTER(LEN=256),                  INTENT(IN)    :: version_number
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SELEN'
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Initialising SELEN...'
@@ -262,6 +289,9 @@ CONTAINS
     IF (par%master) WRITE(0,*) ' Finished initialising SELEN.'
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_SELEN
   SUBROUTINE read_Love_numbers( SELEN)
     ! Read the Love numbers from the provided external file
@@ -272,16 +302,19 @@ CONTAINS
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     
     ! Local variables:
-    INTEGER                                            :: cerr, ierr, j
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_Love_numbers'
+    INTEGER                                            :: j
     LOGICAL                                            :: exists
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Read the MJ and LJ values from a binary file
     ! ============================================
     
     INQUIRE( FILE = TRIM(C%selen_dir)//'/'//TRIM(C%SELEN_LMJ_VALUES_filename), EXIST=exists)
     IF (.NOT. exists) THEN
-      IF (par%master) WRITE(0,*) '    read_Love_numbers - ERROR: LMJ file "', TRIM(C%SELEN_LMJ_VALUES_filename), '" not found!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('LMJ file "' // TRIM( C%SELEN_LMJ_VALUES_filename) // '" not found!')
     END IF
     
     CALL allocate_shared_int_1D( C%SELEN_jmax, SELEN%MJ_VAL, SELEN%wMJ_VAL)
@@ -298,6 +331,9 @@ CONTAINS
     
     CALL partition_list( C%SELEN_jmax, par%i, par%n, C%SELEN_j1, C%SELEN_j2)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE read_Love_numbers
   
 ! == Initialise ice loading history
@@ -311,7 +347,11 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: NAM, EAS, GRL, ANT
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_loading_history'
     INTEGER                                            :: ki
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory:
     CALL allocate_shared_dp_1D( SELEN%mesh%nV * (C%SELEN_irreg_time_n+1), SELEN%dice_loading_history_irreg_glob, SELEN%wdice_loading_history_irreg_glob)
@@ -329,6 +369,9 @@ CONTAINS
     IF (C%do_GRL) CALL initialise_ice_loading_history_region( GRL)
     IF (C%do_ANT) CALL initialise_ice_loading_history_region( ANT)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_ice_loading_history
   SUBROUTINE initialise_ice_loading_history_region( region)
   
@@ -338,7 +381,11 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_loading_history_region'
     INTEGER                                              :: k, ki
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory:
     CALL allocate_shared_dp_3D( C%SELEN_reg_time_n, region%grid_GIA%ny, region%grid_GIA%nx, region%SELEN%ice_loading_history_reg_sq,   region%SELEN%wice_loading_history_reg_sq  )
@@ -352,6 +399,9 @@ CONTAINS
       region%SELEN%ice_loading_history_irreg_sq( ki,:,region%grid_GIA%i1:region%grid_GIA%i2) = region%SELEN%load_ref( :,region%grid_GIA%i1:region%grid_GIA%i2)
     END DO
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ice_loading_history_region
   SUBROUTINE update_ice_loading_history( SELEN, NAM, EAS, GRl, ANT)
@@ -366,6 +416,7 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: NAM, EAS, GRL, ANT
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_loading_history'
     INTEGER                                            :: ki
     REAL(dp), DIMENSION(:,:  ), POINTER                :: load_region_ki_NAM
     REAL(dp), DIMENSION(:,:  ), POINTER                :: load_region_ki_EAS
@@ -377,6 +428,9 @@ CONTAINS
     REAL(dp), DIMENSION(:    ), POINTER                :: load_glob_ki_GRL
     REAL(dp), DIMENSION(:    ), POINTER                :: load_glob_ki_ANT
     INTEGER                                            :: wload_glob_ki_NAM, wload_glob_ki_EAS, wload_glob_ki_GRL, wload_glob_ki_ANT
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     IF (C%do_NAM) CALL allocate_shared_dp_2D( NAM%grid_GIA%ny, NAM%grid_GIA%nx, load_region_ki_NAM,  wload_region_ki_NAM)
@@ -429,6 +483,9 @@ CONTAINS
                   CALL deallocate_shared( wload_glob_ki_EAS  )
                   CALL deallocate_shared( wload_glob_ki_GRL  )
                   CALL deallocate_shared( wload_glob_ki_ANT  )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
  END SUBROUTINE update_ice_loading_history
   SUBROUTINE update_ice_loading_history_region( region)
@@ -440,9 +497,13 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_ice_loading_history_region'
     INTEGER                                            :: i,j,k,ki
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  load_icemodel_grid,  load_GIA_grid
     INTEGER                                            :: wload_icemodel_grid, wload_GIA_grid
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
   ! Map ice loading at current time step from the ice model grid to the GIA grid
   ! =============================================================================
@@ -488,6 +549,9 @@ CONTAINS
     CALL deallocate_shared( wload_icemodel_grid)
     CALL deallocate_shared( wload_GIA_grid)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE update_ice_loading_history_region
   
 ! == Initialise ALF and LONG_TABLE
@@ -504,7 +568,11 @@ CONTAINS
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ALF_and_LONG_TABLE'
     INTEGER                                            :: i, i1, i2, li
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(       C%SELEN_jmax,     SELEN%mesh%nanc, SELEN%ALF,         SELEN%wALF       )
@@ -528,6 +596,9 @@ CONTAINS
     END DO ! DO i = C%SELEN_i1, C%SELEN_i2
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_ALF_and_LONG_TABLE
 
 ! == Initialise regional and global reference fields
@@ -541,7 +612,11 @@ CONTAINS
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SELEN_global_data'
     INTEGER                                            :: i1, i2, iap
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate memory for mesh size variables
     CALL allocate_shared_int_0D( SELEN%mesh%nV,     SELEN%mesh%wnV    )
@@ -612,6 +687,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE initialise_SELEN_global_data
   SUBROUTINE initialise_reference_fields_regional( region)
     ! Initialise the reference fields needed for SELEN on UFEMISM's regional square grids
@@ -622,9 +700,13 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
 
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_reference_fields_regional'
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_PD_grid_GIA,  Hb_PD_grid_GIA
     INTEGER                                            :: wHi_PD_grid_GIA, wHb_PD_grid_GIA
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) WRITE(0,*) '   Initialising SELEN reference fields for region ', region%name, '...'
   
@@ -637,10 +719,10 @@ CONTAINS
     
     CALL map_square_to_square_cons_2nd_order_2D( region%grid%nx,     region%grid%ny,     region%grid%x,     region%grid%y,&
                                                  region%grid_GIA%nx, region%grid_GIA%ny, region%grid_GIA%x, region%grid_GIA%y, &
-                                                 region%PD%Hi, Hi_PD_grid_GIA)
+                                                 region%refgeo_PD%Hi, Hi_PD_grid_GIA)
     CALL map_square_to_square_cons_2nd_order_2D( region%grid%nx,     region%grid%ny,     region%grid%x,     region%grid%y, &
                                                  region%grid_GIA%nx, region%grid_GIA%ny, region%grid_GIA%x, region%grid_GIA%y, &
-                                                 region%PD%Hb, Hb_PD_grid_GIA)
+                                                 region%refgeo_PD%Hb, Hb_PD_grid_GIA)
     
     DO i = region%grid_GIA%i1, region%grid_GIA%i2
     DO j = 1, region%grid_GIA%ny
@@ -673,6 +755,9 @@ CONTAINS
     CALL allocate_shared_dp_2D( region%grid%ny,     region%grid%nx,     region%SELEN%dHb_tplusdt,          region%SELEN%wdHb_tplusdt         )
     CALL allocate_shared_dp_2D( region%grid%ny,     region%grid%nx,     region%SELEN%SL_t,                 region%SELEN%wSL_t                )
     CALL allocate_shared_dp_2D( region%grid%ny,     region%grid%nx,     region%SELEN%SL_tplusdt,           region%SELEN%wSL_tplusdt          )
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_reference_fields_regional
   SUBROUTINE create_icemodel_regional_pixel_list( SELEN, region, region_label)
@@ -686,7 +771,11 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: region_label
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_icemodel_regional_pixel_list'
     INTEGER                                            :: i, ir
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Create lists of pixels that lie inside of the icemodel regions
     ! Determine how many there are
@@ -721,6 +810,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_icemodel_regional_pixel_list
   SUBROUTINE create_icemodel_pixel_list( SELEN)
     ! For each SELEN global grid pixel, list to which ice model region it belongs (if any)
@@ -731,7 +823,11 @@ CONTAINS
     TYPE(type_SELEN_global),             INTENT(INOUT) :: SELEN
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_icemodel_pixel_list'
     INTEGER                                            :: i, ir
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     CALL allocate_shared_int_0D( SELEN%nel_icemodel, SELEN%wnel_icemodel)
     
@@ -758,6 +854,9 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_icemodel_pixel_list
   SUBROUTINE adapt_SELEN_global_data_to_ice_model( SELEN, NAM, EAS, GRL, ANT)
     ! Adapt SELEN's global reference fields with the initial data from the ice model regions
@@ -769,11 +868,14 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: NAM, EAS, GRL, ANT
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'adapt_SELEN_global_data_to_ice_model'
     REAL(dp), DIMENSION(:    ), POINTER                :: Hi_NAM, Hi_EAS, Hi_GRL, Hi_ANT ! ice model ice thickness  (mapped from regional square grid to SELEN grid)
     REAL(dp), DIMENSION(:    ), POINTER                :: Hb_NAM, Hb_EAS, Hb_GRL, Hb_ANT ! ice model bed topography (mapped from regional square grid to SELEN grid)
     INTEGER                                            :: wHi_NAM, wHi_EAS, wHi_GRL, wHi_ANT, wHb_NAM, wHb_EAS, wHb_GRL, wHb_ANT
-    
     INTEGER                                            :: i
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! Allocate shared memory
     CALL allocate_shared_dp_1D( SELEN%mesh%nV, Hi_NAM, wHi_NAM)
@@ -841,6 +943,9 @@ CONTAINS
     CALL deallocate_shared( wHb_GRL)
     CALL deallocate_shared( wHb_ANT)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE adapt_SELEN_global_data_to_ice_model
   
 ! == Initialise spherical harmonics
@@ -864,8 +969,12 @@ CONTAINS
     CHARACTER(LEN=256),                  INTENT(IN)    :: version_number
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_spherical_harmonics'
     LOGICAL                                            :: foundmatch
     INTEGER                                            :: newfolder_i
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     ! First, check if any existing header matches the current ice model set-up.  
     CALL check_for_matching_sh_header( region, version_number, foundmatch, newfolder_i)
@@ -879,6 +988,9 @@ CONTAINS
       IF (par%master) WRITE(0,*) '   Creating new spherical harmonics in folder "', TRIM(region%SELEN%sh_foldername), '"'
       CALL create_new_sh_files( SELEN, region)
     END IF ! IF (.NOT. foundmatch) THEN
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
      
   END SUBROUTINE initialise_spherical_harmonics
   SUBROUTINE create_new_sh_folder( region, version_number, newfolder_i)
@@ -891,9 +1003,12 @@ CONTAINS
     INTEGER,                             INTENT(IN)    :: newfolder_i
     
     ! Local variables:
-    INTEGER                                            :: ierr
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_new_sh_folder'
     INTEGER, DIMENSION(8)                              :: datevec
     CHARACTER(LEN=256)                                 :: header_filename
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
   ! Create a new folder where the new spherical
   ! harmonics binary files will be stored.
@@ -943,7 +1058,7 @@ CONTAINS
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'dx                    = ', region%grid_GIA%dx
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'lambda_M              = ', region%grid_GIA%lambda_M
       WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'phi_M                 = ', region%grid_GIA%phi_M
-      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'alpha_stereo          = ', region%grid_GIA%alpha_stereo
+      WRITE(UNIT = 1337, FMT = '(A,F14.4)') 'beta_stereo           = ', region%grid_GIA%beta_stereo
       WRITE(UNIT = 1337, FMT = '(A,I5)')    'SELEN_n_harmonics     = ', C%SELEN_n_harmonics
       
       WRITE(UNIT = 1337, FMT = '(A)') ''      
@@ -954,8 +1069,11 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE create_new_sh_folder
-  SUBROUTINE read_sh_header( header_filename, version_number, nx, ny, dx, lambda_M, phi_M, alpha_stereo, SELEN_n_harmonics)
+  SUBROUTINE read_sh_header( header_filename, version_number, nx, ny, dx, lambda_M, phi_M, beta_stereo, SELEN_n_harmonics)
     
     IMPLICIT NONE
     
@@ -967,11 +1085,12 @@ CONTAINS
     REAL(dp),                            INTENT(OUT)   :: dx
     REAL(dp),                            INTENT(OUT)   :: lambda_M
     REAL(dp),                            INTENT(OUT)   :: phi_M
-    REAL(dp),                            INTENT(OUT)   :: alpha_stereo
+    REAL(dp),                            INTENT(OUT)   :: beta_stereo
     INTEGER,                             INTENT(OUT)   :: SELEN_n_harmonics
     
     ! Local variables:
-    INTEGER                                            :: ios, cerr, ierr
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_sh_header'
+    INTEGER                                            :: ios
     
     ! The NAMELIST that's used to read the external header file.
     NAMELIST /HEADER/version_number,                      &
@@ -980,13 +1099,15 @@ CONTAINS
                      dx,                                  &
                      lambda_M,                            &
                      phi_M,                               &
-                     alpha_stereo,                        &
+                     beta_stereo,                         &
                      SELEN_n_harmonics
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
       
     OPEN( UNIT = 29, FILE = TRIM(header_filename), STATUS='OLD', ACTION='READ', iostat=ios)
     IF (ios /= 0) THEN
-      WRITE(0,*) ' ERROR: could not open ""', TRIM(header_filename), '"'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('could not open header file "' // TRIM( header_filename) // '"')
     END IF
 
     ! In the following statement the entire configuration file is read, using the namelist (NML=CONFIG)
@@ -994,9 +1115,11 @@ CONTAINS
     CLOSE( UNIT = 29)
 
     IF (ios /= 0) THEN
-      WRITE(0,*) ' ERROR: could not read ""', TRIM(header_filename), '"'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      CALL crash('could not read header file "' // TRIM( header_filename) // '"')
     END IF
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE read_sh_header
   SUBROUTINE check_for_matching_sh_header( region, version_number, foundmatch, newfolder_i)
@@ -1010,7 +1133,7 @@ CONTAINS
     INTEGER,                             INTENT(OUT)   :: newfolder_i
     
     ! Local variables:
-    INTEGER                                            :: cerr, ierr
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_for_matching_sh_header'
     CHARACTER(LEN=256)                                 :: header_filename
     LOGICAL                                            :: header_exists
     
@@ -1020,8 +1143,11 @@ CONTAINS
     REAL(dp)                                           :: dx_read
     REAL(dp)                                           :: lambda_M_read
     REAL(dp)                                           :: phi_M_read
-    REAL(dp)                                           :: alpha_stereo_read
+    REAL(dp)                                           :: beta_stereo_read
     INTEGER                                            :: SELEN_n_harmonics_read
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
     
     IF (par%master) THEN
     
@@ -1038,13 +1164,12 @@ CONTAINS
         ELSEIF (newfolder_i < 1000) THEN
           WRITE( region%SELEN%sh_foldername,'(A,A,A,A,I3)') TRIM(C%selen_dir), '/spherical_harmonics_', region%name, '_',   newfolder_i
         ELSE
-          IF (par%master) WRITE(0,*) ' ERROR: tried a thousand folders!'
-          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+          CALL crash('tried a thousand folders!')
         END IF
         
         ! Check if a header in this folder exists. If not, then we've inspected all existing headers
         ! without finding the good one, so we must generate the SH files from scratch.
-        header_filename = TRIM( region%SELEN%sh_foldername)//'/'//'header.txt'
+        header_filename = TRIM( region%SELEN%sh_foldername) // '/header.txt'
         INQUIRE( FILE = header_filename, EXIST = header_exists)
         
         IF (.NOT. header_exists) THEN
@@ -1057,7 +1182,7 @@ CONTAINS
         ELSE
           ! If the header exists, read it and see if it fits the current UFEMISM set-up.
           
-          CALL read_sh_header( header_filename, version_number_read, nx_read, ny_read, dx_read, lambda_M_read, phi_M_read, alpha_stereo_read, SELEN_n_harmonics_read)
+          CALL read_sh_header( header_filename, version_number_read, nx_read, ny_read, dx_read, lambda_M_read, phi_M_read, beta_stereo_read, SELEN_n_harmonics_read)
           
           IF ( TRIM(version_number_read) == TRIM(version_number)         .AND. &
                nx_read                   == region%grid_GIA%nx           .AND. &
@@ -1065,7 +1190,7 @@ CONTAINS
                dx_read                   == region%grid_GIA%dx           .AND. &
                lambda_M_read             == region%grid_GIA%lambda_M     .AND. &
                phi_M_read                == region%grid_GIA%phi_M        .AND. &
-               alpha_stereo_read         == region%grid_GIA%alpha_stereo .AND. &
+               beta_stereo_read          == region%grid_GIA%beta_stereo .AND. &
                SELEN_n_harmonics_read    == C%SELEN_n_harmonics) THEN
             ! This header matches the current model set-up!
             
@@ -1089,6 +1214,9 @@ CONTAINS
     CALL MPI_BCAST( header_filename,            256, MPI_CHAR,    0, MPI_COMM_WORLD, ierr)
     CALL MPI_BCAST( newfolder_i,                1,   MPI_INTEGER, 0, MPI_COMM_WORLD, ierr)
     
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+    
   END SUBROUTINE check_for_matching_sh_header
   SUBROUTINE create_new_sh_files( SELEN, region)
     ! Calculate the spherical harmonics for this UFEMISM region's square grid
@@ -1100,12 +1228,16 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
     
     ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_new_sh_files'
     INTEGER                                            :: i,j,li
     CHARACTER(LEN=256)                                 :: sh_filename
     COMPLEX*16, DIMENSION( C%SELEN_jmax)                 :: Ypx
     INTEGER                                            :: nblocks, bi, b1, b2, ir, ir1, ir2
     REAL(dp),   DIMENSION(0:C%SELEN_n_harmonics+1)              :: LEG       ! Legendre polynome
     REAL(dp),   DIMENSION(0:C%SELEN_n_harmonics  )              :: T         ! for the shape factors
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
     ! Degree-dependent factors
     CALL PLEG( C%SELEN_n_harmonics+1, 90.- (180._dp / pi) * C%SELEN_alfa * 1., LEG)
@@ -1207,6 +1339,9 @@ CONTAINS
     
     END DO ! DO bi = b1, b2
     CALL sync
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
     
   END SUBROUTINE create_new_sh_files
 

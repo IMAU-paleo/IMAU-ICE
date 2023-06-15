@@ -1,15 +1,27 @@
-
-# Adjust MYLIB and MYINC such that they match with the libraries and include paths:
-  MYLIB  = /usr/lib64/
-  MYLIB2 = /nethome/beren017/IMAU_ICE/src_v1.1.0/
-  MYINC  = /usr/lib64/gfortran/modules/
-
-# Compiler names:
+# Compiler:
   F90 = mpifort
 
-# Compiler flags:
-##  F90FLAGS = -g -O2 -I $(MYINC) -J$(MOD_PATH) -Wall -fdump-core -fbounds-check -fcheck-array-temporaries -ffree-line-length-none
-  F90FLAGS = -g -O3 -I $(MYINC) -J$(MOD_PATH) -ffree-line-length-none
+# Path to NetCDF:
+  NETCDF_DIR = /usr
+# Path to PETSc:
+  PETSC_DIR  = /usr/local/petsc/3.16.3
+# Path to LAPACK:
+  LAPACK_DIR = /usr
 
-# Link flags:
-  LDFLAGS = -lz -lnetcdff -lnetcdf -L$(MYLIB) -L$(MYLIB2) -llapack -lpthread
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+  DO_SELEN   = no
+
+# Compiler flags:
+  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp
+  COMPILER_FLAGS_CHECK   = -fcheck=all -fbacktrace -fimplicit-none
+
+  ifeq ($(DO_SELEN),yes)
+    COMPILER_FLAGS_SELEN = -DDO_SELEN
+  endif
+
+  F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} ${COMPILER_FLAGS_SELEN} \
+                           -I$(NETCDF_DIR)/include -I$(PETSC_DIR)/include -I$(LAPACK_DIR)/include
+
+# Linking flags of libaries:
+  LDFLAGS                = -L${NETCDF_DIR}/lib -lnetcdf -lnetcdff -L${PETSC_DIR}/lib -lpetsc -L${LAPACK_DIR}/lib -llapack -lpthread
