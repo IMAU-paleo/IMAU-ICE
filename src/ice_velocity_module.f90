@@ -13,7 +13,7 @@ MODULE ice_velocity_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, write_CSR_matrix_to_NetCDF
+  USE netcdf_module,                   ONLY: write_CSR_matrix_to_NetCDF
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              vertical_integration_from_bottom_to_zeta, vertical_average, &
@@ -28,6 +28,8 @@ MODULE ice_velocity_module
   USE basal_conditions_and_sliding_module, ONLY: calc_basal_conditions, calc_sliding_law
   USE general_ice_model_data_module,   ONLY: determine_grounded_fractions
 
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
   IMPLICIT NONE
 
 CONTAINS

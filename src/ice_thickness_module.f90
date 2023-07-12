@@ -12,11 +12,13 @@ MODULE ice_thickness_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_BMB_model, type_reference_geometry
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              initialise_matrix_equation_CSR, solve_matrix_equation_CSR, check_CSR_for_double_entries, &
                                              is_floating, surface_elevation, Hi_from_Hb_and_Hs
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
   

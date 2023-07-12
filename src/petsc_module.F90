@@ -13,7 +13,6 @@ MODULE petsc_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
-  USE netcdf_module,                   ONLY: debug
   USE data_types_module,               ONLY: type_sparse_matrix_CSR
 
   IMPLICIT NONE

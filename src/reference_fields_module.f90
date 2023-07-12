@@ -12,14 +12,15 @@ MODULE reference_fields_module
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_reference_geometry, type_restart_data
   USE parameters_module,               ONLY: seawater_density, ice_density, sec_per_year, pi
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
-                                             inquire_reference_geometry_file, read_reference_geometry_file, &
-                                             inquire_restart_file_geometry, read_restart_file_geometry
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
                                              transpose_dp_2D, transpose_dp_3D, remove_Lake_Vostok, surface_elevation, &
-                                             smooth_Gaussian_2D, is_floating
+                                             smooth_Gaussian_2D, is_floating, deallocate_grid
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
+  USE netcdf_basic_module,             ONLY: field_name_options_Hi, field_name_options_Hb, field_name_options_Hs
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
   
@@ -93,7 +94,7 @@ CONTAINS
       CALL initialise_reference_geometry_from_file( grid, refgeo_init, filename_refgeo_init, region_name)
     ELSEIF (choice_refgeo_init == 'restart') THEN
       IF (par%master) WRITE(0,*) '  Initialising initial         reference geometry from restart file ', TRIM( filename_refgeo_init), '...'
-      CALL initialise_reference_geometry_from_restart_file( grid, refgeo_init, filename_refgeo_init, time_to_restart_from)
+      CALL initialise_reference_geometry_from_restart_file( grid, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
     ELSE
       CALL crash('unknown choice_refgeo_init "' // TRIM( choice_refgeo_init) // '"!')
     END IF
@@ -125,7 +126,7 @@ CONTAINS
     END IF
     
     ! When doing a restart, adapt initial ice geometry to make sure everything still fits
-    IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, time_to_restart_from)
+    IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
     
     ! Smooth input geometry (bed and ice)
     IF (C%do_smooth_geometry) THEN
@@ -156,41 +157,19 @@ CONTAINS
     
     ! Add routine to path
     CALL init_routine( routine_name)
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( refgeo%nx_raw, refgeo%wnx_raw)
-    CALL allocate_shared_int_0D( refgeo%ny_raw, refgeo%wny_raw)
-    IF (par%master) THEN
-      refgeo%netcdf%filename = filename_refgeo
-      CALL inquire_reference_geometry_file( refgeo)
-    END IF
-    CALL sync
-    
-    ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( refgeo%nx_raw,                refgeo%x_raw,  refgeo%wx_raw )
-    CALL allocate_shared_dp_1D(                refgeo%ny_raw, refgeo%y_raw,  refgeo%wy_raw )
-    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hi_raw, refgeo%wHi_raw)
-    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hb_raw, refgeo%wHb_raw)
-    CALL allocate_shared_dp_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%Hs_raw, refgeo%wHs_raw)
-  
+   
     ! Read data from input file
-    IF (par%master) CALL read_reference_geometry_file( refgeo)
+    CALL read_reference_geometry_file( refgeo, filename_refgeo, region_name)
     CALL sync
-    
+
     ! Safety
     CALL check_for_NaN_dp_2D( refgeo%Hi_raw, 'refgeo%Hi_raw')
     CALL check_for_NaN_dp_2D( refgeo%Hb_raw, 'refgeo%Hb_raw')
     CALL check_for_NaN_dp_2D( refgeo%Hs_raw, 'refgeo%Hs_raw')
     
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( refgeo%Hi_raw, refgeo%wHi_raw)
-    CALL transpose_dp_2D( refgeo%Hb_raw, refgeo%wHb_raw)
-    CALL transpose_dp_2D( refgeo%Hs_raw, refgeo%wHs_raw)
-    
     ! Remove Lake Vostok from Antarctica (because it's annoying)
     IF (region_name == 'ANT'.AND. C%remove_Lake_Vostok) THEN
-      CALL remove_Lake_Vostok( refgeo%x_raw, refgeo%y_raw, refgeo%Hi_raw, refgeo%Hb_raw, refgeo%Hs_raw)
+      CALL remove_Lake_Vostok( refgeo%grid%x, refgeo%grid%y, refgeo%Hi_raw, refgeo%Hb_raw, refgeo%Hs_raw)
     END IF
     
     ! Allocate shared memory
@@ -199,26 +178,23 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
     
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hi_raw, refgeo%Hi)
-    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hb_raw, refgeo%Hb)
-    CALL map_square_to_square_cons_2nd_order_2D( refgeo%nx_raw, refgeo%ny_raw, refgeo%x_raw, refgeo%y_raw, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hs_raw, refgeo%Hs)
-    
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%grid%nx, refgeo%grid%ny, refgeo%grid%x, refgeo%grid%y, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hi_raw, refgeo%Hi)
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%grid%nx, refgeo%grid%ny, refgeo%grid%x, refgeo%grid%y, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hb_raw, refgeo%Hb)
+    CALL map_square_to_square_cons_2nd_order_2D( refgeo%grid%nx, refgeo%grid%ny, refgeo%grid%x, refgeo%grid%y, grid%nx, grid%ny, grid%x, grid%y, refgeo%Hs_raw, refgeo%Hs)
+
     ! Deallocate raw data
-    CALL deallocate_shared( refgeo%wnx_raw)
-    CALL deallocate_shared( refgeo%wny_raw)
-    CALL deallocate_shared( refgeo%wx_raw )
-    CALL deallocate_shared( refgeo%wy_raw )
     CALL deallocate_shared( refgeo%wHi_raw)
     CALL deallocate_shared( refgeo%wHb_raw)
     CALL deallocate_shared( refgeo%wHs_raw)
-    
+    CALL deallocate_grid(   refgeo%grid   )
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_reference_geometry_from_file
   
   ! Initialise a reference geometry with data from a previous simulation's restart file
-  SUBROUTINE initialise_reference_geometry_from_restart_file( grid, refgeo, filename_refgeo, time_to_restart_from)
+  SUBROUTINE initialise_reference_geometry_from_restart_file( grid, refgeo, filename_refgeo, region_name, time_to_restart_from)
     ! Initialise a reference geometry with data from a previous simulation's restart file
      
     IMPLICIT NONE
@@ -227,79 +203,34 @@ CONTAINS
     TYPE(type_grid),                INTENT(IN)    :: grid
     TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo
     CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
     
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_reference_geometry_from_restart_file'
-    TYPE(type_restart_data)                       :: restart
     
     ! Add routine to path
     CALL init_routine( routine_name)
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_refgeo
-      CALL inquire_restart_file_geometry( restart)
-    END IF
-    CALL sync
-    
-    ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-    
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-  
-    ! Read data from input file
-    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
-    CALL sync
-    
-    ! Safety
-    CALL check_for_NaN_dp_2D( restart%Hi, 'restart%Hi')
-    CALL check_for_NaN_dp_2D( restart%Hb, 'restart%Hb')
-    CALL check_for_NaN_dp_2D( restart%Hs, 'restart%Hs')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( restart%Hi, restart%wHi)
-    CALL transpose_dp_2D( restart%Hb, restart%wHb)
-    CALL transpose_dp_2D( restart%Hs, restart%wHs)
-    
+   
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hi, refgeo%wHi)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hb, refgeo%wHb)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, refgeo%Hs, refgeo%wHs)
-    
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hi, refgeo%Hi)
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hb, refgeo%Hb)
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Hs, refgeo%Hs)
-    
-    ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
+
+    ! Read data from input file
+    CALL read_restart_file_geometry( filename_refgeo, grid, refgeo, region_name, time_to_restart_from)
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( refgeo%Hi, 'refgeo%Hi')
+    CALL check_for_NaN_dp_2D( refgeo%Hb, 'refgeo%Hb')
+    CALL check_for_NaN_dp_2D( refgeo%Hs, 'refgeo%Hs')
     
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
   END SUBROUTINE initialise_reference_geometry_from_restart_file
-  SUBROUTINE adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, time_to_restart_from)
+  SUBROUTINE adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
     ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
     ! Also, the current model resolution might be higher than that which was used to generate
     ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.
@@ -311,6 +242,7 @@ CONTAINS
     TYPE(type_reference_geometry),  INTENT(IN)    :: refgeo_PD
     TYPE(type_reference_geometry),  INTENT(INOUT) :: refgeo_init
     CHARACTER(LEN=256),             INTENT(IN)    :: filename_refgeo_init
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
     REAL(dp),                       INTENT(IN)    :: time_to_restart_from
     
     ! Local variables:
@@ -323,49 +255,16 @@ CONTAINS
     
     ! Add routine to path
     CALL init_routine( routine_name)
-    
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_refgeo_init
-      CALL inquire_restart_file_geometry( restart)
-    END IF
-    CALL sync
-    
-    ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-    
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hi,               restart%wHi              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hb,               restart%wHb              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%Hs,               restart%wHs              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%SL,               restart%wSL              )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%dHb,              restart%wdHb             )
-  
-    ! Read data from input file
-    IF (par%master) CALL read_restart_file_geometry( restart, time_to_restart_from)
-    CALL sync
-    
-    ! Safety
-    CALL check_for_NaN_dp_2D( restart%SL,  'restart%SL' )
-    CALL check_for_NaN_dp_2D( restart%dHb, 'restart%dHb')
-    
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( restart%SL,  restart%wSL )
-    CALL transpose_dp_2D( restart%dHb, restart%wdHb)
-    
-    ! Allocate memory for data on the model grid
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, SL,  wSL )
+
+    ! Allocate the additional input fields
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, SL , wSL )
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dHb, wdHb)
-    
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%SL,  SL )
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%dHb, dHb)
-      
+
+    ! Read data from input file
+    CALL read_field_from_file_2D(    filename_refgeo_init, 'SL',  grid,  SL,   region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(    filename_refgeo_init, 'dHb', grid,  dHb,  region_name, time_to_restart_from)
+    CALL sync
+
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     
@@ -395,19 +294,10 @@ CONTAINS
     END DO
     CALL sync
     
-    ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wHi              )
-    CALL deallocate_shared( restart%wHb              )
-    CALL deallocate_shared( restart%wHs              )
-    CALL deallocate_shared( restart%wSL              )
-    CALL deallocate_shared( restart%wdHb             )
-    
+    ! Clean up after yourself 
+    CALL deallocate_shared( wSL    )
+    CALL deallocate_shared( wdHb   )
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
     
@@ -1013,5 +903,65 @@ CONTAINS
     !M = (lambda / tp) * H * sec_per_year
   
   END FUNCTION Bueler_solution
+
+  SUBROUTINE read_reference_geometry_file( refgeo, filename_refgeo, region_name)
+    ! Read reference geometry dat from a NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
+    CHARACTER(LEN=256),            INTENT(IN)    :: filename_refgeo
+    CHARACTER(LEN=3),              INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'read_reference_geometry_file'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read the data
+    CALL read_field_from_xy_file_2D( filename_refgeo, field_name_options_Hi, region_name, refgeo%grid, refgeo%Hi_raw, refgeo%wHi_raw)
+    CALL deallocate_grid(refgeo%grid) ! Deallocate the grid, as it is automatically being allocated. Could use a clean-up
+    CALL read_field_from_xy_file_2D( filename_refgeo, field_name_options_Hb, region_name, refgeo%grid, refgeo%Hb_raw, refgeo%wHb_raw)
+    CALL deallocate_grid(refgeo%grid) ! Deallocate the grid, as it is automatically being allocated. Could use a clean-up
+    CALL read_field_from_xy_file_2D( filename_refgeo, field_name_options_Hs, region_name, refgeo%grid, refgeo%Hs_raw, refgeo%wHs_raw)
+    
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_reference_geometry_file
+
+  SUBROUTINE read_restart_file_geometry( filename_refgeo, grid, refgeo, region_name, time_to_read)
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),               INTENT(IN)    :: grid
+    TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
+    CHARACTER(LEN=256),            INTENT(IN)    :: filename_refgeo
+    CHARACTER(LEN=3),              INTENT(IN)    :: region_name
+    REAL(dp),                      INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'read_restart_file_geometry'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read the data
+    CALL read_field_from_file_2D(   filename_refgeo, field_name_options_Hi, grid,  refgeo%Hi,  region_name, time_to_read)
+    CALL read_field_from_file_2D(   filename_refgeo, field_name_options_Hb, grid,  refgeo%Hb,  region_name, time_to_read)
+    CALL read_field_from_file_2D(   filename_refgeo, field_name_options_Hs, grid,  refgeo%Hs,  region_name, time_to_read)
+
+    ! NOTE: SL and dHB were loaded in IMAU-ICE 2.1, however were deallocated before used. I have therefore
+    ! commented them out for now. If these fields are requiered they should be added to the refgeo type. 
+    ! CALL read_field_from_file_2D(         filename, 'SL', grid,  refgeo%SL,  region_name, time_to_read)
+    ! CALL read_field_from_file_2D(         filename, 'dHb', grid, refgeo%dHb, region_name, time_to_read)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_restart_file_geometry
 
 END MODULE reference_fields_module

@@ -106,7 +106,6 @@ MODULE configuration_module
   ! Debugging
   ! =========
 
-  LOGICAL             :: do_write_debug_data_config                  = .FALSE.                          ! Whether or not the debug NetCDF file should be created and written to
   LOGICAL             :: do_check_for_NaN_config                     = .FALSE.                          ! Whether or not fields should be checked for NaN values
   LOGICAL             :: do_time_display_config                      = .FALSE.                          ! Print current model time to screen
 
@@ -335,12 +334,6 @@ MODULE configuration_module
   LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
   LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
-
-  ! Prescribed retreat mask
-  LOGICAL             :: do_apply_prescribed_retreat_mask_config     = .FALSE.                          ! Whether or not to apply an externally prescribed retreat mask
-  CHARACTER(LEN=256)  :: prescribed_retreat_mask_filename_config     = ''                               ! NetCDF file containing a prescribed retreat mask
-  CHARACTER(LEN=256)  :: prescribed_retreat_mask_varname_config      = ''                               ! The name of the variable in the NetCDF file
-  CHARACTER(LEN=256)  :: prescribed_retreat_mask_refice_filename_config = ''                            ! NetCDF file containing the reference ice thickness for the prescribed retreat mask
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -869,7 +862,6 @@ MODULE configuration_module
     ! Debugging
     ! =========
 
-    LOGICAL                             :: do_write_debug_data
     LOGICAL                             :: do_check_for_NaN
     LOGICAL                             :: do_time_display
 
@@ -1079,12 +1071,6 @@ MODULE configuration_module
     LOGICAL                             :: fixed_shelf_geometry
     LOGICAL                             :: fixed_sheet_geometry
     LOGICAL                             :: fixed_grounding_line
-
-    ! Prescribed retreat mask
-    LOGICAL                             :: do_apply_prescribed_retreat_mask
-    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_filename
-    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_varname
-    CHARACTER(LEN=256)                  :: prescribed_retreat_mask_refice_filename
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1731,7 +1717,7 @@ CONTAINS
     ! ======================================
 
     ! Allocate space to track up to 1,000 subroutines. That should be enough for a while...
-    n = 1000
+    n = 7000
     ALLOCATE( resource_tracker( n))
 
     ! Initialise values
@@ -1795,7 +1781,6 @@ CONTAINS
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
                      do_write_global_scalar_output_config,            &
-                     do_write_debug_data_config,                      &
                      do_check_for_NaN_config,                         &
                      do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
@@ -1944,10 +1929,6 @@ CONTAINS
                      fixed_shelf_geometry_config,                     &
                      fixed_sheet_geometry_config,                     &
                      fixed_grounding_line_config,                     &
-                     do_apply_prescribed_retreat_mask_config,         &
-                     prescribed_retreat_mask_filename_config,         &
-                     prescribed_retreat_mask_varname_config,          &
-                     prescribed_retreat_mask_refice_filename_config,  &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2510,7 +2491,6 @@ CONTAINS
     ! Debugging
     ! =========
 
-    C%do_write_debug_data                      = do_write_debug_data_config
     C%do_check_for_NaN                         = do_check_for_NaN_config
     C%do_time_display                          = do_time_display_config
 
@@ -2721,12 +2701,6 @@ CONTAINS
     C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
     C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
     C%fixed_grounding_line                     = fixed_grounding_line_config
-
-    ! Prescribed retreat mask
-    C%do_apply_prescribed_retreat_mask         = do_apply_prescribed_retreat_mask_config
-    C%prescribed_retreat_mask_filename         = prescribed_retreat_mask_filename_config
-    C%prescribed_retreat_mask_varname          = prescribed_retreat_mask_varname_config
-    C%prescribed_retreat_mask_refice_filename  = prescribed_retreat_mask_refice_filename_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -3445,18 +3419,20 @@ CONTAINS
   END SUBROUTINE write_total_model_time_to_screen
 
   ! Routines for the extended error messaging / debugging system
-  SUBROUTINE init_routine( routine_name)
+  SUBROUTINE init_routine( routine_name, do_track_resource_use)
     ! Initialise an IMAU-ICE subroutine; update the routine path
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
+    LOGICAL,                   OPTIONAL, INTENT(IN)    :: do_track_resource_use
 
     ! Local variables:
     INTEGER                                            :: len_path_tot, len_path_used, len_name
     INTEGER                                            :: ierr, cerr
     INTEGER                                            :: i
+    LOGICAL                                            :: do_track_resource_use_loc
 
     ! Check if routine_name has enough memory
     len_path_tot  = LEN(      routine_path)
@@ -3471,14 +3447,34 @@ CONTAINS
     ! Append this routine to the routine path
     routine_path = TRIM( routine_path) // '/' // TRIM( routine_name)
 
-    ! Initialise the computation time tracker
-    CALL find_subroutine_in_resource_tracker( i)
-    resource_tracker( i)%tstart = MPI_WTIME()
+    ! Check if resource use for this subroutine should be tracked
+    ! (especially for the NetCDF routines we don't want to do this, as there are
+    ! a great many of them and the resource tracker output file will become annoyingly big)
 
-    ! Check maximum MPI window at the start of the routine
-    resource_tracker( i)%n_MPI_windows_init = n_MPI_windows
+    IF (PRESENT( do_track_resource_use)) THEN
+      do_track_resource_use_loc = do_track_resource_use
+    ELSE
+      do_track_resource_use_loc = .TRUE.
+    END IF
+
+    IF (do_track_resource_use_loc) THEN
+
+      ! Initialise the computation time tracker
+      CALL find_subroutine_in_resource_tracker( i)
+      resource_tracker( i)%tstart = MPI_WTIME()
+
+      ! Check maximum MPI window at the start of the routine
+      resource_tracker( i)%n_MPI_windows_init = n_MPI_windows
+
+    ELSE
+
+      routine_path = TRIM( routine_path) // '_NOTRACK'
+
+    END IF
+
 
   END SUBROUTINE init_routine
+
   SUBROUTINE finalise_routine( routine_name)
     ! Finalise; remove the current routine name from the routine path
 
@@ -3488,35 +3484,62 @@ CONTAINS
     CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
 
     ! Local variables:
+    LOGICAL                                            :: do_track_resource_use
     INTEGER                                            :: len_path_tot, i, ii
     INTEGER                                            :: ierr, cerr
     REAL(dp)                                           :: dt
 
-    ! Add computation time to the resource tracker
-    CALL find_subroutine_in_resource_tracker( i)
-    dt = MPI_WTIME() - resource_tracker( i)%tstart
-    resource_tracker( i)%tcomp = resource_tracker( i)%tcomp + dt
-
-    ! Check maximum MPI window at the end of the routine
-    resource_tracker( i)%n_MPI_windows_final = n_MPI_windows
-
-    ! If it is larger than at the start, mention this
-    ii = INDEX( routine_path, 'IMAU_ICE_program/initialise_')
-    IF (ii == 0 .AND. resource_tracker( i)%n_MPI_windows_final > resource_tracker( i)%n_MPI_windows_init) THEN
-      CALL warning('shared memory was allocated but not freed, possibly memory leak!')
+    ! Check if resource use should be tracked for this subroutine
+    i = INDEX( routine_path, '_NOTRACK')
+    IF ( i == 0) THEN
+      do_track_resource_use = .TRUE.
+    ELSE
+      do_track_resource_use = .FALSE.
     END IF
 
-    ! Find where in the string exactly the current routine name is located
-    len_path_tot = LEN( routine_path)
-    i = INDEX( routine_path, routine_name)
+    IF (do_track_resource_use) THEN
+      ! Add computation time to the resource tracker
+      CALL find_subroutine_in_resource_tracker( i)
+      dt = MPI_WTIME() - resource_tracker( i)%tstart
+      resource_tracker( i)%tcomp = resource_tracker( i)%tcomp + dt
 
-    IF (i == 0) THEN
-      WRITE(0,*) 'finalise_routine - ERROR: routine_name = "', TRIM( routine_name), '" not found in routine_path = "', TRIM( routine_path), '"!'
-      CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
-    END IF
+      ! Check maximum MPI window at the end of the routine
+      resource_tracker( i)%n_MPI_windows_final = n_MPI_windows
 
-    ! Remove the current routine name from the routine path
-    routine_path( i-1:len_path_tot) = ' '
+      ! If it is larger than at the start, mention this
+      ii = INDEX( routine_path, 'IMAU_ICE_program/initialise_')
+      IF (ii == 0 .AND. resource_tracker( i)%n_MPI_windows_final > resource_tracker( i)%n_MPI_windows_init) THEN
+        CALL warning('shared memory was allocated but not freed, possibly memory leak!')
+      END IF
+
+      ! Find where in the string exactly the current routine name is located
+      i = INDEX( routine_path, routine_name)
+
+      IF (i == 0) THEN
+        WRITE(0,*) 'finalise_routine - ERROR: routine_name = "', TRIM( routine_name), '" not found in routine_path = "', TRIM( routine_path), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+
+      ! Remove the current routine name from the routine path
+      len_path_tot = LEN( routine_path)
+      routine_path( i-1:len_path_tot) = ' '
+
+    ELSE ! IF (do_track_resource_use) THEN
+      ! Resource use for this subroutine should not be tracked
+
+      ! Find where in the string exactly the current routine name is located
+      i = INDEX( routine_path, TRIM( routine_name) // '_NOTRACK')
+
+      IF (i == 0) THEN
+        WRITE(0,*) 'finalise_routine - ERROR: routine_name = "', TRIM( routine_name), '" not found in routine_path = "', TRIM( routine_path), '"!'
+        CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
+      END IF
+
+      ! Remove the current routine name from the routine path
+      len_path_tot = LEN( routine_path)
+      routine_path( i-1:len_path_tot) = ' '
+
+    END IF ! IF (do_track_resource_use) THEN
 
   END SUBROUTINE finalise_routine
   SUBROUTINE find_subroutine_in_resource_tracker( i)

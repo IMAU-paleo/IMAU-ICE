@@ -13,11 +13,12 @@ MODULE data_types_module
   TYPE type_grid
     ! A regular square grid
 
-    INTEGER,                    POINTER     :: nx, ny
-    REAL(dp),                   POINTER     :: dx
+    INTEGER,                    POINTER     :: nx, ny, n
+    REAL(dp),                   POINTER     :: dx, tol_dist 
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: ij2n, n2ij
     REAL(dp), DIMENSION(:    ), POINTER     :: x, y
     REAL(dp),                   POINTER     :: xmin, xmax, ymin, ymax
-    INTEGER :: wnx, wny, wdx, wx, wy, wxmin, wxmax, wymin, wymax
+    INTEGER :: wnx, wny, wn, wdx, wtol_dist, wij2n, wn2ij, wx, wy, wxmin, wxmax, wymin, wymax
     INTEGER                                 :: i1, i2, j1, j2 ! Parallelisation by domain decomposition
 
     REAL(dp),                   POINTER     :: lambda_M
@@ -33,8 +34,17 @@ MODULE data_types_module
 
     INTEGER,                    POINTER     :: nlon, nlat
     REAL(dp), DIMENSION(:    ), POINTER     :: lon, lat
-    INTEGER :: wnlon, wnlat, wlon, wlat
+    REAL(dp),                   POINTER     :: lonmin, lonmax, latmin, latmax
+    REAL(dp),                   POINTER     :: dlon, dlat   
+
+    INTEGER :: wnlon, wnlat, wlon, wlat, wlonmin, wlonmax, wlatmin, wlatmax, wdlon, wdlat
     INTEGER                                 :: i1, i2, j1, j2 ! Parallelisation by domain decomposition
+
+
+    REAL(dp),                   POINTER     :: lambda_M
+    REAL(dp),                   POINTER     :: phi_M
+    REAL(dp),                   POINTER     :: beta_stereo
+    INTEGER :: wlambda_M, wphi_M, wbeta_stereo
 
   END TYPE type_grid_lonlat
 
@@ -274,16 +284,6 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
     INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
 
-    ! Ice dynamics - prescribed retreat mask
-    REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t0  ! Time of first     prescribed retreat mask timeframe ( <= region%time)
-    REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t1  ! Time of second    prescribed retreat mask timeframe ( >= region%time)
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask0    !         First     prescribed retreat mask timeframe
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask1    !         Second    prescribed retreat mask timeframe
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: ice_fraction_retreat_mask     ! Time-interpolated prescribed retreat mask
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: retreat_mask_Hi_ref
-    INTEGER :: wice_fraction_retreat_mask_t0, wice_fraction_retreat_mask_t1, wice_fraction_retreat_mask0
-    INTEGER :: wice_fraction_retreat_mask1, wice_fraction_retreat_mask, wretreat_mask_Hi_ref
-
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
     REAL(dp), DIMENSION(:,:  ), POINTER     :: pc_tau
@@ -349,78 +349,6 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), ALLOCATABLE :: d_zeta_plus
 
   END TYPE type_zeta_coefficients
-
-  TYPE type_debug_fields
-    ! Dummy variables for debugging
-
-    ! NetCDF debug file
-    TYPE(type_netcdf_debug)                 :: netcdf
-
-    ! Grid size
-    INTEGER,                    POINTER     :: nx, ny
-    INTEGER :: wnx, wny
-
-    ! Data
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_01
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_02
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_03
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_04
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_05
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_06
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_07
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_08
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_09
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: int_2D_10
-    INTEGER :: wint_2D_01, wint_2D_02, wint_2D_03, wint_2D_04, wint_2D_05, wint_2D_06, wint_2D_07, wint_2D_08, wint_2D_09, wint_2D_10
-
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_01
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_02
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_03
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_04
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_05
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_06
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_07
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_08
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_09
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_10
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_11
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_12
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_13
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_14
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_15
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_16
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_17
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_18
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_19
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dp_2D_20
-    INTEGER :: wdp_2D_01, wdp_2D_02, wdp_2D_03, wdp_2D_04, wdp_2D_05, wdp_2D_06, wdp_2D_07, wdp_2D_08, wdp_2D_09, wdp_2D_10
-    INTEGER :: wdp_2D_11, wdp_2D_12, wdp_2D_13, wdp_2D_14, wdp_2D_15, wdp_2D_16, wdp_2D_17, wdp_2D_18, wdp_2D_19, wdp_2D_20
-
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_01
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_02
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_03
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_04
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_05
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_06
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_07
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_08
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_09
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_3D_10
-    INTEGER :: wdp_3D_01, wdp_3D_02, wdp_3D_03, wdp_3D_04, wdp_3D_05, wdp_3D_06, wdp_3D_07, wdp_3D_08, wdp_3D_09, wdp_3D_10
-
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_01
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_02
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_03
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_04
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_05
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_06
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_07
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_08
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_09
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: dp_2D_monthly_10
-    INTEGER :: wdp_2D_monthly_01, wdp_2D_monthly_02, wdp_2D_monthly_03, wdp_2D_monthly_04, wdp_2D_monthly_05, wdp_2D_monthly_06, wdp_2D_monthly_07, wdp_2D_monthly_08, wdp_2D_monthly_09, wdp_2D_monthly_10
-
-  END TYPE type_debug_fields
 
   TYPE type_climate_snapshot
     ! A single climate snapshot
@@ -587,18 +515,14 @@ MODULE data_types_module
     ! Global ocean snapshot, either from present-day observations (e.g. WOA18) or from a GCM ocean snapshot.
 
     CHARACTER(LEN=256)                      :: name                          ! 'WOA', 'COSMOS_LGM', etc.
-
-    ! NetCDF file containing the data
-    TYPE(type_netcdf_global_ocean_data)     :: netcdf
+    CHARACTER(LEN=256)                      :: filename
 
     ! Grid
-    INTEGER,                    POINTER     :: nlat, nlon
-    REAL(dp), DIMENSION(:    ), POINTER     :: lat
-    REAL(dp), DIMENSION(:    ), POINTER     :: lon
-    INTEGER :: wnlat, wnlon, wlat, wlon
+    TYPE( type_grid_lonlat)                 :: grid
 
     ! General forcing info (not relevant for PD observations)
     REAL(dp),                   POINTER     :: CO2                           ! CO2 concentration in ppm that was used to force the GCM
+
     REAL(dp),                   POINTER     :: orbit_time                    ! The time (in ky ago) for the orbital forcing (Q_TOA can then be read from Laskar data)
     REAL(dp),                   POINTER     :: orbit_ecc                     ! Orbital parameters that were used to force the GCM
     REAL(dp),                   POINTER     :: orbit_obl
@@ -682,8 +606,7 @@ MODULE data_types_module
     ! High-resolution (extrapolated) regional ocean data
 
     ! NetCDF files
-    TYPE( type_netcdf_reference_geometry)      :: netcdf_geo
-    TYPE( type_netcdf_extrapolated_ocean_data) :: netcdf
+    CHARACTER(LEN=256)                         :: filename
 
     ! Grid
     TYPE( type_grid)                        :: grid
@@ -813,16 +736,14 @@ MODULE data_types_module
   TYPE type_reference_geometry
     ! Data structure containing a reference ice-sheet geometry (either schematic or read from an external file).
 
-    ! NetCDF file containing the data
-    TYPE(type_netcdf_reference_geometry)    :: netcdf
-
     ! Raw data as read from a NetCDF file
-    INTEGER,                    POINTER     :: nx_raw, ny_raw
-    REAL(dp), DIMENSION(:    ), POINTER     :: x_raw, y_raw
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_raw
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hb_raw
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs_raw
-    INTEGER :: wnx_raw, wny_raw, wx_raw, wy_raw, wHi_raw, wHb_raw, wHs_raw
+    INTEGER :: wHi_raw, wHb_raw, wHs_raw
+
+    ! Raw grid as read from a NetCDF file
+    TYPE(type_grid)                         :: grid 
 
     ! Data on the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi
@@ -836,7 +757,7 @@ MODULE data_types_module
     ! Restart data and NetCDF file
 
     ! NetCDF file
-    TYPE(type_netcdf_restart)               :: netcdf
+    CHARACTER(LEN=256)                      :: filename
 
     ! Grid
     INTEGER,                    POINTER     :: nx, ny, nz, nt
@@ -871,15 +792,10 @@ MODULE data_types_module
   TYPE type_BIV_bed_roughness
     ! Bed roughness field produced by a basal inversion procedure
 
-    ! NetCDF file
-    TYPE(type_netcdf_BIV_bed_roughness)     :: netcdf
-
     ! Grid
     INTEGER,                    POINTER     :: nx, ny
     REAL(dp), DIMENSION(:    ), POINTER     :: x, y
     INTEGER :: wnx, wny, wx, wy
-
-    ! Data
 
     ! Ice dynamics
     REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric
@@ -893,14 +809,10 @@ MODULE data_types_module
     ! Target velocity fields used by the basal inversion routine
 
     ! NetCDF file
-    TYPE(type_netcdf_BIV_target_velocity)   :: netcdf
+    CHARACTER(LEN=256)                      :: filename
 
-    ! Grid
-    INTEGER,                    POINTER     :: nx, ny
-    REAL(dp), DIMENSION(:    ), POINTER     :: x, y
-    INTEGER :: wnx, wny, wx, wy
-
-    ! Data
+    ! Raw grid as read from a NetCDF file
+    TYPE(type_grid)                         :: grid
 
     ! Ice dynamics
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf
@@ -957,13 +869,6 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: ins_t0, ins_t1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ins_Q_TOA0, ins_Q_TOA1
     INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
-
-    ! Geothermal heat flux
-    TYPE(type_netcdf_geothermal_heat_flux)  :: netcdf_ghf
-    INTEGER,                    POINTER     :: ghf_nlon, ghf_nlat
-    REAL(dp), DIMENSION(:    ), POINTER     :: ghf_lon, ghf_lat
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: ghf_ghf
-    INTEGER :: wghf_nlon, wghf_nlat, wghf_lon, wghf_lat, wghf_ghf
 
     ! External forcing: sea level record
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_time
@@ -1260,9 +1165,9 @@ MODULE data_types_module
     TYPE(type_SELEN_regional)               :: SELEN                                     ! SELEN input and output data for this model region
 
     ! Output netcdf files
-    TYPE(type_restart_data)                 :: restart
-    TYPE(type_netcdf_help_fields)           :: help_fields
-    TYPE(type_netcdf_scalars_regional)      :: scalars
+    CHARACTER(LEN=256)                      :: restart_filename
+    CHARACTER(LEN=256)                      :: help_fields_filename
+    CHARACTER(LEN=256)                      :: scalar_filename
 
     ! Computation times for this region
     REAL(dp), POINTER                       :: tcomp_total
@@ -1278,7 +1183,7 @@ MODULE data_types_module
     ! Structure containing some global scalar values: sea level, CO2, d18O components, computation times, etc.
 
     ! Netcdf file
-    TYPE(type_netcdf_scalars_global)        :: netcdf
+    CHARACTER(LEN=256)                      :: filename
 
     ! Sea level
     REAL(dp), POINTER                       :: GMSL                                      ! Global mean sea level change

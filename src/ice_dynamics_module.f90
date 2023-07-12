@@ -15,7 +15,6 @@ MODULE ice_dynamics_module
                                                  allocate_shared_int_3D, allocate_shared_dp_3D, &
                                                  deallocate_shared, partition_list
   USE data_types_module,                   ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
-  USE netcdf_module,                       ONLY: debug, write_to_debug_file
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                                  SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation, is_floating
@@ -26,8 +25,10 @@ MODULE ice_dynamics_module
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
                                                  determine_masks_transitions
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
-  USE calving_module,                      ONLY: apply_calving_law, apply_prescribed_retreat_mask, initialise_retreat_mask_refice
+  USE calving_module,                      ONLY: apply_calving_law
 
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
   IMPLICIT NONE
 
 CONTAINS
@@ -634,11 +635,6 @@ CONTAINS
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
 
-    ! Apply a prescribed retreat mask
-    IF (C%do_apply_prescribed_retreat_mask) THEN
-      CALL apply_prescribed_retreat_mask( grid, ice, time)
-    END IF
-
     ! Finally update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
 
@@ -941,7 +937,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
 
 ! == Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, region_name)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
 
@@ -951,6 +947,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -983,7 +980,7 @@ CONTAINS
     CALL update_general_ice_model_data( grid, ice)
 
     ! Allocate and initialise basal conditions
-    CALL initialise_basal_conditions( grid, ice)
+    CALL initialise_basal_conditions( grid, ice, region_name)
 
     ! Initialise the "previous ice mask", so that the first call to thermodynamics works correctly
     ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
@@ -1021,11 +1018,6 @@ CONTAINS
       is_ISMIP_HOM = .TRUE.
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
-
-    ! Initialise the reference ice thickness for a prescribed retreat mask
-    IF (C%do_apply_prescribed_retreat_mask) THEN
-      CALL initialise_retreat_mask_refice( grid, ice)
-    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1210,20 +1202,6 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
-
-    ! Ice dynamics - prescribed retreat mask
-    IF (C%do_apply_prescribed_retreat_mask) THEN
-    CALL allocate_shared_dp_0D(                              ice%ice_fraction_retreat_mask_t0, ice%wice_fraction_retreat_mask_t0)
-    CALL allocate_shared_dp_0D(                              ice%ice_fraction_retreat_mask_t1, ice%wice_fraction_retreat_mask_t1)
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask0  , ice%wice_fraction_retreat_mask0  )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask1  , ice%wice_fraction_retreat_mask1  )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%ice_fraction_retreat_mask   , ice%wice_fraction_retreat_mask   )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%retreat_mask_Hi_ref         , ice%wretreat_mask_Hi_ref         )
-    IF (par%master) THEN
-      ice%ice_fraction_retreat_mask_t0 = C%start_time_of_run - 2._dp
-      ice%ice_fraction_retreat_mask_t1 = C%start_time_of_run - 1._dp
-    END IF
-    END IF
 
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )

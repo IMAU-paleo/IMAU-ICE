@@ -12,13 +12,14 @@ MODULE forcing_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid, type_ice_model
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, &
-                                             inquire_insolation_file, read_insolation_file_time_lat, read_insolation_file_timeframes, &
-                                             inquire_geothermal_heat_flux_file, read_geothermal_heat_flux_file
+  USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid, type_grid_lonlat, type_ice_model
+  USE netcdf_extra_module,             ONLY: inquire_insolation_data_file, read_insolation_data_file_time_lat, read_insolation_data_file_timeframes
+  USE netcdf_input_module,             ONLY: read_field_from_lonlat_file_2D, read_field_from_file_2D
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_glob_to_grid_2D
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -133,9 +134,6 @@ CONTAINS
 
     ! Insolation
     CALL initialise_insolation_data
-
-    ! Geothermal heat flux
-    CALL initialise_geothermal_heat_flux_global
 
     ! Sea level
     IF (C%choice_sealevel_model == 'prescribed') THEN
@@ -501,6 +499,7 @@ CONTAINS
 !      IF (C%is_restart) THEN
 !        IF (C%do_NAM) THEN
 !          filename = C%filename_init_NAM
+    ! Allocate 
 !        ELSEIF (C%do_EAS) THEN
 !          filename = C%filename_init_EAS
 !        ELSEIF (C%do_GRL) THEN
@@ -813,7 +812,8 @@ CONTAINS
   END SUBROUTINE initialise_d18O_record
 
 ! == Insolation
-  SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
+
+SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     ! Get monthly insolation at time t on the regional grid
 
     IMPLICIT NONE
@@ -964,11 +964,15 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_insolation_timeframes_from_file'
-    INTEGER                                            :: ti0, ti1
-
+    INTEGER, POINTER                                   :: ti0, ti1
+    INTEGER                                            :: wti0, wti1
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate ti0 and ti1
+    CALL allocate_shared_int_0D( ti0, wti0)
+    CALL allocate_shared_int_0D( ti1, wti1)
+    
     IF     (C%choice_insolation_forcing == 'none') THEN
       CALL crash('insolation should not be used when choice_insolation_forcing = "none"!')
     ELSEIF (C%choice_insolation_forcing == 'static' .OR. &
@@ -982,32 +986,37 @@ CONTAINS
 
       ! Find time indices to be read
       IF (par%master) THEN
-        IF (time <= forcing%ins_time( forcing%ins_nyears)) THEN
+       IF (time <= forcing%ins_time( forcing%ins_nyears)) THEN
           ti1 = 1
           DO WHILE (forcing%ins_time(ti1) < time)
             ti1 = ti1 + 1
           END DO
           ti0 = ti1 - 1
-
+ 
           forcing%ins_t0 = forcing%ins_time(ti0)
           forcing%ins_t1 = forcing%ins_time(ti1)
         ELSE
           ! Constant PD insolation for future projections
           ti0 = forcing%ins_nyears
           ti1 = forcing%ins_nyears
-
+ 
           forcing%ins_t0 = forcing%ins_time(ti0) - 1._dp
           forcing%ins_t1 = forcing%ins_time(ti1)
-        END IF
-      END IF ! IF (par%master) THEN
+       END IF
+      END IF
+      CALL sync
 
       ! Read new insolation fields from the NetCDF file
-      IF (par%master) CALL read_insolation_file_timeframes( forcing, ti0, ti1)
+      CALL read_insolation_data_file_timeframes( forcing, ti0, ti1, forcing%ins_Q_TOA0, forcing%ins_Q_TOA1)
       CALL sync
 
     ELSE
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
     END IF
+
+    ! Clean up after yourself 
+    CALL deallocate_shared(wti0)
+    CALL deallocate_shared(wti1)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1052,7 +1061,7 @@ CONTAINS
 
       forcing%netcdf_ins%filename = C%filename_insolation
 
-      IF (par%master) CALL inquire_insolation_file( forcing)
+      CALL inquire_insolation_data_file( forcing)
       CALL sync
 
       ! Insolation
@@ -1062,10 +1071,9 @@ CONTAINS
       CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1, forcing%wins_Q_TOA1)
 
       ! Read time and latitude data
+      CALL read_insolation_data_file_time_lat( forcing)
+
       IF (par%master) THEN
-
-        CALL read_insolation_file_time_lat( forcing)
-
         IF (C%start_time_of_run < forcing%ins_time(1)) THEN
           CALL warning(' Model time starts before start of insolation record; the model will crash lol')
         END IF
@@ -1085,61 +1093,18 @@ CONTAINS
   END SUBROUTINE initialise_insolation_data
 
 ! == Geothermal heat flux
-  SUBROUTINE initialise_geothermal_heat_flux_global
-    ! Initialise global geothermal heat flux data
 
-    IMPLICIT NONE
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_geothermal_heat_flux_global'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    IF     (C%choice_geothermal_heat_flux == 'constant') THEN
-      ! Just use a constant value, no need to read a file.
-
-    ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
-      ! Use a spatially variable geothermal heat fux read from the specified NetCDF file.
-
-      IF (par%master) WRITE(0,*) ' Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
-
-      ! Inquire into the insolation forcing netcdf file
-      CALL allocate_shared_int_0D( forcing%ghf_nlat,   forcing%wghf_nlat  )
-      CALL allocate_shared_int_0D( forcing%ghf_nlon,   forcing%wghf_nlon  )
-
-      forcing%netcdf_ghf%filename = C%filename_geothermal_heat_flux
-
-      ! Read size of data fields from NetCDF file
-      IF (par%master) CALL inquire_geothermal_heat_flux_file( forcing)
-      CALL sync
-
-      ! Allocate shared memory
-      CALL allocate_shared_dp_1D( forcing%ghf_nlon,                   forcing%ghf_lon, forcing%wghf_lon)
-      CALL allocate_shared_dp_1D(                   forcing%ghf_nlat, forcing%ghf_lat, forcing%wghf_lat)
-      CALL allocate_shared_dp_2D( forcing%ghf_nlon, forcing%ghf_nlat, forcing%ghf_ghf, forcing%wghf_ghf)
-
-      ! Read data from NetCDF file
-      IF (par%master) CALL read_geothermal_heat_flux_file( forcing)
-      CALL sync
-
-    ELSE ! IF (C%choice_geothermal_heat_flux == 'constant') THEN
-      CALL crash('unknown choice_geothermal_heat_flux "' // TRIM( C%choice_geothermal_heat_flux) // '"!')
-    END IF ! IF (C%choice_geothermal_heat_flux == 'constant') THEN
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_geothermal_heat_flux_global
-  SUBROUTINE initialise_geothermal_heat_flux_regional( grid, ice)
+  SUBROUTINE initialise_geothermal_heat_flux_regional( grid, ice, region_name)
     ! Calculate the flow factor A in Glen's flow law
+
+    USE parameters_module, ONLY: sec_per_year
 
     IMPLICIT NONE
 
     ! In- and output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_geothermal_heat_flux_regional'
 
@@ -1150,7 +1115,10 @@ CONTAINS
       ice%GHF_a( :,grid%i1:grid%i2) = C%constant_geothermal_heat_flux
       CALL sync
     ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
-      CALL map_glob_to_grid_2D( forcing%ghf_nlat, forcing%ghf_nlon, forcing%ghf_lat, forcing%ghf_lon, grid, forcing%ghf_ghf, ice%GHF_a)
+      IF (par%master) WRITE(0,*) ' Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
+      
+      CALL read_field_from_file_2D(   C%filename_geothermal_heat_flux, 'hflux', grid, ice%GHF_a,  region_name)
+      ice%GHF_a( :,grid%i1:grid%i2)  = ice%GHF_a( :,grid%i1:grid%i2)  * sec_per_year
     ELSE
       CALL crash('unknown choice_geothermal_heat_flux "' // TRIM( C%choice_geothermal_heat_flux) // '"!')
     END IF
@@ -1159,6 +1127,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_geothermal_heat_flux_regional
+
 
 ! ===== Sea level records =====
 ! =============================

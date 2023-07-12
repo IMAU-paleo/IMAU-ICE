@@ -12,11 +12,14 @@ MODULE BMB_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, type_BMB_model, type_reference_geometry
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              interpolate_ocean_depth, interp_bilin_2D
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+
   IMPLICIT NONE
 
 CONTAINS

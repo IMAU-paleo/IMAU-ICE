@@ -10,7 +10,7 @@ MODULE thermodynamics_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_temperature, read_restart_file_temperature
+  USE netcdf_input_module,             ONLY: read_field_from_file_3D
   USE parameters_module
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_climate_model, type_SMB_model, &
                                              type_restart_data, type_ocean_snapshot_regional
@@ -20,6 +20,9 @@ MODULE thermodynamics_module
                                              interpolate_ocean_depth, vertical_average
   USE derivatives_and_grids_module,    ONLY: zeta, calculate_zeta_derivatives, ddx_a_to_a_2D, ddy_a_to_a_2D, Neumann_BC_a_3D, &
                                              map_a_to_cx_2D, map_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -920,7 +923,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
-    TYPE(type_restart_data)                            :: restart
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -940,49 +942,12 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nz, restart%wnz)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file_temperature( restart)
-    END IF
-    CALL sync
-
-    ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nz, restart%zeta, restart%wzeta)
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, restart%nz, restart%Ti,               restart%wTi              )
-
     ! Read data from input file
-    IF (par%master) CALL read_restart_file_temperature( restart, time_to_restart_from)
+    CALL read_field_from_file_3D(         filename_restart, 'Ti', grid, ice%Ti_a, region_name, time_to_restart_from)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%Ti, 'restart%Ti')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_3D( restart%Ti, restart%wTi)
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%Ti, ice%Ti_a)
-
-    ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnz              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wzeta            )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wTi              )
+    CALL check_for_NaN_dp_3D( ice%Ti_a, 'ice%Ti_a')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -3,9 +3,9 @@
 #    For "make" syntax search on "make tutorial", or see:
 #     http://www.gnu.org/software/make/manual/make.html
 
-include Makefile_include_local.txt
+# include Makefile_include_local.txt
 #include Makefile_include_gemini.txt
-#include Makefile_include_snellius.txt
+include Makefile_include_snellius.txt
 #include Makefile_include_mac.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
@@ -42,7 +42,12 @@ IMAU_ICE_program_objects = \
         data_types_module.o \
         netcdf_module.o \
         petsc_module.o \
-        utilities_module.o \
+	utilities_module.o \
+	netcdf_basic_module.o \
+	netcdf_input_module.o \
+	netcdf_extra_module.o \
+	netcdf_output_module.o \
+	netcdf_debug_module.o \
         derivatives_and_grids_module.o \
         forcing_module.o \
         reference_fields_module.o \
@@ -82,7 +87,12 @@ IMAU_ICE_program_objects = \
         data_types_module.o \
         netcdf_module.o \
         petsc_module.o \
-        utilities_module.o \
+	utilities_module.o \
+        netcdf_basic_module.o \
+        netcdf_input_module.o \
+	netcdf_extra_module.o \
+        netcdf_output_module.o \
+        netcdf_debug_module.o \
         derivatives_and_grids_module.o \
         forcing_module.o \
         reference_fields_module.o \

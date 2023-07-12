@@ -7,8 +7,9 @@ MODULE derivatives_and_grids_module
   USE parallel_module,                 ONLY: par, sync, cerr, ierr, partition_list
   USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_zeta_coefficients
-  USE netcdf_module,                   ONLY: debug
-  
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D 
   ! The vertical scaled coordinate zeta transformation coefficients
   TYPE(type_zeta_coefficients) :: zeta
 

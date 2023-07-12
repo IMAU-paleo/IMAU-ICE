@@ -12,7 +12,6 @@ MODULE general_ice_model_data_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_model_region
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
   USE parameters_module
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -21,6 +20,8 @@ MODULE general_ice_model_data_module
   USE derivatives_and_grids_module,    ONLY: map_a_to_cx_2D, map_a_to_cy_2D, ddx_a_to_cx_2D, ddy_a_to_cy_2D, &
                                              ddy_a_to_cx_2D, ddx_a_to_cy_2D, map_a_to_cx_3D, map_a_to_cy_3D, &
                                              ddx_a_to_a_2D, ddy_a_to_a_2D, map_a_to_b_2D
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 

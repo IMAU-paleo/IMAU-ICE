@@ -20,9 +20,8 @@ MODULE IMAU_ICE_main_model
                                                  inverse_oblique_sg_projection, surface_elevation
   USE parameters_module
   USE reference_fields_module,             ONLY: initialise_reference_geometries
-  USE netcdf_module,                       ONLY: debug, write_to_debug_file, initialise_debug_fields, create_debug_file, associate_debug_fields, &
-                                                 create_restart_file, create_help_fields_file, write_to_restart_file, write_to_help_fields_file, &
-                                                 create_regional_scalar_output_file, create_ISMIP_output_files, write_to_ISMIP_output_files
+  USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
+                                                 create_help_fields_file_grid, create_regional_scalar_file 
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
@@ -39,6 +38,9 @@ MODULE IMAU_ICE_main_model
 # endif
   USE scalar_data_output_module,           ONLY: write_regional_scalar_data
   USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
+
+  USE netcdf_debug_module,                 ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                                 save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -68,9 +70,6 @@ CONTAINS
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,'(A,A3,A2,A,A,F9.3,A,F9.3,A)') '  Running model region ', region%name, ' (', TRIM(region%long_name), &
                                                            ') from t = ', region%time/1000._dp, ' to t = ', t_end/1000._dp, ' kyr'
-
-    ! Set the intermediary pointers in "debug" to this region's debug data fields
-    CALL associate_debug_fields(  region)
 
     ! Computation time tracking
     region%tcomp_total          = 0._dp
@@ -196,10 +195,8 @@ CONTAINS
 
       ! Write output
       IF (region%do_output) THEN
-        CALL write_to_restart_file(     region, forcing)
-        CALL write_to_help_fields_file( region)
-        IF (C%do_write_ISMIP_output) CALL write_to_ISMIP_output_files( region)
-        CALL sync
+        CALL write_to_restart_file_grid( region%restart_filename, region)
+        CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
       END IF
 
       ! Update ice geometry and advance region time
@@ -219,10 +216,10 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      CALL write_to_restart_file(     region, forcing)
-      CALL write_to_help_fields_file( region)
+      CALL write_to_restart_file_grid( region%restart_filename, region)
+      CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
+
       IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
-      IF (C%do_write_ISMIP_output) CALL write_to_ISMIP_output_files( region)
     END IF
 
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -288,38 +285,28 @@ CONTAINS
     CALL initialise_model_grid( region)
     IF (par%master) WRITE (0,'(A,F5.2,A,I4,A,I4,A)') '   Initialised model grid at ', region%grid%dx/1000._dp, ' km resolution: [', region%grid%nx, ' x ', region%grid%ny, '] pixels'
 
-    ! ===== Set up debug fields and output files ======
+    ! ===== Set up output files ======
     ! =================================================
-
-    ! Debug fields
-    CALL initialise_debug_fields( region)
-    IF (par%master .AND. C%do_write_debug_data) CALL create_debug_file( region)
-    CALL associate_debug_fields(  region)
 
     ! Restart file
     short_filename = 'restart_NAM.nc'
     short_filename(9:11) = region%name
     DO n = 1, 256
-      region%restart%netcdf%filename(n:n) = ' '
+      region%restart_filename(n:n) = ' '
     END DO
-    region%restart%netcdf%filename = TRIM(C%output_dir) // TRIM(short_filename)
+    region%restart_filename = TRIM(C%output_dir) // TRIM(short_filename)
 
     ! Help fields file
     short_filename = 'help_fields_NAM.nc'
     short_filename(13:15) = region%name
     DO n = 1, 256
-      region%help_fields%filename(n:n) = ' '
+      region%help_fields_filename(n:n) = ' '
     END DO
-    region%help_fields%filename = TRIM(C%output_dir) // TRIM(short_filename)
+    region%help_fields_filename = TRIM(C%output_dir) // TRIM(short_filename)
 
     ! Create the (empty) NetCDF files
-    CALL create_restart_file(     region, forcing)
-    CALL create_help_fields_file( region)
-
-    ! ISMIP6 output
-    IF (C%do_write_ISMIP_output) THEN
-      CALL create_ISMIP_output_files( region)
-    END IF
+    CALL create_restart_file_grid(     region%restart_filename,     region%grid)
+    CALL create_help_fields_file_grid( region%help_fields_filename, region%grid)
 
     ! ===== Initialise initial, present-day, and GIA equilibrium reference geometries =====
     ! =====================================================================================
@@ -334,7 +321,7 @@ CONTAINS
     ! ===== The ice dynamics model
     ! ============================
 
-    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init)
+    CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%name)
 
     ! ===== Set sea level if prescribed externally =====
     ! ==================================================
@@ -405,7 +392,7 @@ CONTAINS
     ! ===== Geothermal heat flux =====
     ! ================================
 
-    CALL initialise_geothermal_heat_flux_regional( region%grid, region%ice)
+    CALL initialise_geothermal_heat_flux_regional( region%grid, region%ice, region%name)
 
     ! ===== Initialise the ice temperature profile =====
     ! ==================================================
@@ -424,7 +411,7 @@ CONTAINS
     ! ============================================================================
 
     ! Create the file
-    CALL create_regional_scalar_output_file( region)
+    CALL create_regional_scalar_file( region%name, region%scalar_filename) 
 
     ! Calculate and write the first entry (ice volume and area, GMSL contribution, isotope stuff)
     CALL calculate_PD_sealevel_contribution( region)
