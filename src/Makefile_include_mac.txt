@@ -2,11 +2,12 @@
   F90 = mpifort
 
 # Path to NetCDF:
-  NETCDF_DIR = /opt/homebrew/Cellar/netcdf/4.8.1_2
+  NETCDF_DIR = /opt/homebrew/Cellar/netcdf/4.9.0
+  NETCDFF_DIR = /opt/homebrew/Cellar/netcdf-fortran/4.6.0
 # Path to PETSc:
-  PETSC_DIR  = /opt/homebrew/Cellar/petsc/3.17.2
+  PETSC_DIR  = /opt/homebrew/Cellar/petsc/3.18.3
 # Path to LAPACK:
-  LAPACK_DIR = /opt/homebrew/Cellar/lapack/3.10.1
+  LAPACK_DIR = /opt/homebrew/Cellar/lapack/3.11
 
 # Compile with SELEN: anything else than yes (no quotes) will skip all
 # SELEN-related stuff both in the Makefile and in the model code
@@ -21,7 +22,7 @@
   endif
 
   F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} ${COMPILER_FLAGS_SELEN} \
-                           -I$(NETCDF_DIR)/include -I$(PETSC_DIR)/include -I$(LAPACK_DIR)/include
+                           -I$(NETCDF_DIR)/include -I$(NETCDFF_DIR)/include -I$(PETSC_DIR)/include -I$(LAPACK_DIR)/include
 
 # Linking flags of libaries:
-  LDFLAGS                = -L${NETCDF_DIR}/lib -lnetcdf -lnetcdff -L${PETSC_DIR}/lib -lpetsc -L${LAPACK_DIR}/lib -llapack
+  LDFLAGS                = -L${NETCDF_DIR}/lib -L${NETCDFF_DIR}/lib -lnetcdff -lnetcdf -L${PETSC_DIR}/lib -lpetsc -L${LAPACK_DIR}/lib -llapack
