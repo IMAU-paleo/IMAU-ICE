@@ -14,12 +14,12 @@ MODULE ice_dynamics_module
                                                  allocate_shared_int_2D, allocate_shared_dp_2D, &
                                                  allocate_shared_int_3D, allocate_shared_dp_3D, &
                                                  deallocate_shared, partition_list
-  USE data_types_module,                   ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry
+  USE data_types_module,                   ONLY: type_model_region, type_grid, type_ice_model, type_reference_geometry, type_restart_data
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                                  SSA_Schoof2006_analytical_solution, vertical_average, surface_elevation, is_floating
   USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
-                                                 initialise_ice_velocity_ISMIP_HOM
+                                                 initialise_ice_velocity_ISMIP_HOM, initialise_velocities_from_restart_file
   USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
                                                  remove_unconnected_shelves
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
@@ -948,6 +948,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+    !TYPE(type_restart_data),             INTENT(IN)    :: restart
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -1018,6 +1019,10 @@ CONTAINS
       is_ISMIP_HOM = .TRUE.
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
+
+    IF (C%do_read_velocities_from_restart) THEN
+      CALL initialise_velocities_from_restart_file( grid, ice, region_name)
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

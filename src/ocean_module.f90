@@ -219,6 +219,12 @@ CONTAINS
       CALL run_ocean_model_idealised_Reese2018_ANT( grid, ice, ocean, region_name)
     ELSEIF (C%choice_idealised_ocean == 'linear_per_basin') THEN
       CALL run_ocean_model_idealised_linear_per_basin( grid, ice, ocean, region_name, time, refgeo_PD)
+    ELSEIF (C%choice_idealised_ocean == 'tanh_COLD') THEN
+      CALL run_ocean_model_idealised_tanh_COLD( grid, ocean)
+    ELSEIF (C%choice_idealised_ocean == 'tanh_MEDIUM') THEN
+      CALL run_ocean_model_idealised_tanh_MEDIUM( grid, ocean)
+    ELSEIF (C%choice_idealised_ocean == 'tanh_WARM') THEN
+      CALL run_ocean_model_idealised_tanh_WARM( grid, ocean)
     ELSE
       CALL crash('unknown choice_idealised_ocean "' // TRIM( C%choice_idealised_ocean) // '"!')
     END IF
@@ -582,6 +588,156 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ocean_model_idealised_linear_per_basin
+  SUBROUTINE run_ocean_model_idealised_tanh_COLD( grid, ocean)
+    ! Run the regional ocean model
+    !
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_WARM'
+    INTEGER                                            :: i,j,k
+    REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
+    REAL(dp), PARAMETER                                :: Tbot      = -1.9_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Szero     = 34.0_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_tc  = -450._dp    ! Scale depth thermo cline
+    REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
+    REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
+    REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Fill in the temperature and salinity profiles
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, C%nz_ocean
+
+      ! Temperature
+      ocean%T_ocean(          k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_ext(      k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_corr_ext( k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+
+      ! Salinity
+      ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
+
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ocean_model_idealised_tanh_COLD
+  SUBROUTINE run_ocean_model_idealised_tanh_MEDIUM( grid, ocean)
+    ! Run the regional ocean model
+    !
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_WARM'
+    INTEGER                                            :: i,j,k
+    REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
+    REAL(dp), PARAMETER                                :: Tbot      =  0.0_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Szero     = 34.0_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_tc  = -450._dp    ! Scale depth thermo cline
+    REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
+    REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
+    REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Fill in the temperature and salinity profiles
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, C%nz_ocean
+
+      ! Temperature
+      ocean%T_ocean(          k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_ext(      k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_corr_ext( k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+
+      ! Salinity
+      ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
+
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ocean_model_idealised_tanh_MEDIUM
+  SUBROUTINE run_ocean_model_idealised_tanh_WARM( grid, ocean)
+    ! Run the regional ocean model
+    !
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_WARM'
+    INTEGER                                            :: i,j,k
+    REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
+    REAL(dp), PARAMETER                                :: Tbot      =  1.5_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Szero     = 34.0_dp    ! Sea surface salinity    [PSU]
+    REAL(dp), PARAMETER                                :: depth_tc  = -450._dp    ! Scale depth thermo cline
+    REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
+    REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
+    REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Fill in the temperature and salinity profiles
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, C%nz_ocean
+
+      ! Temperature
+      ocean%T_ocean(          k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_ext(      k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+      ocean%T_ocean_corr_ext( k,j,i) = Tbot + (Tzero - Tbot) * (1+tanh((-C%z_ocean( k)-depth_tc)/depth_sc))/2
+
+      ! Salinity
+      ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
+      
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ocean_model_idealised_tanh_WARM
   SUBROUTINE invert_linear_per_basin( grid, ice, region_name, time, refgeo_PD)
     ! Calculate a linear depth-dependent ocean temperature profile for each ice basin to get the closest
     ! match to the modelled thinning rates (i.e. the melt rates required to maintain a stable shelf)

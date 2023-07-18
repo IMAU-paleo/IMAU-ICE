@@ -706,6 +706,12 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: PICO_mk                       ! Average melt rate           within each basin-box
     INTEGER :: wPICO_T, wPICO_Tk, wPICO_S, wPICO_Sk, wPICO_p, wPICO_pk, wPICO_m, wPICO_mk
 
+    ! The LADDIE model
+    ! ================
+
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: melt                          ! melt field [m/yr]
+    INTEGER                                 :: wmelt                         ! 
+
     ! The ANICE_legacy BMB model
     ! ==========================
 
@@ -786,6 +792,13 @@ MODULE data_types_module
     ! Isotopes
     REAL(dp), DIMENSION(:,:  ), POINTER     :: IsoIce
     INTEGER :: wIsoIce
+
+    ! Velocities
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_SSA_cx_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_SSA_cy_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_vav_cx_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_cy_a
+    INTEGER :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a
 
   END TYPE type_restart_data
 

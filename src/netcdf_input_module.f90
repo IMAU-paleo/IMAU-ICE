@@ -1458,7 +1458,7 @@ CONTAINS
   SUBROUTINE setup_xy_grid_from_file(     filename, grid, region_name)
     ! Set up an x/y-grid from a NetCDF file
     !
-    ! Assumes no memory has yet been allocated for the grid at all
+    ! Assumes no memory has yet been allocated for the grid at all FJFJ
 
     IMPLICIT NONE
 

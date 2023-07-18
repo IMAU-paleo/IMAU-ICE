@@ -11,12 +11,14 @@ MODULE BMB_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, type_BMB_model, type_reference_geometry
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_ocean_snapshot_regional, &
+                                             type_BMB_model, type_reference_geometry
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                             interpolate_ocean_depth, interp_bilin_2D
+                                             interpolate_ocean_depth, interp_bilin_2D, transpose_dp_2D, &
+                                             map_square_to_square_cons_2nd_order_2D, deallocate_grid
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
-
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
@@ -69,6 +71,8 @@ CONTAINS
       CALL run_BMB_model_PICO(                 grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
+      CALL run_BMB_model_LADDIE(               grid,             BMB, region_name)
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_PD)
     ELSE
@@ -179,7 +183,8 @@ CONTAINS
 
     ! Shelf
     IF     (C%choice_BMB_shelf_model == 'uniform' .OR. &
-            C%choice_BMB_shelf_model == 'idealised') THEN
+            C%choice_BMB_shelf_model == 'idealised' .OR. &
+            C%choice_BMB_shelf_model == 'LADDIE') THEN
       ! Nothing else needs to be done
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
       CALL initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
@@ -2915,6 +2920,67 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_BMB_model_PICOP
+
+! == The LADDIE model
+! ================================================================
+  SUBROUTINE run_BMB_model_LADDIE(         grid,  BMB, region_name)
+    ! Read basal melt field from NetCDF computed by LADDIE
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)     :: grid
+    TYPE(type_BMB_model),                INTENT(INOUT)  :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)     :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIE'
+    CHARACTER(LEN=256)                                  :: filename_BMB_laddie
+    REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
+    INTEGER                                             :: wBMB_LADDIE 
+    !TYPE(type_grid)                                     :: d_grid
+    !INTEGER                                             :: i,j
+
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate temporary storage LADDIE data
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
+    
+    ! Select filename from config file
+    filename_BMB_laddie = C%filename_BMB_laddie
+
+    ! Initialise basal melt field
+    BMB_LADDIE = 0._dp
+
+    ! Read basal melt field from LADDIE
+    CALL read_field_from_file_2D(filename_BMB_laddie, 'melt', grid, BMB_LADDIE, region_name)
+
+    IF (par%master) THEN
+      BMB%BMB_shelf = -BMB_LADDIE(:,:)
+      print*, 'Finished reading melt rates provided by LADDIE'
+    END IF
+    CALL sync
+    
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
+
+    ! Clean up
+    CALL deallocate_shared( wBMB_LADDIE)
+
+    ! Clean up after yourself
+    !CALL deallocate_shared(wBMB_LADDIE)
+    !CALL allocate_shared_dp_2D( grid%nx, grid%ny, d, wd)
+    !CALL deallocate_shared( grid%wn          )
+    !CALL deallocate_shared( grid%wtol_dist   )
+    !CALL deallocate_shared( grid%wij2n       )
+    !CALL deallocate_shared( grid%wn2ij       )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_BMB_model_LADDIE
 
 ! == Some generally useful tools
 ! ==============================

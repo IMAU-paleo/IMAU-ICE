@@ -3,8 +3,8 @@
   ! Time steps and range
   ! ====================
   
-  start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 2.0                            ! End   time (in years) of the simulations
+  start_time_of_run_config                    = 2.0                              ! Start time (in years) of the simulations
+  end_time_of_run_config                      = 4.0                            ! End   time (in years) of the simulations
   dt_coupling_config                          = 1000.0                           ! Interval of coupling (in years) between the four ice-sheets  
   dt_max_config                               = 5.0                              ! Maximum time step (in years) of the ice model
   dt_thermo_config                            = 10.0                             ! Time step (in years) for updating thermodynamics
@@ -26,8 +26,8 @@
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
   
-  create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = '/Users/5941962/surfdrive/IMAU-ICE_output/FJ_test_netcdf_update'                   ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  create_procedural_output_dir_config         = .TRUE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  fixed_output_dir_config                     = '/Users/5941962/surfdrive/IMAU-ICE_output/FJ_test_netcdf_update6'                   ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -52,9 +52,10 @@
   
   ! Initial geometry
   choice_refgeo_init_ANT_config               = 'restart'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
-  time_to_restart_from_ANT_config             = 50000.0
-  filename_refgeo_init_ANT_config             = '/Users/5941962/surfdrive/IMAU-ICE_output/MISMIPplus_tuneGL_2km_Schoof2005_hybrid/restart_ANT.nc'
-  
+  time_to_restart_from_ANT_config             = 2.0
+  filename_refgeo_init_ANT_config             = 'results_20230718_007/restart_ANT.nc'
+  do_read_velocities_from_restart_config      = .TRUE.
+
   ! Present-day geometry
   choice_refgeo_PD_ANT_config                 = 'idealised'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   choice_refgeo_PD_idealised_config           = 'MISMIP+'                        ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
@@ -190,7 +191,7 @@
   ! =====
   
   choice_ocean_model_config                   = 'idealised'                      ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"   
-  choice_idealised_ocean_config               = 'MISMIP+_WARM'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
+  choice_idealised_ocean_config               = 'tanh_WARM'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
   choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   ocean_vertical_grid_max_depth_config        = 720.0                            ! Maximum depth           to be used for ocean data
   ocean_regular_grid_dz_config                = 72.0                             ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
@@ -235,8 +236,8 @@
   help_field_05_config                        = 'u_base'
   help_field_06_config                        = 'v_surf'
   help_field_07_config                        = 'v_base'
-  help_field_08_config                        = 'none'
-  help_field_09_config                        = 'none'
+  help_field_08_config                        = 'f_grnd'
+  help_field_09_config                        = 'mask_gl'
   help_field_10_config                        = 'none'
   help_field_11_config                        = 'none'
   help_field_12_config                        = 'none'

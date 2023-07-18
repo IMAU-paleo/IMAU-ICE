@@ -299,6 +299,7 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_SOR_omega_config                       = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
   REAL(dp)            :: DIVA_PETSc_rtol_config                      = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
   REAL(dp)            :: DIVA_PETSc_abstol_config                    = 2.5_dp                           ! DIVA PETSc solver - stop criterion, absolute difference
+  LOGICAL             :: do_read_velocities_from_restart_config      = .FALSE.                          ! Whether or not to read velocities from restart file to initialise model
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -632,6 +633,9 @@ MODULE configuration_module
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
   REAL(dp)            :: BMB_PICO_GammaTstar_config                  = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
+
+  ! File path for the LADDIE model output
+  CHARACTER(LEN=256)  :: filename_BMB_LADDIE_config                  = ''                               ! Path to a netcdf file containing melt pattern computed by LADDIE
 
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -1036,7 +1040,7 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_SOR_omega
     REAL(dp)                            :: DIVA_PETSc_rtol
     REAL(dp)                            :: DIVA_PETSc_abstol
-
+    LOGICAL                             :: do_read_velocities_from_restart
     ! Ice dynamics - time integration
     ! ===============================
 
@@ -1348,6 +1352,9 @@ MODULE configuration_module
     ! Parameters for the PICO BMB model
     INTEGER                             :: BMB_PICO_nboxes
     REAL(dp)                            :: BMB_PICO_GammaTstar
+
+    ! Parameters for the LADDIE model 
+    CHARACTER(LEN=256)                  :: filename_BMB_LADDIE
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -1904,6 +1911,7 @@ CONTAINS
                      DIVA_SOR_omega_config,                           &
                      DIVA_PETSc_rtol_config,                          &
                      DIVA_PETSc_abstol_config,                        &
+                     do_read_velocities_from_restart_config,          &
                      choice_timestepping_config,                      &
                      choice_ice_integration_method_config,            &
                      dHi_choice_matrix_solver_config,                 &
@@ -2124,6 +2132,7 @@ CONTAINS
                      BMB_Lazeroms2018_find_GL_scheme_config,          &
                      BMB_PICO_nboxes_config,                          &
                      BMB_PICO_GammaTstar_config,                      &
+                     filename_BMB_LADDIE_config,                      &
                      T_ocean_mean_PD_NAM_config,                      &
                      T_ocean_mean_PD_EAS_config,                      &
                      T_ocean_mean_PD_GRL_config,                      &
@@ -2666,7 +2675,8 @@ CONTAINS
     C%DIVA_SOR_omega                           = DIVA_SOR_omega_config
     C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
     C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
-
+    C%do_read_velocities_from_restart          = do_read_velocities_from_restart_config
+    
     ! Ice dynamics - time integration
     ! ===============================
 
@@ -2978,6 +2988,9 @@ CONTAINS
     ! Parameters for the PICO BMB model
     C%BMB_PICO_nboxes                          = BMB_PICO_nboxes_config
     C%BMB_PICO_GammaTstar                      = BMB_PICO_GammaTstar_config
+
+    ! Parameters for the LADDIE model
+    C%filename_BMB_LADDIE                      = filename_BMB_LADDIE_config
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config

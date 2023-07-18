@@ -31,7 +31,7 @@ MODULE netcdf_output_module
                                              NF90_PUT_ATT, NF90_WRITE, NF90_INT, NF90_INT64, NF90_FLOAT, NF90_DOUBLE, NF90_PUT_VAR, NF90_UNLIMITED, &
                                              NF90_INQUIRE_ATTRIBUTE
   USE utilities_module,                ONLY: deallocate_grid, deallocate_grid_lonlat, remap_zeta_grid_dp, &
-                                             transpose_dp_2D, transpose_dp_3D, permute_2D_dp, permute_3D_dp
+                                             transpose_dp_2D, transpose_dp_3D, permute_2D_dp, permute_3D_dp,permute_3D_int
   USE netcdf_basic_module,             ONLY: nerr, field_name_options_x, field_name_options_y, field_name_options_zeta, field_name_options_z_ocean, &
                                              field_name_options_lon, field_name_options_lat, field_name_options_time, field_name_options_month, &
                                              field_name_options_Hi, field_name_options_Hb, field_name_options_Hs, field_name_options_dHb, &
@@ -435,6 +435,15 @@ CONTAINS
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_SL ), long_name = 'Sea surface change' , units = 'm')
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_dHB), long_name = 'Bedrock deformation' , units = 'm')
 
+    ! Velocities
+    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx_a', long_name = 'SSA velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy_a', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
+    ENDIF
+
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
     ELSEIF (C%choice_SMB_model == 'idealised') THEN
@@ -599,6 +608,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHs') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'f_grnd') THEN
+      CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name = 'Grounded fraction', units = '%')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -776,6 +787,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_restart_file_grid'
+    REAL(dp), DIMENSION( region%grid%ny, region%grid%nx) :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -797,6 +809,23 @@ CONTAINS
     ! GIA 
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_SL , region%ice%SL_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_dHb, region%ice%dHb_a )
+
+    ! Velocities
+    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      u_SSA_cx_a            = 0._dp
+      v_SSA_cy_a            = 0._dp
+      u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
+      v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx_a' , u_SSA_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy_a' , v_SSA_cy_a )
+    ELSEIF     (C%choice_ice_dynamics == 'DIVA') THEN
+      u_vav_cx_a            = 0._dp
+      v_vav_cy_a            = 0._dp
+      u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
+      v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , region%ice%u_vav_cx )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , region%ice%v_vav_cy )
+    END IF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -947,6 +976,12 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Hs', region%ice%Hs_a)
     ELSEIF (field_name == 'SL') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SL', region%ice%SL_a)
+    ELSEIF (field_name == 'dHs_dx') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dx', region%ice%dHs_dx_a)
+    ELSEIF (field_name == 'dHs_dy') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dy', region%ice%dHs_dy_a)
+    ELSEIF (field_name == 'f_grnd') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'f_grnd', region%ice%f_grnd_a)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1056,27 +1091,27 @@ CONTAINS
 
     ! Masks
     ELSEIF (field_name == 'mask') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask', region%ice%mask_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask', region%ice%mask_a)
     ELSEIF (field_name == 'mask_land') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_land', region%ice%mask_land_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_land', region%ice%mask_land_a)
     ELSEIF (field_name == 'mask_ocean') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_ocean', region%ice%mask_ocean_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_ocean', region%ice%mask_ocean_a)
     ELSEIF (field_name == 'mask_lake') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_lake', region%ice%mask_lake_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_lake', region%ice%mask_lake_a)
     ELSEIF (field_name == 'mask_ice') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_ice', region%ice%mask_ice_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_ice', region%ice%mask_ice_a)
     ELSEIF (field_name == 'mask_sheet') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_sheet', region%ice%mask_sheet_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_sheet', region%ice%mask_sheet_a)
     ELSEIF (field_name == 'mask_shelf') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_shelf', region%ice%mask_shelf_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_shelf', region%ice%mask_shelf_a)
     ELSEIF (field_name == 'mask_coast') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_coast', region%ice%mask_coast_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_coast', region%ice%mask_coast_a)
     ELSEIF (field_name == 'mask_margin') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_margin', region%ice%mask_margin_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_margin', region%ice%mask_margin_a)
     ELSEIF (field_name == 'mask_gl') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_gl', region%ice%mask_gl_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_gl', region%ice%mask_gl_a)
     ELSEIF (field_name == 'mask_cf') THEN
-      ! CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_cf', region%ice%mask_cf_a)
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_cf', region%ice%mask_cf_a)
 
     ! Basal conditions
     ELSEIF (field_name == 'phi_fric') THEN
@@ -1278,6 +1313,61 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_grid_dp_2D
+
+  SUBROUTINE write_to_field_multiple_options_grid_int_2D( filename, grid, field_name_options, d)
+    ! Write a 2-D data field to a NetCDF file variable on an x/y-grid
+    ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
+    !
+    ! Write to the last time frame of the variable
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    INTEGER, DIMENSION(:,:    ),   INTENT(IN)    :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER, DIMENSION(:,:,:), POINTER           ::  d_grid_with_time
+    INTEGER                                            :: wd_grid_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_int_2D( filename, var_name, should_have_time = .TRUE.)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Allocate shared memory
+    CALL allocate_shared_int_3D( grid%ny, grid%nx, 1, d_grid_with_time, wd_grid_with_time) 
+
+    ! Copy data
+    d_grid_with_time( :, grid%i1:grid%i2, 1) = d( :,grid%i1:grid%i2)
+    CALL sync
+
+    ! Transpose the output data
+    CALL permute_3D_int( d_grid_with_time, wd_grid_with_time , map = [2,1,3])
+
+    ! Write data to the variable
+    CALL write_var_int_3D( filename, id_var, d_grid_with_time, start = (/ 1, 1, ti /), count = (/ grid%nx, grid%ny, 1 /) )
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid_with_time)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_int_2D
 
   SUBROUTINE write_to_field_multiple_options_grid_dp_2D_monthly( filename, grid, field_name_options, d)
     ! Write a 2-D monthly data field to a NetCDF file variable on an x/y-grid

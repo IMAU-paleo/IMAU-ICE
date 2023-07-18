@@ -68,6 +68,8 @@ MODULE netcdf_basic_module
   CHARACTER(LEN=256), PARAMETER :: field_name_options_u_surf         = 'u_surf||UX'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_T_ocean        = 'T_ocean||t_an'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_S_ocean        = 'S_ocean||s_an'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_melt           = 'melt'
+  
 
 CONTAINS
 
@@ -2025,6 +2027,8 @@ CONTAINS
         field_name_options_parsed = field_name_options_T_ocean
       ELSEIF (field_name_options == 'default_options_S_ocean') THEN
         field_name_options_parsed = field_name_options_S_ocean
+      ELSEIF (field_name_options == 'default_options_melt') THEN
+        field_name_options_parsed = field_name_options_melt
       ! Unrecognised default options
       ELSE
         CALL crash('unregocnised default field name option "' // TRIM( field_name_options) // '"')

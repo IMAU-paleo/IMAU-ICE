@@ -12,13 +12,13 @@ MODULE ice_velocity_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model
+  USE data_types_module,               ONLY: type_model_region, type_grid, type_ice_model, type_restart_data
   USE netcdf_module,                   ONLY: write_CSR_matrix_to_NetCDF
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              vertical_integration_from_bottom_to_zeta, vertical_average, &
                                              vertical_integrate, SSA_Schoof2006_analytical_solution, initialise_matrix_equation_CSR, &
-                                             solve_matrix_equation_CSR, check_CSR_for_double_entries, is_floating
+                                             solve_matrix_equation_CSR, check_CSR_for_double_entries, is_floating, transpose_dp_2D
   USE derivatives_and_grids_module,    ONLY: ddx_cx_to_b_2D, ddy_cx_to_b_2D, ddy_cy_to_b_2D, ddx_cy_to_b_2D, &
                                              map_cx_to_a_2D, map_cy_to_a_2D, map_cx_to_a_3D, map_cy_to_a_3D, &
                                              map_cx_to_cy_2D, map_cy_to_cx_2D, map_a_to_cx_2D, map_a_to_cy_2D, &
@@ -30,6 +30,8 @@ MODULE ice_velocity_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
+
   IMPLICIT NONE
 
 CONTAINS
@@ -3028,5 +3030,88 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
+
+  SUBROUTINE initialise_velocities_from_restart_file( grid, ice, region_name)
+    ! Initialise velocities with data from a previous simulation's restart file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_ice_model),           INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_velocities_from_restart_file'
+    CHARACTER(LEN=256)                            :: filename_restart
+    REAL(dp)                                      :: time_to_restart_from
+    REAL(dp), DIMENSION( :,:), POINTER            :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a
+    INTEGER                                       :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate room for velocity fields
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_SSA_cx_a, wu_SSA_cx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_SSA_cy_a, wv_SSA_cy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_vav_cx_a, wu_vav_cx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_vav_cy_a, wv_vav_cy_a)
+
+    ! Select filename and time to restart from
+    IF     (region_name == 'NAM') THEN
+      filename_restart     = C%filename_refgeo_init_NAM
+      time_to_restart_from = C%time_to_restart_from_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_restart     = C%filename_refgeo_init_EAS
+      time_to_restart_from = C%time_to_restart_from_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename_restart     = C%filename_refgeo_init_GRL
+      time_to_restart_from = C%time_to_restart_from_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_restart     = C%filename_refgeo_init_ANT
+      time_to_restart_from = C%time_to_restart_from_ANT
+    END IF
+
+    ! Check whether SIA/SSA or DIVA is used
+    IF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      u_SSA_cx_a = 0._dp
+      v_SSA_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx_a', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy_a', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
+        ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
+        print*, ' Initialising velocities from restart file'
+      END IF 
+      CALL sync
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      u_vav_cx_a = 0._dp
+      v_vav_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx_a', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_vav_cy_a', grid,  v_vav_cy_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
+        ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
+        print*, ' Initialising velocities from restart file'
+      END IF 
+      CALL sync
+    END IF 
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')
+    CALL check_for_NaN_dp_2D( ice%v_SSA_cy, 'ice%wv_SSA_cy')
+    CALL check_for_NaN_dp_2D( ice%u_vav_cx, 'ice%wu_vav_cx')
+    CALL check_for_NaN_dp_2D( ice%v_vav_cy, 'ice%wv_vav_cy')
+
+
+    CALL deallocate_shared( wu_SSA_cx_a)
+    CALL deallocate_shared( wv_SSA_cy_a)
+    CALL deallocate_shared( wu_vav_cx_a)
+    CALL deallocate_shared( wv_vav_cy_a)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_velocities_from_restart_file
 
 END MODULE ice_velocity_module
