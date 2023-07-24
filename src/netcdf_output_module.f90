@@ -591,10 +591,52 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL add_field_grid_dp_2D_notime( filename, 'GHF', long_name = 'Geothermal heat flux', units = 'J m^-2 yr^-1')
+ 
+    ! Ice basins
+    ! NOTE: needs new function that reads in integers instead of dp
+    !ELSEIF (field_name == 'basin_ID') THEN
+    !  CALL add_field_grid_dp_2D_notime( filename, 'basin_ID', long_name = 'Basin ID', units = '')
+ 
+    ! Basal inversion target velocity
+    ELSEIF (field_name == 'BIV_target_velocity') THEN
+      CALL add_field_grid_dp_2D_notime( filename, 'BIV_target_velocity', long_name='Basal inversion target velocity', units='m yr^-1')
+
+    ! Forcing climates
+    ELSEIF (field_name == 'GCM_Warm_T2m') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'Warm_T2m', long_name = 'Warm monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_Warm_Precip') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'Warm_Precip', long_name='Warm monthly total precipitation', units='mm')
+    ELSEIF (field_name == 'GCM_Cold_T2m') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'Cold_T2m', long_name='Cold monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_Cold_Precip') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'Cold_Precip', long_name = 'Cold monthly total precipitation', units='mm')
+    ELSEIF (field_name == 'GCM_PI_T2m') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'PI_T2m', long_name= 'Ref PI monthly mean 2-m air temperature', units='K')
+    ELSEIF (field_name == 'GCM_PI_Precip') THEN
+      CALL add_field_grid_dp_2D_monthly( filename, 'PI_Precip', long_name = 'Ref PI monthly total precipitation', units='mm')
+
+    ! Forcing oceans
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Warm_T_ocean_3D',    long_name='Warm 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Warm_S_ocean_3D',    long_name='Warm 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Cold_T_ocean_3D',    long_name='Cold 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Cold_S_ocean_3D',    long_name='Cold 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Ref_PI_T_ocean_3D',  long_name='Ref PI 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Ref_PI_S_ocean_3D',  long_name='Ref PI 3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Base_PD_T_ocean_3D', long_name='Base PD 3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL add_field_grid_dp_3D_notime( filename, 'Base_PD_S_ocean_3D', long_name='Base PD 3-D ocean salinity', units='PSU')
 
     ! Fields with a time dimension
     ! ============================
-
+    
+    
     ! Geometry
     ELSEIF (field_name == 'Hi') THEN
       CALL add_field_grid_dp_2D( filename, 'Hi', long_name = 'Ice thickness', units = 'm')
@@ -606,8 +648,10 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea-level')
     ELSEIF (field_name == 'dHi') THEN
       CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
-    ELSEIF (field_name == 'dHs') THEN
-      CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'dHs_dx') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHs_dx', long_name = 'Surface slope in x-direction', units = 'm/m')
+    ELSEIF (field_name == 'dHs_dy') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHs_dy', long_name = 'Surface slope in y-direction', units = 'm/m')
     ELSEIF (field_name == 'f_grnd') THEN
       CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name = 'Grounded fraction', units = '%')
 
@@ -626,6 +670,8 @@ CONTAINS
       CALL add_field_grid_dp_3D( filename, 'A_flow_3D', long_name = 'Ice flow factor', units = 'Pa^-3 y^-1')
     ELSEIF (field_name == 'A_flow_vav') THEN
       CALL add_field_grid_dp_2D( filename, 'A_flow_vav', long_name = 'Vertically averaged ice flow factor', units = 'Pa^-3 y^-1')
+    ELSEIF (field_name == 'Ti_base_rel') THEN
+      CALL add_field_grid_dp_2D( filename, 'Ti_base_rel', long_name='Basal temperature relative to pressure melting point', units='K')
 
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -652,8 +698,12 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'v_base', long_name = 'Basal ice y-velocity', units = 'm yr^-1')
     ELSEIF (field_name == 'uabs_base') THEN
       CALL add_field_grid_dp_2D( filename, 'uabs_base', long_name = 'Basal ice velocity', units = 'm yr^-1')
+    ELSEIF (field_name == 'R_shear') THEN
+      CALL add_field_grid_dp_2D( filename, 'R_shear', long_name='Shearing ratio; 1 = full shearing, 0 = full sliding')
 
     ! Climate
+    ELSEIF (field_name == 'Q_TOA') THEN
+      CALL add_field_grid_dp_3D( filename, 'Q_TOA', long_name='Monthly mean top-of-atmosphere insolation', units='J s^-1 m^-2')
     ELSEIF (field_name == 'T2m') THEN
       CALL add_field_grid_dp_2D_monthly( filename, 'T2m', long_name = 'Monthly mean 2-m air temperature', units = 'K')
     ELSEIF (field_name == 'T2m_year') THEN
@@ -717,13 +767,19 @@ CONTAINS
     ELSEIF (field_name == 'FirnDepth_year') THEN
       CALL add_field_grid_dp_2D( filename, 'FirnDepth_year', long_name = 'Annual mean firn layer depth', units='m water equivalent')
 
-    ! Basal mass balance
+    ! Basal mass balance and Oceans
     ELSEIF (field_name == 'BMB') THEN
       CALL add_field_grid_dp_2D( filename, 'BMB', long_name = 'Annual basal mass balance', units = 'm ice equivalent')
     ELSEIF (field_name == 'BMB_sheet') THEN
       CALL add_field_grid_dp_2D( filename, 'BMB_sheet', long_name = 'Annual basal mass balance for grounded ice', units = 'm ice equivalent')
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL add_field_grid_dp_2D( filename, 'BMB_shelf', long_name = 'Annual basal mass balance for floating ice', units = 'm ice equivalent')
+    ELSEIF (field_name == 'T_ocean_3D') THEN
+      CALL add_field_grid_dp_3D( filename, 'T_ocean_3D', long_name='3-D ocean temperature', units='K')
+    ELSEIF (field_name == 'S_ocean_3D') THEN
+      CALL add_field_grid_dp_3D( filename, 'S_ocean_3D', long_name='3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'PICO_boxes') THEN
+      CALL add_field_grid_int_2D( filename, 'PICO_boxes', long_name='PICO ocean boxes')
 
     ! Masks
     ELSEIF (field_name == 'mask') THEN
@@ -749,11 +805,19 @@ CONTAINS
     ELSEIF (field_name == 'mask_cf') THEN
       CALL add_field_grid_int_2D( filename, 'mask_cf', long_name = 'Calving-front mask')
 
-    ! Basal conditions
+    ! Basal hydrology and roughness
+    ELSEIF (field_name == 'pore_water_pressure') THEN
+      CALL add_field_grid_dp_2D( filename, 'pore_water_pressure', long_name='pore water pressure', units='Pa')
+    ELSEIF (field_name == 'effective_pressure' .OR. field_name == 'Neff') THEN
+      CALL add_field_grid_dp_2D( filename, 'effective_pressure', long_name='effective basal pressure', units='Pa')
     ELSEIF (field_name == 'phi_fric') THEN
       CALL add_field_grid_dp_2D( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees')
     ELSEIF (field_name == 'tau_yield') THEN
       CALL add_field_grid_dp_2D( filename, 'tau_yield', long_name = 'Basal yield stress', units = 'Pa')
+    ELSEIF (field_name == 'alpha_sq') THEN
+      CALL add_field_grid_dp_2D( filename, 'alpha_sq', long_name='Coulomb-law friction coefficient', units='unitless')
+    ELSEIF (field_name == 'beta_sq') THEN
+      CALL add_field_grid_dp_2D( filename, 'beta_sq', long_name='Power-law friction coefficient', units='Pa m^−1/3 yr^1/3')
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
@@ -764,6 +828,8 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dSL_dt') THEN
       CALL add_field_grid_dp_2D( filename, 'dSL_dt', long_name = 'Geoid deformation rate', units = 'm yr^-1')
+    ELSEIF (field_name == 'dHb') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHb', long_name='Change in bedrock elevation w.r.t. PD', units='m')
 
     ! Safety
     ELSE
@@ -963,6 +1029,47 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_notime( filename, region%grid, 'GHF', region%ice%GHF_a)
+    
+    ! Ice basins
+    ! NOTE: needs new function that reads in integers instead of dp
+    !ELSEIF (field_name == 'basin_ID') THEN
+    !  CALL write_to_field_multiple_options_grid_int_2D_notime( filename, region%grid, 'basin_ID', region%ice%basin_ID)
+
+    ! Basal inversion target velocity
+    ELSEIF (field_name == 'BIV_target_velocity') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_notime( filename, region%grid, 'BIV_target_velocity', region%ice%BIV_uabs_surf_target)
+    
+    ! Forcing climates
+    ELSEIF (field_name == 'GCM_Warm_T2m') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'Warm_T2m', region%climate%matrix%GCM_warm%T2m)
+    ELSEIF (field_name == 'GCM_Warm_Precip') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'Warm_Precip', region%climate%matrix%GCM_warm%Precip)
+    ELSEIF (field_name == 'GCM_Cold_T2m') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'Cold_T2m', region%climate%matrix%GCM_cold%T2m)
+    ELSEIF (field_name == 'GCM_Cold_Precip') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'Cold_Precip', region%climate%matrix%GCM_cold%Precip)
+    ELSEIF (field_name == 'GCM_PI_T2m') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_T2m', region%climate%matrix%GCM_PI%T2m)
+    ELSEIF (field_name == 'GCM_PI_Precip') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_Precip', region%climate%matrix%GCM_PI%Precip)
+
+    ! Forcing oceans
+    ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Warm_T_ocean_3D', region%ocean_matrix%GCM_Warm%T_ocean_ext)
+    ELSEIF (field_name == 'GCM_Warm_S_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Warm_S_ocean_3D', region%ocean_matrix%GCM_Warm%S_ocean_ext)
+    ELSEIF (field_name == 'GCM_Cold_T_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Cold_T_ocean_3D', region%ocean_matrix%GCM_Cold%T_ocean_ext)
+    ELSEIF (field_name == 'GCM_Cold_S_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Cold_S_ocean_3D', region%ocean_matrix%GCM_Cold%S_ocean_ext)
+    ELSEIF (field_name == 'GCM_PI_T_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Ref_PI_T_ocean_3D', region%ocean_matrix%GCM_PI%T_ocean_ext)
+    ELSEIF (field_name == 'GCM_PI_S_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Ref_PI_S_ocean_3D', region%ocean_matrix%GCM_PI%S_ocean_ext)
+    ELSEIF (field_name == 'PD_obs_T_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Base_PD_T_ocean_3D', region%ocean_matrix%PD_obs%T_ocean_ext)
+    ELSEIF (field_name == 'PD_obs_S_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, region%grid, 'Base_PD_S_ocean_3D', region%ocean_matrix%PD_obs%S_ocean_ext)
 
     ! Fields with a time dimension
     ! ============================
@@ -976,6 +1083,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Hs', region%ice%Hs_a)
     ELSEIF (field_name == 'SL') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SL', region%ice%SL_a)
+    ELSEIF (field_name == 'dHi') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_dt_a)
     ELSEIF (field_name == 'dHs_dx') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dx', region%ice%dHs_dx_a)
     ELSEIF (field_name == 'dHs_dy') THEN
@@ -998,6 +1107,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'A_flow_3D', region%ice%A_flow_3D_a)
     ELSEIF (field_name == 'A_flow_vav') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'A_flow_vav', region%ice%A_flow_vav_a)
+    ELSEIF (field_name == 'Ti_base_rel') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Ti_base_rel', (region%ice%Ti_a( C%nz,:,:) - region%ice%Ti_pmp_a( C%nz,:,:)))
 
     ! Velocity fields
     ELSEIF (field_name == 'u_3D') THEN
@@ -1024,8 +1135,12 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_base'   , region%ice%v_base_a)
     ELSEIF (field_name == 'uabs_base') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_base', region%ice%uabs_base_a)
+    ELSEIF (field_name == 'R_shear') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'R_shear', region%ice%R_shear)
 
     ! Climate
+    ELSEIF (field_name == 'Q_TOA') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid,  'Q_TOA', region%climate%Q_TOA)
     ELSEIF (field_name == 'T2m') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid,  'T2m', region%climate%T2m)
     ELSEIF (field_name == 'T2m_year') THEN
@@ -1088,6 +1203,12 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'BMB_sheet', region%BMB%BMB_sheet)
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'BMB_shelf', region%BMB%BMB_shelf)
+    ELSEIF (field_name == 'T_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'T_ocean_3D', region%ocean_matrix%applied%T_ocean_corr_ext)
+    ELSEIF (field_name == 'S_ocean_3D') THEN
+      CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'S_ocean_3D', region%ocean_matrix%applied%S_ocean_corr_ext)
+    ELSEIF (field_name == 'PICO_boxes') THEN
+      CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'PICO_boxes', region%BMB%PICO_k)
 
     ! Masks
     ELSEIF (field_name == 'mask') THEN
@@ -1114,10 +1235,18 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'mask_cf', region%ice%mask_cf_a)
 
     ! Basal conditions
+    ELSEIF (field_name == 'pore_water_pressure') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'pore_water_pressure', region%ice%pore_water_pressure_a)
+    ELSEIF (field_name == 'effective_pressure' .OR. field_name == 'Neff') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'effective_pressure', region%ice%Neff_a)
     ELSEIF (field_name == 'phi_fric') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'phi_fric', region%ice%phi_fric_a)
     ELSEIF (field_name == 'tau_yield') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'tau_yield', region%ice%tauc_a)
+    ELSEIF (field_name == 'alpha_sq') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'alpha_sq', region%ice%alpha_sq_a)
+    ELSEIF (field_name == 'beta_sq') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta_sq', region%ice%beta_sq_a)
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
@@ -1128,6 +1257,8 @@ CONTAINS
     ! GIA
     ELSEIF (field_name == 'dSL_dt') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dSL_dt', region%ice%dSL_dt_a)
+    ELSEIF (field_name == 'dHb') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHb', region%ice%dHb_a)
 
     ! Safety
     ELSE
