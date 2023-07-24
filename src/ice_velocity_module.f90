@@ -521,7 +521,7 @@ CONTAINS
     ELSE
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
-        IF (ice%mask_ice_a( j,i) == 1) THEN
+        IF (ice%mask_ice_a( j,i) == 1 .AND. ice%uabs_base_a( j,i) /= ice%uabs_surf_a( j,i) ) THEN
           ice%R_shear( j,i) = MAX( 0._dp, MIN( 1._dp, (1._dp - ice%uabs_base_a( j,i) / ice%uabs_surf_a( j,i)) ))
         ELSE
           ice%R_shear( j,i) = 0._dp

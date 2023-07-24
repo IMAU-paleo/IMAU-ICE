@@ -743,9 +743,11 @@ CONTAINS
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
 
-      dt = grid%dx / (ABS(ice%u_vav_cx( j,i)) + ABS(ice%v_vav_cy( j,i)))
-      dt_crit_adv = MIN( dt_crit_adv, dt)
-
+      IF (ABS(ice%u_vav_cx( j,i)) + ABS(ice%v_vav_cy( j,i)) > 0._dp ) THEN
+        dt = grid%dx / (ABS(ice%u_vav_cx( j,i)) + ABS(ice%v_vav_cy( j,i)))
+        dt_crit_adv = MIN( dt_crit_adv, dt)
+      END IF
+      
     END DO
     END DO
 
