@@ -3488,19 +3488,21 @@ CONTAINS
 
   END SUBROUTINE init_routine
 
-  SUBROUTINE finalise_routine( routine_name)
+  SUBROUTINE finalise_routine( routine_name, n_extra_windows_expected)
     ! Finalise; remove the current routine name from the routine path
 
     IMPLICIT NONE
 
     ! In/output variables:
     CHARACTER(LEN=256),                  INTENT(IN)    :: routine_name
+    INTEGER,  INTENT(IN), OPTIONAL                     :: n_extra_windows_expected
 
     ! Local variables:
     LOGICAL                                            :: do_track_resource_use
     INTEGER                                            :: len_path_tot, i, ii
     INTEGER                                            :: ierr, cerr
     REAL(dp)                                           :: dt
+    INTEGER                                            :: n_extra_windows_expected_loc, n_extra_windows_found
 
     ! Check if resource use should be tracked for this subroutine
     i = INDEX( routine_path, '_NOTRACK')
@@ -3519,10 +3521,16 @@ CONTAINS
       ! Check maximum MPI window at the end of the routine
       resource_tracker( i)%n_MPI_windows_final = n_MPI_windows
 
-      ! If it is larger than at the start, mention this
+      ! If it is larger than expected, warn that there might be a memory leak
+      n_extra_windows_expected_loc = 0
+      IF (PRESENT( n_extra_windows_expected)) n_extra_windows_expected_loc = n_extra_windows_expected
+      n_extra_windows_found = resource_tracker( i)%n_MPI_windows_final - resource_tracker( i)%n_MPI_windows_init
+
       ii = INDEX( routine_path, 'IMAU_ICE_program/initialise_')
-      IF (ii == 0 .AND. resource_tracker( i)%n_MPI_windows_final > resource_tracker( i)%n_MPI_windows_init) THEN
-        CALL warning('shared memory was allocated but not freed, possibly memory leak!')
+      IF (ii == 0 .AND. n_extra_windows_found > n_extra_windows_expected_loc) THEN
+        ! This subroutine has more memory allocated at the start than at the beginning.
+        CALL warning('more memory was allocated and not freed than expected; possible memory leak! (expected {int_01} extra windows, found {int_02})', &
+          int_01 = n_extra_windows_expected_loc, int_02 = n_extra_windows_found)
       END IF
 
       ! Find where in the string exactly the current routine name is located

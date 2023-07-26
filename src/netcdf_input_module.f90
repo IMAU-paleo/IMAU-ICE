@@ -645,7 +645,7 @@ CONTAINS
     CALL transpose_dp_2D( d, wd)
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    CALL finalise_routine( routine_name, 19)
 
   END SUBROUTINE read_field_from_xy_file_2D
 
@@ -1458,7 +1458,7 @@ CONTAINS
   SUBROUTINE setup_xy_grid_from_file(     filename, grid, region_name)
     ! Set up an x/y-grid from a NetCDF file
     !
-    ! Assumes no memory has yet been allocated for the grid at all FJFJ
+    ! Assumes no memory has yet been allocated for the grid at all
 
     IMPLICIT NONE
 
@@ -1594,7 +1594,7 @@ CONTAINS
     CALL sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    CALL finalise_routine( routine_name, 18)
 
   END SUBROUTINE setup_xy_grid_from_file
 
