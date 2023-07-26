@@ -231,7 +231,7 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%time)
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
@@ -332,7 +332,7 @@ CONTAINS
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -398,7 +398,7 @@ CONTAINS
       ! ==============
 
       ! Calculate dHi_dt for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
 
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
@@ -790,7 +790,7 @@ CONTAINS
       ! Calculate truncation error (Robinson et al., 2020, Eq. 32)
       ice%pc_tau( j,i) = ABS( ice%pc_zeta * (ice%Hi_corr( j,i) - ice%Hi_pred( j,i)) / ((3._dp * ice%pc_zeta + 3._dp) * dt))
 
-!      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
+      ! IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
       IF (ice%mask_sheet_a( j,i) == 1 .AND. &
           ice%mask_gl_a( j+1,i-1) == 0 .AND. &
           ice%mask_gl_a( j+1,i  ) == 0 .AND. &
@@ -921,6 +921,16 @@ CONTAINS
         t_next = MIN( t_next, region%t_next_BIV)
       END IF ! IF (C%do_BIVgeo) THEN
 
+      region%do_calv_inv     = .FALSE.
+      IF (C%do_calv_inv) THEN
+        IF (region%time == region%t_next_calv_inv) THEN
+          region%do_calv_inv     = .TRUE.
+          region%t_last_calv_inv = region%time
+          region%t_next_calv_inv = region%t_last_calv_inv + C%calv_inv_dt
+        END IF
+        t_next = MIN( t_next, region%t_next_calv_inv)
+      END IF
+
       region%do_output  = .FALSE.
       IF (region%time == region%t_next_output) THEN
         region%do_output      = .TRUE.
@@ -981,6 +991,17 @@ CONTAINS
     CALL update_general_ice_model_data( grid, ice)
     CALL remove_unconnected_shelves(    grid, ice)
     CALL update_general_ice_model_data( grid, ice)
+
+    ! Initialise calving_front position
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1) THEN
+        ice%calving_front_position_x( j, i) = grid%x( i)
+        ice%calving_front_position_y( j, i) = grid%y( j)
+      END IF
+    END DO
+    END DO
+    CALL sync
 
     ! Allocate and initialise basal conditions
     CALL initialise_basal_conditions( grid, ice)
@@ -1199,8 +1220,8 @@ CONTAINS
     ! Ice dynamics - ice thickness calculation
     IF     (C%choice_ice_integration_method == 'none') THEN
     ELSEIF (C%choice_ice_integration_method == 'explicit') THEN
-      CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%Qx_cx                , ice%wQx_cx                )
-      CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%Qy_cy                , ice%wQy_cy                )
+      CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%Qx_cx              , ice%wQx_cx                )
+      CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%Qy_cy              , ice%wQy_cy                )
     ELSEIF (C%choice_ice_integration_method == 'semi-implicit') THEN
       CALL initialise_implicit_ice_thickness_matrix_tables( grid, ice)
     ELSE
@@ -1208,8 +1229,12 @@ CONTAINS
     END IF
 
     ! Ice dynamics - calving
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a      , ice%wfloat_margin_frac_a     )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a              , ice%wHi_eff_cf_a             )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_rate_x_a         , ice%wcalving_rate_x_a        )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_rate_y_a         , ice%wcalving_rate_y_a        )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_x , ice%wcalving_front_position_x)
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%calving_front_position_y , ice%wcalving_front_position_y)
 
     ! Ice dynamics - prescribed retreat mask
     IF (C%do_apply_prescribed_retreat_mask) THEN

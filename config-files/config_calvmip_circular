@@ -15,7 +15,7 @@
   dt_SMB_config                               = 10.0                             ! Time step (in years) for updating the SMB
   dt_BMB_config                               = 10.0                             ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
-  dt_output_config                            = 10.0                             ! Time step (in years) for writing output
+  dt_output_config                            = 100.0                            ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -58,11 +58,11 @@
   lambda_M_ANT_config                         = 0.0                              ! Longitude of the pole of the stereographic projection for the Antarctica domain [degrees east]
   phi_M_ANT_config                            = -90.0                            ! Latitude  of the pole of the stereographic projection for the Antarctica domain [degrees north]
   beta_stereo_ANT_config                      = 71.0                             ! Standard parallel     of the stereographic projection for the Antarctica domain [degrees]
-  xmin_ANT_config                             = -800000.0                        ! Western  boundary     of the Antarctica domain [m]
-  xmax_ANT_config                             =  800000.0                        ! Eastern  boundary     of the Antarctica domain [m]
-  ymin_ANT_config                             = -800000.0                        ! Southern boundary     of the Antarctica domain [m]
-  ymax_ANT_config                             =  800000.0                        ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 20000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  xmin_ANT_config                             = -1000000.0                       ! Western  boundary     of the Antarctica domain [m]
+  xmax_ANT_config                             =  1000000.0                       ! Eastern  boundary     of the Antarctica domain [m]
+  ymin_ANT_config                             = -1000000.0                       ! Southern boundary     of the Antarctica domain [m]
+  ymax_ANT_config                             =  1000000.0                       ! Northern boundary     of the Antarctica domain [m]
+  dx_ANT_config                               = 10000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -256,13 +256,17 @@
   ! Ice dynamics - calving
   ! ======================
 
-  choice_calving_law_config                   = 'none'                           ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
-  calving_threshold_thickness_config          = 500.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
+  choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness", "threshold_distance"
+  calving_threshold_thickness_config          = 1.0                              ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   calving_threshold_distance_config           = 750.0                            ! Threshold distance from center of domain in the "threshold_distance" calving law (in km)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
-  continental_shelf_calving_config            = .TRUE.                           ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
+  continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   continental_shelf_min_height_config         = -1648.8                          ! Maximum depth of the continental shelf
+  do_calv_inv_config                          = .FALSE.                          ! Whether or not to perform a calving rate inversion
+  calv_inv_t_start_config                     = -9.9E9                           ! Minimum model time when the inversion is allowed
+  calv_inv_t_end_config                       = +9.9E9                           ! Maximum model time when the inversion is allowed
+  calv_inv_dt_config                          = 5.0                              ! Time step for updates calving_rate [yr]
 
   ! Thermodynamics and rheology
   ! ===========================
@@ -350,8 +354,8 @@
   help_field_02_config                        = 'Hi'
   help_field_03_config                        = 'uabs_surf'
   help_field_04_config                        = 'Hb'
-  help_field_05_config                        = 'none'
-  help_field_06_config                        = 'none'
+  help_field_05_config                        = 'cr_x'
+  help_field_06_config                        = 'cr_y'
   help_field_07_config                        = 'none'
   help_field_08_config                        = 'none'
   help_field_09_config                        = 'none'

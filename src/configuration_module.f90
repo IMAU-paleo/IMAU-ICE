@@ -416,6 +416,10 @@ MODULE configuration_module
   LOGICAL             :: remove_shelves_larger_than_PD_config        = .FALSE.                          ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
   LOGICAL             :: continental_shelf_calving_config            = .FALSE.                          ! If set to TRUE, all ice beyond the continental shelf edge (set by a maximum depth) is removed
   REAL(dp)            :: continental_shelf_min_height_config         = -2000._dp                        ! Maximum depth of the continental shelf
+  LOGICAL             :: do_calv_inv_config                          = .FALSE.                          ! Whether or not to perform a calving rate inversion
+  REAL(dp)            :: calv_inv_t_start_config                     = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
+  REAL(dp)            :: calv_inv_t_end_config                       = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+  REAL(dp)            :: calv_inv_dt_config                          = 10._dp                           ! Time step for updates calving_rate [yr]
 
   ! Thermodynamics and rheology
   ! ===========================
@@ -1161,6 +1165,10 @@ MODULE configuration_module
     LOGICAL                             :: remove_shelves_larger_than_PD
     LOGICAL                             :: continental_shelf_calving
     REAL(dp)                            :: continental_shelf_min_height
+    LOGICAL(dp)                         :: do_calv_inv
+    REAL(dp)                            :: calv_inv_t_start
+    REAL(dp)                            :: calv_inv_t_end
+    REAL(dp)                            :: calv_inv_dt
 
     ! Thermodynamics and rheology
     ! ===========================
@@ -2010,6 +2018,10 @@ CONTAINS
                      remove_shelves_larger_than_PD_config,            &
                      continental_shelf_calving_config,                &
                      continental_shelf_min_height_config,             &
+                     do_calv_inv_config,                              &
+                     calv_inv_t_start_config,                         &
+                     calv_inv_t_end_config,                           &
+                     calv_inv_dt_config,                              &
                      choice_initial_ice_temperature_config,           &
                      uniform_ice_temperature_config,                  &
                      choice_thermo_model_config,                      &
@@ -2805,6 +2817,11 @@ CONTAINS
     C%remove_shelves_larger_than_PD            = remove_shelves_larger_than_PD_config
     C%continental_shelf_calving                = continental_shelf_calving_config
     C%continental_shelf_min_height             = continental_shelf_min_height_config
+    C%do_calv_inv                              = do_calv_inv_config
+    C%calv_inv_t_start                         = calv_inv_t_start_config
+    C%calv_inv_t_end                           = calv_inv_t_end_config
+    C%calv_inv_dt                              = calv_inv_dt_config
+
 
     ! Thermodynamics and rheology
     ! ===========================

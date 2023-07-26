@@ -39,6 +39,7 @@ MODULE IMAU_ICE_main_model
 # endif
   USE scalar_data_output_module,           ONLY: write_regional_scalar_data
   USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
+  USE calving_module,                      ONLY: calving_inversion_geo
 
   IMPLICIT NONE
 
@@ -81,9 +82,9 @@ CONTAINS
 
     tstart = MPI_WTIME()
 
-  ! ====================================
-  ! ===== The main model time loop =====
-  ! ====================================
+   ! ====================================
+   ! ===== The main model time loop =====
+   ! ====================================
 
     it = 0
     dt_ave = 0._dp
@@ -188,6 +189,15 @@ CONTAINS
       IF (region%do_BIV) THEN
         IF (region%time > C%BIVgeo_t_start .AND. region%time < C%BIVgeo_t_end) THEN
           CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt)
+        END IF
+      END IF
+
+    ! Calving_rate inversion
+    ! ======================
+
+      IF (region%do_calv_inv) THEN
+        IF (region%time > C%calv_inv_t_start .AND. region%time < C%calv_inv_t_end) THEN
+          CALL calving_inversion_geo( region%grid, region%ice)
         END IF
       END IF
 
@@ -524,6 +534,10 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%t_next_BIV,       region%wt_next_BIV      )
     CALL allocate_shared_bool_0D( region%do_BIV,           region%wdo_BIV          )
 
+    CALL allocate_shared_dp_0D(   region%t_last_calv_inv,  region%wt_last_calv_inv )
+    CALL allocate_shared_dp_0D(   region%t_next_calv_inv,  region%wt_next_calv_inv )
+    CALL allocate_shared_bool_0D( region%do_calv_inv,      region%wdo_calv_inv     )
+
     IF (par%master) THEN
       region%time           = C%start_time_of_run
       region%dt             = C%dt_min
@@ -568,6 +582,10 @@ CONTAINS
       region%t_last_BIV     = C%start_time_of_run
       region%t_next_BIV     = C%start_time_of_run + C%BIVgeo_dt
       region%do_BIV         = .FALSE.
+
+      region%t_last_calv_inv = C%start_time_of_run
+      region%t_next_calv_inv = C%start_time_of_run + C%calv_inv_dt
+      region%do_calv_inv     = .FALSE.
 
       region%t_last_output  = C%start_time_of_run
       region%t_next_output  = C%start_time_of_run

@@ -120,6 +120,7 @@ CONTAINS
           radius > C%calving_threshold_distance * 1000._dp) THEN
         ice%Hi_a( j,i) = 0._dp
       END IF
+
     END DO
     END DO
     CALL sync
@@ -206,6 +207,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE apply_prescribed_retreat_mask
+
   SUBROUTINE update_prescribed_retreat_mask_timeframes( grid, ice, time)
     ! Update the two timeframes of the prescribed retreat mask
 
@@ -280,6 +282,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_prescribed_retreat_mask_timeframes
+
   SUBROUTINE initialise_retreat_mask_refice( grid, ice)
     ! Initialise the reference ice thickness for a prescribed retreat mask
 
@@ -339,5 +342,85 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_retreat_mask_refice
+
+  SUBROUTINE calving_front_position( grid, ice)
+    ! Keep track of the calving_front_position
+
+    IMPLICIT NONE
+
+    ! input variables
+    TYPE(type_grid),      INTENT(IN)    :: grid
+    TYPE(type_ice_model), INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'calving_front_position'
+    INTEGER                             :: i,j
+    REAL(dp)                            :: cfp_scale, cfp_delta, dz
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calving_front_position
+
+  SUBROUTINE calving_inversion_geo( grid, ice)
+    ! update the calving_rate according to the calving_front_position
+
+    IMPLICIT NONE
+
+    ! input variables
+    TYPE(type_grid),      INTENT(IN)    :: grid
+    TYPE(type_ice_model), INTENT(INOUT) :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'calving_inversion_geo'
+    INTEGER                             :: i,j
+    REAL(dp)                            :: cfp_scale, cfp_delta, dz
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL crash(' Inversion of calving rates not being applied at the moment. Look at dHi_dt routinesa and set do_calv_inv_config to FALSE.')
+
+    ! ice%calving_rate_x_a = 0._dp
+    ! ice%calving_rate_y_a = 0._dp
+
+    ! cfp_scale = 1._dp / 200000._dp
+
+    ! DO i = grid%i1, grid%i2
+    ! DO j = 1, grid%ny
+
+    !   ! IF (ice%mask_shelf_a( j,i) == 1) THEN
+
+    !   IF (SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) >= 750000._dp) THEN
+
+    !     ! Calving_front position difference w.r.t. target
+    !     cfp_delta = SQRT(grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j)) - 750000._dp
+
+    !     ! Scale the difference and restrict it to the [-1.5; 1.5] range
+    !     dz = MAX(-1.5_dp, MIN(1.5_dp, cfp_delta * cfp_scale))
+
+    !     ice%calving_rate_x_a( j,i) = ABS(ice%u_vav_a( j,i)) * 10.0_dp**(dz)
+    !     ice%calving_rate_y_a( j,i) = ABS(ice%v_vav_a( j,i)) * 10.0_dp**(dz)
+
+    !     ice%calving_rate_x_a( j,i) = MIN( 1E4_dp, MAX( 0._dp, ice%calving_rate_x_a( j,i)))
+    !     ice%calving_rate_y_a( j,i) = MIN( 1E4_dp, MAX( 0._dp, ice%calving_rate_y_a( j,i)))
+
+    !   END IF
+
+    !   ! END IF
+
+    ! END DO
+    ! END DO
+    ! CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calving_inversion_geo
 
 END MODULE calving_module

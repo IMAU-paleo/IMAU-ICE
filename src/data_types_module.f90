@@ -270,9 +270,14 @@ MODULE data_types_module
     INTEGER :: wQx_cx, wQy_cy, wdHi_ij2n
 
     ! Ice dynamics - calving
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a      ! Ice-covered fraction for calving front pixels
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a              ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_rate_x_a         ! Calving rate in x-direction
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_rate_y_a         ! Calving rate in y-direction
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_front_position_x ! Calving front position in x-direction
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: calving_front_position_y ! Calving front position in y-direction
     INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
+    INTEGER :: wcalving_rate_x_a, wcalving_rate_y_a, wcalving_front_position_x, wcalving_front_position_y
 
     ! Ice dynamics - prescribed retreat mask
     REAL(dp),                   POINTER     :: ice_fraction_retreat_mask_t0  ! Time of first     prescribed retreat mask timeframe ( <= region%time)
@@ -1196,6 +1201,7 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: t_last_BMB,     t_next_BMB
     REAL(dp), POINTER                       :: t_last_ELRA,    t_next_ELRA
     REAL(dp), POINTER                       :: t_last_BIV,     t_next_BIV
+    REAL(dp), POINTER                       :: t_last_calv_inv,     t_next_calv_inv
     LOGICAL,  POINTER                       :: do_SIA
     LOGICAL,  POINTER                       :: do_SSA
     LOGICAL,  POINTER                       :: do_DIVA
@@ -1207,10 +1213,11 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_output
     LOGICAL,  POINTER                       :: do_ELRA
     LOGICAL,  POINTER                       :: do_BIV
+    LOGICAL,  POINTER                       :: do_calv_inv
     INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
-    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
-    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
-    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV, wt_last_calv_inv
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV, wt_next_calv_inv
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV, wdo_calv_inv
 
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area
