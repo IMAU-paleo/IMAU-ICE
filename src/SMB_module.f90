@@ -12,13 +12,16 @@ MODULE SMB_module
                                              deallocate_shared
   USE data_types_module,               ONLY: type_grid, type_ice_model, type_SMB_model, type_climate_model, &
                                              type_restart_data, type_climate_model_direct_SMB
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_restart_file_SMB, read_restart_file_SMB
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D, read_field_from_file_2D_monthly
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
                                              transpose_dp_2D, transpose_dp_3D
   USE forcing_module,                  ONLY: forcing
   USE parameters_module,               ONLY: T0, L_fusion, sec_per_year, pi, ice_density
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -87,11 +90,6 @@ CONTAINS
 
       CALL run_SMB_model_direct( grid, climate%direct_SMB, SMB, time, mask_noice)
 
-    ELSEIF (C%choice_SMB_model == 'ISMIP_style') THEN
-      ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-      CALL run_SMB_model_ISMIP_style( grid, ice, climate, SMB, time)
-
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
@@ -123,8 +121,7 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional' .OR. &
-            C%choice_SMB_model == 'ISMIP_style') THEN
+            C%choice_SMB_model == 'direct_regional') THEN
       ! Only need yearly total SMB in these cases
 
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
@@ -678,7 +675,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_IMAU_ITM_firn_restart'
     CHARACTER(LEN=256)                                 :: filename_restart
     REAL(dp)                                           :: time_to_restart_from
-    TYPE(type_restart_data)                            :: restart
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -698,50 +694,13 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    ! Inquire if all the required fields are present in the specified NetCDF file,
-    ! and determine the dimensions of the memory to be allocated.
-    CALL allocate_shared_int_0D( restart%nx, restart%wnx)
-    CALL allocate_shared_int_0D( restart%ny, restart%wny)
-    CALL allocate_shared_int_0D( restart%nt, restart%wnt)
-    IF (par%master) THEN
-      restart%netcdf%filename = filename_restart
-      CALL inquire_restart_file_SMB( restart)
-    END IF
-    CALL sync
-
-    ! Allocate memory for raw data
-    CALL allocate_shared_dp_1D( restart%nx, restart%x,    restart%wx   )
-    CALL allocate_shared_dp_1D( restart%ny, restart%y,    restart%wy   )
-    CALL allocate_shared_dp_1D( restart%nt, restart%time, restart%wtime)
-
-    CALL allocate_shared_dp_3D( restart%nx, restart%ny, 12,         restart%FirnDepth,        restart%wFirnDepth       )
-    CALL allocate_shared_dp_2D( restart%nx, restart%ny,             restart%MeltPreviousYear, restart%wMeltPreviousYear)
-
-    ! Read data from input file
-    IF (par%master) CALL read_restart_file_SMB( restart, time_to_restart_from)
-    CALL sync
+    ! Read input fields from restart
+    CALL read_field_from_file_2D_monthly( filename_restart, 'FirnDepth',        grid, SMB%FirnDepth,        region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(         filename_restart, 'MeltPreviousYear', grid, SMB%MeltPreviousYear, region_name, time_to_restart_from)
 
     ! Safety
-    CALL check_for_NaN_dp_3D( restart%FirnDepth,        'restart%FirnDepth'       )
-    CALL check_for_NaN_dp_2D( restart%MeltPreviousYear, 'restart%MeltPreviousYear')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_3D( restart%FirnDepth,        restart%wFirnDepth       )
-    CALL transpose_dp_2D( restart%MeltPreviousYear, restart%wMeltPreviousYear)
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_3D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%FirnDepth,        SMB%FirnDepth       )
-    CALL map_square_to_square_cons_2nd_order_2D( restart%nx, restart%ny, restart%x, restart%y, grid%nx, grid%ny, grid%x, grid%y, restart%MeltPreviousYear, SMB%MeltPreviousYear)
-
-    ! Deallocate raw data
-    CALL deallocate_shared( restart%wnx              )
-    CALL deallocate_shared( restart%wny              )
-    CALL deallocate_shared( restart%wnt              )
-    CALL deallocate_shared( restart%wx               )
-    CALL deallocate_shared( restart%wy               )
-    CALL deallocate_shared( restart%wtime            )
-    CALL deallocate_shared( restart%wFirnDepth       )
-    CALL deallocate_shared( restart%wMeltPreviousYear)
+    CALL check_for_NaN_dp_3D( SMB%FirnDepth,        'SMB%FirnDepth'       )
+    CALL check_for_NaN_dp_2D( SMB%MeltPreviousYear, 'SMB%MeltPreviousYear')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -796,56 +755,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_direct
-
-! == ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-! =================================================================
-
-  SUBROUTINE run_SMB_model_ISMIP_style( grid, ice, climate, SMB, time)
-    ! Run the selected SMB model
-    !
-    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-    IMPLICIT NONE
-
-    ! In/output variables
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ice_model),                INTENT(IN)    :: ice
-    TYPE(type_climate_model),            INTENT(IN)    :: climate
-    TYPE(type_SMB_model),                INTENT(INOUT) :: SMB
-    REAL(dp),                            INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_SMB_model_ISMIP_style'
-    REAL(dp)                                           :: wt0, wt1
-    INTEGER                                            :: i,j
-    REAL(dp)                                           :: aSMB, dSMBdz, dz
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Calculate interpolation weights for interpolating the two timeframes in time
-    wt0 = (climate%ISMIP_style%t1 - time) / (climate%ISMIP_style%t1 - climate%ISMIP_style%t0)
-    wt1 = 1._dp - wt0
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      ! Interpolate the two timeframes in time
-      aSMB   = (wt0 * climate%ISMIP_style%timeframe0%aSMB(   j,i)) + (wt1 * climate%ISMIP_style%timeframe1%aSMB(   j,i))
-      dSMBdz = (wt0 * climate%ISMIP_style%timeframe0%dSMBdz( j,i)) + (wt1 * climate%ISMIP_style%timeframe1%dSMBdz( j,i))
-
-      ! Calculate the applied SMB
-      dz = ice%Hs_a( j,i) - climate%ISMIP_style%Hs_ref( j,i)
-      SMB%SMB_year( j,i) = climate%ISMIP_style%SMB_ref( j,i) + aSMB + dSMBdz * dz
-
-    END DO
-    END DO
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE run_SMB_model_ISMIP_style
 
 ! == Some generally useful tools
 ! ==============================

@@ -13,17 +13,8 @@ MODULE climate_module
   USE data_types_module,               ONLY: type_model_region, type_grid, type_grid_lonlat, type_ice_model, type_SMB_model, &
                                              type_reference_geometry, type_climate_model, type_climate_snapshot, &
                                              type_climate_model_PD_obs, type_climate_model_direct, type_climate_model_ISMIP_style
-  USE data_types_netcdf_module,        ONLY: type_netcdf_climate_snapshot, type_netcdf_ISMIP_style_baseline, &
-                                             type_netcdf_ISMIP_style_forcing
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, determine_file_grid_type, setup_grid_from_file, &
-                                             setup_lonlat_grid_from_file, &
-                                             inquire_climate_snapshot_file_xy, read_climate_snapshot_file_xy, &
-                                             inquire_climate_snapshot_file_lonlat, read_climate_snapshot_file_lonlat, &
-                                             inquire_ISMIP_forcing_baseline_file, read_ISMIP_forcing_baseline_file, &
-                                             inquire_ISMIP_forcing_aSMB_file, read_ISMIP_forcing_aSMB_file, &
-                                             inquire_ISMIP_forcing_dSMBdz_file, read_ISMIP_forcing_dSMBdz_file, &
-                                             inquire_ISMIP_forcing_aST_file, read_ISMIP_forcing_aST_file, &
-                                             inquire_ISMIP_forcing_dSTdz_file, read_ISMIP_forcing_dSTdz_file
+  USE netcdf_basic_module,             ONLY: inquire_var
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D_monthly, read_field_from_file_2D 
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -32,6 +23,9 @@ MODULE climate_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D
   USE derivatives_and_grids_module,    ONLY: ddx_a_to_a_2D, ddy_a_to_a_2D
   USE SMB_module,                      ONLY: run_SMB_model
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -79,11 +73,6 @@ CONTAINS
       CALL crash('choice_climate_model "'//TRIM( C%choice_climate_model)//'" is broken right now, must be fixed!')
 !      CALL run_climate_model_direct_SMB( region%grid, region%ice, region%climate, time)
 
-    ELSEIF (C%choice_climate_model == 'ISMIP_style') THEN
-      ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-      CALL run_climate_model_ISMIP_style( region%grid, region%ice, region%climate, time)
-
     ELSEIF (C%choice_climate_model == 'matrix') THEN
       ! Use the warm/cold climate matrix (Berends et al., 2018)
 
@@ -118,7 +107,7 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, region%climate%Wind_LR, region%climate%wWind_LR)
     CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, region%climate%Wind_DU, region%climate%wWind_DU)
 
-    IF (par%master) WRITE (0,*) ' Initialising climate model "', TRIM(C%choice_climate_model), '"...'
+    IF (par%master) WRITE (0,*) '  Initialising climate model "', TRIM(C%choice_climate_model), '"...'
 
     IF     (C%choice_climate_model == 'none') THEN
       ! No need to initialise anything other than the applied climate
@@ -129,7 +118,7 @@ CONTAINS
     ELSEIF (C%choice_climate_model == 'PD_obs') THEN
       ! Keep the climate fixed to present-day observed conditions
 
-      CALL initialise_climate_model_PD_obs( region%grid, region%climate)
+      CALL initialise_climate_model_PD_obs( region%grid, region%climate, region%name)
 
     ELSEIF (C%choice_climate_model == 'direct') THEN
       ! Use a directly prescribed climate
@@ -141,11 +130,6 @@ CONTAINS
 
       CALL crash('choice_climate_model "'//TRIM( C%choice_climate_model)//'" is broken right now, must be fixed!')
 !      CALL initialise_climate_model_direct_SMB( climate%direct)
-
-    ELSEIF (C%choice_climate_model == 'ISMIP_style') THEN
-      ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-      CALL initialise_climate_model_ISMIP_style( region%grid, region%climate%ISMIP_style)
 
     ELSEIF (C%choice_climate_model == 'matrix') THEN
       ! Use the warm/cold climate matrix (Berends et al., 2018)
@@ -370,7 +354,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_PD_obs
-  SUBROUTINE initialise_climate_model_PD_obs( grid, climate)
+  SUBROUTINE initialise_climate_model_PD_obs( grid, climate,region_name)
     ! Initialise the climate model
     !
     ! Keep the climate fixed to present-day observed conditions
@@ -380,6 +364,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_climate_model_PD_obs'
@@ -392,7 +377,7 @@ CONTAINS
     CALL allocate_climate_snapshot( grid, climate%PD_obs%snapshot, 'PD_obs')
 
     ! Read climate from file
-    CALL read_climate_snapshot( C%filename_PD_obs_climate, grid, climate%PD_obs%snapshot, found_winds)
+    CALL read_climate_snapshot( C%filename_PD_obs_climate, grid, climate%PD_obs%snapshot, found_winds, region_name)
 
     ! Safety
     IF (.NOT. found_winds) CALL crash('couldnt find wind fields for PD climate in file ' // TRIM( C%filename_PD_obs_climate))
@@ -591,9 +576,9 @@ CONTAINS
     filename1 = TRIM( direct_climate_foldername) // '/' // TRIM( direct_climate_basefilename) // year1str // '.nc'
 
     ! Read timeframes from files
-    CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds)
+    CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds, region_name)
     IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0))
-    CALL read_climate_snapshot( filename1, grid, climate%direct%timeframe1, found_winds)
+    CALL read_climate_snapshot( filename1, grid, climate%direct%timeframe1, found_winds, region_name)
     IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename1))
 
     ! Finalise routine path
@@ -635,675 +620,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_climate_model_direct
-
-! == ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-! ===============================================================
-
-  SUBROUTINE run_climate_model_ISMIP_style( grid, ice, climate, time)
-    ! Run the climate model
-    !
-    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid),                          INTENT(IN)    :: grid
-    TYPE(type_ice_model),                     INTENT(IN)    :: ice
-    TYPE(type_climate_model),                 INTENT(INOUT) :: climate
-    REAL(dp),                                 INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'run_climate_model_ISMIP_style'
-    REAL(dp)                                                :: wt0, wt1
-    INTEGER                                                 :: i,j
-    REAL(dp)                                                :: dz
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Check if the requested time is enveloped by the two timeframes;
-    ! if not, read the two relevant timeframes from the NetCDF file
-    IF (time < climate%ISMIP_style%t0 .OR. time > climate%ISMIP_style%t1) THEN
-
-      ! Find and read the two global time frames
-      CALL sync
-      CALL update_ISMIP_style_timeframes( grid, climate, time)
-
-    END IF ! IF (time < climate%ISMIP_style%t0 .OR. time > climate%ISMIP_style%t1) THEN
-
-    ! Interpolate the two timeframes in time
-    wt0 = (climate%ISMIP_style%t1 - time) / (climate%ISMIP_style%t1 - climate%ISMIP_style%t0)
-    wt1 = 1._dp - wt0
-
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      climate%ISMIP_style%aSMB(   j,i) = (wt0 * climate%ISMIP_style%timeframe0%aSMB(   j,i)) + (wt1 * climate%ISMIP_style%timeframe1%aSMB(   j,i))
-      climate%ISMIP_style%dSMBdz( j,i) = (wt0 * climate%ISMIP_style%timeframe0%dSMBdz( j,i)) + (wt1 * climate%ISMIP_style%timeframe1%dSMBdz( j,i))
-      climate%ISMIP_style%aST(    j,i) = (wt0 * climate%ISMIP_style%timeframe0%aST(    j,i)) + (wt1 * climate%ISMIP_style%timeframe1%aST(    j,i))
-      climate%ISMIP_style%dSTdz(  j,i) = (wt0 * climate%ISMIP_style%timeframe0%dSTdz(  j,i)) + (wt1 * climate%ISMIP_style%timeframe1%dSTdz(   j,i))
-    END DO
-    END DO
-    CALL sync
-
-    ! Apply the anomaly and elevation correction to calculate the applied SMB and temperature
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      dz = ice%Hs_a( j,i) - climate%ISMIP_style%Hs_ref( j,i)
-
-      climate%ISMIP_style%SMB( j,i) = climate%ISMIP_style%SMB_ref( j,i) + &
-                                      climate%ISMIP_style%aSMB(    j,i) + &
-                                      climate%ISMIP_style%dSMBdz(  j,i) * dz
-
-      climate%ISMIP_style%ST(  j,i) = climate%ISMIP_style%ST_ref(  j,i) + &
-                                      climate%ISMIP_style%aST(     j,i) + &
-                                      climate%ISMIP_style%dSTdz(   j,i) * dz
-
-    END DO
-    END DO
-    CALL sync
-
-    ! Set the final values in the "applied" climate snapshot
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      climate%T2m( :,j,i) = climate%ISMIP_style%ST( j,i)
-    END DO
-    END DO
-    CALL sync
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE run_climate_model_ISMIP_style
-  SUBROUTINE update_ISMIP_style_timeframes( grid, climate, time)
-    ! Update the two timeframes of the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-    USE parameters_module, ONLY: sec_per_year, ice_density
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid),                          INTENT(IN)    :: grid
-    TYPE(type_climate_model),                 INTENT(INOUT) :: climate
-    REAL(dp),                                 INTENT(IN)    :: time
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'update_ISMIP_style_timeframes'
-    INTEGER                                                 :: i,j,i1,i2
-    INTEGER                                                 :: year0, year1
-    CHARACTER(LEN=4)                                        :: year0str, year1str
-    TYPE(type_netcdf_ISMIP_style_forcing)                   :: netcdf
-    TYPE(type_grid)                                         :: grid_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER                     ::  aSMB_raw,  dSMBdz_raw,  aST_raw,  dSTdz_raw
-    INTEGER                                                 :: waSMB_raw, wdSMBdz_raw, waST_raw, wdSTdz_raw
-    REAL(dp), DIMENSION(:,:,:), POINTER                     ::  data_combi_raw,  data_combi_mapped
-    INTEGER                                                 :: wdata_combi_raw, wdata_combi_mapped
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Since ISMIP supplies NetCDF files for each individual year, determining
-    ! which two files we need to read is simple enough.
-
-    year0 = FLOOR(        time)
-    year1 = MAX( CEILING( time), year0+1)
-
-    WRITE( year0str,'(I4)') year0
-    WRITE( year1str,'(I4)') year1
-
-    ! Update timestamps
-    climate%ISMIP_style%t0 = REAL( year0,dp)
-    climate%ISMIP_style%t1 = REAL( year1,dp)
-
-  ! ===== aSMB =====
-  ! ================
-
-    ! Timeframe 0
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_aSMB) // '/' // TRIM( C%ISMIP_forcing_basefilename_aSMB) // year0str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_aSMB_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, aSMB_raw, waSMB_raw)
-    CALL read_ISMIP_forcing_aSMB_file( netcdf, aSMB_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Convert the data from SI units (kg m-2 s-1) to ice model units (m.i.e./yr)
-      aSMB_raw( i,j) = aSMB_raw( i,j) * sec_per_year / ice_density
-
-      ! Replace NaN by zero
-      IF (ISNAN( aSMB_raw( i,j))) THEN
-        aSMB_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,1) = aSMB_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( waSMB_raw   )
-
-    ! Timeframe 1
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_aSMB) // '/' // TRIM( C%ISMIP_forcing_basefilename_aSMB) // year1str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_aSMB_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, aSMB_raw, waSMB_raw)
-    CALL read_ISMIP_forcing_aSMB_file( netcdf, aSMB_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Convert the data from SI units (kg m-2 s-1) to ice model units (m.i.e./yr)
-      aSMB_raw( i,j) = aSMB_raw( i,j) * sec_per_year / ice_density
-
-      ! Replace NaN by zero
-      IF (ISNAN( aSMB_raw( i,j))) THEN
-        aSMB_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,2) = aSMB_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( waSMB_raw   )
-
-  ! ===== dSMBdz =====
-  ! ==================
-
-    ! Timeframe 0
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_dSMBdz) // '/' // TRIM( C%ISMIP_forcing_basefilename_dSMBdz) // year0str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_dSMBdz_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dSMBdz_raw, wdSMBdz_raw)
-    CALL read_ISMIP_forcing_dSMBdz_file( netcdf, dSMBdz_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Convert the data from SI units (kg m-2 s-1) to ice model units (m.i.e./yr)
-      dSMBdz_raw( i,j) = dSMBdz_raw( i,j) * sec_per_year / ice_density
-
-      ! Replace NaN by zero
-      IF (ISNAN( dSMBdz_raw( i,j))) THEN
-        dSMBdz_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,3) = dSMBdz_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( wdSMBdz_raw )
-
-    ! Timeframe 1
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_dSMBdz) // '/' // TRIM( C%ISMIP_forcing_basefilename_dSMBdz) // year1str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_dSMBdz_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dSMBdz_raw, wdSMBdz_raw)
-    CALL read_ISMIP_forcing_dSMBdz_file( netcdf, dSMBdz_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Convert the data from SI units (kg m-2 s-1) to ice model units (m.i.e./yr)
-      dSMBdz_raw( i,j) = dSMBdz_raw( i,j) * sec_per_year / ice_density
-
-      ! Replace NaN by zero
-      IF (ISNAN( dSMBdz_raw( i,j))) THEN
-        dSMBdz_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,4) = dSMBdz_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( wdSMBdz_raw )
-
-  ! ===== aST =====
-  ! ================
-
-    ! Timeframe 0
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_aST) // '/' // TRIM( C%ISMIP_forcing_basefilename_aST) // year0str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_aST_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, aST_raw, waST_raw)
-    CALL read_ISMIP_forcing_aST_file( netcdf, aST_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Replace NaN by zero
-      IF (ISNAN( aST_raw( i,j))) THEN
-        aST_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,5) = aST_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( waST_raw    )
-
-    ! Timeframe 1
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_aST) // '/' // TRIM( C%ISMIP_forcing_basefilename_aST) // year1str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_aST_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, aST_raw, waST_raw)
-    CALL read_ISMIP_forcing_aST_file( netcdf, aST_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Replace NaN by zero
-      IF (ISNAN( aST_raw( i,j))) THEN
-        aST_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,6) = aST_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( waST_raw    )
-
-  ! ===== dSTdz =====
-  ! ==================
-
-    ! Timeframe 0
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_dSTdz) // '/' // TRIM( C%ISMIP_forcing_basefilename_dSTdz) // year0str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_dSTdz_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dSTdz_raw, wdSTdz_raw)
-    CALL read_ISMIP_forcing_dSTdz_file( netcdf, dSTdz_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Replace NaN by zero
-      IF (ISNAN( dSTdz_raw( i,j))) THEN
-        dSTdz_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,7) = dSTdz_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( wdSTdz_raw  )
-
-    ! Timeframe 1
-    ! ===========
-
-    ! Determine the name of the file containing the timeframe
-    netcdf%filename = TRIM( C%ISMIP_forcing_foldername_dSTdz) // '/' // TRIM( C%ISMIP_forcing_basefilename_dSTdz) // year1str // '.nc'
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_dSTdz_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, dSTdz_raw, wdSTdz_raw)
-    CALL read_ISMIP_forcing_dSTdz_file( netcdf, dSTdz_raw)
-    CALL sync
-
-    ! Clean up the raw data a bit
-    CALL partition_list( grid_raw%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, grid_raw%ny
-
-      ! Replace NaN by zero
-      IF (ISNAN( dSTdz_raw( i,j))) THEN
-        dSTdz_raw( i,j) = 0._dp
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-!    ! Allocate memory to store all raw data in a single array (to make remapping faster)
-!    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 8, data_combi_raw, wdata_combi_raw)
-
-    ! Store in the big 3-D array
-    data_combi_raw( i1:i2,:,8) = dSTdz_raw( i1:i2,:)
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( wdSTdz_raw )
-
-    ! Transpose the data from [i,j,k] to [k,j,i] indexing
-    CALL transpose_dp_3D( data_combi_raw, wdata_combi_raw)
-
-    ! Map the data to the model grid
-    CALL allocate_shared_dp_3D( 8, grid%ny, grid%nx, data_combi_mapped, wdata_combi_mapped)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, data_combi_raw, data_combi_mapped)
-
-    ! Get mapped data back from the 3-D combined array
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      climate%ISMIP_style%timeframe0%aSMB(   j,i) = data_combi_mapped( 1,j,i)
-      climate%ISMIP_style%timeframe1%aSMB(   j,i) = data_combi_mapped( 2,j,i)
-      climate%ISMIP_style%timeframe0%dSMBdz( j,i) = data_combi_mapped( 3,j,i)
-      climate%ISMIP_style%timeframe1%dSMBdz( j,i) = data_combi_mapped( 4,j,i)
-      climate%ISMIP_style%timeframe0%aST(    j,i) = data_combi_mapped( 5,j,i)
-      climate%ISMIP_style%timeframe1%aST(    j,i) = data_combi_mapped( 6,j,i)
-      climate%ISMIP_style%timeframe0%dSTdz(  j,i) = data_combi_mapped( 7,j,i)
-      climate%ISMIP_style%timeframe1%dSTdz(  j,i) = data_combi_mapped( 8,j,i)
-    END DO
-    END DO
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx      )
-    CALL deallocate_shared( grid_raw%wny      )
-    CALL deallocate_shared( grid_raw%wdx      )
-    CALL deallocate_shared( grid_raw%wx       )
-    CALL deallocate_shared( grid_raw%wy       )
-    CALL deallocate_shared( wdata_combi_raw   )
-    CALL deallocate_shared( wdata_combi_mapped)
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE update_ISMIP_style_timeframes
-  SUBROUTINE initialise_climate_model_ISMIP_style( grid, ISMIP_style)
-    ! Initialise the climate model
-    !
-    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid),                          INTENT(IN)    :: grid
-    TYPE(type_climate_model_ISMIP_style),     INTENT(INOUT) :: ISMIP_style
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'initialise_climate_model_ISMIP_style'
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Initialise the baseline climate
-    CALL initialise_climate_model_ISMIP_style_baseline( grid, ISMIP_style)
-
-    ! Set timeframes timestamps to impossible values, so that the first call to run_climate_model_direct
-    ! is guaranteed to first read two new timeframes from the NetCDF file
-    ISMIP_style%t0 = C%start_time_of_run - 100._dp
-    ISMIP_style%t1 = C%start_time_of_run - 90._dp
-
-    ! Allocate memory for the two timeframes
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe0%aSMB  , ISMIP_style%timeframe0%waSMB  )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe0%dSMBdz, ISMIP_style%timeframe0%wdSMBdz)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe0%aST   , ISMIP_style%timeframe0%waST   )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe0%dSTdz , ISMIP_style%timeframe0%wdSTdz )
-
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe1%aSMB  , ISMIP_style%timeframe1%waSMB  )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe1%dSMBdz, ISMIP_style%timeframe1%wdSMBdz)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe1%aST   , ISMIP_style%timeframe1%waST   )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%timeframe1%dSTdz , ISMIP_style%timeframe1%wdSTdz )
-
-    ! Allocate memory for the time-interpolated values
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%aSMB             , ISMIP_style%waSMB             )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%dSMBdz           , ISMIP_style%wdSMBdz           )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%aST              , ISMIP_style%waST              )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%dSTdz            , ISMIP_style%wdSTdz            )
-
-    ! Allocate memory for the elevation-corrected values
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%SMB              , ISMIP_style%wSMB              )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%ST               , ISMIP_style%wST               )
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_climate_model_ISMIP_style
-  SUBROUTINE initialise_climate_model_ISMIP_style_baseline( grid, ISMIP_style)
-    ! Initialise the climate model
-    !
-    ! Use the ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-    !
-    ! Initialise the baseline climate
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    TYPE(type_grid),                          INTENT(IN)    :: grid
-    TYPE(type_climate_model_ISMIP_style),     INTENT(INOUT) :: ISMIP_style
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'initialise_climate_model_ISMIP_style_baseline'
-    TYPE(type_netcdf_ISMIP_style_baseline)                  :: netcdf
-    TYPE(type_grid)                                         :: grid_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER                     ::  SMB_raw,  ST_raw,  Hs_raw
-    INTEGER                                                 :: wSMB_raw, wST_raw, wHs_raw
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! The name of the NetCDF file
-    netcdf%filename = C%ISMIP_forcing_filename_baseline
-
-    ! Set up the grid from the NetCDF file
-    CALL setup_grid_from_file( netcdf%filename, grid_raw)
-
-    ! Inquire if everything we need is present in the file
-    CALL inquire_ISMIP_forcing_baseline_file( netcdf)
-
-    ! Allocate memory, read the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, SMB_raw, wSMB_raw)
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, ST_raw , wST_raw )
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny, Hs_raw , wHs_raw )
-
-    CALL read_ISMIP_forcing_baseline_file( netcdf, SMB_raw, ST_raw, Hs_raw)
-    CALL sync
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( SMB_raw, 'SMB_raw')
-    CALL check_for_NaN_dp_2D( ST_raw , 'ST_raw' )
-    CALL check_for_NaN_dp_2D( Hs_raw , 'Hs_raw' )
-
-    ! Transpose the data to [j,i] indexing
-    CALL transpose_dp_2D( SMB_raw, wSMB_raw)
-    CALL transpose_dp_2D( ST_raw , wST_raw )
-    CALL transpose_dp_2D( Hs_raw , wHs_raw )
-
-    ! Allocate memory, map the data to the model grid
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%SMB_ref, ISMIP_style%wSMB_ref)
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%ST_ref , ISMIP_style%wST_ref )
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ISMIP_style%Hs_ref , ISMIP_style%wHs_ref )
-
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, SMB_raw, ISMIP_style%SMB_ref)
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, ST_raw , ISMIP_style%ST_ref )
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Hs_raw , ISMIP_style%Hs_ref )
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wdx)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( wSMB_raw    )
-    CALL deallocate_shared( wST_raw     )
-    CALL deallocate_shared( wHs_raw     )
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE initialise_climate_model_ISMIP_style_baseline
 
 ! == Climate matrix
 ! ===========================
@@ -1420,6 +736,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+   
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
 
@@ -1650,10 +967,10 @@ CONTAINS
     CALL allocate_climate_snapshot( grid, climate%matrix%GCM_cold, name = 'GCM_cold')
 
     ! Read climate data from files
-    CALL read_climate_snapshot( C%filename_PD_obs_climate       , grid, climate%matrix%PD_obs  , found_winds_PD_obs)
-    CALL read_climate_snapshot( C%filename_climate_snapshot_PI  , grid, climate%matrix%GCM_PI  , found_winds_PI    )
-    CALL read_climate_snapshot( C%filename_climate_snapshot_warm, grid, climate%matrix%GCM_warm, found_winds_warm  )
-    CALL read_climate_snapshot( C%filename_climate_snapshot_cold, grid, climate%matrix%GCM_cold, found_winds_cold  )
+    CALL read_climate_snapshot( C%filename_PD_obs_climate       , grid, climate%matrix%PD_obs  , found_winds_PD_obs, region_name)
+    CALL read_climate_snapshot( C%filename_climate_snapshot_PI  , grid, climate%matrix%GCM_PI  , found_winds_PI    , region_name)
+    CALL read_climate_snapshot( C%filename_climate_snapshot_warm, grid, climate%matrix%GCM_warm, found_winds_warm  , region_name)
+    CALL read_climate_snapshot( C%filename_climate_snapshot_cold, grid, climate%matrix%GCM_cold, found_winds_cold  , region_name)
 
     ! Safety
     IF (.NOT. found_winds_PD_obs) CALL crash('couldnt find wind fields for PD climate in file ' // TRIM( C%filename_PD_obs_climate))
@@ -2057,6 +1374,8 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    IF (par%master) PRINT*,('Save netcdf')
+    CALL save_variable_as_netcdf_dp_2D(snapshot%I_abs, 'I_abs')
 
     ! Clean up after yourself
     CALL deallocate_shared( ice_dummy%wmask_ocean_a)
@@ -2136,7 +1455,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE allocate_climate_snapshot
-  SUBROUTINE read_climate_snapshot( filename, grid, snapshot, found_winds)
+  SUBROUTINE read_climate_snapshot( filename, grid, snapshot, found_winds, region_name)
     ! Read a climate snapshot from a NetCDF file. Works both for global lon/lat files and regional x/y files
 
     IMPLICIT NONE
@@ -2146,10 +1465,12 @@ CONTAINS
     TYPE(type_grid),                    INTENT(IN)    :: grid
     TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
     LOGICAL,                            INTENT(OUT)   :: found_winds
+    CHARACTER(LEN=3),                   INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
     CHARACTER(LEN=256)                                :: file_grid_type
+    INTEGER                                           :: found_wind_WE, found_wind_SN
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2157,17 +1478,29 @@ CONTAINS
     ! Write message to screen
     IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
-    ! Determine if the file contains climate snapshot data on a global lon/lat-grid or a regional x/y-grid
-    CALL determine_file_grid_type( filename, file_grid_type)
+    ! Check if wind fields are included in this file; if not, return -1
+    CALL inquire_var( filename, 'Wind_WE', found_wind_WE)
+    CALL inquire_var( filename, 'Wind_SN', found_wind_SN)
 
-    IF (file_grid_type == 'x/y') THEN
-      ! This file contains climate data on a regional x/y-grid
-      CALL read_climate_snapshot_xy(     filename, grid, snapshot, found_winds)
-    ELSEIF (file_grid_type == 'lon/lat') THEN
-      ! This file contains climate data on a global lon/lat-grid
-      CALL read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
+    IF (found_wind_WE /= -1 .AND. found_wind_SN /= -1) THEN
+         found_winds = .TRUE.
     ELSE
-      CALL crash('unknown file_grid_type "' // TRIM( file_grid_type) // '"!')
+         found_winds = .FALSE.
+    END IF
+
+    CALL sync
+
+    ! Read the climate snapshot regardless of x/y or lon/lat grid
+    CALL read_field_from_file_2D(         filename, 'Hs'    , grid, snapshot%Hs,     region_name)
+    CALL read_field_from_file_2D_monthly( filename, 'T2m'   , grid, snapshot%T2m,    region_name)
+    CALL read_field_from_file_2D_monthly( filename, 'Precip', grid, snapshot%Precip, region_name)
+
+    IF (found_winds) THEN 
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_WE', grid, snapshot%Wind_WE, region_name)
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_SN', grid, snapshot%Wind_SN, region_name)
+
+         ! Make sure to project SN and WE winds to DU and LR winds
+         CALL rotate_wind_to_model_grid( grid, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
     END IF
 
     ! Safety checks
@@ -2178,219 +1511,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_climate_snapshot
-  SUBROUTINE read_climate_snapshot_xy( filename, grid, snapshot, found_winds)
-    ! Read a climate snapshot from a NetCDF file that uses a global lon/lat-grid
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=256),                 INTENT(IN)    :: filename
-    TYPE(type_grid),                    INTENT(IN)    :: grid
-    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
-    LOGICAL,                            INTENT(OUT)   :: found_winds
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot_xy'
-    TYPE(type_netcdf_climate_snapshot)                :: netcdf
-    TYPE(type_grid)                                   :: grid_raw
-    REAL(dp), DIMENSION(:,:  ), POINTER               :: Hs_raw
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: T2m_raw
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Precip_raw
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_LR_raw
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_DU_raw
-    INTEGER :: wHs_raw, wT2m_raw, wPrecip_raw, wWind_LR_raw, wWind_DU_raw
-    INTEGER                                           :: i,j,m
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Set up the lon/lat-grid for the raw data
-    CALL setup_grid_from_file( filename, grid_raw)
-
-    ! Check if all the required variables are present
-    netcdf%filename = filename
-    CALL inquire_climate_snapshot_file_xy( netcdf, found_winds)
-    CALL sync
-
-    ! Allocate memory for the data
-    CALL allocate_shared_dp_2D( grid_raw%nx, grid_raw%ny,     Hs_raw     , wHs_raw     )
-    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, T2m_raw    , wT2m_raw    )
-    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Precip_raw , wPrecip_raw )
-    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Wind_LR_raw, wWind_LR_raw)
-    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, 12, Wind_DU_raw, wWind_DU_raw)
-
-    ! Read data from file
-    CALL read_climate_snapshot_file_xy( netcdf, Hs_raw, T2m_raw, Precip_raw, Wind_LR_raw, Wind_DU_raw, do_read_winds = found_winds)
-    CALL sync
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( Hs_raw     , 'Hs_raw'     )
-    CALL check_for_NaN_dp_3D( T2m_raw    , 'T2m_raw'    )
-    CALL check_for_NaN_dp_3D( Precip_raw , 'Precip_raw' )
-    CALL check_for_NaN_dp_3D( Wind_LR_raw, 'Wind_LR_raw')
-    CALL check_for_NaN_dp_3D( Wind_DU_raw, 'Wind_DU_raw')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( Hs_raw     , wHs_raw     )
-    CALL transpose_dp_3D( T2m_raw    , wT2m_raw    )
-    CALL transpose_dp_3D( Precip_raw , wPrecip_raw )
-    CALL transpose_dp_3D( Wind_LR_raw, wWind_LR_raw)
-    CALL transpose_dp_3D( Wind_DU_raw, wWind_DU_raw)
-
-    ! Map log( Precip) to ensure positive values
-    DO i = grid_raw%i1, grid_raw%i2
-    DO j = 1, grid_raw%ny
-    DO m = 1, 12
-      Precip_raw( i,j,m) = LOG( Precip_raw( i,j,m))
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Map data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Hs_raw, snapshot%Hs)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, T2m_raw, snapshot%T2m)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Precip_raw, snapshot%Precip)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Wind_LR_raw, snapshot%Wind_LR)
-    CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
-      grid%nx, grid%ny, grid%x, grid%y, Wind_DU_raw, snapshot%Wind_DU)
-
-    ! Get precipitation back from logarithm
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    DO m = 1, 12
-      snapshot%Precip( m,j,i) = EXP( snapshot%Precip( m,j,i))
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_raw%wnx)
-    CALL deallocate_shared( grid_raw%wny)
-    CALL deallocate_shared( grid_raw%wx )
-    CALL deallocate_shared( grid_raw%wy )
-    CALL deallocate_shared( wHs_raw       )
-    CALL deallocate_shared( wT2m_raw      )
-    CALL deallocate_shared( wPrecip_raw   )
-    CALL deallocate_shared( wWind_LR_raw  )
-    CALL deallocate_shared( wWind_DU_raw  )
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE read_climate_snapshot_xy
-  SUBROUTINE read_climate_snapshot_lonlat( filename, grid, snapshot, found_winds)
-    ! Read a climate snapshot from a NetCDF file that uses a global lon/lat-grid
-
-    IMPLICIT NONE
-
-    ! In/output variables:
-    CHARACTER(LEN=256),                 INTENT(IN)    :: filename
-    TYPE(type_grid),                    INTENT(IN)    :: grid
-    TYPE(type_climate_snapshot),        INTENT(INOUT) :: snapshot
-    LOGICAL,                            INTENT(OUT)   :: found_winds
-
-    ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot_lonlat'
-    TYPE(type_netcdf_climate_snapshot)                :: netcdf
-    TYPE(type_grid_lonlat)                            :: grid_lonlat
-    REAL(dp), DIMENSION(:,:  ), POINTER               :: Hs_lonlat
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: T2m_lonlat
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Precip_lonlat
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_WE_lonlat
-    REAL(dp), DIMENSION(:,:,:), POINTER               :: Wind_SN_lonlat
-    INTEGER :: wHs_lonlat, wT2m_lonlat, wPrecip_lonlat, wWind_WE_lonlat, wWind_SN_lonlat
-    INTEGER                                           :: i,j,m
-
-    ! Add routine to path
-    CALL init_routine( routine_name)
-
-    ! Set up the lon/lat-grid for the raw data
-    CALL setup_lonlat_grid_from_file( filename, grid_lonlat)
-
-    ! Check if all the required variables are present
-    netcdf%filename = filename
-    CALL inquire_climate_snapshot_file_lonlat( netcdf, found_winds)
-    CALL sync
-
-    ! Allocate memory for the data
-    CALL allocate_shared_dp_2D( grid_lonlat%nlon, grid_lonlat%nlat,     Hs_lonlat     , wHs_lonlat     )
-    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, T2m_lonlat    , wT2m_lonlat    )
-    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Precip_lonlat , wPrecip_lonlat )
-    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Wind_WE_lonlat, wWind_WE_lonlat)
-    CALL allocate_shared_dp_3D( grid_lonlat%nlon, grid_lonlat%nlat, 12, Wind_SN_lonlat, wWind_SN_lonlat)
-
-    ! Read data from file
-    CALL read_climate_snapshot_file_lonlat( netcdf, Hs_lonlat, T2m_lonlat, Precip_lonlat, Wind_WE_lonlat, Wind_SN_lonlat, do_read_winds = found_winds)
-    CALL sync
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( Hs_lonlat     , 'Hs_lonlat'     )
-    CALL check_for_NaN_dp_3D( T2m_lonlat    , 'T2m_lonlat'    )
-    CALL check_for_NaN_dp_3D( Precip_lonlat , 'Precip_lonlat' )
-    CALL check_for_NaN_dp_3D( Wind_WE_lonlat, 'Wind_WE_lonlat')
-    CALL check_for_NaN_dp_3D( Wind_SN_lonlat, 'Wind_SN_lonlat')
-
-    ! On rare occasions, some GCM data contains zero or (very, very small) negative values for precipitation; fix this.
-    DO i = grid_lonlat%i1, grid_lonlat%i2
-    DO j = 1, grid_lonlat%nlat
-    DO m = 1, 12
-      Precip_lonlat( i,j,m) = MAX( 1E-5_dp, Precip_lonlat( i,j,m))
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Map log( Precip) to ensure positive values after remapping
-    DO i = grid_lonlat%i1, grid_lonlat%i2
-    DO j = 1, grid_lonlat%nlat
-    DO m = 1, 12
-      Precip_lonlat( i,j,m) = LOG( Precip_lonlat( i,j,m))
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Map data to the model grid
-    CALL map_glob_to_grid_2D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Hs_lonlat     , snapshot%Hs     )
-    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, T2m_lonlat    , snapshot%T2m    )
-    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Precip_lonlat , snapshot%Precip )
-    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Wind_WE_lonlat, snapshot%Wind_WE)
-    CALL map_glob_to_grid_3D( grid_lonlat%nlat, grid_lonlat%nlon, grid_lonlat%lat, grid_lonlat%lon, grid, Wind_SN_lonlat, snapshot%Wind_SN)
-
-    ! Get precipitation back from logarithm
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    DO m = 1, 12
-      snapshot%Precip( m,j,i) = EXP( snapshot%Precip( m,j,i))
-    END DO
-    END DO
-    END DO
-    CALL sync
-
-    ! Rotate zonal/meridional wind to x,y wind
-    CALL rotate_wind_to_model_grid( grid, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
-
-    ! Clean up after yourself
-    CALL deallocate_shared( grid_lonlat%wnlon)
-    CALL deallocate_shared( grid_lonlat%wnlat)
-    CALL deallocate_shared( grid_lonlat%wlon )
-    CALL deallocate_shared( grid_lonlat%wlat )
-    CALL deallocate_shared( wHs_lonlat       )
-    CALL deallocate_shared( wT2m_lonlat      )
-    CALL deallocate_shared( wPrecip_lonlat   )
-    CALL deallocate_shared( wWind_WE_lonlat  )
-    CALL deallocate_shared( wWind_SN_lonlat  )
-
-    ! Finalise routine path
-    CALL finalise_routine( routine_name)
-
-  END SUBROUTINE read_climate_snapshot_lonlat
 
   ! Two different parameterised precipitation models:
   ! - a simply Clausius-Clapeyron-based method            (used for GRL and ANT)

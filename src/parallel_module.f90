@@ -586,7 +586,53 @@ CONTAINS
     n_MPI_windows = n_MPI_windows + 1
   
   END SUBROUTINE allocate_shared_complex_3D   
-    
+
+  SUBROUTINE allocate_shared_dp_4D(   n1, n2, n3, n4, p, win)
+    ! Use MPI_WIN_ALLOCATE_SHARED to allocate shared memory space for an array.
+    ! Return a pointer associated with that memory space. Makes it so that all processes
+    ! can access the same memory directly.
+
+    IMPLICIT NONE
+
+    INTEGER,                             INTENT(IN)    :: n1, n2, n3, n4 ! Dimension(s) of memory to be allocated
+    REAL(dp), DIMENSION(:,:,:,:), POINTER, INTENT(OUT)   :: p          ! Pointer to memory space
+    INTEGER,                             INTENT(OUT)   :: win        ! MPI window to the allocated memory space
+
+    INTEGER(KIND=MPI_ADDRESS_KIND)                     :: windowsize
+    INTEGER                                            :: disp_unit
+    TYPE(C_PTR)                                        :: baseptr
+
+    ! ==========
+    ! Allocate MPI-shared memory for data array, with an associated window object
+    ! (Needs to be called in Master and Slaves, but only Master actually allocates any space)
+
+    IF (par%master) THEN
+      windowsize  = n1*n2*n3*n4*8_MPI_ADDRESS_KIND
+      disp_unit   = n1*n2*n3*8
+    ELSE
+      windowsize  = 0_MPI_ADDRESS_KIND
+      disp_unit   = 1
+    END IF
+
+    CALL MPI_WIN_ALLOCATE_SHARED(windowsize, disp_unit, MPI_INFO_NULL, MPI_COMM_WORLD, baseptr, win, ierr)
+
+    IF (.NOT. par%master) THEN
+      ! Get the baseptr, size and disp_unit values of the master's memory space.
+      CALL MPI_WIN_SHARED_QUERY( win, 0, windowsize, disp_unit, baseptr, ierr)
+    END IF
+
+    ! Associate a pointer with this memory space.
+    CALL C_F_POINTER(baseptr, p, [n1, n2, n3, n4])
+
+    ! Initialise memory with zeros
+    IF (par%master) p = 0._dp
+    CALL sync
+
+    ! Update the resource use tracker
+    n_MPI_windows = n_MPI_windows + 1
+
+  END SUBROUTINE allocate_shared_dp_4D
+
   ! Use the "window" to the allocated memory space (which consists of zero bytes for the slave)
   ! to deallocate that memory.
   SUBROUTINE deallocate_shared( win)

@@ -12,10 +12,11 @@ MODULE scalar_data_output_module
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
   USE data_types_module,               ONLY: type_global_scalar_data, type_model_region, type_forcing_data
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, create_global_scalar_output_file, write_to_global_scalar_output_file, &
-                                             write_to_regional_scalar_output_file
+  USE netcdf_output_module,            ONLY: create_global_scalar_file, write_to_global_scalar_file, write_to_regional_scalar_file
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -156,8 +157,8 @@ CONTAINS
     END IF
 
     ! Write to NetCDF file
-    CALL write_to_regional_scalar_output_file( region, time)
-
+    CALL write_to_regional_scalar_file( region%scalar_filename, region)
+    
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -178,11 +179,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
-    IF (.NOT. C%do_write_global_scalar_output) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
 
     IF (par%master) THEN
 
@@ -250,11 +246,11 @@ CONTAINS
         global_data%tcomp_GIA     = global_data%tcomp_GIA     + ANT%tcomp_GIA
       END IF
 
-      ! Write to output file
-      CALL write_to_global_scalar_output_file( global_data, time)
-
     END IF ! IF (par%master) THEN
     CALL sync
+
+    ! Write to output file
+    CALL write_to_global_scalar_file( global_data%filename, global_data, time)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -339,7 +335,7 @@ CONTAINS
     CALL allocate_shared_dp_0D( global_data%tcomp_GIA     , global_data%wtcomp_GIA     )
 
     ! Create the netcdf file
-    CALL create_global_scalar_output_file( global_data%netcdf)
+    CALL create_global_scalar_file( global_data%filename)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

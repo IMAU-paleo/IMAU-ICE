@@ -11,17 +11,19 @@ MODULE basal_conditions_and_sliding_module
                                              allocate_shared_int_2D, allocate_shared_dp_2D, &
                                              allocate_shared_int_3D, allocate_shared_dp_3D, &
                                              deallocate_shared, partition_list
-  USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry, type_BIV_target_velocity, &
-                                             type_BIV_bed_roughness
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file, inquire_BIV_target_velocity, &
-                                             read_BIV_target_velocity, create_BIV_bed_roughness_file, inquire_BIV_bed_roughness_file, &
-                                             read_BIV_bed_roughness_file
+  USE data_types_module,               ONLY: type_grid, type_ice_model, type_reference_geometry, type_BIV_target_velocity
+  USE netcdf_output_module,            ONLY: create_BIV_bed_roughness_file
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D, read_field_from_xy_file_2D
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              SSA_Schoof2006_analytical_solution, smooth_Gaussian_2D, &
                                              extrapolate_Gaussian_floodfill, transpose_dp_2D, &
-                                             map_square_to_square_cons_2nd_order_2D, interp_bilin_2D
+                                             map_square_to_square_cons_2nd_order_2D, interp_bilin_2D, &
+                                             deallocate_grid
   USE general_ice_model_data_module,   ONLY: surface_elevation
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
   IMPLICIT NONE
 
@@ -53,7 +55,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_basal_conditions
-  SUBROUTINE initialise_basal_conditions( grid, ice)
+  SUBROUTINE initialise_basal_conditions( grid, ice, region_name)
     ! Allocation and initialisation
 
     IMPLICIT NONE
@@ -61,6 +63,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_conditions'
@@ -72,11 +75,11 @@ CONTAINS
     CALL initialise_basal_hydrology( grid, ice)
 
     ! Bed roughness
-    CALL initialise_bed_roughness( grid, ice)
+    CALL initialise_bed_roughness( grid, ice, region_name)
 
     ! Basal inversion
     IF (C%do_BIVgeo) THEN
-      CALL initialise_basal_inversion( grid, ice)
+      CALL initialise_basal_inversion( grid, ice, region_name)
     END IF
 
     ! Finalise routine path
@@ -292,14 +295,15 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_bed_roughness
-  SUBROUTINE initialise_bed_roughness( grid, ice)
-    ! Allocation and initialisation
+  SUBROUTINE initialise_bed_roughness( grid, ice, region_name)
 
+    ! Allocation and initialisation
     IMPLICIT NONE
 
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness'
@@ -368,7 +372,7 @@ CONTAINS
     ELSEIF (C%choice_basal_roughness == 'prescribed') THEN
       ! Initialise bed roughness from an external file
 
-      CALL initialise_bed_roughness_from_file( grid, ice)
+      CALL initialise_bed_roughness_from_file( grid, ice, region_name)
 
     ELSE
       CALL crash('unknown choice_basal_roughness' // TRIM(C%choice_basal_roughness))
@@ -378,7 +382,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness
-  SUBROUTINE initialise_bed_roughness_from_file( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
 
     IMPLICIT NONE
@@ -386,6 +390,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file'
@@ -399,20 +404,20 @@ CONTAINS
       CALL crash('not defined for choice_sliding_law' // TRIM(C%choice_sliding_law))
     ELSEIF (C%choice_sliding_law == 'Weertman') THEN
       ! Weertman-type ("power law") sliding law
-      CALL initialise_bed_roughness_from_file_Weertman( grid, ice)
+      CALL initialise_bed_roughness_from_file_Weertman( grid, ice, region_name)
     ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
             C%choice_sliding_law == 'Coulomb_regularised') THEN
       ! Coulomb-type sliding law
-      CALL initialise_bed_roughness_from_file_Coulomb( grid, ice)
+      CALL initialise_bed_roughness_from_file_Coulomb( grid, ice, region_name)
     ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
       ! Modified power-law relation according to Tsai et al. (2015)
-      CALL initialise_bed_roughness_from_file_Tsai2015( grid, ice)
+      CALL initialise_bed_roughness_from_file_Tsai2015( grid, ice, region_name)
     ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
       ! Modified power-law relation according to Schoof (2005)
-      CALL initialise_bed_roughness_from_file_Schoof2005( grid, ice)
+      CALL initialise_bed_roughness_from_file_Schoof2005( grid, ice, region_name)
     ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
       ! Zoet-Iverson sliding law (Zoet & Iverson, 2020)
-      CALL initialise_bed_roughness_from_file_ZoetIverson( grid, ice)
+      CALL initialise_bed_roughness_from_file_ZoetIverson( grid, ice, region_name)
     ELSE
       CALL crash('unknown choice_sliding_law' // TRIM(C%choice_sliding_law))
     END IF
@@ -421,7 +426,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_from_file
-  SUBROUTINE initialise_bed_roughness_from_file_Weertman( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file_Weertman( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
     !
     ! Weertman-type sliding law: bed roughness described by beta_sq
@@ -431,56 +436,32 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_Weertman'
-    TYPE(type_BIV_bed_roughness)                       :: BIV
-
+    CHARACTER(LEN=256)                                 :: filename
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Determine filename
-    BIV%netcdf%filename = C%basal_roughness_filename
+    filename = C%basal_roughness_filename
 
-    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( BIV%netcdf%filename), '...'
-
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV%nx, BIV%wnx)
-    CALL allocate_shared_int_0D( BIV%ny, BIV%wny)
-
-    IF (par%master) CALL inquire_BIV_bed_roughness_file( BIV)
+    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
 
-    ! Allocate memory - grid
-    CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
-    CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
-
     ! Read grid & bed roughness data from file
-    IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
+    CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_2D( BIV%beta_sq,  'BIV%beta_sq')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV%beta_sq,  BIV%wbeta_sq )
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%beta_sq , ice%beta_sq_a )
-
-    ! Deallocate raw data
-    CALL deallocate_shared( BIV%wnx      )
-    CALL deallocate_shared( BIV%wny      )
-    CALL deallocate_shared( BIV%wx       )
-    CALL deallocate_shared( BIV%wy       )
-    CALL deallocate_shared( BIV%wbeta_sq )
+    CALL check_for_NaN_dp_2D( ice%beta_sq_a,  'ice%beta_sq_a')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_from_file_Weertman
-  SUBROUTINE initialise_bed_roughness_from_file_Coulomb( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file_Coulomb( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
     !
     ! Coulomb-type sliding law: bed roughness described by phi_fric
@@ -490,10 +471,11 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_Coulomb'
-    TYPE(type_BIV_bed_roughness)                       :: BIV
+    CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: i,j
     REAL(dp)                                           :: r_smooth
 
@@ -501,34 +483,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    BIV%netcdf%filename = C%basal_roughness_filename
+    filename = C%basal_roughness_filename
 
-    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( BIV%netcdf%filename), '...'
-
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV%nx, BIV%wnx)
-    CALL allocate_shared_int_0D( BIV%ny, BIV%wny)
-
-    IF (par%master) CALL inquire_BIV_bed_roughness_file( BIV)
-    CALL sync
-
-    ! Allocate memory - grid
-    CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
-    CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%phi_fric, BIV%wphi_fric)
+    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
 
     ! Read grid & bed roughness data from file
-    IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
-    CALL sync
+    CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
 
     ! Safety
-    CALL check_for_NaN_dp_2D( BIV%phi_fric, 'BIV%phi_fric')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV%phi_fric, BIV%wphi_fric)
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%phi_fric, ice%phi_fric_a)
+    CALL check_for_NaN_dp_2D( ice%phi_fric_a, 'ice%phi_fric_a')
 
     ! Smooth input bed roughness (for restarts with a different resolution)
     IF (C%do_smooth_phi_restart) THEN
@@ -547,18 +510,11 @@ CONTAINS
       CALL sync
     END IF
 
-    ! Deallocate raw data
-    CALL deallocate_shared( BIV%wnx      )
-    CALL deallocate_shared( BIV%wny      )
-    CALL deallocate_shared( BIV%wx       )
-    CALL deallocate_shared( BIV%wy       )
-    CALL deallocate_shared( BIV%wphi_fric)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_from_file_Coulomb
-  SUBROUTINE initialise_bed_roughness_from_file_Tsai2015( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file_Tsai2015( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
     !
     ! Tsai 2015 sliding law: bed roughness described by alpha_sq & beta_sq
@@ -568,61 +524,34 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_Tsai2015'
-    TYPE(type_BIV_bed_roughness)                       :: BIV
+    CHARACTER(LEN=256)                                 :: filename
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Determine filename
-    BIV%netcdf%filename = C%basal_roughness_filename
+    filename = C%basal_roughness_filename
 
-    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( BIV%netcdf%filename), '...'
-
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV%nx, BIV%wnx)
-    CALL allocate_shared_int_0D( BIV%ny, BIV%wny)
-
-    IF (par%master) CALL inquire_BIV_bed_roughness_file( BIV)
+    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
 
-    ! Allocate memory - grid
-    CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
-    CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%alpha_sq, BIV%walpha_sq)
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
-
     ! Read grid & bed roughness data from file
-    IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
+    CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_2D( BIV%alpha_sq, 'BIV%alpha_sq')
-    CALL check_for_NaN_dp_2D( BIV%beta_sq,  'BIV%beta_sq' )
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV%alpha_sq, BIV%walpha_sq)
-    CALL transpose_dp_2D( BIV%beta_sq,  BIV%wbeta_sq )
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%alpha_sq, ice%alpha_sq_a)
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%beta_sq , ice%beta_sq_a )
-
-    ! Deallocate raw data
-    CALL deallocate_shared( BIV%wnx      )
-    CALL deallocate_shared( BIV%wny      )
-    CALL deallocate_shared( BIV%wx       )
-    CALL deallocate_shared( BIV%wy       )
-    CALL deallocate_shared( BIV%walpha_sq)
-    CALL deallocate_shared( BIV%wbeta_sq )
+    CALL check_for_NaN_dp_2D( ice%alpha_sq_a, 'ice%alpha_sq_a')
+    CALL check_for_NaN_dp_2D( ice%beta_sq_a,  'ice%beta_sq_a' )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_from_file_Tsai2015
-  SUBROUTINE initialise_bed_roughness_from_file_Schoof2005( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file_Schoof2005( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
     !
     ! Schoof 2005 sliding law: bed roughness described by alpha_sq & beta_sq
@@ -632,61 +561,34 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_Schoof2005'
-    TYPE(type_BIV_bed_roughness)                       :: BIV
+    CHARACTER(LEN=256)                                 :: filename
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Determine filename
-    BIV%netcdf%filename = C%basal_roughness_filename
+    filename = C%basal_roughness_filename
 
-    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( BIV%netcdf%filename), '...'
-
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV%nx, BIV%wnx)
-    CALL allocate_shared_int_0D( BIV%ny, BIV%wny)
-
-    IF (par%master) CALL inquire_BIV_bed_roughness_file( BIV)
+    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
 
-    ! Allocate memory - grid
-    CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
-    CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%alpha_sq, BIV%walpha_sq)
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%beta_sq , BIV%wbeta_sq )
-
     ! Read grid & bed roughness data from file
-    IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
+    CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_2D( BIV%alpha_sq, 'BIV%alpha_sq')
-    CALL check_for_NaN_dp_2D( BIV%beta_sq,  'BIV%beta_sq' )
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV%alpha_sq, BIV%walpha_sq)
-    CALL transpose_dp_2D( BIV%beta_sq,  BIV%wbeta_sq )
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%alpha_sq, ice%alpha_sq_a)
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%beta_sq , ice%beta_sq_a )
-
-    ! Deallocate raw data
-    CALL deallocate_shared( BIV%wnx      )
-    CALL deallocate_shared( BIV%wny      )
-    CALL deallocate_shared( BIV%wx       )
-    CALL deallocate_shared( BIV%wy       )
-    CALL deallocate_shared( BIV%walpha_sq)
-    CALL deallocate_shared( BIV%wbeta_sq )
+    CALL check_for_NaN_dp_2D( ice%alpha_sq_a, 'ice%alpha_sq_a')
+    CALL check_for_NaN_dp_2D( ice%beta_sq_a,  'ice%beta_sq_a' )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_bed_roughness_from_file_Schoof2005
-  SUBROUTINE initialise_bed_roughness_from_file_ZoetIverson( grid, ice)
+  SUBROUTINE initialise_bed_roughness_from_file_ZoetIverson( grid, ice, region_name)
     ! Initialise bed roughness with data from an external NetCDF file
     !
     ! Zoet-Iverson sliding law: bed roughness described by phi_fric
@@ -696,10 +598,11 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_ZoetIverson'
-    TYPE(type_BIV_bed_roughness)                       :: BIV
+    CHARACTER(LEN=256)                                 :: filename    
     INTEGER                                            :: i,j
     REAL(dp)                                           :: r_smooth
 
@@ -707,34 +610,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    BIV%netcdf%filename = C%basal_roughness_filename
+    filename = C%basal_roughness_filename
 
-    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( BIV%netcdf%filename), '...'
-
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV%nx, BIV%wnx)
-    CALL allocate_shared_int_0D( BIV%ny, BIV%wny)
-
-    IF (par%master) CALL inquire_BIV_bed_roughness_file( BIV)
+    IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
 
-    ! Allocate memory - grid
-    CALL allocate_shared_dp_1D( BIV%nx,         BIV%x       , BIV%wx       )
-    CALL allocate_shared_dp_1D(         BIV%ny, BIV%y       , BIV%wy       )
-    CALL allocate_shared_dp_2D( BIV%nx, BIV%ny, BIV%phi_fric, BIV%wphi_fric)
-
     ! Read grid & bed roughness data from file
-    IF (par%master) CALL read_BIV_bed_roughness_file( BIV)
+    CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_2D( BIV%phi_fric, 'BIV%phi_fric')
-
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV%phi_fric, BIV%wphi_fric)
-
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV%nx, BIV%ny, BIV%x, BIV%y, grid%nx, grid%ny, grid%x, grid%y, BIV%phi_fric, ice%phi_fric_a)
+    CALL check_for_NaN_dp_2D( ice%phi_fric_a, 'ice%phi_fric_a')
 
     ! Smooth input bed roughness (for restarts with a different resolution)
     IF (C%do_smooth_phi_restart) THEN
@@ -752,13 +638,6 @@ CONTAINS
       END DO
       CALL sync
     END IF
-
-    ! Deallocate raw data
-    CALL deallocate_shared( BIV%wnx      )
-    CALL deallocate_shared( BIV%wny      )
-    CALL deallocate_shared( BIV%wx       )
-    CALL deallocate_shared( BIV%wy       )
-    CALL deallocate_shared( BIV%wphi_fric)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2272,7 +2151,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_bed_roughness
-  SUBROUTINE initialise_basal_inversion( grid, ice)
+  SUBROUTINE initialise_basal_inversion( grid, ice, region_name)
     ! Fill in the initial guess for the bed roughness
 
     IMPLICIT NONE
@@ -2280,6 +2159,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_inversion'
@@ -2298,7 +2178,7 @@ CONTAINS
             C%choice_BIVgeo_method == 'Berends2022') THEN
       ! Needed in these methods
 
-      CALL initialise_basal_inversion_target_velocity( grid, ice)
+      CALL initialise_basal_inversion_target_velocity( grid, ice, region_name)
 
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
@@ -2308,7 +2188,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_basal_inversion
-  SUBROUTINE initialise_basal_inversion_target_velocity( grid, ice)
+  SUBROUTINE initialise_basal_inversion_target_velocity( grid, ice, region_name)
     ! Initialise the target velocity fields used in a velocity-based basal inversion routine
 
     IMPLICIT NONE
@@ -2316,6 +2196,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_basal_inversion_target_velocity'
@@ -2325,66 +2206,49 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL warning('Reading basal inversion target velocity field has not been thoroughly tested. Please check if the data is read correctly.')
+    
     ! Determine filename
     IF     (C%choice_BIVgeo_method == 'CISM+' .OR. &
             C%choice_BIVgeo_method == 'Berends2022') THEN
-      BIV_target%netcdf%filename = C%BIVgeo_target_velocity_filename
+      BIV_target%filename = C%BIVgeo_target_velocity_filename
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
     END IF
 
-    IF (par%master) WRITE(0,*) '  Initialising basal inversion target velocity from file ', TRIM( BIV_target%netcdf%filename), '...'
+    IF (par%master) WRITE(0,*) '  Initialising basal inversion target velocity from file ', TRIM( BIV_target%filename), '...'
 
-    ! Inquire grid data from the NetCDF file
-    CALL allocate_shared_int_0D( BIV_target%nx, BIV_target%wnx)
-    CALL allocate_shared_int_0D( BIV_target%ny, BIV_target%wny)
-
-    IF (par%master) CALL inquire_BIV_target_velocity( BIV_target)
-    CALL sync
-
-    ! Allocate memory
-    CALL allocate_shared_dp_1D( BIV_target%nx,                BIV_target%x        , BIV_target%wx        )
-    CALL allocate_shared_dp_1D(                BIV_target%ny, BIV_target%y        , BIV_target%wy        )
-    CALL allocate_shared_dp_2D( BIV_target%nx, BIV_target%ny, BIV_target%u_surf   , BIV_target%wu_surf   )
-    CALL allocate_shared_dp_2D( BIV_target%nx, BIV_target%ny, BIV_target%v_surf   , BIV_target%wv_surf   )
-    CALL allocate_shared_dp_2D( BIV_target%nx, BIV_target%ny, BIV_target%uabs_surf, BIV_target%wuabs_surf)
-
-    IF (par%master) CALL read_BIV_target_velocity( BIV_target)
+    ! Read input field
+    CALL read_BIV_target_velocity( BIV_target, region_name)
     CALL sync
 
     ! NOTE: do not check for NaNs in the target velocity field. The Rignot 2011 Antarctica velocity product
     !       has a lot of missing data points, indicated by NaN values. This is acceptable, the basal inversion
     !       routine can handle that.
 
-!    ! Safety
 !    CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf')
 !    CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf')
+    
+    CALL allocate_shared_dp_2D( BIV_target%grid%ny, BIV_target%grid%nx, BIV_target%uabs_surf, BIV_target%wuabs_surf)
 
     ! Get absolute velocity
-    CALL partition_list( BIV_target%nx, par%i, par%n, i1, i2)
+    CALL partition_list( BIV_target%grid%nx, par%i, par%n, i1, i2)
     DO i = i1, i2
-    DO j = 1, BIV_target%ny
+    DO j = 1, BIV_target%grid%ny
       BIV_target%uabs_surf( i,j) = SQRT( BIV_target%u_surf( i,j)**2 + BIV_target%v_surf( i,j)**2)
     END DO
     END DO
     CALL sync
 
-    ! Since we want data represented as [j,i] internally, transpose the data we just read.
-    CALL transpose_dp_2D( BIV_target%u_surf   , BIV_target%wu_surf   )
-    CALL transpose_dp_2D( BIV_target%v_surf   , BIV_target%wv_surf   )
-    CALL transpose_dp_2D( BIV_target%uabs_surf, BIV_target%wuabs_surf)
-
     ! Allocate shared memory
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%BIV_uabs_surf_target, ice%wBIV_uabs_surf_target)
 
     ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV_target%nx, BIV_target%ny, BIV_target%x, BIV_target%y, grid%nx, grid%ny, grid%x, grid%y, BIV_target%uabs_surf, ice%BIV_uabs_surf_target)
+    CALL map_square_to_square_cons_2nd_order_2D( BIV_target%grid%nx, BIV_target%grid%ny, BIV_target%grid%x, BIV_target%grid%y, grid%nx, grid%ny, grid%x, grid%y, BIV_target%uabs_surf, ice%BIV_uabs_surf_target)
+    
 
     ! Deallocate raw data
-    CALL deallocate_shared( BIV_target%wnx       )
-    CALL deallocate_shared( BIV_target%wny       )
-    CALL deallocate_shared( BIV_target%wx        )
-    CALL deallocate_shared( BIV_target%wy        )
+    CALL deallocate_grid(   BIV_target%grid      )
     CALL deallocate_shared( BIV_target%wu_surf   )
     CALL deallocate_shared( BIV_target%wv_surf   )
     CALL deallocate_shared( BIV_target%wuabs_surf)
@@ -2401,7 +2265,6 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
-
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_inverted_bed_roughness_to_file'
 
@@ -2414,5 +2277,125 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_inverted_bed_roughness_to_file
+
+  SUBROUTINE read_BIV_bed_roughness_file( filename, ice, grid, region_name)
+
+    IMPLICIT NONE
+
+    ! Read the extrapolated ocean data netcdf file
+    CHARACTER(LEN=256),                  INTENT(IN)    :: filename
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
+
+    ! Input variables:
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_BIV_bed_roughness_file'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF     (C%choice_sliding_law == 'no_sliding') THEN
+      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
+    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
+      CALL read_field_from_file_2D(   filename, 'beta_sq' , grid, ice%beta_sq_a,   region_name)
+    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
+            C%choice_sliding_law == 'Coulomb_regularised') THEN
+      CALL read_field_from_file_2D(   filename, 'phi_fric' , grid, ice%phi_fric_a, region_name)
+    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
+      CALL read_field_from_file_2D(   filename, 'alpha_sq', grid, ice%alpha_sq_a,  region_name)
+      CALL read_field_from_file_2D(   filename, 'beta_sq' , grid, ice%beta_sq_a,   region_name)
+    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
+      CALL read_field_from_file_2D(   filename, 'alpha_sq', grid, ice%alpha_sq_a,  region_name)
+      CALL read_field_from_file_2D(   filename, 'beta_sq' , grid, ice%beta_sq_a,   region_name)
+    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
+      CALL read_field_from_file_2D(   filename, 'phi_fric' , grid, ice%phi_fric_a, region_name)
+    ELSE
+      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
+    END IF
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_BIV_bed_roughness_file
+
+  SUBROUTINE read_BIV_target_velocity(    BIV_target, region_name)
+    ! Read the target velocity NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_BIV_target_velocity), INTENT(INOUT) :: BIV_target
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'read_BIV_target_velocity'
+    INTEGER                                       :: i,j
+    LOGICAL                                       :: is_Rignot2011
+    REAL(dp), DIMENSION(:    ), ALLOCATABLE       :: y_temp
+    REAL(dp), DIMENSION(:,:  ), ALLOCATABLE       :: u_temp, v_temp
+    REAL(dp)                                      :: NaN
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. par%master) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    CALL read_field_from_xy_file_2D(           BIV_target%filename, 'u_surf', region_name, BIV_target%grid, BIV_target%u_surf,BIV_target%wu_surf)
+    CALL read_field_from_xy_file_2D(           BIV_target%filename, 'v_surf', region_name, BIV_target%grid, BIV_target%v_surf,BIV_target%wv_surf)
+
+    ! Exception: for some reason, the Rignot 2011 data has the y-axis reversed...
+    is_Rignot2011 = .FALSE.
+    DO i = 1, 256-36
+      IF (BIV_target%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
+        is_Rignot2011 = .TRUE.
+      END IF
+    END DO
+    IF (is_Rignot2011) THEN
+
+      ! Allocate temporary memory for storing the upside-down data
+      ALLOCATE( y_temp( BIV_target%grid%ny))
+      ALLOCATE( u_temp( BIV_target%grid%nx, BIV_target%grid%ny))
+      ALLOCATE( v_temp( BIV_target%grid%nx, BIV_target%grid%ny))
+
+      ! Copy the upside-down data to temporary memory
+      y_temp = BIV_target%grid%y
+      u_temp = BIV_target%u_surf
+      v_temp = BIV_target%v_surf
+
+      ! Flip the data
+      DO j = 1, BIV_target%grid%ny
+        BIV_target%grid%y(   j) = y_temp(   BIV_target%grid%ny + 1 - j)
+        BIV_target%u_surf( :,j) = u_temp( :,BIV_target%grid%ny + 1 - j)
+        BIV_target%v_surf( :,j) = v_temp( :,BIV_target%grid%ny + 1 - j)
+      END DO
+
+      ! Deallocate temporary memory
+      DEALLOCATE( y_temp)
+      DEALLOCATE( u_temp)
+      DEALLOCATE( v_temp)
+
+      ! Set missing values to NaN
+      NaN = 0._dp
+      NaN = 0._dp / NaN
+      DO i = 1, BIV_target%grid%nx
+      DO j = 1, BIV_target%grid%ny
+        IF (BIV_target%u_surf( i,j) == 0._dp .AND. BIV_target%v_surf( i,j) == 0._dp) THEN
+          BIV_target%u_surf( i,j) = NaN
+          BIV_target%v_surf( i,j) = NaN
+        END IF
+      END DO
+      END DO
+
+    END IF ! IF (is_Rignot2011) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_BIV_target_velocity
 
 END MODULE basal_conditions_and_sliding_module

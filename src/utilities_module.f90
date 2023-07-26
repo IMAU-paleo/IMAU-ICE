@@ -11,8 +11,7 @@ MODULE utilities_module
                                              deallocate_shared
   USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
-  USE netcdf_module,                   ONLY: debug, write_to_debug_file
-  USE data_types_module,               ONLY: type_grid, type_sparse_matrix_CSR
+  USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_sparse_matrix_CSR
   USE petsc_module,                    ONLY: solve_matrix_equation_CSR_PETSc
 
 CONTAINS
@@ -787,7 +786,7 @@ CONTAINS
 
   END SUBROUTINE check_CSR_for_double_entries
 
-! == Solve a tridiagonal matrix equation using LAPACK
+  ! == Solve a tridiagonal matrix equation using LAPACK
   FUNCTION tridiagonal_solve( ldiag, diag, udiag, rhs) RESULT(x)
     ! Lapack tridiagnal solver (in double precision):
     ! Matrix system solver for tridiagonal matrices.
@@ -1810,7 +1809,7 @@ CONTAINS
     END IF
 
   END FUNCTION is_in_polygon
-  SUBROUTINE segment_intersection( p, q, r, s, llis, do_cross, tol_dist)
+   SUBROUTINE segment_intersection( p, q, r, s, llis, do_cross, tol_dist)
     ! Find out if the line segments [pq] and [rs] intersect. If so, return
     ! the coordinates of the point of intersection
 
@@ -1984,6 +1983,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE transpose_dp_3D
+  
   SUBROUTINE transpose_int_2D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
 
@@ -2183,11 +2183,690 @@ CONTAINS
 
   END SUBROUTINE interpolate_ocean_depth
 
-! == 2nd-order conservative remapping of a 1-D variable
+! == Remove Lake Vostok from Antarctic input geometry data
+  SUBROUTINE remove_Lake_Vostok( x, y, Hi, Hb, Hs)
+    ! Remove Lake Vostok from Antarctic input geometry data
+    ! by manually increasing ice thickness so that Hi = Hs - Hb
+    !
+    ! NOTE: since IMAU-ICE doesn't consider subglacial lakes, Vostok simply shows
+    !       up as a "dip" in the initial geometry. The model will run fine, the dip
+    !       fills up in a few centuries, but it slows down the model for a while and
+    !       it looks ugly, so we just remove it right away.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: x,y
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hb
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'remove_Lake_Vostok'
+    INTEGER                                       :: i,j,nx,ny
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymin = -470750.0
+    REAL(dp), PARAMETER                           :: lake_Vostok_ymax = -220750.0
+    INTEGER                                       :: il,iu,jl,ju
+
+    IF (par%master) THEN
+
+      nx = SIZE( Hi,2)
+      ny = SIZE( Hi,1)
+
+      il = 1
+      DO WHILE (x( il) < lake_Vostok_xmin)
+        il = il+1
+      END DO
+      iu = nx
+      DO WHILE (x( iu) > lake_Vostok_xmax)
+        iu = iu-1
+      END DO
+      jl = 1
+      DO WHILE (y( jl) < lake_Vostok_ymin)
+        jl = jl+1
+      END DO
+      ju = ny
+      DO WHILE (y( ju) > lake_Vostok_ymax)
+        ju = ju-1
+      END DO
+
+      DO i = il, iu
+      DO j = jl, ju
+        Hi( j,i) = Hs( j,i) - Hb( j,i)
+      END DO
+      END DO
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+  END SUBROUTINE remove_Lake_Vostok
+
+
+  ! == Basic array operations
+  SUBROUTINE permute_2D_dp(  d, wd, map)
+    ! Permute a 2-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    INTEGER,  DIMENSION(2),              INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_2D_dp'
+    INTEGER                                            :: i,j,n1,n2,i1,i2
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  d_temp
+    INTEGER                                            :: wd_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (map( 1) == 1 .AND. map( 2) == 2) THEN
+      ! Trivial
+      RETURN
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1) THEN
+      ! 2-D transpose, as expected
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Allocate temporary memory
+    CALL allocate_shared_dp_2D( n1, n2, d_temp, wd_temp)
+
+    ! Copy data to temporary memory
+    d_temp( i1:i2,:) = d( i1:i2,:)
+    CALL sync
+
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+
+    ! Reallocate transposed memory
+    CALL allocate_shared_dp_2D( n2, n1, d, wd)
+
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, n2
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+    CALL sync
+
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_2D_dp
+  SUBROUTINE permute_2D_int( d, wd, map)
+    ! Permute a 2-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:  ), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    INTEGER,  DIMENSION(2),              INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_2D_int'
+    INTEGER                                            :: i,j,n1,n2,i1,i2
+    INTEGER,  DIMENSION(:,:  ), POINTER                ::  d_temp
+    INTEGER                                            :: wd_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (map( 1) == 1 .AND. map( 2) == 2) THEN
+      ! Trivial
+      RETURN
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1) THEN
+      ! 2-D transpose, as expected
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Allocate temporary memory
+    CALL allocate_shared_int_2D( n1, n2, d_temp, wd_temp)
+
+    ! Copy data to temporary memory
+    d_temp( i1:i2,:) = d( i1:i2,:)
+    CALL sync
+
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+
+    ! Reallocate transposed memory
+    CALL allocate_shared_int_2D( n2, n1, d, wd)
+
+    ! Copy and transpose data from temporary memory
+    DO i = i1, i2
+    DO j = 1, n2
+      d( j,i) = d_temp( i,j)
+    END DO
+    END DO
+    CALL sync
+
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_2D_int
+  SUBROUTINE permute_3D_dp(  d, wd, map)
+    ! Permute a 3-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    INTEGER,  DIMENSION(3),              INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_dp'
+    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    REAL(dp), DIMENSION(:,:,:), POINTER                ::  d_temp
+    INTEGER                                            :: wd_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Allocate temporary memory
+    CALL allocate_shared_dp_3D( n1, n2, n3, d_temp, wd_temp)
+
+    ! Copy data to temporary memory
+    d_temp( i1:i2,:,:) = d( i1:i2,:,:)
+    CALL sync
+
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+
+    ! Different permutation options
+    IF (map( 1) == 1 .AND. map( 2) == 2 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [i,j,k] (trivial...)
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n1, n2, n3, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,j,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 1 .AND. map( 2) == 3 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [i,k,j]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n1, n3, n2, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,k,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [j,i,k]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n2, n1, n3, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,i,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 3 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [j,k,i]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n2, n3, n1, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,k,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 1 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [k,i,j]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n3, n1, n2, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,i,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 2 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [k,j,i]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_dp_3D( n3, n2, n1, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,j,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_3D_dp
+  SUBROUTINE permute_3D_int( d, wd, map)
+    ! Permute a 3-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    INTEGER,  DIMENSION(:,:,:), POINTER, INTENT(INOUT) :: d
+    INTEGER,                             INTENT(INOUT) :: wd
+    INTEGER,  DIMENSION(3),              INTENT(IN)    :: map
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'permute_3D_int'
+    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2
+    INTEGER,  DIMENSION(:,:,:), POINTER                ::  d_temp
+    INTEGER                                            :: wd_temp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,3)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Allocate temporary memory
+    CALL allocate_shared_int_3D( n1, n2, n3, d_temp, wd_temp)
+
+    ! Copy data to temporary memory
+    d_temp( i1:i2,:,:) = d( i1:i2,:,:)
+    CALL sync
+
+    ! Deallocate memory
+    CALL deallocate_shared( wd)
+
+    ! Different permutation options
+    IF (map( 1) == 1 .AND. map( 2) == 2 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [i,j,k] (trivial...)
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n1, n2, n3, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,j,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 1 .AND. map( 2) == 3 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [i,k,j]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n1, n3, n2, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( i,k,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 1 .AND. map( 3) == 3) THEN
+      ! [i,j,k] -> [j,i,k]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n2, n1, n3, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,i,k) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 2 .AND. map( 2) == 3 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [j,k,i]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n2, n3, n1, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( j,k,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 1 .AND. map( 3) == 2) THEN
+      ! [i,j,k] -> [k,i,j]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n3, n1, n2, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,i,j) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSEIF (map( 1) == 3 .AND. map( 2) == 2 .AND. map( 3) == 1) THEN
+      ! [i,j,k] -> [k,j,i]
+
+      ! Reallocate permuted memory
+      CALL allocate_shared_int_3D( n3, n2, n1, d, wd)
+
+      ! Copy and permuted data from temporary memory
+      DO i = i1, i2
+      DO j = 1, n2
+      DO k = 1, n3
+        d( k,j,i) = d_temp( i,j,k)
+      END DO
+      END DO
+      END DO
+      CALL sync
+
+    ELSE
+      CALL crash('invalid permutation!')
+    END IF
+
+    ! Deallocate temporary memory
+    CALL deallocate_shared( wd_temp)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE permute_3D_int
+  SUBROUTINE flip_1D_dp( d)
+    ! Flip a 1-D array
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_1D_dp'
+    INTEGER                                            :: i,nx,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    nx = SIZE( d,1)
+
+    ! Flip the data
+    CALL sync
+    IF (par%master) THEN
+      DO i = 1, nx
+        iopp = nx + 1 - i
+        IF (iopp <= i) EXIT         ! [a  ] [b  ]
+        d( i   ) = d( i) + d( iopp) ! [a+b] [b  ]
+        d( iopp) = d( i) - d( iopp) ! [a+b] [a  ]
+        d( i   ) = d( i) - d( iopp) ! [b  ] [a  ]
+      END DO
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_1D_dp
+  SUBROUTINE flip_2D_x1_dp( d)
+    ! Flip a 2-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x1_dp'
+    INTEGER                                            :: i,j,n1,n2,j1,j2,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n2, par%i, par%n, j1, j2)
+
+    ! Flip the data
+    DO j = j1,j2
+      DO i = 1, n1
+        iopp = n1 + 1 - i
+        IF (iopp <= i) EXIT               ! [a  ] [b  ]
+        d( i   ,j) = d( i,j) + d( iopp,j) ! [a+b] [b  ]
+        d( iopp,j) = d( i,j) - d( iopp,j) ! [a+b] [a  ]
+        d( i   ,j) = d( i,j) - d( iopp,j) ! [b  ] [a  ]
+      END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x1_dp
+  SUBROUTINE flip_2D_x2_dp( d)
+    ! Flip a 2-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_2D_x2_dp'
+    INTEGER                                            :: i,j,n1,n2,i1,i2,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Flip the data
+    DO i = i1,i2
+      DO j = 1, n2
+        jopp = n2 + 1 - j
+        IF (jopp <= j) EXIT               ! [a  ] [b  ]
+        d( i,j   ) = d( i,j) + d( i,jopp) ! [a+b] [b  ]
+        d( i,jopp) = d( i,j) - d( i,jopp) ! [a+b] [a  ]
+        d( i,j   ) = d( i,j) - d( i,jopp) ! [b  ] [a  ]
+      END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_2D_x2_dp
+  SUBROUTINE flip_3D_x1_dp( d)
+    ! Flip a 3-D array along the first dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x1_dp'
+    INTEGER                                            :: i,j,n1,n2,j1,j2,iopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n2, par%i, par%n, j1, j2)
+
+    ! Flip the data
+    DO j = j1,j2
+      DO i = 1, n1
+        iopp = n1 + 1 - i
+        IF (iopp <= i) EXIT                     ! [a  ] [b  ]
+        d( i   ,j,:) = d( i,j,:) + d( iopp,j,:) ! [a+b] [b  ]
+        d( iopp,j,:) = d( i,j,:) - d( iopp,j,:) ! [a+b] [a  ]
+        d( i   ,j,:) = d( i,j,:) - d( iopp,j,:) ! [b  ] [a  ]
+      END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x1_dp
+  SUBROUTINE flip_3D_x2_dp( d)
+    ! Flip a 3-D array along the second dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x2_dp'
+    INTEGER                                            :: i,j,n1,n2,i1,i2,jopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Flip the data
+    DO i = i1,i2
+      DO j = 1, n2
+        jopp = n2 + 1 - j
+        IF (jopp <= j) EXIT                     ! [a  ] [b  ]
+        d( i,j   ,:) = d( i,j,:) + d( i,jopp,:) ! [a+b] [b  ]
+        d( i,jopp,:) = d( i,j,:) - d( i,jopp,:) ! [a+b] [a  ]
+        d( i,j   ,:) = d( i,j,:) - d( i,jopp,:) ! [b  ] [a  ]
+      END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x2_dp
+  SUBROUTINE flip_3D_x3_dp( d)
+    ! Flip a 3-D array along the third dimension
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:,:,:),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'flip_3D_x3_dp'
+    INTEGER                                            :: i,j,k,n1,n2,n3,i1,i2,kopp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    n1 = SIZE( d,1)
+    n2 = SIZE( d,2)
+    n3 = SIZE( d,2)
+    CALL partition_list( n1, par%i, par%n, i1, i2)
+
+    ! Flip the data
+    DO i = i1,i2
+      DO j = 1, n2
+        DO k = 1, n3
+          kopp = n3 + 1 - k
+          IF (kopp <= k) EXIT                     ! [a  ] [b  ]
+          d( i,j,k   ) = d( i,j,k) + d( i,j,kopp) ! [a+b] [b  ]
+          d( i,j,kopp) = d( i,j,k) - d( i,j,kopp) ! [a+b] [a  ]
+          d( i,j,k   ) = d( i,j,k) - d( i,j,kopp) ! [b  ] [a  ]
+        END DO
+      END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE flip_3D_x3_dp
+
+  ! == 2nd-order conservative remapping of a 1-D variable
   SUBROUTINE remap_cons_2nd_order_1D( z_src, mask_src, d_src, z_dst, mask_dst, d_dst)
     ! 2nd-order conservative remapping of a 1-D variable
     !
-    ! Used to remap ocean data from the provided vertical grid to the IMAU-ICE ocean vertical grid
+    ! Used to remap ocean data from the provided vertical grid to the UFEMISM ocean vertical grid
     !
     ! Both z_src and z_dst can be irregular.
     !
@@ -2216,10 +2895,6 @@ CONTAINS
     REAL(dp)                                           :: dz_overlap, dz_overlap_tot, d_int, d_int_tot
     REAL(dp)                                           :: dist_to_dst, dist_to_dst_min, max_dist
     INTEGER                                            :: k_src_nearest_to_dst
-    REAL(dp)                                           :: z_src_lowest, z_src_highest, NaN
-
-    NaN = -1._dp
-    NaN = SQRT( NaN)
 
     ! Initialise
     d_dst = 0._dp
@@ -2248,36 +2923,13 @@ CONTAINS
     END DO
     IF (all_are_masked) RETURN
 
-    ! Calculate derivative d_src/dz (one-sided differencing at the boundary or in cells with masked neighbours, central differencing everywhere else)
+    ! Calculate derivative d_src/dz (one-sided differencing at the boundary, central differencing everywhere else)
     ALLOCATE( ddz_src( nz_src))
     DO k = 2, nz_src-1
-      IF (mask_src( k-1) == 1 .AND. mask_src( k) == 1 .AND. mask_src( k+1) == 1) THEN
-        ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
-      ELSEIF (mask_src( k) == 0) THEN
-        ddz_src( k    ) = 0._dp
-      ELSEIF (mask_src( k-1) == 0) THEN
-        ddz_src( k    ) = (d_src( k+1   ) - d_src( k       )) / (z_src( k+1   ) - z_src( k       ))
-      ELSEIF (mask_src( k+1) == 0) THEN
-        ddz_src( k    ) = (d_src( k     ) - d_src( k-1     )) / (z_src( k     ) - z_src( k-1     ))
-      ELSE
-        CALL crash('whaa!')
-      END IF
+      ddz_src( k    ) = (d_src( k+1   ) - d_src( k-1     )) / (z_src( k+1   ) - z_src( k-1     ))
     END DO
-    ddz_src(    1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
-    ddz_src(    nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
-
-    ! Find lowest and highest z value with source data
-    k_src = 1
-    DO WHILE (mask_src( k_src) == 0)
-      k_src = k_src + 1
-    END DO
-    z_src_lowest = z_src( k_src)
-
-    k_src = nz_src
-    DO WHILE (mask_src( k_src) == 0)
-      k_src = k_src - 1
-    END DO
-    z_src_highest = z_src( k_src)
+    ddz_src(  1     ) = (d_src( 2     ) - d_src( 1       )) / (z_src( 2     ) - z_src( 1       ))
+    ddz_src(  nz_src) = (d_src( nz_src) - d_src( nz_src-1)) / (z_src( nz_src) - z_src( nz_src-1))
 
     ! Perform conservative remapping by finding regions of overlap
     ! between source and destination grid cells
@@ -2359,19 +3011,13 @@ CONTAINS
 
         ! Safety
         IF (k_src_nearest_to_dst == 0) THEN
-          CALL crash('remap_cons_2nd_order_1D: couldnt find nearest neighbour on source grid!')
+          WRITE(0,*) '  remap_cons_2nd_order_1D - ERROR: couldnt find nearest neighbour on source grid!'
+          CALL MPI_ABORT( MPI_COMM_WORLD, cerr, ierr)
         END IF
 
         d_dst( k_dst) = d_src( k_src_nearest_to_dst)
 
       END IF ! IF (dz_overlap_tot > 0._dp) THEN
-
-      ! Forbid extrapolation
-      IF     (z_dst( k_dst) < z_src_lowest) THEN
-        d_dst( k_dst) = NaN
-      ELSEIF (z_dst( k_dst) > z_src_highest) THEN
-        d_dst( k_dst) = NaN
-      END IF
 
     END DO ! DO k_dst = 1, nz_dst
 
@@ -2379,66 +3025,219 @@ CONTAINS
     DEALLOCATE( ddz_src)
 
   END SUBROUTINE remap_cons_2nd_order_1D
-
-! == Remove Lake Vostok from Antarctic input geometry data
-  SUBROUTINE remove_Lake_Vostok( x, y, Hi, Hb, Hs)
-    ! Remove Lake Vostok from Antarctic input geometry data
-    ! by manually increasing ice thickness so that Hi = Hs - Hb
-    !
-    ! NOTE: since IMAU-ICE doesn't consider subglacial lakes, Vostok simply shows
-    !       up as a "dip" in the initial geometry. The model will run fine, the dip
-    !       fills up in a few centuries, but it slows down the model for a while and
-    !       it looks ugly, so we just remove it right away.
+  SUBROUTINE remap_zeta_grid_dp( zeta_src, d_src, zeta_dst, d_dst)
+    ! Remap a 3-D data field from one scaled coordinate zeta to another.
 
     IMPLICIT NONE
 
     ! In/output variables:
-    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: x,y
-    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: Hi
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hb
-    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: Hs
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: zeta_src
+    REAL(dp), DIMENSION(:,:,:),          INTENT(IN)    :: d_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: zeta_dst
+    REAL(dp), DIMENSION(:,:,:),          INTENT(OUT)   :: d_dst
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'remove_Lake_Vostok'
-    INTEGER                                       :: i,j,nx,ny
-    REAL(dp), PARAMETER                           :: lake_Vostok_xmin = 1164250.0
-    REAL(dp), PARAMETER                           :: lake_Vostok_xmax = 1514250.0
-    REAL(dp), PARAMETER                           :: lake_Vostok_ymin = -470750.0
-    REAL(dp), PARAMETER                           :: lake_Vostok_ymax = -220750.0
-    INTEGER                                       :: il,iu,jl,ju
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_zeta_grid_dp'
+    INTEGER                                            :: nx,ny,i,j,k,nz_src,nz_dst,i1,i2
+    LOGICAL                                            :: are_identical
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask_src, mask_dst
 
-    IF (par%master) THEN
+    ! Add routine to path
+    CALL init_routine( routine_name)
 
-      nx = SIZE( Hi,2)
-      ny = SIZE( Hi,1)
+    ! Safety
+    IF (SIZE( d_src,1) /= SIZE( d_dst,1) .OR. SIZE( d_src,2) /= SIZE( d_dst,2)) THEN
+      CALL crash('data field sizes dont match!')
+    END IF
 
-      il = 1
-      DO WHILE (x( il) < lake_Vostok_xmin)
-        il = il+1
-      END DO
-      iu = nx
-      DO WHILE (x( iu) > lake_Vostok_xmax)
-        iu = iu-1
-      END DO
-      jl = 1
-      DO WHILE (y( jl) < lake_Vostok_ymin)
-        jl = jl+1
-      END DO
-      ju = ny
-      DO WHILE (y( ju) > lake_Vostok_ymax)
-        ju = ju-1
-      END DO
+    ! Grid sizes
+    nx     = SIZE( d_src,1)
+    ny     = SIZE( d_src,2)
+    nz_src = SIZE( zeta_src,1)
+    nz_dst = SIZE( zeta_dst,1)
 
-      DO i = il, iu
-      DO j = jl, ju
-        Hi( j,i) = Hs( j,i) - Hb( j,i)
-      END DO
-      END DO
+    ! Parallelisation domains
+    CALL partition_list( nx, par%i, par%n, i1, i2)
 
-    END IF ! IF (par%master) THEN
+    ! If the two zeta grids are identical, the solution is trivial
+    are_identical = .TRUE.
+    IF (nz_src /= nz_dst) THEN
+      are_identical = .FALSE.
+    ELSE
+      DO k = 1, nz_src
+        IF (zeta_src( k) /= zeta_dst( k)) are_identical = .FALSE.
+      END DO
+    END IF
+    IF (are_identical) THEN
+      d_dst( i1:i2,:,:) = d_src( i1:i2,:,:)
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Remap data
+    ! NOTE: uses the 1-D conservative remapping scheme originally written for ocean data.
+    !       The "masking" option, which accounts for the fact that ocean data is sometimes
+    !       missing, is not used here, i.e. masks are always set to 1.
+
+    ALLOCATE( mask_src( nz_src))
+    ALLOCATE( mask_dst( nz_dst))
+
+    mask_src = 1
+    mask_dst = 1
+
+    DO i = i1, i2
+    DO j = 1, ny
+      CALL remap_cons_2nd_order_1D( zeta_src, mask_src, d_src( i,j,:), zeta_dst, mask_dst, d_dst( i,j,:))
+    END DO
+    END DO
     CALL sync
 
-  END SUBROUTINE remove_Lake_Vostok
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_zeta_grid_dp
+  SUBROUTINE remap_zeta_mesh_dp( zeta_src, d_src, zeta_dst, d_dst)
+    ! Remap a 3-D data field from one scaled coordinate zeta to another.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: zeta_src
+    REAL(dp), DIMENSION(:,:  ),          INTENT(IN)    :: d_src
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: zeta_dst
+    REAL(dp), DIMENSION(:,:  ),          INTENT(OUT)   :: d_dst
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'remap_zeta_mesh_dp'
+    INTEGER                                            :: nV,vi,k,nz_src,nz_dst,vi1,vi2
+    LOGICAL                                            :: are_identical
+    INTEGER,  DIMENSION(:    ), ALLOCATABLE            :: mask_src, mask_dst
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Safety
+    IF (SIZE( d_src,1) /= SIZE( d_dst,1)) THEN
+      CALL crash('data field sizes dont match!')
+    END IF
+
+    ! Grid sizes
+    nV     = SIZE( d_src,1)
+    nz_src = SIZE( zeta_src,1)
+    nz_dst = SIZE( zeta_dst,1)
+
+    ! Parallelisation domains
+    CALL partition_list( nV, par%i, par%n, vi1, vi2)
+
+    ! If the two zeta grids are identical, the solution is trivial
+    are_identical = .TRUE.
+    IF (nz_src /= nz_dst) THEN
+      are_identical = .FALSE.
+    ELSE
+      DO k = 1, nz_src
+        IF (zeta_src( k) /= zeta_dst( k)) are_identical = .FALSE.
+      END DO
+    END IF
+    IF (are_identical) THEN
+      d_dst( vi1:vi2,:) = d_src( vi1:vi2,:)
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Remap data
+    ! NOTE: uses the 1-D conservative remapping scheme originally written for ocean data.
+    !       The "masking" option, which accounts for the fact that ocean data is sometimes
+    !       missing, is not used here, i.e. masks are always set to 1.
+
+    ALLOCATE( mask_src( nz_src))
+    ALLOCATE( mask_dst( nz_dst))
+
+    mask_src = 1
+    mask_dst = 1
+
+    DO vi = vi1, vi2
+      CALL remap_cons_2nd_order_1D( zeta_src, mask_src, d_src( vi,:), zeta_dst, mask_dst, d_dst( vi,:))
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE remap_zeta_mesh_dp
+
+    ! == Deallocate a grid
+  SUBROUTINE deallocate_grid( grid)
+    ! Deallocate a grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(INOUT) :: grid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_grid'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( grid%wnx         )
+    CALL deallocate_shared( grid%wny         )
+	CALL deallocate_shared( grid%wn          )
+    CALL deallocate_shared( grid%wx          )
+    CALL deallocate_shared( grid%wy          )
+    CALL deallocate_shared( grid%wdx         )
+    CALL deallocate_shared( grid%wxmin       )
+    CALL deallocate_shared( grid%wxmax       )
+    CALL deallocate_shared( grid%wymin       )
+    CALL deallocate_shared( grid%wymax       )
+    CALL deallocate_shared( grid%wtol_dist   )
+    CALL deallocate_shared( grid%wij2n       )
+    CALL deallocate_shared( grid%wn2ij       )
+    CALL deallocate_shared( grid%wlambda_m   )
+    CALL deallocate_shared( grid%wphi_m      )
+    CALL deallocate_shared( grid%wbeta_stereo)
+    CALL deallocate_shared( grid%wlon        )
+    CALL deallocate_shared( grid%wlat        )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_grid
+
+  SUBROUTINE deallocate_grid_lonlat( grid)
+    ! Deallocate a grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid_lonlat),              INTENT(INOUT) :: grid
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'deallocate_grid_lonlat'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( grid%wnlon       )
+    CALL deallocate_shared( grid%wnlat       )
+    CALL deallocate_shared( grid%wlon        )
+    CALL deallocate_shared( grid%wlat        )
+    CALL deallocate_shared( grid%wdlon       )
+    CALL deallocate_shared( grid%wdlat       )
+    CALL deallocate_shared( grid%wlonmin     )
+    CALL deallocate_shared( grid%wlonmax     )
+    CALL deallocate_shared( grid%wlatmin     )
+    CALL deallocate_shared( grid%wlatmax     )
+    CALL deallocate_shared( grid%wlambda_m   )
+    CALL deallocate_shared( grid%wphi_m      )
+    CALL deallocate_shared( grid%wbeta_stereo)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE deallocate_grid_lonlat
 
 ! == Gaussian extrapolation (used for e.g. ocean data and basal roughness inversion)
   SUBROUTINE extrapolate_Gaussian_floodfill( grid, mask, d, sigma, mask_filled)
