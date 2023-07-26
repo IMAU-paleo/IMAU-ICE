@@ -83,11 +83,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine if region_name needs to be left empty
-    ! IF (PRESENT( region_name)) THEN
-    !     filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    ! ELSE
-        filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    ! END IF 
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
@@ -138,11 +138,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine if region_name needs to be left empty
-    !IF (PRESENT( region_name)) THEN
-    !    filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    !ELSE
-        filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    !END IF
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
@@ -206,11 +206,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine if region_name needs to be left empty
-    !IF (PRESENT( region_name)) THEN
-    !    filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    !ELSE
-        filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    !END IF
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
@@ -273,11 +273,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine if region_name needs to be left empty
-    ! IF (PRESENT( region_name)) THEN
-    !     filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    ! ELSE
-        filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    ! END IF
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
@@ -329,13 +329,11 @@ CONTAINS
     CALL sync
 
     ! Determine if region_name needs to be left empty
-    !IF (PRESENT( region_name)) THEN
-    !  filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    !  PRINT*,('Wrong')
-    !ELSE
-      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    !  PRINT*,('Right')
-    !END IF
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+    filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
@@ -399,12 +397,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Determine if region_name needs to be left empty FJESSE: Succes!
-    !IF (PRESENT( region_name)) THEN
-    !    filename = TRIM( C%output_dir) // TRIM( field_name) // TRIM(region_name) // '.nc'
-    !ELSE
-        filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
-    !END IF
+    ! Determine if region_name needs to be left empty
+    IF (PRESENT( region_name)) THEN
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '_' // TRIM(region_name) // '.nc'
+    ELSE
+      filename = TRIM( C%output_dir) // TRIM( field_name) // '.nc'
+    END IF
 
     ! Delete existing file
     IF (par%master) THEN
