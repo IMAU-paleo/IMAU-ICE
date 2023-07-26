@@ -1053,7 +1053,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
       END IF ! IF (par%master) THEN
       CALL sync
 
-      IF (par%master) WRITE(0,*) ' Initialising insolation data from ', TRIM(C%filename_insolation), '...'
+      IF (par%master) WRITE(0,*) '  Initialising insolation data from ', TRIM(C%filename_insolation), '...'
 
       ! Inquire into the insolation forcing netcdf file
       CALL allocate_shared_int_0D( forcing%ins_nyears, forcing%wins_nyears)
@@ -1115,7 +1115,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
       ice%GHF_a( :,grid%i1:grid%i2) = C%constant_geothermal_heat_flux
       CALL sync
     ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
-      IF (par%master) WRITE(0,*) ' Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
+      IF (par%master) WRITE(0,*) '  Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
       
       CALL read_field_from_file_2D(   C%filename_geothermal_heat_flux, 'hflux', grid, ice%GHF_a,  region_name)
       ice%GHF_a( :,grid%i1:grid%i2)  = ice%GHF_a( :,grid%i1:grid%i2)  * sec_per_year

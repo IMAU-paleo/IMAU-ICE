@@ -88,6 +88,8 @@ CONTAINS
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
     IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
       r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
     ELSE
       r_solver_acc = 1._dp
     END IF
@@ -289,6 +291,8 @@ CONTAINS
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
     IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
       r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
     ELSE
       r_solver_acc = 1._dp
     END IF

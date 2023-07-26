@@ -3081,8 +3081,8 @@ CONTAINS
       IF (par%master) THEN
         ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
         ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
-        print*, ' Initialising velocities from restart file'
-      END IF 
+        WRITE(0,*) '  Initialising velocities from restart file...'
+      END IF
       CALL sync
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       u_vav_cx_a = 0._dp
@@ -3092,7 +3092,7 @@ CONTAINS
       IF (par%master) THEN
         ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
         ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
-        print*, ' Initialising velocities from restart file'
+        WRITE(0,*) '  Initialising velocities from restart file...'
       END IF 
       CALL sync
     END IF 
@@ -3102,7 +3102,6 @@ CONTAINS
     CALL check_for_NaN_dp_2D( ice%v_SSA_cy, 'ice%wv_SSA_cy')
     CALL check_for_NaN_dp_2D( ice%u_vav_cx, 'ice%wu_vav_cx')
     CALL check_for_NaN_dp_2D( ice%v_vav_cy, 'ice%wv_vav_cy')
-
 
     CALL deallocate_shared( wu_SSA_cx_a)
     CALL deallocate_shared( wv_SSA_cy_a)

@@ -72,7 +72,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
-      CALL run_BMB_model_LADDIE(               grid,             BMB, region_name)
+      CALL run_BMB_model_LADDIE(               grid, BMB, region_name)
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_PD)
     ELSE
@@ -2938,9 +2938,6 @@ CONTAINS
     CHARACTER(LEN=256)                                  :: filename_BMB_laddie
     REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
     INTEGER                                             :: wBMB_LADDIE 
-    !TYPE(type_grid)                                     :: d_grid
-    !INTEGER                                             :: i,j
-
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2958,24 +2955,15 @@ CONTAINS
     CALL read_field_from_file_2D(filename_BMB_laddie, 'melt', grid, BMB_LADDIE, region_name)
 
     IF (par%master) THEN
-      BMB%BMB_shelf = -BMB_LADDIE(:,:)
-      print*, 'Finished reading melt rates provided by LADDIE'
+      BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
     END IF
     CALL sync
     
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
 
-    ! Clean up
-    CALL deallocate_shared( wBMB_LADDIE)
-
     ! Clean up after yourself
-    !CALL deallocate_shared(wBMB_LADDIE)
-    !CALL allocate_shared_dp_2D( grid%nx, grid%ny, d, wd)
-    !CALL deallocate_shared( grid%wn          )
-    !CALL deallocate_shared( grid%wtol_dist   )
-    !CALL deallocate_shared( grid%wij2n       )
-    !CALL deallocate_shared( grid%wn2ij       )
+    CALL deallocate_shared( wBMB_LADDIE)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

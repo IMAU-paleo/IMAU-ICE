@@ -107,7 +107,7 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, region%climate%Wind_LR, region%climate%wWind_LR)
     CALL allocate_shared_dp_3D( 12, region%grid%ny, region%grid%nx, region%climate%Wind_DU, region%climate%wWind_DU)
 
-    IF (par%master) WRITE (0,*) ' Initialising climate model "', TRIM(C%choice_climate_model), '"...'
+    IF (par%master) WRITE (0,*) '  Initialising climate model "', TRIM(C%choice_climate_model), '"...'
 
     IF     (C%choice_climate_model == 'none') THEN
       ! No need to initialise anything other than the applied climate
