@@ -2351,7 +2351,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_zeta_dimension_to_file'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_ocean_dimension_to_file'
     INTEGER                                            :: id_dim_zeta
     INTEGER                                            :: id_var_zeta
 
