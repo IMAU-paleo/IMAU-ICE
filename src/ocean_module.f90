@@ -1419,19 +1419,23 @@ CONTAINS
     ! If a valid preprocessed file exists, read data from there. If not, perform
     ! the preprocessing and save the result to a file to save on future work
 
-    ! First, check if any existing header matches the current ice model set-up.
-    CALL check_for_matching_ocean_header( region, filename_ocean_glob, foundmatch, hires_ocean_foldername)
+    IF (C%do_ocean_extrap) THEN
+      ! First, check if any existing header matches the current ice model set-up.
+      CALL check_for_matching_ocean_header( region, filename_ocean_glob, foundmatch, hires_ocean_foldername)
 
-    IF (foundmatch) THEN
-      IF (par%master) WRITE(0,*) '   Found valid extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
-      CALL get_hires_ocean_data_from_file( region, hires, hires_ocean_foldername)
-    ELSE
+      IF (foundmatch) THEN
+        IF (par%master) WRITE(0,*) '   Found valid extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
+        CALL get_hires_ocean_data_from_file( region, hires, hires_ocean_foldername)
+      ELSE
       ! No header fitting the current ice model set-up was found. Create a new one describing
       ! the current set-up, and generate extrapolated ocean data files from scratch.
       IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
       CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
       CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
-    END IF ! IF (.NOT. foundmatch) THEN
+      END IF ! IF (.NOT. foundmatch) THEN
+    ELSE
+      CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
+    ENDIF
 
   ! ===== Map extrapolated data from the high-resolution grid to the actual ice-model grid =====
   ! ============================================================================================
@@ -1643,9 +1647,11 @@ CONTAINS
     CALL deallocate_shared( wbasin_ID_dp_hires)
     CALL deallocate_shared( wbasin_ID_dp_hires_ext)
 
-    ! Perform the extrapolation on the high-resolution grid
-    IF (par%master) WRITE(0,'(A,F4.1,A)') '     Performing ocean data extrapolation on the ', hires%grid%dx / 1000._dp, ' km regional x/y-grid...'
-    CALL extend_regional_ocean_data_to_cover_domain( hires)
+    IF (C%do_ocean_extrap) THEN
+      ! Perform the extrapolation on the high-resolution grid
+      IF (par%master) WRITE(0,'(A,F4.1,A)') '     Performing ocean data extrapolation on the ', hires%grid%dx / 1000._dp, ' km regional x/y-grid...'
+      CALL extend_regional_ocean_data_to_cover_domain( hires)
+    ENDIF
 
     ! Clean up fields that were needed only for the extrapolation
     CALL deallocate_shared( hires%wHi      )
@@ -2078,7 +2084,7 @@ CONTAINS
     ! Create a NetCDF file and write data to it
     IF (par%master) hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     IF (par%master) WRITE(0,*) '    Writing extrapolated ocean data to file "', TRIM(hires_ocean_filename), '"...'
-    CALL create_extrapolated_ocean_file(  hires, filename_ocean_glob)
+    CALL create_extrapolated_ocean_file(  hires, hires_ocean_filename)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

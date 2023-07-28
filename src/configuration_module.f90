@@ -498,6 +498,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                         ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                          ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
+  LOGICAL             :: do_ocean_extrap_config                      = .FALSE.                          ! Create extrapolated ocean file
   CHARACTER(LEN=256)  :: ocean_extrap_dir_config                     = 'extrapolated_ocean_files'       ! Directory where extrapolated ocean files are stored
   REAL(dp)            :: ocean_extrap_res_config                     = 5000._dp                         ! High resolution at which the ocean data extrapolation should be performed
   REAL(dp)            :: ocean_extrap_Gauss_sigma_config             = 8000._dp                         ! 1-sigma of the Gaussian smoothing operation used to extrapolate the ocean data
@@ -1240,6 +1241,7 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_regular_grid_dz
     INTEGER                             :: nz_ocean ! NOTE: nz_ocean and z_ocean cannot be set through the config file, but are filled in by the "initialise_ocean_vertical_grid" in the ocean_module!
     REAL(dp), DIMENSION(:), ALLOCATABLE :: z_ocean
+    LOGICAL                             :: do_ocean_extrap
     CHARACTER(LEN=256)                  :: ocean_extrap_dir
     REAL(dp)                            :: ocean_extrap_res
     REAL(dp)                            :: ocean_extrap_Gauss_sigma
@@ -2048,6 +2050,7 @@ CONTAINS
                      choice_ocean_vertical_grid_config,               &
                      ocean_vertical_grid_max_depth_config,            &
                      ocean_regular_grid_dz_config,                    &
+                     do_ocean_extrap_config,                          &
                      ocean_extrap_dir_config,                         &
                      ocean_extrap_res_config,                         &
                      ocean_extrap_Gauss_sigma_config,                 &
@@ -2874,6 +2877,7 @@ CONTAINS
     C%choice_ocean_vertical_grid               = choice_ocean_vertical_grid_config
     C%ocean_vertical_grid_max_depth            = ocean_vertical_grid_max_depth_config
     C%ocean_regular_grid_dz                    = ocean_regular_grid_dz_config
+    C%do_ocean_extrap                          = do_ocean_extrap_config
     C%ocean_extrap_dir                         = ocean_extrap_dir_config
     C%ocean_extrap_res                         = ocean_extrap_res_config
     C%ocean_extrap_Gauss_sigma                 = ocean_extrap_Gauss_sigma_config
