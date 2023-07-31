@@ -21,7 +21,7 @@ MODULE IMAU_ICE_main_model
   USE parameters_module
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
-                                                 create_help_fields_file_grid, create_regional_scalar_file 
+                                                 create_help_fields_file_grid, create_regional_scalar_file
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
@@ -411,7 +411,7 @@ CONTAINS
     ! ============================================================================
 
     ! Create the file
-    CALL create_regional_scalar_file( region%name, region%scalar_filename) 
+    CALL create_regional_scalar_file( region%name, region%scalar_filename)
 
     ! Calculate and write the first entry (ice volume and area, GMSL contribution, isotope stuff)
     CALL calculate_PD_sealevel_contribution( region)

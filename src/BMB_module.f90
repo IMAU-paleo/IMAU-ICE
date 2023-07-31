@@ -18,7 +18,7 @@ MODULE BMB_module
                                              interpolate_ocean_depth, interp_bilin_2D, transpose_dp_2D, &
                                              map_square_to_square_cons_2nd_order_2D, deallocate_grid
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
@@ -2937,14 +2937,14 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIE'
     CHARACTER(LEN=256)                                  :: filename_BMB_laddie
     REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
-    INTEGER                                             :: wBMB_LADDIE 
+    INTEGER                                             :: wBMB_LADDIE
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate temporary storage LADDIE data
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
-    
+
     ! Select filename from config file
     filename_BMB_laddie = C%filename_BMB_laddie
 
@@ -2958,7 +2958,7 @@ CONTAINS
       BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
     END IF
     CALL sync
-    
+
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
 
