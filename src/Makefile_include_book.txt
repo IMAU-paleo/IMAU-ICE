@@ -32,9 +32,11 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include_book.txt
 # init-real=nan : initialize every real allocation to nan, follow the nans to find uninitialized values
 # init-integer=-42 : same, but for integers
 # init-character=33 : same, but for characters, 33 is equal to "!" (so look for those)
+# -ffpe-trap: catches divisions by zero, overflows, and illegal stuff (e.g. sqrt(-1.0)). The latter is
+# used sometimes in the model for some tricks, so remove it if you planning on being that kinda guy.
   COMPILER_FLAGS_CHECK    = -fcheck=all -fbacktrace -Og \
                             -finit-real=nan -finit-integer=-42 -finit-character=33 \
-                            -ffpe-trap=invalid,zero,overflow
+                            -ffpe-trap=zero,overflow#,invalid
 
 # Final set of compiler flags:
   F90FLAGS                = ${COMPILER_FLAGS_BASIC} \
