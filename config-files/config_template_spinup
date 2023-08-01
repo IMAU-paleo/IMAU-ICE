@@ -4,7 +4,7 @@
   ! ====================
 
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 100.0                            ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 10.0                            ! End   time (in years) of the simulations
   dt_coupling_config                          = 1E20                             ! Interval of coupling (in years) between the four ice-sheets
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
@@ -16,7 +16,7 @@
   dt_BMB_config                               = 1.0                              ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
-  dt_output_config                            = 10.0                             ! Time step (in years) for writing output
+  dt_output_config                            = 2.0                             ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -199,8 +199,8 @@
 
   ! Partially fixed geometry, useful for initialisation and inversion runs
   fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
-  fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
-  fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+  fixed_sheet_geometry_config                 = .TRUE.                          ! Keep geometry of grounded ice fixed
+  fixed_grounding_line_config                 = .TRUE.                          ! Keep ice thickness at the grounding line fixed
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -269,7 +269,7 @@
   ! Ice dynamics - calving
   ! ======================
 
-  choice_calving_law_config                   = 'threshold_thickness'            ! Choice of calving law: "none", "threshold_thickness"
+  choice_calving_law_config                   = 'none'            ! Choice of calving law: "none", "threshold_thickness"
   calving_threshold_thickness_config          = 100.0                            ! Threshold ice thickness in the "threshold_thickness" calving law (200m taken from ANICE)
   do_remove_shelves_config                    = .FALSE.                          ! If set to TRUE, all floating ice is always instantly removed (used in the ABUMIP-ABUK experiment)
   remove_shelves_larger_than_PD_config        = .TRUE.                           ! If set to TRUE, all floating ice beyond the present-day calving front is removed (used for some Antarctic spin-ups)
@@ -306,7 +306,7 @@
   ! =====
 
   choice_ocean_model_config                   = 'PD_obs'                         ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
-  
+
   ! Ocean temperature inversion according to Bernales method
   do_ocean_temperature_inversion_config       = .TRUE.
   ocean_temperature_inv_t_start_config        = 0.0                              ! Minimum model time when the inversion is allowed
@@ -390,7 +390,7 @@
   BMB_shelf_uniform_config                    = 10.0                             ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   BMB_sheet_uniform_config                    = 0.0                              ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
-  do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
+  do_asynchronous_BMB_config                  = .TRUE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
   BMB_max_config                              = 200.0                            ! Maximum amount of allowed basal melt     [mie/yr]
   BMB_min_config                              = 5.0                              ! Maximum amount of allowed basal freezing [mie/yr]
 
@@ -456,7 +456,7 @@
   help_field_04_config                        = 'Hs'
   help_field_05_config                        = 'uabs_surf'
   help_field_06_config                        = 'BMB'
-  help_field_07_config                        = 'none'
+  help_field_07_config                        = 'T_ocean_base'
   help_field_08_config                        = 'none'
   help_field_09_config                        = 'none'
   help_field_10_config                        = 'none'

@@ -14,7 +14,7 @@ MODULE data_types_module
     ! A regular square grid
 
     INTEGER,                    POINTER     :: nx, ny, n
-    REAL(dp),                   POINTER     :: dx, tol_dist 
+    REAL(dp),                   POINTER     :: dx, tol_dist
     INTEGER,  DIMENSION(:,:  ), POINTER     :: ij2n, n2ij
     REAL(dp), DIMENSION(:    ), POINTER     :: x, y
     REAL(dp),                   POINTER     :: xmin, xmax, ymin, ymax
@@ -35,7 +35,7 @@ MODULE data_types_module
     INTEGER,                    POINTER     :: nlon, nlat
     REAL(dp), DIMENSION(:    ), POINTER     :: lon, lat
     REAL(dp),                   POINTER     :: lonmin, lonmax, latmin, latmax
-    REAL(dp),                   POINTER     :: dlon, dlat   
+    REAL(dp),                   POINTER     :: dlon, dlat
 
     INTEGER :: wnlon, wnlat, wlon, wlat, wlonmin, wlonmax, wlatmin, wlatmax, wdlon, wdlat
     INTEGER                                 :: i1, i2, j1, j2 ! Parallelisation by domain decomposition
@@ -582,7 +582,18 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_ext                   ! 3-D annual mean ocean salinity   , extrapolated beneath ice shelves [PSU]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean temperature, extrapolated beneath ice shelves [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: S_ocean_corr_ext              ! Bias-corrected 3-D annual mean ocean salinity,    extrapolated beneath ice shelves [PSU]
-    INTEGER :: wT_ocean_mean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext
+    REAL(dp), DIMENSION(:,:),   POINTER     :: dT_ocean                      ! 2-D annual mean ocean temperature delta [K]
+
+    INTEGER :: wT_ocean_mean, wT_ocean, wS_ocean, wT_ocean_ext, wS_ocean_ext, wT_ocean_corr_ext, wS_ocean_corr_ext, wdT_ocean
+
+    ! The Bernales et al. (202X) model
+    ! ================================
+
+    REAL(dp), DIMENSION(:,:    ), POINTER     :: S_ocean_base                  ! Ocean salinity at the ice shelf base
+    INTEGER,  DIMENSION(:,:    ), POINTER     :: M_ocean_base                  ! Mask of vertices used during melt parameterisation
+    REAL(dp), DIMENSION(:,:    ), POINTER     :: T_base_ave                    ! Averaged inverted ocean temps over a running window (degrees)
+    REAL(dp), DIMENSION(:,:,:  ), POINTER     :: T_base_window                 ! Running window to store the history of T_ocean_base
+    INTEGER :: wS_ocean_base, wM_ocean_base, wT_base_ave, wT_base_window
 
     ! History of the weighing fields
     REAL(dp), DIMENSION(:,:,:), POINTER     :: w_tot_history
@@ -710,7 +721,7 @@ MODULE data_types_module
     ! ================
 
     REAL(dp), DIMENSION(:,:  ), POINTER     :: melt                          ! melt field [m/yr]
-    INTEGER                                 :: wmelt                         ! 
+    INTEGER                                 :: wmelt                         !
 
     ! The ANICE_legacy BMB model
     ! ==========================
@@ -731,15 +742,6 @@ MODULE data_types_module
     INTEGER :: wBMB_deepocean_PD, wBMB_deepocean_cold, wBMB_deepocean_warm
     INTEGER :: wBMB_shelf_exposed_PD, wBMB_shelf_exposed_cold, wBMB_shelf_exposed_warm
     INTEGER :: wsubshelf_melt_factor, wdeep_ocean_threshold_depth
-    
-    ! The Bernales et al. (202X) model
-    ! ================================
-
-    REAL(dp), DIMENSION(:,:    ), POINTER     :: S_ocean_base                  ! Ocean salinity at the ice shelf base
-    INTEGER,  DIMENSION(:,:    ), POINTER     :: M_ocean_base                  ! Mask of vertices used during melt parameterisation
-    REAL(dp), DIMENSION(:,:    ), POINTER     :: T_base_ave                    ! Averaged inverted ocean temps over a running window (degrees)
-    REAL(dp), DIMENSION(:,:,:  ), POINTER     :: T_base_window                 ! Running window to store the history of T_ocean_base
-    INTEGER :: wS_ocean_base, wM_ocean_base, wT_base_ave, wT_base_window
 
     ! Additional data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: sub_angle                     ! "subtended angle"      for the sub-shelf melt parameterisation
@@ -758,7 +760,7 @@ MODULE data_types_module
     INTEGER :: wHi_raw, wHb_raw, wHs_raw
 
     ! Raw grid as read from a NetCDF file
-    TYPE(type_grid)                         :: grid 
+    TYPE(type_grid)                         :: grid
 
     ! Data on the model grid
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi

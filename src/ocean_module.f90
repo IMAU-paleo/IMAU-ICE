@@ -25,7 +25,7 @@ MODULE ocean_module
                                              map_square_to_square_cons_2nd_order_2D, map_square_to_square_cons_2nd_order_3D, &
                                              remap_cons_2nd_order_1D, surface_elevation, extrapolate_Gaussian_floodfill, &
                                              transpose_dp_2D, transpose_dp_3D, linear_least_squares_fit, &
-                                             deallocate_grid
+                                             deallocate_grid, permute_3D_dp
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
@@ -1346,6 +1346,7 @@ CONTAINS
     CALL allocate_shared_dp_3D( C%nz_ocean, grid%ny, grid%nx, ocean%S_ocean_ext,      ocean%wS_ocean_ext     )
     CALL allocate_shared_dp_3D( C%nz_ocean, grid%ny, grid%nx, ocean%T_ocean_corr_ext, ocean%wT_ocean_corr_ext)
     CALL allocate_shared_dp_3D( C%nz_ocean, grid%ny, grid%nx, ocean%S_ocean_corr_ext, ocean%wS_ocean_corr_ext)
+    CALL allocate_shared_dp_2D(             grid%ny, grid%nx, ocean%dT_ocean,         ocean%wdT_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1554,6 +1555,10 @@ CONTAINS
     ! Map the data from the global lon/lat-grid to the high-resolution regional x/y-grid
     CALL map_glob_to_grid_3D( ocean_glob%grid%nlat, ocean_glob%grid%nlon, ocean_glob%grid%lat, ocean_glob%grid%lon, hires%grid, ocean_glob%T_ocean, hires%T_ocean)
     CALL map_glob_to_grid_3D( ocean_glob%grid%nlat, ocean_glob%grid%nlon, ocean_glob%grid%lat, ocean_glob%grid%lon, hires%grid, ocean_glob%S_ocean, hires%S_ocean)
+
+    ! Permute the i and j dimensions to account for some weird orientation issue during mapping
+    CALL permute_3D_dp( hires%T_ocean, hires%wT_ocean, map = [1,3,2])
+    CALL permute_3D_dp( hires%S_ocean, hires%wS_ocean, map = [1,3,2])
 
   ! ===== Perform the extrapolation on the high-resolution grid =====
   ! =================================================================
@@ -2468,5 +2473,45 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ocean_vertical_grid_regular
+
+! == Invert for dT_ocean to achieve correct shelf geometry
+! ===================================================
+
+  SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, time)
+    ! Invert basal ocean temps using the reference topography
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional),   INTENT(INOUT) :: ocean
+    TYPE(type_reference_geometry),        INTENT(IN)    :: refgeo
+    REAL(dp),                             INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'ocean_temperature_inversion'
+    INTEGER                                      :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ! Invert only over non-calving-front shelf vertices
+      IF ( ice%mask_shelf_a( j,i) == 1 .AND. &
+           ice%mask_cf_a(    j,i) == 0) THEN
+
+        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) + 1._dp
+
+      END IF
+    END DO
+    END DO
+
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE ocean_temperature_inversion
 
 END MODULE ocean_module
