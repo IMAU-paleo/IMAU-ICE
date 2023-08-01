@@ -366,7 +366,7 @@ CONTAINS
     ! ===== The BMB model =====
     ! =========================
 
-    CALL initialise_BMB_model( region%grid, region%ice, region%BMB, region%name)
+    CALL initialise_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name)
 
     ! ===== The GIA model =====
     ! =========================

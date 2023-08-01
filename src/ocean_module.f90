@@ -168,7 +168,7 @@ CONTAINS
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Allocate all the global snapshots used in the warm/cold ocean matrix
 
-      CALL initialise_ocean_matrix_global( ocean_matrix)  
+      CALL initialise_ocean_matrix_global( ocean_matrix)
 
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
@@ -591,7 +591,7 @@ CONTAINS
   SUBROUTINE run_ocean_model_idealised_tanh_COLD( grid, ocean)
     ! Run the regional ocean model
     !
-    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM.
 
     IMPLICIT NONE
 
@@ -609,7 +609,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
     REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
     REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
-    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -627,7 +627,7 @@ CONTAINS
       ! Salinity
       ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
       ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
-      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
 
     END DO
     END DO
@@ -641,7 +641,7 @@ CONTAINS
   SUBROUTINE run_ocean_model_idealised_tanh_MEDIUM( grid, ocean)
     ! Run the regional ocean model
     !
-    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM.
 
     IMPLICIT NONE
 
@@ -659,7 +659,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
     REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
     REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
-    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -677,7 +677,7 @@ CONTAINS
       ! Salinity
       ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
       ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
-      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
 
     END DO
     END DO
@@ -691,7 +691,7 @@ CONTAINS
   SUBROUTINE run_ocean_model_idealised_tanh_WARM( grid, ocean)
     ! Run the regional ocean model
     !
-    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM. 
+    ! Set the ocean temperature and salinity to tanh profiles. Options: WARM.
 
     IMPLICIT NONE
 
@@ -709,7 +709,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline
     REAL(dp), PARAMETER                                :: alpha       = 3.733e-5_dp    ! Thermal expansion coefficient in EOS              [degC^-1] 7.5E-5_dp or  = 3.733e-5  # [1/degC]    Thermal expansion coefficient
     REAL(dp), PARAMETER                                :: beta        = 7.843e-4_dp     ! Salt contraction coefficient in EOS               [PSU^-1]7.7E-4_dp or = 7.843e-4  # [1/psu]     Haline contraction coefficient
-    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater 
+    REAL(dp), PARAMETER                                :: rhostar     = 1028_dp        ! Reference density in EOS   = 1028.     # [kg/m^3]    Reference density of seawater
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -727,8 +727,8 @@ CONTAINS
       ! Salinity
       ocean%S_ocean(          k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
       ocean%S_ocean_ext(      k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
-      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)    
-      
+      ocean%S_ocean_corr_ext( k,j,i) = Szero + alpha*(ocean%T_ocean(k,j,i)-Tzero)/beta + .01*ABS(C%z_ocean( k))**.5/(beta*rhostar)
+
     END DO
     END DO
     END DO
@@ -964,6 +964,7 @@ CONTAINS
     ! Map ocean data from the global lon/lat-grid to the high-resolution regional x/y-grid,
     ! extrapolate mapped ocean data to cover the entire 3D domain, and finally
     ! map to the actual ice model resolution
+
     CALL get_extrapolated_ocean_data( region, ocean_matrix_global%PD_obs, region%ocean_matrix%PD_obs, C%filename_PD_obs_ocean)
 
     DO i = region%grid%i1, region%grid%i2
@@ -1487,7 +1488,7 @@ CONTAINS
 
     ! Read the data from the NetCDF file
     IF (par%master) WRITE(0,*) '    Reading high-resolution extrapolated ocean data from file "', TRIM( hires%filename), '"...'
-    
+
     CALL read_field_from_xy_file_ocean_3D( hires%filename, field_name_options_T_ocean, region%name, hires%grid, hires%T_ocean, hires%wT_ocean)
     CALL read_field_from_xy_file_ocean_3D( hires%filename, field_name_options_S_ocean, region%name, hires%grid, hires%S_ocean, hires%wS_ocean)
 
@@ -1534,13 +1535,13 @@ CONTAINS
 
     ! Read the data from the NetCDF file
     IF (par%master) WRITE(0,*) '    Reading high-resolution geometry for ocean extrapolation from file "', TRIM( hires%filename), '"...'
-    CALL sync 
+    CALL sync
 
     ! Read the data
-    CALL read_field_from_xy_file_2D( hires%filename, 'Hb', region%name, hires%grid, hires%Hb, hires%wHb) 
-    CALL deallocate_grid(hires%grid) 
+    CALL read_field_from_xy_file_2D( hires%filename, 'Hb', region%name, hires%grid, hires%Hb, hires%wHb)
+    CALL deallocate_grid(hires%grid)
     CALL read_field_from_xy_file_2D( hires%filename, 'Hi', region%name, hires%grid, hires%Hi, hires%wHi)
-    
+
   ! ===== Map ocean data from the global lon/lat-grid to the high-resolution regional x/y-grid =====
   ! ================================================================================================
 

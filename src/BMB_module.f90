@@ -157,7 +157,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model
-  SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)
+  SUBROUTINE initialise_BMB_model( grid, ice, ocean, BMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
     IMPLICIT NONE
@@ -165,6 +165,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
@@ -191,7 +192,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin' .OR. &
             C%choice_BMB_shelf_model == 'Favier2019_quad' .OR. &
             C%choice_BMB_shelf_model == 'Favier2019_Mplus') THEN
-      CALL initialise_BMB_model_Favier2019( grid, BMB)
+      CALL initialise_BMB_model_Favier2019( grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
       CALL initialise_BMB_model_Lazeroms2018_plume( grid, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICO') THEN
@@ -1368,8 +1369,12 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Calculate ocean temperature and freezing point at the base of the shelf
-    CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+    CALL save_variable_as_netcdf_dp_3D(ocean%T_ocean_corr_ext,'ocean%T_ocean_corr_ext')  !CvC
+
+    IF (.NOT. C%do_ocean_temperature_inversion) THEN
+      ! Calculate ocean temperature and freezing point at the base of the shelf
+      CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+    END IF
     CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)
 
     DO i = grid%i1, grid%i2
@@ -1576,17 +1581,20 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_ocean_freezing_point_at_shelf_base
-  SUBROUTINE initialise_BMB_model_Favier2019( grid, BMB)
+  SUBROUTINE initialise_BMB_model_Favier2019(         grid, ice, ocean, BMB)
     ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
 
     IMPLICIT NONE
 
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional),  INTENT(IN)    :: ocean
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_BMB_model_Favier2019'
+    INTEGER                                            :: k
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1594,6 +1602,23 @@ CONTAINS
     ! Variables
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_base,        BMB%wT_ocean_base       )
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_ocean_freeze_base, BMB%wT_ocean_freeze_base)
+
+    IF (C%do_ocean_temperature_inversion) THEN
+      CALL allocate_shared_int_2D( grid%ny, grid%nx, BMB%M_ocean_base,        BMB%wM_ocean_base       )
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%S_ocean_base,        BMB%wS_ocean_base       )
+      CALL allocate_shared_dp_3D( C%T_base_window_size, grid%ny, grid%nx, BMB%T_base_window,        BMB%wT_base_window       )
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, BMB%T_base_ave,        BMB%wT_base_ave       )
+
+      CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
+      CALL calc_ocean_freezing_point_at_shelf_base(    grid, ice, ocean, BMB) ! originally calc_ocean_salinity_at_shelf_base subroutine CvC
+
+      ! Set average to initial value
+      BMB%T_base_ave(grid%ny, grid%nx) = BMB%T_ocean_base(grid%ny, grid%nx)
+      ! Fill window with initial value
+      DO k = 1, C%T_base_window_size
+        BMB%T_base_window(k,:, grid%i1:grid%i2) = BMB%T_ocean_base(:, grid%i1:grid%i2)
+      END DO
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

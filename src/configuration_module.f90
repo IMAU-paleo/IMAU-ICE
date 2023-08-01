@@ -477,6 +477,12 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
+  ! Bernales inversion method
+  LOGICAL             :: do_ocean_temperature_inversion_config       = .FALSE.                          ! Do ocean temperature inversion
+  REAL(dp)            :: ocean_temperature_inv_t_start_config        = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
+  REAL(dp)            :: ocean_temperature_inv_t_end_config          = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+  INTEGER             :: T_base_window_size_config                   = 200                              ! Number of previous time steps used to compute a running average of inverted T_ocean_base
+
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   CHARACTER(LEN=256)  :: name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
@@ -1217,6 +1223,10 @@ MODULE configuration_module
 
     CHARACTER(LEN=256)                  :: choice_ocean_model
     CHARACTER(LEN=256)                  :: choice_idealised_ocean
+    LOGICAL                             :: do_ocean_temperature_inversion
+    REAL(dp)                            :: ocean_temperature_inv_t_start
+    REAL(dp)                            :: ocean_temperature_inv_t_end
+    INTEGER                             :: T_base_window_size
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -1355,7 +1365,7 @@ MODULE configuration_module
     INTEGER                             :: BMB_PICO_nboxes
     REAL(dp)                            :: BMB_PICO_GammaTstar
 
-    ! Parameters for the LADDIE model 
+    ! Parameters for the LADDIE model
     CHARACTER(LEN=256)                  :: filename_BMB_LADDIE
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
@@ -2036,6 +2046,10 @@ CONTAINS
                      switch_glacial_index_precip_config,              &
                      choice_ocean_model_config,                       &
                      choice_idealised_ocean_config,                   &
+                     do_ocean_temperature_inversion_config,           &
+                     ocean_temperature_inv_t_start_config,            &
+                     ocean_temperature_inv_t_end_config,              &
+                     T_base_window_size_config,                       &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2679,7 +2693,7 @@ CONTAINS
     C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
     C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
     C%do_read_velocities_from_restart          = do_read_velocities_from_restart_config
-    
+
     ! Ice dynamics - time integration
     ! ===============================
 
@@ -2855,6 +2869,10 @@ CONTAINS
 
     C%choice_ocean_model                       = choice_ocean_model_config
     C%choice_idealised_ocean                   = choice_idealised_ocean_config
+    C%do_ocean_temperature_inversion           = do_ocean_temperature_inversion_config
+    C%ocean_temperature_inv_t_start            = ocean_temperature_inv_t_start_config
+    C%ocean_temperature_inv_t_end              = ocean_temperature_inv_t_end_config
+    C%T_base_window_size                       = T_base_window_size_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config

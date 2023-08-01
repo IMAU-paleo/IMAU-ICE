@@ -731,6 +731,15 @@ MODULE data_types_module
     INTEGER :: wBMB_deepocean_PD, wBMB_deepocean_cold, wBMB_deepocean_warm
     INTEGER :: wBMB_shelf_exposed_PD, wBMB_shelf_exposed_cold, wBMB_shelf_exposed_warm
     INTEGER :: wsubshelf_melt_factor, wdeep_ocean_threshold_depth
+    
+    ! The Bernales et al. (202X) model
+    ! ================================
+
+    REAL(dp), DIMENSION(:,:    ), POINTER     :: S_ocean_base                  ! Ocean salinity at the ice shelf base
+    INTEGER,  DIMENSION(:,:    ), POINTER     :: M_ocean_base                  ! Mask of vertices used during melt parameterisation
+    REAL(dp), DIMENSION(:,:    ), POINTER     :: T_base_ave                    ! Averaged inverted ocean temps over a running window (degrees)
+    REAL(dp), DIMENSION(:,:,:  ), POINTER     :: T_base_window                 ! Running window to store the history of T_ocean_base
+    INTEGER :: wS_ocean_base, wM_ocean_base, wT_base_ave, wT_base_window
 
     ! Additional data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: sub_angle                     ! "subtended angle"      for the sub-shelf melt parameterisation
