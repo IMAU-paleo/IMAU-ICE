@@ -2492,6 +2492,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                :: routine_name = 'ocean_temperature_inversion'
     INTEGER                                      :: i,j
+    REAL(dp)                                     :: h_delta
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2502,7 +2503,14 @@ CONTAINS
       IF ( ice%mask_shelf_a( j,i) == 1 .AND. &
            ice%mask_cf_a(    j,i) == 0) THEN
 
-        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) + 1._dp
+        ! Compute the misfit of the modelled ice thickness compared to the observed ice thickness
+        h_delta = ice%Hi_a( j,i) - refgeo%Hi( j,i) ! Positive when modelled ice thickness is too thick
+
+        IF ( h_delta >0) THEN
+          ocean%dT_ocean( j,i) = .5_dp
+        ELSEIF ( h_delta <0) THEN
+          ocean%dT_ocean( j,i) = -.5_dp
+        END IF
 
       END IF
     END DO
