@@ -1672,7 +1672,7 @@ CONTAINS
         IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
           ! Use the extrapolated ocean temperature+salinity fields
 
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, Ta)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, Ta)
           CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, Sa)
 
         ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
@@ -2658,7 +2658,7 @@ CONTAINS
 
           ! Find ocean-floor temperature and salinity
           depth = MAX( 0.1_dp, -ice%Hb_a( j,i))
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_floor)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, T_floor)
           CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, S_floor)
 
           ! Add to sum
@@ -2710,7 +2710,7 @@ CONTAINS
         END IF
 
         ! Find ocean-floor temperature and salinity
-        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,jj,ii)+ocean%dT_ocean( jj,ii), depth_max, Tk0)
         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)
 
       END IF ! IF (par%master) THEN
