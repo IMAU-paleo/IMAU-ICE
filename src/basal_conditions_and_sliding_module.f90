@@ -1557,7 +1557,7 @@ CONTAINS
     ! Update bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( 1E-6_dp, MIN( 30._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
+      ice%phi_fric_a( j,i) = MAX( 1E-6_dp, MIN( 45._dp, ice%phi_fric_a( j,i) + dCdt( j,i) * dt ))
     END DO
     END DO
     CALL sync
@@ -2156,7 +2156,7 @@ CONTAINS
 
       ! Skip non-grounded, non-interior grid points
       IF (ice%mask_sheet_a(j,i) == 0 .OR. &
-          ice%mask_gl_a(j,i) == 0) THEN
+          ice%mask_gl_a(j,i) == 1) THEN
         ! Mark for extrapolation
         mask( j,i) = 1
         ! Go to next grid point
@@ -2212,8 +2212,8 @@ CONTAINS
     ! Limit bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( ice%phi_fric_a( j,i), 1._dp)
-      ice%phi_fric_a( j,i) = MIN( ice%phi_fric_a( j,i), 30._dp)
+      ice%phi_fric_a( j,i) = MAX( ice%phi_fric_a( j,i), 1E-6_dp)
+      ice%phi_fric_a( j,i) = MIN( ice%phi_fric_a( j,i), 45._dp)
     END DO
     END DO
     CALL sync

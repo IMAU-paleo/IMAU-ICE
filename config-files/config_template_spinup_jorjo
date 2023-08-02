@@ -4,7 +4,7 @@
   ! ====================
 
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 2000.0                           ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 10000.0                          ! End   time (in years) of the simulations
   dt_coupling_config                          = 1E20                             ! Interval of coupling (in years) between the four ice-sheets
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
@@ -246,8 +246,8 @@
   choice_BIVgeo_method_config                 = 'Pien2023'                       ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
   BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
-  BIVgeo_Lipscomb2021_tauc_config             = 500.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
-  BIVgeo_Lipscomb2021_H0_config               = 100.0                            ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
+  BIVgeo_Lipscomb2021_tauc_config             = 200.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
+  BIVgeo_Lipscomb2021_H0_config               = 200.0                            ! Thickness scale in the Lipscomb2021 geometry-based basal inversion method [m]
   BIVgeo_CISMplus_wH_config                   = 1.0                              ! Weighting factor for ice thickness in the CISM+ geometry/velocity-based basal inversion method
   BIVgeo_CISMplus_wu_config                   = 1.0                              ! Weighting factor for velocity      in the CISM+ geometry/velocity-based basal inversion method
   BIVgeo_CISMplus_tauc_config                 = 500.0                            ! Timescale       in the CISM+ geometry/velocity-based basal inversion method [yr]
@@ -264,9 +264,9 @@
   BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
   BIVgeo_Bernales2017_hinv_config             = 100.0                            ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   BIVgeo_Bernales2017_tol_diff_config         = 100.0                            ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
-  BIVgeo_Bernales2017_tol_frac_config         = 100000.0                         ! Minimum ratio between ice thickness difference and reference value that triggers inversion
-  BIVgeo_Pien2023_H0_config                   = 100000.0                         ! Ice thickness scale for regularisation in Pien`s friction inversion method
-  BIVgeo_Pien2023_tau_config                  = 1.0                              ! Time scale for regularisation in Pien`s friction inversion method
+  BIVgeo_Bernales2017_tol_frac_config         = 1.0                              ! Minimum ratio between ice thickness difference and reference value that triggers inversion
+  BIVgeo_Pien2023_H0_config                   = 200.0                            ! Ice thickness scale for regularisation in Pien`s friction inversion method
+  BIVgeo_Pien2023_tau_config                  = 200.0                            ! Time scale for regularisation in Pien`s friction inversion method
   BIVgeo_Pien2023_r_config                    = 0.0                              ! Relaxation scale for regularisation in Pien`s friction inversion method
 
   ! Ice dynamics - calving
@@ -460,8 +460,8 @@
   help_field_06_config                        = 'BMB'
   help_field_07_config                        = 'T_ocean_base'
   help_field_08_config                        = 'phi_fric'
-  help_field_09_config                        = 'none'
-  help_field_10_config                        = 'none'
+  help_field_09_config                        = 'dHi'
+  help_field_10_config                        = 'dHs'
   help_field_11_config                        = 'none'
   help_field_12_config                        = 'none'
   help_field_13_config                        = 'none'
