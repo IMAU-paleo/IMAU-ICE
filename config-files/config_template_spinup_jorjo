@@ -4,7 +4,7 @@
   ! ====================
 
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 100.0                            ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 2000.0                           ! End   time (in years) of the simulations
   dt_coupling_config                          = 1E20                             ! Interval of coupling (in years) between the four ice-sheets
   dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
   dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
@@ -16,7 +16,7 @@
   dt_BMB_config                               = 1.0                              ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
-  dt_output_config                            = 5.0                              ! Time step (in years) for writing output
+  dt_output_config                            = 100.0                            ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -71,7 +71,7 @@
   choice_refgeo_init_NAM_config               = 'realistic'                      ! Choice of initial geometry for North America; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_EAS_config               = 'realistic'                      ! Choice of initial geometry for Eurasia      ; can be "idealised", "realistic", or "restart"
   choice_refgeo_init_GRL_config               = 'realistic'                      ! Choice of initial geometry for Greenland    ; can be "idealised", "realistic", or "restart"
-  choice_refgeo_init_ANT_config               = 'realistic'                        ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
+  choice_refgeo_init_ANT_config               = 'realistic'                      ! Choice of initial geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0
   time_to_restart_from_GRL_config             = 0.0
@@ -414,7 +414,7 @@
 
   ! Parameters for the Lazeroms et al. (2018) plume-parameterisation BMB model
   BMB_Lazeroms2018_GammaT_config              = 3.7506E-04     ! 1.1E-3          ! Thermal exchange velocity; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Lazeroms et al. (2018)
-  BMB_Lazeroms2018_find_GL_scheme_config      = 'GL_average_Tijn'                 ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
+  BMB_Lazeroms2018_find_GL_scheme_config      = 'GL_average_Tijn'                ! How to determine the GL origin of a plume: "GL_average", "along_ice_flow"
 
   ! Parameters for the PICO BMB model
   BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
