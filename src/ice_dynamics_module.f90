@@ -639,8 +639,17 @@ CONTAINS
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
 
-    ! Finally update the masks, slopes, etc.
+    ! Update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
+
+    ! Update deviations w.r.t. PD
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dHi_a( j,i) = ice%Hi_a( j,i) - refgeo_PD%Hi( j,i)
+      ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -794,7 +803,7 @@ CONTAINS
       ! Calculate truncation error (Robinson et al., 2020, Eq. 32)
       ice%pc_tau( j,i) = ABS( ice%pc_zeta * (ice%Hi_corr( j,i) - ice%Hi_pred( j,i)) / ((3._dp * ice%pc_zeta + 3._dp) * dt))
 
-!      IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
+      ! IF (ice%mask_sheet_a( j,i) == 1 .AND. ice%mask_gl_a( j,i) == 0) THEN
       IF (ice%mask_sheet_a( j,i) == 1 .AND. &
           ice%mask_gl_a( j+1,i-1) == 0 .AND. &
           ice%mask_gl_a( j+1,i  ) == 0 .AND. &
@@ -945,7 +954,7 @@ CONTAINS
   END SUBROUTINE determine_timesteps_and_actions
 
 ! == Administration: allocation and initialisation
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, region_name)
+  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD, region_name)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
 
@@ -955,6 +964,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     !TYPE(type_restart_data),             INTENT(IN)    :: restart
 
@@ -978,6 +988,15 @@ CONTAINS
       ice%Hi_a( j,i) = refgeo_init%Hi( j,i)
       ice%Hb_a( j,i) = refgeo_init%Hb( j,i)
       ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+    END DO
+    END DO
+    CALL sync
+
+    ! Differences w.r.t. present day
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dHi_a( j,i) = ice%Hi_a( j,i) - refgeo_PD%Hi( j,i)
+      ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), 0._dp)
     END DO
     END DO
     CALL sync
@@ -1235,6 +1254,10 @@ CONTAINS
 
     ! Isotopes
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_a_prev            , ice%wHi_a_prev            )
+
+    ! Useful stuff
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

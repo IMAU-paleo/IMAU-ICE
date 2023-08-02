@@ -646,14 +646,18 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'Hs', long_name = 'Surface elevation', units = 'm w.r.t. PD sea-level')
     ELSEIF (field_name == 'SL') THEN
       CALL add_field_grid_dp_2D( filename, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea-level')
-    ELSEIF (field_name == 'dHi') THEN
-      CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHs_dx') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs_dx', long_name = 'Surface slope in x-direction', units = 'm/m')
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs_dy', long_name = 'Surface slope in y-direction', units = 'm/m')
     ELSEIF (field_name == 'f_grnd') THEN
       CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name = 'Grounded fraction', units = '%')
+    ELSEIF (field_name == 'dHi') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'dHs') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'dHi_dt') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Ice thickness rate of change', units = 'm/yr')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1089,14 +1093,18 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Hs', region%ice%Hs_a)
     ELSEIF (field_name == 'SL') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SL', region%ice%SL_a)
-    ELSEIF (field_name == 'dHi') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_dt_a)
     ELSEIF (field_name == 'dHs_dx') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dx', region%ice%dHs_dx_a)
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dy', region%ice%dHs_dy_a)
     ELSEIF (field_name == 'f_grnd') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'f_grnd', region%ice%f_grnd_a)
+    ELSEIF (field_name == 'dHi') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_a)
+    ELSEIF (field_name == 'dHs') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs', region%ice%dHs_a)
+    ELSEIF (field_name == 'dHi_dt') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt', region%ice%dHi_dt_a)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN

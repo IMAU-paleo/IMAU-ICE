@@ -322,6 +322,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
     INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
 
+    ! Useful stuff
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a                  ! Surface elevation difference w.r.t. PD reference
+    INTEGER :: wdHi_a, wdHs_a
+
   END TYPE type_ice_model
 
   TYPE type_zeta_coefficients

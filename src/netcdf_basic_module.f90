@@ -14,7 +14,7 @@ MODULE netcdf_basic_module
 ! ====================
 
   ! Import basic functionality
-! include <petsc/finclude/petscksp.h> 
+! include <petsc/finclude/petscksp.h>
   USE mpi
   USE configuration_module,            ONLY: dp, C, routine_path, init_routine, finalise_routine, crash, warning
   USE parameters_module
@@ -56,7 +56,7 @@ MODULE netcdf_basic_module
   CHARACTER(LEN=256), PARAMETER :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_time           = 'time||Time||t||nt'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_month          = 'month||Month'
-  
+
   ! Variables
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hi             = 'Hi||thickness||lithk'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hb             = 'Hb||bed||topg'
@@ -69,7 +69,7 @@ MODULE netcdf_basic_module
   CHARACTER(LEN=256), PARAMETER :: field_name_options_T_ocean        = 'T_ocean||t_an'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_S_ocean        = 'S_ocean||s_an'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_melt           = 'melt'
-  
+
 
 CONTAINS
 
@@ -631,7 +631,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE check_lat
-  
+
   ! Zeta, z_ocean, month, time dimensions
   SUBROUTINE check_zeta( filename)
     ! Check if this file contains a valid zeta dimension and variable
@@ -3927,7 +3927,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'inquire_var_info'
     INTEGER                                            :: ncid
-    
+
     ! Add routine to path
     CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
 
