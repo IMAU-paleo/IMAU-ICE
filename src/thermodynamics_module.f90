@@ -206,7 +206,7 @@ CONTAINS
 
         IF (ice%mask_shelf_a( j,i) == 1) THEN
           depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base( j,i))
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, T_ocean_at_shelf_base( j,i))
         ELSE
           T_ocean_at_shelf_base( j,i) = 0._dp
         END IF
@@ -460,7 +460,7 @@ CONTAINS
         ! Calculate shelf base temperature from ocean data
 
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
-        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_ocean_at_shelf_base)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, T_ocean_at_shelf_base)
 
       END IF
 

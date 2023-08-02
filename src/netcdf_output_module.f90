@@ -23,7 +23,7 @@ MODULE netcdf_output_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D
 
   ! Import specific functionality
-  USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_model_region, type_ice_model, type_global_scalar_data, & 
+  USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_model_region, type_ice_model, type_global_scalar_data, &
                                              type_highres_ocean_data
   USE netcdf,                          ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
                                              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
@@ -53,7 +53,7 @@ CONTAINS
 
   ! ===== Top-level functions =====
   ! ===============================
-  
+
   SUBROUTINE write_to_regional_scalar_file( filename, region)
     ! Write model output to the regional scalar file
 
@@ -81,7 +81,7 @@ CONTAINS
     CALL write_to_scalar_field_dp( filename, 'SMB',           region%int_SMB)
     CALL write_to_scalar_field_dp( filename, 'BMB',           region%int_BMB)
     CALL write_to_scalar_field_dp( filename, 'MB',            region%int_MB)
-    
+
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
@@ -97,14 +97,14 @@ CONTAINS
        CALL write_to_scalar_field_dp( filename, 'runoff',     region%int_runoff)
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
-    END IF 
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_regional_scalar_file
 
-  
+
   SUBROUTINE write_to_global_scalar_file( filename, global_data, time)
     ! Write model output to the global scalar file
 
@@ -143,7 +143,7 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
-    
+
     ! d18O
     IF     (C%do_calculate_benthic_d18O) THEN
       CALL write_to_scalar_field_dp( filename, 'dT_glob',  global_data%dT_glob)
@@ -216,7 +216,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_scalar_field_dp
-  
+
   SUBROUTINE create_regional_scalar_file(region_name, filename)
     ! Create an empty regional scalar file
 
@@ -248,7 +248,7 @@ CONTAINS
 
     ! Add time dimension
     CALL add_time_dimension_to_file(  filename)
-    
+
     ! Create region variables
     ! ================
     CALL add_scalar_field_dp( filename, 'ice_volume',    long_name='Ice volume', units='m.s.l.e')
@@ -258,7 +258,7 @@ CONTAINS
     CALL add_scalar_field_dp( filename, 'SMB',           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
     CALL add_scalar_field_dp( filename, 'BMB',           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
     CALL add_scalar_field_dp( filename, 'MB',            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
-    
+
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
@@ -274,8 +274,8 @@ CONTAINS
        CALL add_scalar_field_dp( filename, 'runoff',     long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
-    END IF 
-    
+    END IF
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -309,7 +309,7 @@ CONTAINS
 
     ! Add time dimension
     CALL add_time_dimension_to_file(  filename)
-    
+
     ! Create global variables
     ! ================
     CALL add_scalar_field_dp( filename, 'GMSL',     long_name='Global mean sea level change', units='m')
@@ -329,7 +329,7 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
-    
+
     ! d18O
     IF     (C%do_calculate_benthic_d18O) THEN
       CALL add_scalar_field_dp( filename, 'dT_glob',  long_name='Global annual mean surface temperature change', units='K')
@@ -354,7 +354,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_global_scalar_file
-    
+
   SUBROUTINE add_scalar_field_dp( filename, var_name, long_name, units)
     ! Add a 1-D variable to an existing NetCDF file
 
@@ -465,7 +465,7 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
-    
+
     ! Inverse routine data
     ! MS: Needs to be fixed
 
@@ -591,12 +591,12 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL add_field_grid_dp_2D_notime( filename, 'GHF', long_name = 'Geothermal heat flux', units = 'J m^-2 yr^-1')
- 
+
     ! Ice basins
     ! NOTE: needs new function that reads in integers instead of dp
     !ELSEIF (field_name == 'basin_ID') THEN
     !  CALL add_field_grid_dp_2D_notime( filename, 'basin_ID', long_name = 'Basin ID', units = '')
- 
+
     ! Basal inversion target velocity
     ELSEIF (field_name == 'BIV_target_velocity') THEN
       CALL add_field_grid_dp_2D_notime( filename, 'BIV_target_velocity', long_name='Basal inversion target velocity', units='m yr^-1')
@@ -635,8 +635,8 @@ CONTAINS
 
     ! Fields with a time dimension
     ! ============================
-    
-    
+
+
     ! Geometry
     ELSEIF (field_name == 'Hi') THEN
       CALL add_field_grid_dp_2D( filename, 'Hi', long_name = 'Ice thickness', units = 'm')
@@ -774,6 +774,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'BMB_sheet', long_name = 'Annual basal mass balance for grounded ice', units = 'm ice equivalent')
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL add_field_grid_dp_2D( filename, 'BMB_shelf', long_name = 'Annual basal mass balance for floating ice', units = 'm ice equivalent')
+    ELSEIF (field_name == 'T_ocean_base') THEN
+      CALL add_field_grid_dp_2D( filename, 'T_ocean_base', long_name = 'Ocean temperature at shelf base', units = 'K')
     ELSEIF (field_name == 'T_ocean_3D') THEN
       CALL add_field_grid_dp_3D( filename, 'T_ocean_3D', long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
@@ -858,7 +860,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (par%master) THEN 
+    IF (par%master) THEN
       WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing output...'
     END IF
 
@@ -876,7 +878,7 @@ CONTAINS
     ! Thermodynamics
     CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, field_name_options_Ti , region%ice%Ti_a )
 
-    ! GIA 
+    ! GIA
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_SL , region%ice%SL_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_dHb, region%ice%dHb_a )
 
@@ -914,7 +916,7 @@ CONTAINS
     ELSEIF (C%choice_ice_isotopes_model == 'uniform') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'IsoIce' , region%ice%IsoIce )
     ELSEIF (C%choice_ice_isotopes_model == 'ANICE_legacy') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'IsoIce' , region%ice%IsoIce )      
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'IsoIce' , region%ice%IsoIce )
     ELSE
       CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
@@ -1033,7 +1035,7 @@ CONTAINS
     ! Geothermal heat flux
     ELSEIF (field_name == 'GHF') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_notime( filename, region%grid, 'GHF', region%ice%GHF_a)
-    
+
     ! Ice basins
     ! NOTE: needs new function that reads in integers instead of dp
     !ELSEIF (field_name == 'basin_ID') THEN
@@ -1042,7 +1044,7 @@ CONTAINS
     ! Basal inversion target velocity
     ELSEIF (field_name == 'BIV_target_velocity') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_notime( filename, region%grid, 'BIV_target_velocity', region%ice%BIV_uabs_surf_target)
-    
+
     ! Forcing climates
     ELSEIF (field_name == 'GCM_Warm_T2m') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'Warm_T2m', region%climate%matrix%GCM_warm%T2m)
@@ -1207,6 +1209,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'BMB_sheet', region%BMB%BMB_sheet)
     ELSEIF (field_name == 'BMB_shelf') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'BMB_shelf', region%BMB%BMB_shelf)
+    ELSEIF (field_name == 'T_ocean_base') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'T_ocean_base', region%BMB%T_ocean_base)
     ELSEIF (field_name == 'T_ocean_3D') THEN
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'T_ocean_3D', region%ocean_matrix%applied%T_ocean_corr_ext)
     ELSEIF (field_name == 'S_ocean_3D') THEN
@@ -1299,7 +1303,7 @@ CONTAINS
 
     ! Set up the grids in this file
     CALL setup_xy_grid_in_netcdf_file( filename, hires%grid)
-    
+
     ! Add T_ocean and S_ocean fields
     CALL add_field_grid_dp_3D_notime( filename, 'T_ocean', long_name = '3-D ocean temperature'  , units = 'K'  )
     CALL add_field_grid_dp_3D_notime( filename, 'S_ocean', long_name = '3-D ocean salinity'     , units = 'PSU')
@@ -1307,7 +1311,7 @@ CONTAINS
     ! Write the T_ocean and S_ocean fields
     CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%T_ocean)
     CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%S_ocean)
-  
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
   END SUBROUTINE create_extrapolated_ocean_file
@@ -1325,9 +1329,15 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_BIV_bed_roughness_file'
     CHARACTER(LEN=256)                                 :: filename
     LOGICAL                                            :: file_exists
+    INTEGER                                            :: id_var
+    REAL(dp), DIMENSION(:,:), POINTER                  ::  d_grid
+    INTEGER                                            :: wd_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
 
     ! Create a new file and, to prevent loss of data,
     ! stop with an error message if one already exists (not when differences are considered):
@@ -1337,53 +1347,78 @@ CONTAINS
       CALL crash('file "' // TRIM( filename) // '" already exists!')
     END IF
 
-    ! Create netcdf file
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Writing inverted bed roughness to file "', TRIM( filename), '"...'
 
-    ! Define variables:
-    ! The order of the CALL statements for the different variables determines their
-    ! order of appearence in the netcdf file.
-    
-    ! Bed roughness: Add fields
-    IF     (C%choice_sliding_law == 'no_sliding') THEN
-      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
-    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq', long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')
-    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees' )
-    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units='unitless')
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq' , long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')
-    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units='unitless')
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq' , long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')    
-    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees' )    
-    ELSE
-      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END IF
+    ! Create a new NetCDF file
+    CALL create_new_netcdf_file_for_writing( filename)
 
-    ! Bed roughness: Write data to the Netcdf file
-    IF     (C%choice_sliding_law == 'no_sliding') THEN
-      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
-    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq', ice%beta_sq_a)
-    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'phi_fric', ice%phi_fric_a)    
-    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'alpha_sq', ice%alpha_sq_a)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq' , ice%beta_sq_a)
-    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'alpha_sq', ice%alpha_sq_a)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq' , ice%beta_sq_a)    
-    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'phi_fric', ice%phi_fric_a)    
-    ELSE
-      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END IF
+    ! Set up the grids in this file
+    CALL setup_xy_grid_in_netcdf_file( filename, grid)
+
+    ! Do it
+    SELECT CASE(C%choice_sliding_law)
+
+      CASE ('no_sliding')
+        CALL crash('not defined for choice_sliding_law = "no_sliding"!')
+
+      CASE ('Weertman')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%beta_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'beta_sq',  long_name = 'Power-law friction coefficient',   units = '[Pa m^−1/3 yr^1/3]')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'beta_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE ('Coulomb','Coulomb_regularised','Zoet-Iverson')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%phi_fric_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'phi_fric', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE ('Tsai2015','Schoof2005')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%alpha_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units = '-')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'alpha_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%beta_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'beta_sq',  long_name = 'Power-law friction coefficient',   units = '[Pa m^−1/3 yr^1/3]')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'beta_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE DEFAULT
+        CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
+
+    END SELECT
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1417,7 +1452,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Inquire the variable
     CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
     IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
@@ -1429,7 +1464,7 @@ CONTAINS
     CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Allocate shared memory
-    CALL allocate_shared_dp_3D( grid%ny, grid%nx, 1, d_grid_with_time, wd_grid_with_time) 
+    CALL allocate_shared_dp_3D( grid%ny, grid%nx, 1, d_grid_with_time, wd_grid_with_time)
 
     ! Copy data
     d_grid_with_time( :, grid%i1:grid%i2, 1) = d( :,grid%i1:grid%i2)
@@ -1464,7 +1499,7 @@ CONTAINS
     INTEGER, DIMENSION(:,:    ),   INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_int_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER, DIMENSION(:,:,:), POINTER           ::  d_grid_with_time
@@ -1472,7 +1507,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-    
+
     ! Inquire the variable
     CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
     IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
@@ -1484,7 +1519,7 @@ CONTAINS
     CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time, dim_length = ti)
 
     ! Allocate shared memory
-    CALL allocate_shared_int_3D( grid%ny, grid%nx, 1, d_grid_with_time, wd_grid_with_time) 
+    CALL allocate_shared_int_3D( grid%ny, grid%nx, 1, d_grid_with_time, wd_grid_with_time)
 
     ! Copy data
     d_grid_with_time( :, grid%i1:grid%i2, 1) = d( :,grid%i1:grid%i2)
@@ -1591,27 +1626,27 @@ CONTAINS
     ! Inquire the variable
     CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
     IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
-    
+
     ! Check if this variable has the correct type and dimensions
     CALL check_xy_grid_field_dp_3D( filename, var_name, should_have_time = .TRUE.)
-    
+
     ! Inquire length of time dimension
     CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time, dim_length = ti)
-    
+
     ! Allocate shared memory
     CALL allocate_shared_dp_4D( grid%nx, grid%ny, C%nz, 1, d_grid_with_time, wd_grid_with_time)
     CALL allocate_shared_dp_3D( C%nz, grid%ny, grid%nx,    d_grid, wd_grid)
-    
+
     ! Swap the x and y grid
     d_grid( :, :, grid%i1:grid%i2) = d( :, :, grid%i1:grid%i2)
     CALL sync
-    
+
     CALL permute_3D_dp( d_grid, wd_grid , map = [3,2,1])
-    
+
     ! Copy data
     d_grid_with_time( grid%i1:grid%i2,:,:,1) = d_grid( grid%i1:grid%i2,:,:)
     CALL sync
-    
+
     ! Write data to the variable
     CALL write_var_dp_4D( filename, id_var, d_grid_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, C%nz, 1 /) )
 
@@ -1690,7 +1725,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: var_name
     REAL(dp), DIMENSION(:,:,:  ), POINTER              :: d_grid
     INTEGER                                            :: wd_grid
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -1705,7 +1740,7 @@ CONTAINS
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, d_grid, wd_grid)
 
     d_grid( :, :, grid%i1:grid%i2) = d( :, :, grid%i1:grid%i2)
-     
+
     CALL permute_3D_dp( d_grid, wd_grid , map = [3,2,1])
 
     ! Write data to the variable
@@ -1824,9 +1859,14 @@ CONTAINS
     INTEGER                                            :: id_var_y
     INTEGER                                            :: id_var_lon
     INTEGER                                            :: id_var_lat
+    REAL(dp), DIMENSION(:,:), POINTER                  ::  d_grid
+    INTEGER                                            :: wd_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
 
     ! Create x/y dimensions
     CALL create_dimension( filename, get_first_option_from_list( field_name_options_x), grid%nx, id_dim_x)
@@ -1850,12 +1890,21 @@ CONTAINS
     ! lon
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lon), long_name = 'Longitude', units = 'degrees east')
     CALL inquire_var_multiple_options( filename, field_name_options_lon, id_var_lon)
-    CALL write_var_dp_2D( filename, id_var_lon, grid%lon)
-   
+    d_grid( :, grid%i1:grid%i2) = grid%lon( :,grid%i1:grid%i2)
+    CALL sync
+    CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+    CALL write_var_dp_2D( filename, id_var_lon, d_grid)
+
     ! lat
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lat), long_name = 'Latitude', units = 'degrees north')
     CALL inquire_var_multiple_options( filename, field_name_options_lat, id_var_lat)
+    d_grid( :, grid%i1:grid%i2) = grid%lat( :,grid%i1:grid%i2)
+    CALL sync
+    CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
     CALL write_var_dp_2D( filename, id_var_lat, grid%lat)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2351,7 +2400,7 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_zeta_dimension_to_file'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_ocean_dimension_to_file'
     INTEGER                                            :: id_dim_zeta
     INTEGER                                            :: id_var_zeta
 

@@ -708,8 +708,10 @@ CONTAINS
           v_a = MAX( ABS(ice%v_3D_cy( k,j-1,i)), ABS(ice%v_3D_cy( k,j,i)) )
         END IF
 
-        dt = grid%dx / (u_a + v_a)
-        dt_crit_SIA = MIN(dt_crit_SIA, dt)
+        IF (u_a + v_a > 0._dp) THEN
+          dt = grid%dx / (u_a + v_a)
+          dt_crit_SIA = MIN(dt_crit_SIA, dt)
+        END IF
 
       END DO
 
@@ -751,7 +753,7 @@ CONTAINS
         dt = grid%dx / (ABS(ice%u_vav_cx( j,i)) + ABS(ice%v_vav_cy( j,i)))
         dt_crit_adv = MIN( dt_crit_adv, dt)
       END IF
-      
+
     END DO
     END DO
 

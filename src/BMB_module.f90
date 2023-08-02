@@ -18,7 +18,7 @@ MODULE BMB_module
                                              interpolate_ocean_depth, interp_bilin_2D, transpose_dp_2D, &
                                              map_square_to_square_cons_2nd_order_2D, deallocate_grid
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time_month_and_lat
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
 
@@ -1513,7 +1513,7 @@ CONTAINS
         depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
 
         ! Find ocean temperature at this depth
-        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, BMB%T_ocean_base( j,i))
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, BMB%T_ocean_base( j,i))
 
       END IF ! IF (ice%mask_shelf_a( j,i) == 1) THEN
 
@@ -1576,7 +1576,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_ocean_freezing_point_at_shelf_base
-  SUBROUTINE initialise_BMB_model_Favier2019( grid, BMB)
+  SUBROUTINE initialise_BMB_model_Favier2019(         grid, BMB)
     ! Allocate memory for the data fields of the Favier et al. (2019) shelf BMB parameterisations.
 
     IMPLICIT NONE
@@ -1587,6 +1587,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_BMB_model_Favier2019'
+    INTEGER                                            :: k
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1671,7 +1672,7 @@ CONTAINS
         IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
           ! Use the extrapolated ocean temperature+salinity fields
 
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, Ta)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, Ta)
           CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, Sa)
 
         ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
@@ -2657,7 +2658,7 @@ CONTAINS
 
           ! Find ocean-floor temperature and salinity
           depth = MAX( 0.1_dp, -ice%Hb_a( j,i))
-          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i), depth, T_floor)
+          CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, T_floor)
           CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, S_floor)
 
           ! Add to sum
@@ -2709,7 +2710,7 @@ CONTAINS
         END IF
 
         ! Find ocean-floor temperature and salinity
-        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,jj,ii), depth_max, Tk0)
+        CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,jj,ii)+ocean%dT_ocean( jj,ii), depth_max, Tk0)
         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,jj,ii), depth_max, Sk0)
 
       END IF ! IF (par%master) THEN
@@ -2937,14 +2938,14 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIE'
     CHARACTER(LEN=256)                                  :: filename_BMB_laddie
     REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
-    INTEGER                                             :: wBMB_LADDIE 
+    INTEGER                                             :: wBMB_LADDIE
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate temporary storage LADDIE data
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
-    
+
     ! Select filename from config file
     filename_BMB_laddie = C%filename_BMB_laddie
 
@@ -2958,7 +2959,7 @@ CONTAINS
       BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
     END IF
     CALL sync
-    
+
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
 

@@ -252,7 +252,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_geothermal_heat_flux_config        = '/Users/berends/Documents/Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc'
 
   ! Parameters for calculating modelled benthic d18O
-  LOGICAL             :: do_calculate_benthic_d18O_config            = .TRUE.                           ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
+  LOGICAL             :: do_calculate_benthic_d18O_config            = .FALSE.                           ! Whether or not to calculate modelled benthic d18O (set to .FALSE. for e.g. idealised-geometry experiments, future projections)
   REAL(dp)            :: dT_deepwater_averaging_window_config        = 3000                             ! Time window (in yr) over which global mean temperature anomaly is averaged to find the deep-water temperature anomaly
   REAL(dp)            :: dT_deepwater_dT_surf_ratio_config           = 0.25_dp                          ! Ratio between global mean surface temperature change and deep-water temperature change
   REAL(dp)            :: d18O_dT_deepwater_ratio_config              = -0.28_dp                         ! Ratio between deep-water temperature change and benthic d18O change
@@ -399,6 +399,9 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_Bernales2017_hinv_config             = 100._dp                          ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Bernales2017_tol_diff_config         = 100._dp                          ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
   REAL(dp)            :: BIVgeo_Bernales2017_tol_frac_config         = 1.0_dp                           ! Minimum ratio between ice thickness difference and reference value that triggers inversion
+  REAL(dp)            :: BIVgeo_Pien2023_H0_config                   = 1.0_dp                           ! Ice thickness scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_tau_config                  = 1.0_dp                           ! Time scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_r_config                    = 0.0_dp                           ! Relaxation scale for regularisation in Pien's friction inversion method
 
   ! Ice dynamics - calving
   ! ======================
@@ -477,6 +480,11 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
   CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
+  ! Delta ocean temperature inversion
+  LOGICAL             :: do_ocean_temperature_inversion_config       = .FALSE.                          ! Whether or not to apply the inversion
+  REAL(dp)            :: ocean_temperature_inv_t_start_config        = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
+  REAL(dp)            :: ocean_temperature_inv_t_end_config          = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   CHARACTER(LEN=256)  :: name_ocean_temperature_obs_config           = 't_an' ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
@@ -498,6 +506,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   REAL(dp)            :: ocean_vertical_grid_max_depth_config        = 1500._dp                         ! Maximum depth           to be used for ocean data
   REAL(dp)            :: ocean_regular_grid_dz_config                = 150._dp                          ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
+  LOGICAL             :: do_ocean_extrap_config                      = .FALSE.                          ! Create extrapolated ocean file
   CHARACTER(LEN=256)  :: ocean_extrap_dir_config                     = 'extrapolated_ocean_files'       ! Directory where extrapolated ocean files are stored
   REAL(dp)            :: ocean_extrap_res_config                     = 5000._dp                         ! High resolution at which the ocean data extrapolation should be performed
   REAL(dp)            :: ocean_extrap_Gauss_sigma_config             = 8000._dp                         ! 1-sigma of the Gaussian smoothing operation used to extrapolate the ocean data
@@ -1139,6 +1148,9 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_Bernales2017_hinv
     REAL(dp)                            :: BIVgeo_Bernales2017_tol_diff
     REAL(dp)                            :: BIVgeo_Bernales2017_tol_frac
+    REAL(dp)                            :: BIVgeo_Pien2023_H0
+    REAL(dp)                            :: BIVgeo_Pien2023_tau
+    REAL(dp)                            :: BIVgeo_Pien2023_r
 
     ! Ice dynamics - calving
     ! ======================
@@ -1216,6 +1228,9 @@ MODULE configuration_module
 
     CHARACTER(LEN=256)                  :: choice_ocean_model
     CHARACTER(LEN=256)                  :: choice_idealised_ocean
+    LOGICAL                             :: do_ocean_temperature_inversion
+    REAL(dp)                            :: ocean_temperature_inv_t_start
+    REAL(dp)                            :: ocean_temperature_inv_t_end
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -1240,6 +1255,7 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_regular_grid_dz
     INTEGER                             :: nz_ocean ! NOTE: nz_ocean and z_ocean cannot be set through the config file, but are filled in by the "initialise_ocean_vertical_grid" in the ocean_module!
     REAL(dp), DIMENSION(:), ALLOCATABLE :: z_ocean
+    LOGICAL                             :: do_ocean_extrap
     CHARACTER(LEN=256)                  :: ocean_extrap_dir
     REAL(dp)                            :: ocean_extrap_res
     REAL(dp)                            :: ocean_extrap_Gauss_sigma
@@ -1353,7 +1369,7 @@ MODULE configuration_module
     INTEGER                             :: BMB_PICO_nboxes
     REAL(dp)                            :: BMB_PICO_GammaTstar
 
-    ! Parameters for the LADDIE model 
+    ! Parameters for the LADDIE model
     CHARACTER(LEN=256)                  :: filename_BMB_LADDIE
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
@@ -1990,6 +2006,9 @@ CONTAINS
                      BIVgeo_Bernales2017_hinv_config,                 &
                      BIVgeo_Bernales2017_tol_diff_config,             &
                      BIVgeo_Bernales2017_tol_frac_config,             &
+                     BIVgeo_Pien2023_H0_config,                       &
+                     BIVgeo_Pien2023_tau_config,                      &
+                     BIVgeo_Pien2023_r_config,                        &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2034,6 +2053,9 @@ CONTAINS
                      switch_glacial_index_precip_config,              &
                      choice_ocean_model_config,                       &
                      choice_idealised_ocean_config,                   &
+                     do_ocean_temperature_inversion_config,           &
+                     ocean_temperature_inv_t_start_config,            &
+                     ocean_temperature_inv_t_end_config,              &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2048,6 +2070,7 @@ CONTAINS
                      choice_ocean_vertical_grid_config,               &
                      ocean_vertical_grid_max_depth_config,            &
                      ocean_regular_grid_dz_config,                    &
+                     do_ocean_extrap_config,                          &
                      ocean_extrap_dir_config,                         &
                      ocean_extrap_res_config,                         &
                      ocean_extrap_Gauss_sigma_config,                 &
@@ -2676,7 +2699,7 @@ CONTAINS
     C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
     C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
     C%do_read_velocities_from_restart          = do_read_velocities_from_restart_config
-    
+
     ! Ice dynamics - time integration
     ! ===============================
 
@@ -2775,6 +2798,9 @@ CONTAINS
     C%BIVgeo_Bernales2017_hinv                 = BIVgeo_Bernales2017_hinv_config
     C%BIVgeo_Bernales2017_tol_diff             = BIVgeo_Bernales2017_tol_diff_config
     C%BIVgeo_Bernales2017_tol_frac             = BIVgeo_Bernales2017_tol_frac_config
+    C%BIVgeo_Pien2023_H0                       = BIVgeo_Pien2023_H0_config
+    C%BIVgeo_Pien2023_tau                      = BIVgeo_Pien2023_tau_config
+    C%BIVgeo_Pien2023_r                        = BIVgeo_Pien2023_r_config
 
     ! Ice dynamics - calving
     ! ======================
@@ -2852,6 +2878,9 @@ CONTAINS
 
     C%choice_ocean_model                       = choice_ocean_model_config
     C%choice_idealised_ocean                   = choice_idealised_ocean_config
+    C%do_ocean_temperature_inversion           = do_ocean_temperature_inversion_config
+    C%ocean_temperature_inv_t_start            = ocean_temperature_inv_t_start_config
+    C%ocean_temperature_inv_t_end              = ocean_temperature_inv_t_end_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
@@ -2874,6 +2903,7 @@ CONTAINS
     C%choice_ocean_vertical_grid               = choice_ocean_vertical_grid_config
     C%ocean_vertical_grid_max_depth            = ocean_vertical_grid_max_depth_config
     C%ocean_regular_grid_dz                    = ocean_regular_grid_dz_config
+    C%do_ocean_extrap                          = do_ocean_extrap_config
     C%ocean_extrap_dir                         = ocean_extrap_dir_config
     C%ocean_extrap_res                         = ocean_extrap_res_config
     C%ocean_extrap_Gauss_sigma                 = ocean_extrap_Gauss_sigma_config
