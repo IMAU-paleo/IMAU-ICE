@@ -602,7 +602,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_bed_roughness_from_file_ZoetIverson'
-    CHARACTER(LEN=256)                                 :: filename    
+    CHARACTER(LEN=256)                                 :: filename
     INTEGER                                            :: i,j
     REAL(dp)                                           :: r_smooth
 
@@ -1355,6 +1355,11 @@ CONTAINS
 
       CALL update_bed_roughness_Bernales2017( grid, ice, refgeo_PD)
 
+    ELSEIF (C%choice_BIVgeo_method == 'Pien2023') THEN
+      ! Update the bed roughness according to Pien and friends (2023)
+
+      CALL update_bed_roughness_Pien2023( grid, ice, refgeo_PD, dt)
+
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
     END IF
@@ -1393,6 +1398,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_PDC2012
+
   SUBROUTINE update_bed_roughness_PDC2012_Coulomb( grid, ice, refgeo_PD)
     ! Update the bed roughness according to Pollard & DeConto (2012)
     !
@@ -1493,6 +1499,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_Lipscomb2021
+
   SUBROUTINE update_bed_roughness_Lipscomb2021_Coulomb( grid, ice, refgeo_PD, dt)
     ! Update the bed roughness according to Lipscomb et al. (2021)
     !
@@ -1595,6 +1602,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_CISMplus
+
   SUBROUTINE update_bed_roughness_CISMplus_Coulomb( grid, ice, refgeo_PD, dt)
     ! Update the bed roughness according to the geometry+velocity-based CISM+ approach
     !
@@ -1843,6 +1851,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_Berends2022
+
   SUBROUTINE trace_flowline_upstream( grid, ice, p, dx_trace_rel, T, n)
     ! Trace the flowline passing through point p upstream.
     ! Returns a list T of n points on the flowline spaced dx_trace_rel * grid%dx apart.
@@ -1907,6 +1916,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE trace_flowline_upstream
+
   SUBROUTINE trace_flowline_downstream( grid, ice, p, dx_trace_rel, T, n, refgeo_PD)
     ! Trace the flowline passing through point p downstream.
     ! Returns a list T of n points on the flowline spaced dx_trace_rel * grid%dx apart.
@@ -1976,6 +1986,7 @@ CONTAINS
     END IF
 
   END SUBROUTINE trace_flowline_downstream
+
   SUBROUTINE update_bed_roughness_Bernales2017( grid, ice, refgeo_PD)
     ! Update the bed roughness according to Bernales et al. (2017)
 
@@ -2006,6 +2017,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_bed_roughness_Bernales2017
+
   SUBROUTINE update_bed_roughness_Bernales2017_CoulombZoetIverson( grid, ice, refgeo)
     ! Update the bed roughness according to Bernales et al. (2017)
     !
@@ -2038,7 +2050,7 @@ CONTAINS
     ! Define the ice thickness factor for scaling of inversion
     h_scale = 1.0_dp/C%BIVgeo_Bernales2017_hinv
 
-    DO i = grid%i1, grid%I2
+    DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
       ! Ice thickness difference w.r.t. reference thickness
@@ -2109,6 +2121,112 @@ CONTAINS
 
   END SUBROUTINE update_bed_roughness_Bernales2017_CoulombZoetIverson
 
+  SUBROUTINE update_bed_roughness_Pien2023( grid, ice, refgeo, dt)
+    ! Update bed roughness according to Pien and friends, following
+    ! Lipscomb et al. (2021) and van dem Akker et al. (202X).
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),               INTENT(IN)    :: grid
+    TYPE(type_ice_model),          INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo
+    REAL(dp),                      INTENT(IN)    :: dt
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'update_bed_roughness_Pien2023'
+    INTEGER                                      :: i,j
+    INTEGER, DIMENSION(:,:), POINTER             ::  mask
+    INTEGER                                      :: wmask
+    REAL(dp), DIMENSION(:,:), POINTER            ::  dC_dt
+    INTEGER                                      :: wdC_dt
+    REAL(dp), PARAMETER                          :: sigma = 500._dp
+    REAL(dp)                                     :: h_delta, c_ratio, reg_1st, reg_2nd, reg_3rd
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dC_dt, wdC_dt)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask  )
+
+    ! Loop over all grid points within this process
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Skip non-grounded, non-interior grid points
+      IF (ice%mask_sheet_a(j,i) == 0 .OR. &
+          ice%mask_gl_a(j,i) == 0) THEN
+        ! Mark for extrapolation
+        mask( j,i) = 1
+        ! Go to next grid point
+        CYCLE
+      END IF
+
+      ! == Metrics
+      ! ==========
+
+      ! Ice thickness difference w.r.t. observations (positive if too thick)
+      h_delta = ice%Hi_a(j,i) - refgeo%Hi(j,i)
+
+      ! Ratio between modelled friction and a target relaxation friction
+      c_ratio = ice%phi_fric_a( j,i) !/ ice%phi_fric_relax_a( j,i)
+
+      ! == Regularisation
+      ! =================
+
+      ! First regularisation term
+      reg_1st = h_delta / C%BIVgeo_Pien2023_H0 / C%BIVgeo_Pien2023_tau
+
+      ! Second regularisation term
+      reg_2nd = ice%dHi_dt_a( j,i) * 2._dp / C%BIVgeo_Pien2023_H0
+
+      ! Third regularisation term
+      reg_3rd = LOG(c_ratio) * C%BIVgeo_Pien2023_r / C%BIVgeo_Pien2023_tau
+
+      ! == Adjustment
+      ! =============
+
+      ! Compute adjustment to friction field
+      dC_dt( j,i) = -ice%phi_fric_a( j,i) * (reg_1st + reg_2nd - reg_3rd)
+
+      ! Use this point as seed during extrapolation
+      mask( j,i) = 2
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Extrapolate new values outside the ice sheet
+    CALL extrapolate_updated_bed_roughness( grid, mask, dC_dt)
+
+    ! Apply regularisation
+    CALL smooth_Gaussian_2D( grid, dC_dt, sigma)
+
+    ! Apply adjustment
+    IF (par%master) THEN
+      ice%phi_fric_a = ice%phi_fric_a + dC_dt * dt
+    END IF
+    CALL sync
+
+    ! Limit bed roughness
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%phi_fric_a( j,i) = MAX( ice%phi_fric_a( j,i), 1._dp)
+      ice%phi_fric_a( j,i) = MIN( ice%phi_fric_a( j,i), 30._dp)
+    END DO
+    END DO
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wdC_dt)
+    CALL deallocate_shared( wmask )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_bed_roughness_Pien2023
+
   SUBROUTINE extrapolate_updated_bed_roughness( grid, mask, d)
     ! The different geometry-based basal inversion routine only yield values
     ! beneath grounded ice; extrapolate new values outward to cover the entire domain.
@@ -2151,6 +2269,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_bed_roughness
+
   SUBROUTINE initialise_basal_inversion( grid, ice, region_name)
     ! Fill in the initial guess for the bed roughness
 
@@ -2172,7 +2291,8 @@ CONTAINS
 
     IF     (C%choice_BIVgeo_method == 'PDC2012' .OR. &
             C%choice_BIVgeo_method == 'Lipscomb2021' .OR. &
-            C%choice_BIVgeo_method == 'Bernales2017') THEN
+            C%choice_BIVgeo_method == 'Bernales2017' .OR. &
+            C%choice_BIVgeo_method == 'Pien2023') THEN
       ! Not needed in these methods
     ELSEIF (C%choice_BIVgeo_method == 'CISM+' .OR. &
             C%choice_BIVgeo_method == 'Berends2022') THEN
@@ -2188,6 +2308,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_basal_inversion
+
   SUBROUTINE initialise_basal_inversion_target_velocity( grid, ice, region_name)
     ! Initialise the target velocity fields used in a velocity-based basal inversion routine
 
@@ -2207,7 +2328,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     CALL warning('Reading basal inversion target velocity field has not been thoroughly tested. Please check if the data is read correctly.')
-    
+
     ! Determine filename
     IF     (C%choice_BIVgeo_method == 'CISM+' .OR. &
             C%choice_BIVgeo_method == 'Berends2022') THEN
@@ -2226,9 +2347,9 @@ CONTAINS
     !       has a lot of missing data points, indicated by NaN values. This is acceptable, the basal inversion
     !       routine can handle that.
 
-!    CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf')
-!    CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf')
-    
+    ! CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf')
+    ! CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf')
+
     CALL allocate_shared_dp_2D( BIV_target%grid%ny, BIV_target%grid%nx, BIV_target%uabs_surf, BIV_target%wuabs_surf)
 
     ! Get absolute velocity
@@ -2245,7 +2366,7 @@ CONTAINS
 
     ! Map (transposed) raw data to the model grid
     CALL map_square_to_square_cons_2nd_order_2D( BIV_target%grid%nx, BIV_target%grid%ny, BIV_target%grid%x, BIV_target%grid%y, grid%nx, grid%ny, grid%x, grid%y, BIV_target%uabs_surf, ice%BIV_uabs_surf_target)
-    
+
 
     ! Deallocate raw data
     CALL deallocate_grid(   BIV_target%grid      )
@@ -2257,6 +2378,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_basal_inversion_target_velocity
+
   SUBROUTINE write_inverted_bed_roughness_to_file( grid, ice)
     ! Create a new NetCDF file and write the inverted bed roughness to it
 
