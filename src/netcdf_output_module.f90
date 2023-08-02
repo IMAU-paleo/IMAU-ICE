@@ -1329,9 +1329,15 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_BIV_bed_roughness_file'
     CHARACTER(LEN=256)                                 :: filename
     LOGICAL                                            :: file_exists
+    INTEGER                                            :: id_var
+    REAL(dp), DIMENSION(:,:), POINTER                  ::  d_grid
+    INTEGER                                            :: wd_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
 
     ! Create a new file and, to prevent loss of data,
     ! stop with an error message if one already exists (not when differences are considered):
@@ -1341,53 +1347,78 @@ CONTAINS
       CALL crash('file "' // TRIM( filename) // '" already exists!')
     END IF
 
-    ! Create netcdf file
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Writing inverted bed roughness to file "', TRIM( filename), '"...'
 
-    ! Define variables:
-    ! The order of the CALL statements for the different variables determines their
-    ! order of appearence in the netcdf file.
+    ! Create a new NetCDF file
+    CALL create_new_netcdf_file_for_writing( filename)
 
-    ! Bed roughness: Add fields
-    IF     (C%choice_sliding_law == 'no_sliding') THEN
-      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
-    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq', long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')
-    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees' )
-    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units='unitless')
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq' , long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')
-    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units='unitless')
-      CALL add_field_grid_dp_2D_notime( filename, 'beta_sq' , long_name = 'Power-law friction coefficient', units = '[Pa m^−1/3 yr^1/3]')
-    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees' )
-    ELSE
-      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END IF
+    ! Set up the grids in this file
+    CALL setup_xy_grid_in_netcdf_file( filename, grid)
 
-    ! Bed roughness: Write data to the Netcdf file
-    IF     (C%choice_sliding_law == 'no_sliding') THEN
-      CALL crash('not defined for choice_sliding_law = "no_sliding"!')
-    ELSEIF (C%choice_sliding_law == 'Weertman') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq', ice%beta_sq_a)
-    ELSEIF (C%choice_sliding_law == 'Coulomb' .OR. &
-            C%choice_sliding_law == 'Coulomb_regularised') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'phi_fric', ice%phi_fric_a)
-    ELSEIF (C%choice_sliding_law == 'Tsai2015') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'alpha_sq', ice%alpha_sq_a)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq' , ice%beta_sq_a)
-    ELSEIF (C%choice_sliding_law == 'Schoof2005') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'alpha_sq', ice%alpha_sq_a)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'beta_sq' , ice%beta_sq_a)
-    ELSEIF (C%choice_sliding_law == 'Zoet-Iverson') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, grid, 'phi_fric', ice%phi_fric_a)
-    ELSE
-      CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
-    END IF
+    ! Do it
+    SELECT CASE(C%choice_sliding_law)
+
+      CASE ('no_sliding')
+        CALL crash('not defined for choice_sliding_law = "no_sliding"!')
+
+      CASE ('Weertman')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%beta_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'beta_sq',  long_name = 'Power-law friction coefficient',   units = '[Pa m^−1/3 yr^1/3]')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'beta_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE ('Coulomb','Coulomb_regularised','Zoet-Iverson')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%phi_fric_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'phi_fric', long_name = 'Till friction angle', units = 'degrees')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'phi_fric', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE ('Tsai2015','Schoof2005')
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%alpha_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'alpha_sq', long_name = 'Coulomb-law friction coefficient', units = '-')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'alpha_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+        ! Copy data
+        d_grid( :, grid%i1:grid%i2) = ice%beta_sq_a( :,grid%i1:grid%i2)
+        CALL sync
+        ! Transpose the output data
+        CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+        ! Add field to output file
+        CALL add_field_grid_dp_2D_notime( filename, 'beta_sq',  long_name = 'Power-law friction coefficient',   units = '[Pa m^−1/3 yr^1/3]')
+        ! Write field to output file
+        CALL inquire_var_multiple_options( filename, 'beta_sq', id_var)
+        CALL write_var_dp_2D( filename, id_var, d_grid)
+
+      CASE DEFAULT
+        CALL crash('unknown choice_sliding_law "' // TRIM( C%choice_sliding_law) // '"!')
+
+    END SELECT
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1468,7 +1499,7 @@ CONTAINS
     INTEGER, DIMENSION(:,:    ),   INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_int_2D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
     INTEGER, DIMENSION(:,:,:), POINTER           ::  d_grid_with_time
@@ -1828,9 +1859,14 @@ CONTAINS
     INTEGER                                            :: id_var_y
     INTEGER                                            :: id_var_lon
     INTEGER                                            :: id_var_lat
+    REAL(dp), DIMENSION(:,:), POINTER                  ::  d_grid
+    INTEGER                                            :: wd_grid
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
 
     ! Create x/y dimensions
     CALL create_dimension( filename, get_first_option_from_list( field_name_options_x), grid%nx, id_dim_x)
@@ -1854,12 +1890,21 @@ CONTAINS
     ! lon
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lon), long_name = 'Longitude', units = 'degrees east')
     CALL inquire_var_multiple_options( filename, field_name_options_lon, id_var_lon)
-    CALL write_var_dp_2D( filename, id_var_lon, grid%lon)
+    d_grid( :, grid%i1:grid%i2) = grid%lon( :,grid%i1:grid%i2)
+    CALL sync
+    CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
+    CALL write_var_dp_2D( filename, id_var_lon, d_grid)
 
     ! lat
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lat), long_name = 'Latitude', units = 'degrees north')
     CALL inquire_var_multiple_options( filename, field_name_options_lat, id_var_lat)
+    d_grid( :, grid%i1:grid%i2) = grid%lat( :,grid%i1:grid%i2)
+    CALL sync
+    CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
     CALL write_var_dp_2D( filename, id_var_lat, grid%lat)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
