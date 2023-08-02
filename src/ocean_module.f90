@@ -821,9 +821,9 @@ CONTAINS
             ! Calculate by how much we want to change the ocean temperature at this depth
             delta_T_ocean = -1._dp * (delta_Hi / dHi_dT_scale + dHi_dt / dHidt_dT_scale)
 
-!            ! If the difference/fraction is outside the specified tolerance
-!            IF (ABS( delta_Hi    ) >= C%BIVgeo_Bernales2017_tol_diff .OR. &
-!                ABS( delta_Hi_rel) >= C%BIVgeo_Bernales2017_tol_frac) THEN
+            ! ! If the difference/fraction is outside the specified tolerance
+            ! IF (ABS( delta_Hi    ) >= C%BIVgeo_Bernales2017_tol_diff .OR. &
+            !     ABS( delta_Hi_rel) >= C%BIVgeo_Bernales2017_tol_frac) THEN
 
               ! Further adjust only where the previous value is not improving the result
               IF ( delta_Hi * dHi_dt >= 0._dp ) THEN
@@ -835,7 +835,7 @@ CONTAINS
 
               END IF
 
-!            END IF
+            ! END IF
 
           END IF ! IF (ice%basin_ID( j,i) == bi .AND. ice%mask_shelf_a( j,i) == 1) THEN
 
@@ -1415,8 +1415,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! Initialise the high-resolution extrapolated ocean data
-  ! ======================================================
+    ! Initialise the high-resolution extrapolated ocean data
+    ! ======================================================
 
     ! If a valid preprocessed file exists, read data from there. If not, perform
     ! the preprocessing and save the result to a file to save on future work
@@ -1439,8 +1439,8 @@ CONTAINS
       CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
     ENDIF
 
-  ! ===== Map extrapolated data from the high-resolution grid to the actual ice-model grid =====
-  ! ============================================================================================
+    ! ===== Map extrapolated data from the high-resolution grid to the actual ice-model grid =====
+    ! ============================================================================================
 
     IF (par%master) WRITE(0,*) '   Mapping high-resolution extrapolated ocean data to the ice-model grid...'
     CALL map_square_to_square_cons_2nd_order_3D( hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%T_ocean, ocean_reg%T_ocean_ext)
@@ -1520,8 +1520,8 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-  ! ===== Read the high-resolution geometry data and generate the hi-res grid based on that=====
-  ! ============================================================================================
+    ! ===== Read the high-resolution geometry data and generate the hi-res grid based on that=====
+    ! ============================================================================================
 
     ! Determine which file to use for this region
     IF     (region%name == 'NAM') THEN
@@ -1543,8 +1543,8 @@ CONTAINS
     CALL deallocate_grid(hires%grid)
     CALL read_field_from_xy_file_2D( hires%filename, 'Hi', region%name, hires%grid, hires%Hi, hires%wHi)
 
-  ! ===== Map ocean data from the global lon/lat-grid to the high-resolution regional x/y-grid =====
-  ! ================================================================================================
+    ! ===== Map ocean data from the global lon/lat-grid to the high-resolution regional x/y-grid =====
+    ! ================================================================================================
 
     IF (par%master) WRITE(0,'(A,F4.1,A)') '     Mapping ocean data from the global lat/lon-grid to the ', hires%grid%dx / 1000._dp, ' km regional x/y-grid...'
 
@@ -1560,8 +1560,8 @@ CONTAINS
     CALL permute_3D_dp( hires%T_ocean, hires%wT_ocean, map = [1,3,2])
     CALL permute_3D_dp( hires%S_ocean, hires%wS_ocean, map = [1,3,2])
 
-  ! ===== Perform the extrapolation on the high-resolution grid =====
-  ! =================================================================
+    ! ===== Perform the extrapolation on the high-resolution grid =====
+    ! =================================================================
 
     IF (par%master) WRITE(0,'(A,F4.1,A)') '     Defining ice basins on the ', hires%grid%dx / 1000._dp, ' km regional x/y-grid...'
 
@@ -1769,9 +1769,9 @@ CONTAINS
     END DO
     CALL sync
 
-  ! ================================================================
-  ! ===== Step 1: horizontal extrapolation into shelf cavities =====
-  ! ================================================================
+    ! ================================================================
+    ! ===== Step 1: horizontal extrapolation into shelf cavities =====
+    ! ================================================================
 
     IF (par%master .AND. verbose) WRITE(0,*) '    extend_regional_ocean_data_to_cover_domain - step 1'
 
@@ -1843,9 +1843,9 @@ CONTAINS
     DEALLOCATE( d_T        )
     DEALLOCATE( d_S        )
 
-  ! ===========================================================================
-  ! ===== Step 2: vertical extrapolation into sill-blocked shelf cavities =====
-  ! ===========================================================================
+    ! ===========================================================================
+    ! ===== Step 2: vertical extrapolation into sill-blocked shelf cavities =====
+    ! ===========================================================================
 
     IF (par%master .AND. verbose) WRITE(0,*) '    extend_regional_ocean_data_to_cover_domain - step 2'
 
@@ -1878,9 +1878,9 @@ CONTAINS
     END DO
     CALL sync
 
-  ! ===============================================================
-  ! ===== Step 3: vertical extrapolation into ice and bedrock =====
-  ! ===============================================================
+    ! ===============================================================
+    ! ===== Step 3: vertical extrapolation into ice and bedrock =====
+    ! ===============================================================
 
     IF (par%master .AND. verbose) WRITE(0,*) '    extend_regional_ocean_data_to_cover_domain - step 3'
 
@@ -1924,9 +1924,9 @@ CONTAINS
     END DO
     CALL sync
 
-  ! =================================================================
-  ! ===== Step 4: horizontal extrapolation into ice and bedrock =====
-  ! =================================================================
+    ! =================================================================
+    ! ===== Step 4: horizontal extrapolation into ice and bedrock =====
+    ! =================================================================
 
     IF (par%master .AND. verbose) WRITE(0,*) '    extend_regional_ocean_data_to_cover_domain - step 4'
 
@@ -2474,52 +2474,125 @@ CONTAINS
 
   END SUBROUTINE initialise_ocean_vertical_grid_regular
 
-! == Invert for dT_ocean to achieve correct shelf geometry
-! ===================================================
+! == Ocean (delta) temperature inversion
+! ======================================
 
   SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, time)
-    ! Invert basal ocean temps using the reference topography
+    ! Invert delta ocean temps using the reference topography
 
     IMPLICIT NONE
 
     ! In/output variables
-    TYPE(type_grid),                      INTENT(IN)    :: grid
-    TYPE(type_ice_model),                 INTENT(IN)    :: ice
-    TYPE(type_ocean_snapshot_regional),   INTENT(INOUT) :: ocean
-    TYPE(type_reference_geometry),        INTENT(IN)    :: refgeo
-    REAL(dp),                             INTENT(IN)    :: time
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_ice_model),               INTENT(IN)    :: ice
+    TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
+    TYPE(type_reference_geometry),      INTENT(IN)    :: refgeo
+    REAL(dp),                           INTENT(IN)    :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'ocean_temperature_inversion'
-    INTEGER                                      :: i,j
-    REAL(dp)                                     :: h_delta
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'ocean_temperature_inversion'
+    INTEGER                                           :: i,j
+    INTEGER,  DIMENSION(:,:), POINTER                 ::  mask
+    INTEGER                                           :: wmask
+    REAL(dp)                                          :: h_delta
+    REAL(dp), PARAMETER                               :: sigma = 500._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
+
+    ! Loop over all grid points within this process
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ! Invert only over non-calving-front shelf vertices
-      IF ( ice%mask_shelf_a( j,i) == 1 .AND. &
-           ice%mask_cf_a(    j,i) == 0) THEN
 
-        ! Compute the misfit of the modelled ice thickness compared to the observed ice thickness
-        h_delta = ice%Hi_a( j,i) - refgeo%Hi( j,i) ! Positive when modelled ice thickness is too thick
-
-        IF ( h_delta >0) THEN
-          ocean%dT_ocean( j,i) = .5_dp
-        ELSEIF ( h_delta <0) THEN
-          ocean%dT_ocean( j,i) = -.5_dp
-        END IF
-
+      ! Skip calving-front and non-shelf grid points
+      IF ( ice%mask_shelf_a( j,i) == 0 .OR. &
+           ice%mask_cf_a(    j,i) == 1) THEN
+        ! Mark for extrapolation
+        mask( j,i) = 1
+        ! Go to next grid point
+        CYCLE
       END IF
-    END DO
-    END DO
 
+      ! Ice thickness difference w.r.t. observations (positive if too thick)
+      h_delta = ice%Hi_a( j,i) - refgeo%Hi( j,i)
+
+      ! Adjust dT_ocean based on misfit
+      IF ( h_delta > 0._dp) THEN
+        ! Too thick: increase ocean temperature
+        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) + .01_dp
+      ELSEIF ( h_delta < 0._dp) THEN
+        ! Too thin: decrease ocean temperature
+        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) - .01_dp
+      END IF
+
+      ! Limit dT_ocean so it does not go to infinity
+      ocean%dT_ocean( j,i) = MAX( ocean%dT_ocean( j,i), -3._dp)
+      ocean%dT_ocean( j,i) = MIN( ocean%dT_ocean( j,i), +3._dp)
+
+      ! Use this point as seed during extrapolation
+      mask( j,i) = 2
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Extrapolate inverted field beyond ice shelves
+    CALL extrapolate_updated_ocean_temperature( grid, mask, ocean%dT_ocean)
+
+    ! Apply regularisation
+    CALL smooth_Gaussian_2D( grid, ocean%dT_ocean, sigma)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wmask)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE ocean_temperature_inversion
+
+  SUBROUTINE extrapolate_updated_ocean_temperature( grid, mask, dT_ocean)
+    ! The geometry-based ocean temperature inversion routine only yields values
+    ! beneath floating ice; extrapolate new values to cover the entire domain.
+    !
+    ! Note about the mask:
+    !    2 = data provided
+    !    1 = no data provided, fill allowed
+    !    0 = no fill allowed
+    ! (so basically this routine extrapolates data from the area
+    !  where mask == 2 into the area where mask == 1)
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),          INTENT(IN)    :: grid
+    INTEGER,  DIMENSION(:,:), INTENT(IN)    :: mask
+    REAL(dp), DIMENSION(:,:), INTENT(INOUT) :: dT_ocean
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER           :: routine_name = 'extrapolate_updated_ocean_temperature'
+    INTEGER, DIMENSION(:,:), POINTER        ::  mask_filled
+    INTEGER                                 :: wmask_filled
+    REAL(dp), PARAMETER                     :: sigma = 40000._dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask_filled, wmask_filled)
+
+    ! Perform the extrapolation
+    IF (par%master) CALL extrapolate_Gaussian_floodfill( grid, mask, dT_ocean, sigma, mask_filled)
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wmask_filled)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extrapolate_updated_ocean_temperature
 
 END MODULE ocean_module
