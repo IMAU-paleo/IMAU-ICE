@@ -16,7 +16,7 @@
   dt_BMB_config                               = 1.0                              ! Time step (in years) for updating the BMB
   dt_bedrock_ELRA_config                      = 100.0                            ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   dt_SELEN_config                             = 1000.0                           ! Time step (in years) for calling SELEN
-  dt_output_config                            = 10.0                             ! Time step (in years) for writing output
+  dt_output_config                            = 5.0                              ! Time step (in years) for writing output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -200,7 +200,7 @@
   ! Partially fixed geometry, useful for initialisation and inversion runs
   fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
   fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
-  fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+  fixed_grounding_line_config                 = .TRUE.                           ! Keep ice thickness at the grounding line fixed
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -223,9 +223,9 @@
   Martin2011_hydro_Hb_max_config              = 4000.0                           ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
   ! Basal roughness / friction
-  choice_basal_roughness_config               = 'parameterised'                  ! "uniform"", parameterised", "prescribed"
+  choice_basal_roughness_config               = 'uniform'                        ! "uniform"", parameterised", "prescribed"
   uniform_Weertman_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Weertman sliding law
-  uniform_Coulomb_phi_fric_config             = 15.0                             ! Uniform value for phi_fric in (regularised) Coulomb sliding law
+  uniform_Coulomb_phi_fric_config             = 30.0                             ! Uniform value for phi_fric in (regularised) Coulomb sliding law
   uniform_Tsai2015_alpha_sq_config            = 0.5                              ! Uniform value for alpha_sq in Tsai2015 sliding law
   uniform_Tsai2015_beta_sq_config             = 1.0E4                            ! Uniform value for beta_sq  in Tsai2015 sliding law
   uniform_Schoof2005_alpha_sq_config          = 0.5                              ! Uniform value for alpha_sq in Schoof2005 sliding law
@@ -240,10 +240,10 @@
   r_smooth_phi_restart_config                 = 0.5                              ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
   ! Basal inversion
-  do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
+  do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
   BIVgeo_t_start_config                       = -9.9E9                           ! Minimum model time when the inversion is allowed
   BIVgeo_t_end_config                         = +9.9E9                           ! Maximum model time when the inversion is allowed
-  choice_BIVgeo_method_config                 = 'Berends2022'                    ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
+  choice_BIVgeo_method_config                 = 'Pien2023'                       ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
   BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
   BIVgeo_Lipscomb2021_tauc_config             = 500.0                            ! Timescale       in the Lipscomb2021 geometry-based basal inversion method [yr]
@@ -264,7 +264,10 @@
   BIVgeo_filename_output_config               = 'bed_roughness_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
   BIVgeo_Bernales2017_hinv_config             = 100.0                            ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   BIVgeo_Bernales2017_tol_diff_config         = 100.0                            ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
-  BIVgeo_Bernales2017_tol_frac_config         = 1.0                              ! Minimum ratio between ice thickness difference and reference value that triggers inversion
+  BIVgeo_Bernales2017_tol_frac_config         = 100000.0                         ! Minimum ratio between ice thickness difference and reference value that triggers inversion
+  BIVgeo_Pien2023_H0_config                   = 100000.0                         ! Ice thickness scale for regularisation in Pien`s friction inversion method
+  BIVgeo_Pien2023_tau_config                  = 1.0                              ! Time scale for regularisation in Pien`s friction inversion method
+  BIVgeo_Pien2023_r_config                    = 0.0                              ! Relaxation scale for regularisation in Pien`s friction inversion method
 
   ! Ice dynamics - calving
   ! ======================
@@ -324,6 +327,11 @@
   ocean_extrap_hires_geo_filename_EAS_config  = ''
   ocean_extrap_hires_geo_filename_GRL_config  = ''
   ocean_extrap_hires_geo_filename_ANT_config  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
+
+  ! Delta ocean temperature inversion
+  do_ocean_temperature_inversion_config       = .TRUE.                           ! Whether or not to apply the inversion
+  ocean_temperature_inv_t_start_config        = -9.9E9                           ! Minimum model time when the inversion is allowed
+  ocean_temperature_inv_t_end_config          = +9.9E9                           ! Maximum model time when the inversion is allowed
 
   ! Surface mass balance
   ! ====================
@@ -451,7 +459,7 @@
   help_field_05_config                        = 'uabs_surf'
   help_field_06_config                        = 'BMB'
   help_field_07_config                        = 'T_ocean_base'
-  help_field_08_config                        = 'none'
+  help_field_08_config                        = 'phi_fric'
   help_field_09_config                        = 'none'
   help_field_10_config                        = 'none'
   help_field_11_config                        = 'none'
