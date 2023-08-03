@@ -2138,17 +2138,18 @@ CONTAINS
     INTEGER                                      :: i,j
     INTEGER, DIMENSION(:,:), POINTER             ::  mask
     INTEGER                                      :: wmask
-    REAL(dp), DIMENSION(:,:), POINTER            ::  dC_dt
-    INTEGER                                      :: wdC_dt
+    REAL(dp), DIMENSION(:,:), POINTER            ::  dC_dt,  phi_fric_relax
+    INTEGER                                      :: wdC_dt, wphi_fric_relax
     REAL(dp), PARAMETER                          :: sigma = 500._dp
-    REAL(dp)                                     :: h_delta, c_ratio, reg_1st, reg_2nd, reg_3rd
+    REAL(dp)                                     :: h_delta, w_Hb, c_ratio, reg_1st, reg_2nd, reg_3rd
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dC_dt, wdC_dt)
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask  )
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, phi_fric_relax, wphi_fric_relax)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
 
     ! Loop over all grid points within this process
     DO i = grid%i1, grid%i2
@@ -2163,14 +2164,24 @@ CONTAINS
         CYCLE
       END IF
 
-      ! == Metrics
-      ! ==========
+      ! == Misfit
+      ! =========
 
       ! Ice thickness difference w.r.t. observations (positive if too thick)
       h_delta = ice%Hi_a(j,i) - refgeo%Hi(j,i)
 
+      ! == Relaxation field
+      ! ===================
+
+      ! Bedrock elevation weight
+      w_Hb = (ice%Hb_a( j,i) - C%BIVgeo_Pien2023_lowerHb) / (C%BIVgeo_Pien2023_lowerHb - C%BIVgeo_Pien2023_upperHb)
+      ! Limit weight to [0,1]
+      w_Hb = MIN( 1._dp, MAX( 0._dp, w_Hb))
+      ! Compute target relaxation friction based on bedrock elevation
+      phi_fric_relax( j,i) = (1._dp - w_Hb) * C%BIVgeo_Pien2023_min + w_Hb * C%BIVgeo_Pien2023_max
+
       ! Ratio between modelled friction and a target relaxation friction
-      c_ratio = ice%phi_fric_a( j,i) !/ ice%phi_fric_relax_a( j,i)
+      c_ratio = ice%phi_fric_a( j,i) / phi_fric_relax( j,i)
 
       ! == Regularisation
       ! =================
@@ -2212,15 +2223,16 @@ CONTAINS
     ! Limit bed roughness
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%phi_fric_a( j,i) = MAX( ice%phi_fric_a( j,i), 1E-6_dp)
-      ice%phi_fric_a( j,i) = MIN( ice%phi_fric_a( j,i), 45._dp)
+      ice%phi_fric_a( j,i) = MAX( ice%phi_fric_a( j,i), C%BIVgeo_Pien2023_min)
+      ice%phi_fric_a( j,i) = MIN( ice%phi_fric_a( j,i), C%BIVgeo_Pien2023_max)
     END DO
     END DO
     CALL sync
 
     ! Clean up after yourself
     CALL deallocate_shared( wdC_dt)
-    CALL deallocate_shared( wmask )
+    CALL deallocate_shared( wphi_fric_relax)
+    CALL deallocate_shared( wmask)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

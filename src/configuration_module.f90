@@ -399,9 +399,13 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_Bernales2017_hinv_config             = 100._dp                          ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Bernales2017_tol_diff_config         = 100._dp                          ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
   REAL(dp)            :: BIVgeo_Bernales2017_tol_frac_config         = 1.0_dp                           ! Minimum ratio between ice thickness difference and reference value that triggers inversion
-  REAL(dp)            :: BIVgeo_Pien2023_H0_config                   = 1.0_dp                           ! Ice thickness scale for regularisation in Pien's friction inversion method
-  REAL(dp)            :: BIVgeo_Pien2023_tau_config                  = 1.0_dp                           ! Time scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_H0_config                   = 200.0_dp                         ! Ice thickness scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_tau_config                  = 200.0_dp                         ! Time scale for regularisation in Pien's friction inversion method
   REAL(dp)            :: BIVgeo_Pien2023_r_config                    = 0.0_dp                           ! Relaxation scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_lowerHb_config              = -1000.0_dp                       ! Lower bedrock limit for target relaxation friction in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_upperHb_config              = +1000.0_dp                       ! Upper bedrock limit for target relaxation friction in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_min_config                  = 0.1_dp                           ! Lower till friction angle limit in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_max_config                  = 30.0_dp                          ! Upper till friction angle limit in Pien's friction inversion method
 
   ! Ice dynamics - calving
   ! ======================
@@ -1151,6 +1155,10 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_Pien2023_H0
     REAL(dp)                            :: BIVgeo_Pien2023_tau
     REAL(dp)                            :: BIVgeo_Pien2023_r
+    REAL(dp)                            :: BIVgeo_Pien2023_lowerHb
+    REAL(dp)                            :: BIVgeo_Pien2023_upperHb
+    REAL(dp)                            :: BIVgeo_Pien2023_min
+    REAL(dp)                            :: BIVgeo_Pien2023_max
 
     ! Ice dynamics - calving
     ! ======================
@@ -2009,6 +2017,10 @@ CONTAINS
                      BIVgeo_Pien2023_H0_config,                       &
                      BIVgeo_Pien2023_tau_config,                      &
                      BIVgeo_Pien2023_r_config,                        &
+                     BIVgeo_Pien2023_lowerHb_config,                  &
+                     BIVgeo_Pien2023_upperHb_config,                  &
+                     BIVgeo_Pien2023_min_config,                      &
+                     BIVgeo_Pien2023_max_config,                      &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2801,6 +2813,10 @@ CONTAINS
     C%BIVgeo_Pien2023_H0                       = BIVgeo_Pien2023_H0_config
     C%BIVgeo_Pien2023_tau                      = BIVgeo_Pien2023_tau_config
     C%BIVgeo_Pien2023_r                        = BIVgeo_Pien2023_r_config
+    C%BIVgeo_Pien2023_lowerHb                  = BIVgeo_Pien2023_lowerHb_config
+    C%BIVgeo_Pien2023_upperHb                  = BIVgeo_Pien2023_upperHb_config
+    C%BIVgeo_Pien2023_min                      = BIVgeo_Pien2023_min_config
+    C%BIVgeo_Pien2023_max                      = BIVgeo_Pien2023_max_config
 
     ! Ice dynamics - calving
     ! ======================
