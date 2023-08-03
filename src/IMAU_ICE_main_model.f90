@@ -194,8 +194,10 @@ CONTAINS
     ! ==============================
 
       IF (C%do_ocean_temperature_inversion .AND. region%do_BMB) THEN
-        ! Adjust ocean temperatures
-        CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%time)
+        IF (region%time > C%ocean_temperature_inv_t_start .AND. region%time < C%ocean_temperature_inv_t_end) THEN
+          ! Adjust ocean temperatures
+          CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%time)
+        END IF
       END IF
 
     ! Time step and output

@@ -784,6 +784,8 @@ CONTAINS
       CALL add_field_grid_dp_3D( filename, 'T_ocean_3D', long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL add_field_grid_dp_3D( filename, 'S_ocean_3D', long_name='3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'dT_ocean') THEN
+      CALL add_field_grid_dp_2D( filename, 'dT_ocean', long_name='Perturbation to ocean temperatures for inversion', units='K')
     ELSEIF (field_name == 'PICO_boxes') THEN
       CALL add_field_grid_int_2D( filename, 'PICO_boxes', long_name='PICO ocean boxes')
 
@@ -1223,6 +1225,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'T_ocean_3D', region%ocean_matrix%applied%T_ocean_corr_ext)
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'S_ocean_3D', region%ocean_matrix%applied%S_ocean_corr_ext)
+    ELSEIF (field_name == 'dT_ocean') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dT_ocean', region%ocean_matrix%applied%dT_ocean)
     ELSEIF (field_name == 'PICO_boxes') THEN
       CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'PICO_boxes', region%BMB%PICO_k)
 
