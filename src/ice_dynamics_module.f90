@@ -33,7 +33,9 @@ MODULE ice_dynamics_module
 
 CONTAINS
 
-! == The main ice dynamics routine
+! ===== Run ice dynamics =====
+! ============================
+
   SUBROUTINE run_ice_model( region, t_end)
     ! Calculate ice velocities and the resulting change in ice geometry
 
@@ -61,6 +63,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ice_model
+
   SUBROUTINE run_ice_dynamics_direct( region, t_end)
     ! Ice dynamics and time-stepping with the "direct" method (as was the default up to IMAU-ICE v1.1.1)
     ! NOTE: this does not work for DIVA ice dynamics!
@@ -243,6 +246,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ice_dynamics_direct
+
   SUBROUTINE run_ice_dynamics_pc( region, t_end)
     ! Ice dynamics and time-stepping with the predictor/correct method
     ! (adopted from Yelmo, originally based on Cheng et al., 2017)
@@ -436,7 +440,9 @@ CONTAINS
 
   END SUBROUTINE run_ice_dynamics_pc
 
-! == Update the ice thickness at the end of a model time loop
+! ===== Ice thickness update =====
+! ================================
+
   SUBROUTINE update_ice_thickness( grid, ice, mask_noice, refgeo_PD, refgeo_GIAeq, time)
     ! Update the ice thickness at the end of a model time loop
 
@@ -462,103 +468,7 @@ CONTAINS
     ice%mask_ice_a_prev( :,grid%i1:grid%i2) = ice%mask_ice_a( :,grid%i1:grid%i2)
     CALL sync
 
-    ! If so specified, keep shelf geometry fixed
-    IF (C%fixed_shelf_geometry) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-
-        is_shelf_or_GL = .FALSE.
-
-        IF (ice%mask_shelf_a( j,i) == 1) THEN
-          is_shelf_or_GL = .TRUE.
-        ELSEIF (ice%mask_sheet_a( j,i) == 1) THEN
-          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
-              is_shelf_or_GL = .TRUE.
-              EXIT
-            END IF
-          END DO
-          IF (is_shelf_or_GL) EXIT
-          END DO
-        END IF
-
-        IF (is_shelf_or_GL) THEN
-          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
-        END IF
-
-      END DO
-      END DO
-      CALL sync
-    END IF
-
-    ! If so specified, keep sheet geometry fixed
-    IF (C%fixed_sheet_geometry) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-
-        is_sheet_or_GL = .FALSE.
-
-        IF (ice%mask_sheet_a( j,i) == 1) THEN
-          is_sheet_or_GL = .TRUE.
-        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
-          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-              is_sheet_or_GL = .TRUE.
-              EXIT
-            END IF
-          END DO
-          IF (is_sheet_or_GL) EXIT
-          END DO
-        END IF
-
-        IF (is_sheet_or_GL) THEN
-          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
-        END IF
-
-      END DO
-      END DO
-      CALL sync
-    END IF
-
-    ! If so specified, keep GL position fixed
-    IF (C%fixed_grounding_line) THEN
-      DO i = grid%i1, grid%i2
-      DO j = 1, grid%ny
-
-        is_GL = .FALSE.
-
-        IF (ice%mask_sheet_a( j,i) == 1) THEN
-          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-            IF (ice%mask_shelf_a( jj,ii) == 1) THEN
-              is_GL = .TRUE.
-              EXIT
-            END IF
-          END DO
-          IF (is_GL) EXIT
-          END DO
-        ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
-          DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-          DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-            IF (ice%mask_sheet_a( jj,ii) == 1) THEN
-              is_GL = .TRUE.
-              EXIT
-            END IF
-          END DO
-          IF (is_GL) EXIT
-          END DO
-        END IF
-
-        IF (is_GL) THEN
-          ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)
-        END IF
-
-      END DO
-      END DO
-      CALL sync
-    END IF
+    CALL alter_ice_thickness( grid, ice, refgeo_PD, time)
 
     ! Set ice thickness to new value
     ice%Hi_a( :,grid%i1:grid%i2) = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2))
@@ -656,7 +566,117 @@ CONTAINS
 
   END SUBROUTINE update_ice_thickness
 
-! == Time stepping
+  SUBROUTINE alter_ice_thickness( grid, ice, refgeo_PD, time)
+    ! Check if we want to keep the ice thickness fixed in time for specific areas,
+    ! or delay its evolution by a given percentage each time step, both options
+    ! including the possibility to reduce this constraint over time.
+
+    IMPLICIT NONE
+
+    ! In- and output variables:
+    TYPE(type_grid),               INTENT(IN)    :: grid
+    TYPE(type_ice_model),          INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry), INTENT(IN)    :: refgeo_PD
+    REAL(dp),                      INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'alter_ice_thickness'
+    INTEGER                                      :: i,j
+    REAL(dp)                                     :: decay_start, decay_end, fixiness
+
+    ! === Initialisation ===
+    ! ======================
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! === Fixiness ===
+    ! ================
+
+    ! Intial value
+    fixiness = 1._dp
+
+    ! Make sure that the start and end times make sense
+    decay_start = C%fixed_decay_t_start
+    decay_end   = C%fixed_decay_t_end
+
+    ! Compute decaying fixiness
+    IF (decay_start >= decay_end) THEN
+      ! This makes no sense
+      fixiness = 0._dp
+    ELSEIF (time <= decay_start) THEN
+      ! Apply full fix/delay
+      fixiness = 1._dp
+    ELSEIF (time >= decay_end) THEN
+      ! Remove any fix/delay
+      fixiness = 0._dp
+    ELSE
+      ! Fixiness decreases with time
+      fixiness = 1._dp - (time - decay_start) / (decay_end - decay_start)
+    END IF
+
+    ! Just in case
+    fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
+
+    ! === Fix, delay, limit ====
+    ! ==========================
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Grounding line (grounded side)
+      ! ==============================
+
+      IF (ice%mask_gl_a( j,i) == 1) THEN
+
+        ! Compute new ice thickness
+        ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)         *          C%fixed_grounding_line_g * fixiness + &
+                                 ice%Hi_tplusdt_a( j,i) * (1._dp - C%fixed_grounding_line_g * fixiness)
+
+      ! Grounding line (floating side)
+      ! ==============================
+
+      ELSEIF (ice%mask_glf_a( j,i) == 1) THEN
+
+        ! Compute new ice thickness
+        ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)         *          C%fixed_grounding_line_f * fixiness + &
+                                 ice%Hi_tplusdt_a( j,i) * (1._dp - C%fixed_grounding_line_f * fixiness)
+
+      ! Grounded ice
+      ! ============
+
+      ELSEIF (ice%mask_sheet_a( j,i) == 1) THEN
+
+        ! Compute new ice thickness
+        ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)         *          C%fixed_sheet_geometry * fixiness + &
+                                 ice%Hi_tplusdt_a( j,i) * (1._dp - C%fixed_sheet_geometry * fixiness)
+
+      ! Floating ice
+      ! ============
+
+      ELSEIF (ice%mask_shelf_a( j,i) == 1) THEN
+
+        ! Compute new ice thickness
+        ice%Hi_tplusdt_a( j,i) = ice%Hi_a( j,i)         *          C%fixed_shelf_geometry * fixiness + &
+                                 ice%Hi_tplusdt_a( j,i) * (1._dp - C%fixed_shelf_geometry * fixiness)
+
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! === Finalisation ===
+    ! ====================
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE alter_ice_thickness
+
+! ===== Time stepping =====
+! =========================
+
   SUBROUTINE calc_critical_timestep_SIA( grid, ice, dt_crit_SIA)
     ! Calculate the critical time step for advective ice flow (CFL criterion)
 
@@ -734,6 +754,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_critical_timestep_SIA
+
   SUBROUTINE calc_critical_timestep_adv( grid, ice, dt_crit_adv)
     ! Calculate the critical time step for advective ice flow (CFL criterion)
 
@@ -773,6 +794,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_critical_timestep_adv
+
   SUBROUTINE calc_pc_truncation_error( grid, ice, dt)
     ! Calculate the truncation error in the ice thickness rate of change (Robinson et al., 2020, Eq. 32)
 
@@ -827,6 +849,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_pc_truncation_error
+
   SUBROUTINE determine_timesteps_and_actions( region, t_end)
     ! Determine how long we can run just ice dynamics before another "action" (thermodynamics,
     ! GIA, output writing, inverse routine, etc.) has to be performed, and adjust the time step accordingly.
@@ -953,7 +976,9 @@ CONTAINS
 
   END SUBROUTINE determine_timesteps_and_actions
 
-! == Administration: allocation and initialisation
+! ===== Administration: allocation and initialisation =====
+! =========================================================
+
   SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD, region_name)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
@@ -1055,6 +1080,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ice_model
+
   SUBROUTINE allocate_ice_model( grid, ice)
 
     IMPLICIT NONE
@@ -1138,6 +1164,7 @@ CONTAINS
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_coast_a         , ice%wmask_coast_a         )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_margin_a        , ice%wmask_margin_a        )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_gl_a            , ice%wmask_gl_a            )
+    CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_glf_a           , ice%wmask_glf_a           )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_cf_a            , ice%wmask_cf_a            )
     CALL allocate_shared_int_2D(       grid%ny  , grid%nx  , ice%mask_a               , ice%wmask_a               )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%f_grnd_a             , ice%wf_grnd_a             )
