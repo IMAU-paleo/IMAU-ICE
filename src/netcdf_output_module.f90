@@ -826,6 +826,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'alpha_sq', long_name='Coulomb-law friction coefficient', units='unitless')
     ELSEIF (field_name == 'beta_sq') THEN
       CALL add_field_grid_dp_2D( filename, 'beta_sq', long_name='Power-law friction coefficient', units='Pa m^−1/3 yr^1/3')
+    ELSEIF (field_name == 'beta_eff') THEN
+      CALL add_field_grid_dp_2D( filename, 'beta_eff', long_name='Effective friction', units='Pa m-1 yr')
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
@@ -1267,6 +1269,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'alpha_sq', region%ice%alpha_sq_a)
     ELSEIF (field_name == 'beta_sq') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta_sq', region%ice%beta_sq_a)
+    ELSEIF (field_name == 'beta_eff') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta_eff', region%ice%beta_eff_a)
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
