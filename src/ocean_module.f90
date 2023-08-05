@@ -1442,7 +1442,7 @@ CONTAINS
     ! ===== Map extrapolated data from the high-resolution grid to the actual ice-model grid =====
     ! ============================================================================================
 
-    IF (par%master) WRITE(0,*) '   Mapping high-resolution extrapolated ocean data to the ice-model grid...'
+    IF (par%master) WRITE(0,*) '    Mapping high-resolution extrapolated ocean data to the ice-model grid...'
     CALL map_square_to_square_cons_2nd_order_3D( hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%T_ocean, ocean_reg%T_ocean_ext)
     CALL map_square_to_square_cons_2nd_order_3D( hires%grid%nx, hires%grid%ny, hires%grid%x, hires%grid%y, region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, hires%S_ocean, ocean_reg%S_ocean_ext)
 

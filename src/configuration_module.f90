@@ -557,7 +557,7 @@ MODULE configuration_module
   ! Surface mass balance
   ! ====================
 
-  CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional", "snapshot"
   CHARACTER(LEN=256)  :: choice_idealised_SMB_config                 = 'EISMINT1_A'
   REAL(dp)            :: SMB_uniform_config                          = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
 
@@ -567,6 +567,12 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
+
+  ! NetCDF file containing a direct time-less SMB snapshot
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_NAM_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_EAS_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_GRL_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_ANT_config            = ''
 
   ! Tuning parameters for the IMAU-ITM SMB model
   CHARACTER(LEN=256)  :: SMB_IMAUITM_choice_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
@@ -1303,6 +1309,12 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_EAS
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_GRL
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_ANT
+
+    ! NetCDF file containing a direct time-less SMB snapshot
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_NAM
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_EAS
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_GRL
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_ANT
 
     ! Tuning parameters for the IMAU-ITM SMB model
     CHARACTER(LEN=256)                  :: SMB_IMAUITM_choice_init_firn_NAM
@@ -2115,6 +2127,10 @@ CONTAINS
                      filename_direct_regional_SMB_EAS_config,         &
                      filename_direct_regional_SMB_GRL_config,         &
                      filename_direct_regional_SMB_ANT_config,         &
+                     filename_SMB_snapshot_NAM_config,                &
+                     filename_SMB_snapshot_EAS_config,                &
+                     filename_SMB_snapshot_GRL_config,                &
+                     filename_SMB_snapshot_ANT_config,                &
                      SMB_IMAUITM_choice_init_firn_NAM_config,         &
                      SMB_IMAUITM_choice_init_firn_EAS_config,         &
                      SMB_IMAUITM_choice_init_firn_GRL_config,         &
@@ -2965,6 +2981,12 @@ CONTAINS
     C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
     C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
     C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
+
+    ! NetCDF file containing a direct time-less SMB snapshot
+    C%filename_SMB_snapshot_NAM                = filename_SMB_snapshot_NAM_config
+    C%filename_SMB_snapshot_EAS                = filename_SMB_snapshot_EAS_config
+    C%filename_SMB_snapshot_GRL                = filename_SMB_snapshot_GRL_config
+    C%filename_SMB_snapshot_ANT                = filename_SMB_snapshot_ANT_config
 
     ! Tuning parameters for the IMAU-ITM SMB model
     C%SMB_IMAUITM_choice_init_firn_NAM         = SMB_IMAUITM_choice_init_firn_NAM_config

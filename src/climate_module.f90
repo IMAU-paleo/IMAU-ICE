@@ -14,7 +14,7 @@ MODULE climate_module
                                              type_reference_geometry, type_climate_model, type_climate_snapshot, &
                                              type_climate_model_PD_obs, type_climate_model_direct, type_climate_model_ISMIP_style
   USE netcdf_basic_module,             ONLY: inquire_var
-  USE netcdf_input_module,             ONLY: read_field_from_file_2D_monthly, read_field_from_file_2D 
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D_monthly, read_field_from_file_2D
   USE forcing_module,                  ONLY: forcing, get_insolation_at_time, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
@@ -71,7 +71,7 @@ CONTAINS
       ! Use a directly prescribed global SMB + 2-m air temperature
 
       CALL crash('choice_climate_model "'//TRIM( C%choice_climate_model)//'" is broken right now, must be fixed!')
-!      CALL run_climate_model_direct_SMB( region%grid, region%ice, region%climate, time)
+      ! CALL run_climate_model_direct_SMB( region%grid, region%ice, region%climate, time)
 
     ELSEIF (C%choice_climate_model == 'matrix') THEN
       ! Use the warm/cold climate matrix (Berends et al., 2018)
@@ -736,7 +736,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
-   
+
     w_ins_av      = MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (SUM( climate%matrix%I_abs         )      - SUM( climate%matrix%GCM_cold%I_abs)     ) / &
                                                            (SUM( climate%matrix%GCM_warm%I_abs)      - SUM( climate%matrix%GCM_cold%I_abs)     ) ))
 
@@ -1476,7 +1476,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Write message to screen
-    IF (par%master) WRITE(0,*) '  Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
+    IF (par%master) WRITE(0,*) '    Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
 
     ! Check if wind fields are included in this file; if not, return -1
     CALL inquire_var( filename, 'Wind_WE', found_wind_WE)
@@ -1495,7 +1495,7 @@ CONTAINS
     CALL read_field_from_file_2D_monthly( filename, 'T2m'   , grid, snapshot%T2m,    region_name)
     CALL read_field_from_file_2D_monthly( filename, 'Precip', grid, snapshot%Precip, region_name)
 
-    IF (found_winds) THEN 
+    IF (found_winds) THEN
          CALL read_field_from_file_2D_monthly( filename, 'Wind_WE', grid, snapshot%Wind_WE, region_name)
          CALL read_field_from_file_2D_monthly( filename, 'Wind_SN', grid, snapshot%Wind_SN, region_name)
 

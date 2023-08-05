@@ -62,7 +62,7 @@
   xmax_ANT_config                             = 3300000.0                        ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -3300000.0                       ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             = 3300000.0                        ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 32000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -77,9 +77,9 @@
   time_to_restart_from_GRL_config             = 0.0
   time_to_restart_from_ANT_config             = 0.0
   choice_refgeo_init_idealised_config         = ''                               ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_init_NAM_config             = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_init_EAS_config             = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_init_GRL_config             = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
+  filename_refgeo_init_NAM_config             = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  filename_refgeo_init_EAS_config             = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  filename_refgeo_init_GRL_config             = 'Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   filename_refgeo_init_ANT_config             = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
   do_read_velocities_from_restart_config      = .FALSE.
 
@@ -89,9 +89,9 @@
   choice_refgeo_PD_GRL_config                 = 'realistic'                      ! Choice of present-day geometry for Greenland    ; can be "idealised", "realistic", or "restart"
   choice_refgeo_PD_ANT_config                 = 'realistic'                      ! Choice of present-day geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   choice_refgeo_PD_idealised_config           = 'MISMIP+'                        ! Choice of schematic present-day geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_PD_NAM_config               = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_PD_EAS_config               = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_PD_GRL_config               = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
+  filename_refgeo_PD_NAM_config               = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  filename_refgeo_PD_EAS_config               = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  filename_refgeo_PD_GRL_config               = 'Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   filename_refgeo_PD_ANT_config               = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   ! GIA equilibrium geometry
@@ -100,9 +100,9 @@
   choice_refgeo_GIAeq_GRL_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Greenland    ; can be "idealised", "realistic", or "restart"
   choice_refgeo_GIAeq_ANT_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for Antarctica   ; can be "idealised", "realistic", or "restart"
   choice_refgeo_GIAeq_idealised_config        = 'MISMIP+'                        ! Choice of schematic GIA equilibrium geometry; see "generate_idealised_geometry" in reference_fields_module for options
-  filename_refgeo_GIAeq_NAM_config            = '/Users/berends/Documents/Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
-  filename_refgeo_GIAeq_EAS_config            = '/Users/berends/Documents/Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
-  filename_refgeo_GIAeq_GRL_config            = '/Users/berends/Documents/Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
+  filename_refgeo_GIAeq_NAM_config            = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
+  filename_refgeo_GIAeq_EAS_config            = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
+  filename_refgeo_GIAeq_GRL_config            = 'Datasets/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
   filename_refgeo_GIAeq_ANT_config            = 'Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc'
 
   remove_Lake_Vostok_config                   = .TRUE.
@@ -343,7 +343,7 @@
   ! Surface mass balance
   ! ====================
 
-  choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  choice_SMB_model_config                     = 'snapshot'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional", "snapshot"
   choice_idealised_SMB_config                 = ''
   SMB_uniform_config                          = 0.3                              ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
 
@@ -353,6 +353,12 @@
   filename_direct_regional_SMB_EAS_config     = ''
   filename_direct_regional_SMB_GRL_config     = ''
   filename_direct_regional_SMB_ANT_config     = ''
+
+  ! NetCDF file containing a direct time-less SMB snapshot
+  filename_SMB_snapshot_NAM_config            = ''
+  filename_SMB_snapshot_EAS_config            = ''
+  filename_SMB_snapshot_GRL_config            = ''
+  filename_SMB_snapshot_ANT_config            = 'Datasets/RACMO/Antarctica/RACMO_SMB_1979_2016.nc'
 
   ! Tuning parameters for the IMAU-ITM SMB model
   SMB_IMAUITM_choice_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
@@ -378,7 +384,7 @@
   SMB_IMAUITM_C_refr_ANT_config               = 0.051
 
   ! ISMIP-style (SMB + aSMB + dSMBdz + ST + aST + dSTdz) forcing
-  ! ==============================================================
+  ! ============================================================
 
   ISMIP_forcing_filename_baseline_config      = ''                               ! NetCDF file containing the baseline climate for the ISMIP-style forcing
   ISMIP_forcing_foldername_aSMB_config        = ''                               ! Folder containing the single-year NetCDF files of the SMB anomaly
@@ -470,7 +476,7 @@
   help_field_09_config                        = 'dHi'
   help_field_10_config                        = 'dHs'
   help_field_11_config                        = 'beta_eff'
-  help_field_12_config                        = 'none'
+  help_field_12_config                        = 'SMB_year'
   help_field_13_config                        = 'none'
   help_field_14_config                        = 'none'
   help_field_15_config                        = 'none'
