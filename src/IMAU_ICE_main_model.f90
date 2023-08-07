@@ -215,8 +215,9 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
-      ! DENK DROM
-      !region%time = t_end
+      ! Write to scalar output
+      CALL calculate_icesheet_volume_and_area(region)
+      CALL write_regional_scalar_data( region, region%time)
 
     END DO ! DO WHILE (region%time < t_end)
 
@@ -238,9 +239,6 @@ CONTAINS
 
     tstop = MPI_WTIME()
     region%tcomp_total = tstop - tstart
-
-    ! Write to text output
-    CALL write_regional_scalar_data( region, region%time)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
