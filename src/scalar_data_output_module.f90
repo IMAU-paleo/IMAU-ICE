@@ -107,6 +107,7 @@ CONTAINS
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
             C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'snapshot' .OR. &
             C%choice_SMB_model == 'ISMIP_style') THEN
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
@@ -158,7 +159,7 @@ CONTAINS
 
     ! Write to NetCDF file
     CALL write_to_regional_scalar_file( region%scalar_filename, region)
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

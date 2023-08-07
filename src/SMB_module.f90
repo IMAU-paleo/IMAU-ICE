@@ -90,6 +90,11 @@ CONTAINS
 
       CALL run_SMB_model_direct( grid, climate%direct_SMB, SMB, time, mask_noice)
 
+    ELSEIF (C%choice_SMB_model == 'snapshot') THEN
+      ! Use a directly prescribed SMB snapshot
+
+      CALL run_SMB_model_snapshot( grid, SMB, mask_noice)
+
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
@@ -98,6 +103,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model
+
   SUBROUTINE initialise_SMB_model( grid, ice, SMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
@@ -111,6 +117,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_SMB_model'
+    CHARACTER(LEN=256)                                 :: filename
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -125,6 +132,32 @@ CONTAINS
       ! Only need yearly total SMB in these cases
 
       CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
+
+    ELSEIF (C%choice_SMB_model == 'snapshot') THEN
+      ! Allocate memory and use field from external data file
+
+      ! Allocate data for SMB
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, SMB%SMB_year, SMB%wSMB_year)
+
+      ! Determine name of file to read data from
+      SELECT CASE (region_name)
+        CASE ('NAM')
+          filename = C%filename_SMB_snapshot_NAM
+        CASE ('EAS')
+          filename = C%filename_SMB_snapshot_EAS
+        CASE ('GRL')
+          filename = C%filename_SMB_snapshot_GRL
+        CASE ('ANT')
+          filename = C%filename_SMB_snapshot_ANT
+        CASE DEFAULT
+          CALL crash('unknown region_name "' // region_name // '"!')
+      END SELECT
+
+      ! Write message to screen
+      IF (par%master) WRITE(0,*) '    Reading SMB snapshot from file ' // TRIM( filename)
+
+      ! Read data from external file
+      CALL read_field_from_file_2D( filename, 'SMB', grid, SMB%SMB_year, region_name)
 
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -178,6 +211,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_idealised
+
   SUBROUTINE run_SMB_model_idealised_EISMINT1( grid, SMB, time, mask_noice)
 
     IMPLICIT NONE
@@ -256,6 +290,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_idealised_EISMINT1
+
   SUBROUTINE run_SMB_model_idealised_Bueler( grid, SMB, time, mask_noice)
 
     IMPLICIT NONE
@@ -351,7 +386,7 @@ CONTAINS
         ! NOTE: commented version is the old ANICE version, supposedly based on "physics" (which we cant check), but
         !       the new version was tuned to RACMO output and produced significantly better snow fractions...
 
-  !      snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp)))
+        ! snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp)))
         snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( m,j,i) - T0) / 5.95_dp) / 1.8566_dp)))
 
         SMB%Snowfall( m,j,i) = climate%Precip( m,j,i) *          snowfrac
@@ -417,6 +452,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_IMAUITM
+
   SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing( grid, ice, climate, SMB, mask_noice)
     ! Run the IMAU-ITM SMB model. Old version, exactly as it was in ANICE2.1 (so with the "wrong" refreezing)
 
@@ -532,6 +568,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_IMAUITM_wrongrefreezing
+
   SUBROUTINE initialise_SMB_model_IMAU_ITM( grid, ice, SMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
@@ -661,6 +698,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_SMB_model_IMAU_ITM
+
   SUBROUTINE initialise_IMAU_ITM_firn_restart( grid, SMB, region_name)
     ! If this is a restarted run, read the firn depth and meltpreviousyear data from the restart file
 
@@ -755,6 +793,47 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_SMB_model_direct
+
+! == Directly prescribed SMB snapshot
+! ===================================
+
+  SUBROUTINE run_SMB_model_snapshot( grid, SMB, mask_noice)
+    ! Run the selected SMB model: direct SMB snapshot.
+    !
+    ! NOTE: If your model setup needs surface air temperatures to drive
+    !       the ice thermodynamics module, that's yo problem. This method
+    !       only deals with the SMB, so you better use something else than
+    !       'none' for the climate, e.g. 'PD_obs'.
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),         INTENT(IN)    :: grid
+    TYPE(type_SMB_model),    INTENT(INOUT) :: SMB
+    INTEGER, DIMENSION(:,:), INTENT(IN)    :: mask_noice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER          :: routine_name = 'run_SMB_model_snapshot'
+    INTEGER                                :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (mask_noice( j,i) == 0) THEN
+        SMB%SMB_year( j,i) = SMB%SMB_year( j,i) + 0._dp
+      ELSE
+        SMB%SMB_year( j,i) = 0._dp
+      END IF
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_SMB_model_snapshot
 
 ! == Some generally useful tools
 ! ==============================

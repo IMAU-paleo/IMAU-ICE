@@ -144,6 +144,7 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_coast_a          ! On A-grid: land bordering ocean
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_margin_a         ! On A-grid: ice  bordering non-ice
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_gl_a             ! On A-grid: sheet bordering shelf
+    INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_glf_a            ! On A-grid: shelf bordering sheet
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_cf_a             ! On A-grid: shelf bordering ocean
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_a                ! Multi-info mask, only used for writing to output
     REAL(dp), DIMENSION(:,:  ), POINTER     :: f_grnd_a              ! Grounded fraction (used to determine basal friction in DIVA)
@@ -153,7 +154,7 @@ MODULE data_types_module
     INTEGER,  DIMENSION(:,:  ), POINTER     :: basin_ID              ! The drainage basin to which each grid cell belongs
     INTEGER,                    POINTER     :: nbasins               ! Total number of basins defined for this region
     INTEGER :: wmask_land_a, wmask_ocean_a, wmask_lake_a, wmask_ice_a, wmask_sheet_a, wmask_shelf_a
-    INTEGER :: wmask_coast_a, wmask_margin_a, wmask_gl_a, wmask_cf_a, wmask_a
+    INTEGER :: wmask_coast_a, wmask_margin_a, wmask_gl_a, wmask_glf_a, wmask_cf_a, wmask_a
     INTEGER :: wf_grnd_a, wf_grnd_cx, wf_grnd_cy, wf_grnd_b
     INTEGER :: wbasin_ID, wnbasins
 
@@ -321,6 +322,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
     INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
+
+    ! Useful stuff
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a                  ! Surface elevation difference w.r.t. PD reference
+    INTEGER :: wdHi_a, wdHs_a
 
   END TYPE type_ice_model
 

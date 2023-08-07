@@ -331,10 +331,13 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: choice_mask_noice_GRL_config                = 'GRL_remove_Ellesmere'
   CHARACTER(LEN=256)  :: choice_mask_noice_ANT_config                = 'none'                           ! For Antarctica, additional choices are included for certain idealised-geometry experiments: "MISMIP_mod", "MISMIP+"
 
-  ! Partially fixed geometry, useful for initialisation and inversion runs
-  LOGICAL             :: fixed_shelf_geometry_config                 = .FALSE.                          ! Keep geometry of floating ice fixed
-  LOGICAL             :: fixed_sheet_geometry_config                 = .FALSE.                          ! Keep geometry of grounded ice fixed
-  LOGICAL             :: fixed_grounding_line_config                 = .FALSE.                          ! Keep ice thickness at the grounding line fixed
+  ! Fixed/delayed ice thickness evolution
+  REAL(dp)            :: fixed_sheet_geometry_config                 = 0.0_dp                           ! Fix (1), release (0), or delay grounded ice geometry evolution
+  REAL(dp)            :: fixed_shelf_geometry_config                 = 0.0_dp                           ! Fix (1), release (0), or delay floating ice geometry evolution
+  REAL(dp)            :: fixed_grounding_line_g_config               = 0.0_dp                           ! Fix (1), release (0), or delay GL geometry evolution (grounded side)
+  REAL(dp)            :: fixed_grounding_line_f_config               = 0.0_dp                           ! Fix (1), release (0), or delay GL geometry evolution (floating side)
+  REAL(dp)            :: fixed_decay_t_start_config                  = 0.0_dp                           ! Start time of linear transition between fixed/delayed and free evolution
+  REAL(dp)            :: fixed_decay_t_end_config                    = 0.0_dp                           ! End   time of linear transition between fixed/delayed and free evolution
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -399,9 +402,13 @@ MODULE configuration_module
   REAL(dp)            :: BIVgeo_Bernales2017_hinv_config             = 100._dp                          ! Scaling factor for bed roughness updates in the Bernales (2017) geometry-based basal inversion method [m]
   REAL(dp)            :: BIVgeo_Bernales2017_tol_diff_config         = 100._dp                          ! Minimum ice thickness difference [m] that triggers inversion (.OR. &)
   REAL(dp)            :: BIVgeo_Bernales2017_tol_frac_config         = 1.0_dp                           ! Minimum ratio between ice thickness difference and reference value that triggers inversion
-  REAL(dp)            :: BIVgeo_Pien2023_H0_config                   = 1.0_dp                           ! Ice thickness scale for regularisation in Pien's friction inversion method
-  REAL(dp)            :: BIVgeo_Pien2023_tau_config                  = 1.0_dp                           ! Time scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_H0_config                   = 200.0_dp                         ! Ice thickness scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_tau_config                  = 200.0_dp                         ! Time scale for regularisation in Pien's friction inversion method
   REAL(dp)            :: BIVgeo_Pien2023_r_config                    = 0.0_dp                           ! Relaxation scale for regularisation in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_lowerHb_config              = -1000.0_dp                       ! Lower bedrock limit for target relaxation friction in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_upperHb_config              = +1000.0_dp                       ! Upper bedrock limit for target relaxation friction in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_min_config                  = 0.1_dp                           ! Lower till friction angle limit in Pien's friction inversion method
+  REAL(dp)            :: BIVgeo_Pien2023_max_config                  = 30.0_dp                          ! Upper till friction angle limit in Pien's friction inversion method
 
   ! Ice dynamics - calving
   ! ======================
@@ -550,7 +557,7 @@ MODULE configuration_module
   ! Surface mass balance
   ! ====================
 
-  CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional"
+  CHARACTER(LEN=256)  :: choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional", "snapshot"
   CHARACTER(LEN=256)  :: choice_idealised_SMB_config                 = 'EISMINT1_A'
   REAL(dp)            :: SMB_uniform_config                          = 0._dp                            ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
 
@@ -560,6 +567,12 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_EAS_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_GRL_config     = ''
   CHARACTER(LEN=256)  :: filename_direct_regional_SMB_ANT_config     = ''
+
+  ! NetCDF file containing a direct time-less SMB snapshot
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_NAM_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_EAS_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_GRL_config            = ''
+  CHARACTER(LEN=256)  :: filename_SMB_snapshot_ANT_config            = ''
 
   ! Tuning parameters for the IMAU-ITM SMB model
   CHARACTER(LEN=256)  :: SMB_IMAUITM_choice_init_firn_NAM_config     = 'uniform'                        ! How to initialise the firn layer in the IMAU-ITM SMB model: "uniform", "restart"
@@ -1080,10 +1093,13 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: choice_mask_noice_GRL
     CHARACTER(LEN=256)                  :: choice_mask_noice_ANT
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    LOGICAL                             :: fixed_shelf_geometry
-    LOGICAL                             :: fixed_sheet_geometry
-    LOGICAL                             :: fixed_grounding_line
+    ! Fixed/delayed ice thickness evolution
+    REAL(dp)                            :: fixed_sheet_geometry
+    REAL(dp)                            :: fixed_shelf_geometry
+    REAL(dp)                            :: fixed_grounding_line_g
+    REAL(dp)                            :: fixed_grounding_line_f
+    REAL(dp)                            :: fixed_decay_t_start
+    REAL(dp)                            :: fixed_decay_t_end
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1151,6 +1167,10 @@ MODULE configuration_module
     REAL(dp)                            :: BIVgeo_Pien2023_H0
     REAL(dp)                            :: BIVgeo_Pien2023_tau
     REAL(dp)                            :: BIVgeo_Pien2023_r
+    REAL(dp)                            :: BIVgeo_Pien2023_lowerHb
+    REAL(dp)                            :: BIVgeo_Pien2023_upperHb
+    REAL(dp)                            :: BIVgeo_Pien2023_min
+    REAL(dp)                            :: BIVgeo_Pien2023_max
 
     ! Ice dynamics - calving
     ! ======================
@@ -1289,6 +1309,12 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_EAS
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_GRL
     CHARACTER(LEN=256)                  :: filename_direct_regional_SMB_ANT
+
+    ! NetCDF file containing a direct time-less SMB snapshot
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_NAM
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_EAS
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_GRL
+    CHARACTER(LEN=256)                  :: filename_SMB_snapshot_ANT
 
     ! Tuning parameters for the IMAU-ITM SMB model
     CHARACTER(LEN=256)                  :: SMB_IMAUITM_choice_init_firn_NAM
@@ -1950,9 +1976,12 @@ CONTAINS
                      choice_mask_noice_EAS_config,                    &
                      choice_mask_noice_GRL_config,                    &
                      choice_mask_noice_ANT_config,                    &
-                     fixed_shelf_geometry_config,                     &
                      fixed_sheet_geometry_config,                     &
-                     fixed_grounding_line_config,                     &
+                     fixed_shelf_geometry_config,                     &
+                     fixed_grounding_line_g_config,                   &
+                     fixed_grounding_line_f_config,                   &
+                     fixed_decay_t_start_config,                      &
+                     fixed_decay_t_end_config,                        &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2009,6 +2038,10 @@ CONTAINS
                      BIVgeo_Pien2023_H0_config,                       &
                      BIVgeo_Pien2023_tau_config,                      &
                      BIVgeo_Pien2023_r_config,                        &
+                     BIVgeo_Pien2023_lowerHb_config,                  &
+                     BIVgeo_Pien2023_upperHb_config,                  &
+                     BIVgeo_Pien2023_min_config,                      &
+                     BIVgeo_Pien2023_max_config,                      &
                      choice_calving_law_config,                       &
                      calving_threshold_thickness_config,              &
                      do_remove_shelves_config,                        &
@@ -2094,6 +2127,10 @@ CONTAINS
                      filename_direct_regional_SMB_EAS_config,         &
                      filename_direct_regional_SMB_GRL_config,         &
                      filename_direct_regional_SMB_ANT_config,         &
+                     filename_SMB_snapshot_NAM_config,                &
+                     filename_SMB_snapshot_EAS_config,                &
+                     filename_SMB_snapshot_GRL_config,                &
+                     filename_SMB_snapshot_ANT_config,                &
                      SMB_IMAUITM_choice_init_firn_NAM_config,         &
                      SMB_IMAUITM_choice_init_firn_EAS_config,         &
                      SMB_IMAUITM_choice_init_firn_GRL_config,         &
@@ -2730,10 +2767,13 @@ CONTAINS
     C%choice_mask_noice_GRL                    = choice_mask_noice_GRL_config
     C%choice_mask_noice_ANT                    = choice_mask_noice_ANT_config
 
-    ! Partially fixed geometry, useful for initialisation and inversion runs
-    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
+    ! Fixed/delayed ice thickness evolution
     C%fixed_sheet_geometry                     = fixed_sheet_geometry_config
-    C%fixed_grounding_line                     = fixed_grounding_line_config
+    C%fixed_shelf_geometry                     = fixed_shelf_geometry_config
+    C%fixed_grounding_line_g                   = fixed_grounding_line_g_config
+    C%fixed_grounding_line_f                   = fixed_grounding_line_f_config
+    C%fixed_decay_t_start                      = fixed_decay_t_start_config
+    C%fixed_decay_t_end                        = fixed_decay_t_end_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -2801,6 +2841,10 @@ CONTAINS
     C%BIVgeo_Pien2023_H0                       = BIVgeo_Pien2023_H0_config
     C%BIVgeo_Pien2023_tau                      = BIVgeo_Pien2023_tau_config
     C%BIVgeo_Pien2023_r                        = BIVgeo_Pien2023_r_config
+    C%BIVgeo_Pien2023_lowerHb                  = BIVgeo_Pien2023_lowerHb_config
+    C%BIVgeo_Pien2023_upperHb                  = BIVgeo_Pien2023_upperHb_config
+    C%BIVgeo_Pien2023_min                      = BIVgeo_Pien2023_min_config
+    C%BIVgeo_Pien2023_max                      = BIVgeo_Pien2023_max_config
 
     ! Ice dynamics - calving
     ! ======================
@@ -2937,6 +2981,12 @@ CONTAINS
     C%filename_direct_regional_SMB_EAS         = filename_direct_regional_SMB_EAS_config
     C%filename_direct_regional_SMB_GRL         = filename_direct_regional_SMB_GRL_config
     C%filename_direct_regional_SMB_ANT         = filename_direct_regional_SMB_ANT_config
+
+    ! NetCDF file containing a direct time-less SMB snapshot
+    C%filename_SMB_snapshot_NAM                = filename_SMB_snapshot_NAM_config
+    C%filename_SMB_snapshot_EAS                = filename_SMB_snapshot_EAS_config
+    C%filename_SMB_snapshot_GRL                = filename_SMB_snapshot_GRL_config
+    C%filename_SMB_snapshot_ANT                = filename_SMB_snapshot_ANT_config
 
     ! Tuning parameters for the IMAU-ITM SMB model
     C%SMB_IMAUITM_choice_init_firn_NAM         = SMB_IMAUITM_choice_init_firn_NAM_config

@@ -30,7 +30,7 @@ MODULE ice_velocity_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D 
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -205,6 +205,7 @@ CONTAINS
       DO j = 1, grid%ny
         IF (i < grid%nx) ice%beta_eff_cx( j,i) = ice%beta_eff_cx( j,i) * ice%f_grnd_cx( j,i)**2
         IF (j < grid%ny) ice%beta_eff_cy( j,i) = ice%beta_eff_cy( j,i) * ice%f_grnd_cy( j,i)**2
+        ice%beta_eff_a( j,i) = ice%beta_eff_a( j,i) * ice%f_grnd_a( j,i)**2 ! Just for output
       END DO
       END DO
       CALL sync
@@ -3093,9 +3094,9 @@ CONTAINS
         ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
         ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
         WRITE(0,*) '  Initialising velocities from restart file...'
-      END IF 
+      END IF
       CALL sync
-    END IF 
+    END IF
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')

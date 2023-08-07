@@ -86,7 +86,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional') THEN
+            C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'snapshot') THEN
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -263,7 +264,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform' .OR. &
             C%choice_SMB_model == 'idealised' .OR. &
             C%choice_SMB_model == 'direct_global' .OR. &
-            C%choice_SMB_model == 'direct_regional') THEN
+            C%choice_SMB_model == 'direct_regional' .OR. &
+            C%choice_SMB_model == 'snapshot') THEN
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
@@ -452,6 +454,7 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'MeltPreviousYear',  long_name = 'Melt during previous year' , units = 'mie')
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
+    ELSEIF (C%choice_SMB_model == 'snapshot') THEN
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -646,14 +649,18 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'Hs', long_name = 'Surface elevation', units = 'm w.r.t. PD sea-level')
     ELSEIF (field_name == 'SL') THEN
       CALL add_field_grid_dp_2D( filename, 'SL', long_name = 'Geoid elevation', units = 'm w.r.t. PD sea-level')
-    ELSEIF (field_name == 'dHi') THEN
-      CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHs_dx') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs_dx', long_name = 'Surface slope in x-direction', units = 'm/m')
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs_dy', long_name = 'Surface slope in y-direction', units = 'm/m')
     ELSEIF (field_name == 'f_grnd') THEN
       CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name = 'Grounded fraction', units = '%')
+    ELSEIF (field_name == 'dHi') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'dHs') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
+    ELSEIF (field_name == 'dHi_dt') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Ice thickness rate of change', units = 'm/yr')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -780,6 +787,8 @@ CONTAINS
       CALL add_field_grid_dp_3D( filename, 'T_ocean_3D', long_name='3-D ocean temperature', units='K')
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL add_field_grid_dp_3D( filename, 'S_ocean_3D', long_name='3-D ocean salinity', units='PSU')
+    ELSEIF (field_name == 'dT_ocean') THEN
+      CALL add_field_grid_dp_2D( filename, 'dT_ocean', long_name='Perturbation to ocean temperatures for inversion', units='K')
     ELSEIF (field_name == 'PICO_boxes') THEN
       CALL add_field_grid_int_2D( filename, 'PICO_boxes', long_name='PICO ocean boxes')
 
@@ -820,6 +829,12 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'alpha_sq', long_name='Coulomb-law friction coefficient', units='unitless')
     ELSEIF (field_name == 'beta_sq') THEN
       CALL add_field_grid_dp_2D( filename, 'beta_sq', long_name='Power-law friction coefficient', units='Pa m^−1/3 yr^1/3')
+    ELSEIF (field_name == 'beta') THEN
+      CALL add_field_grid_dp_2D( filename, 'beta', long_name='Basal friction', units='Pa m-1 yr')
+    ELSEIF (field_name == 'beta_eff') THEN
+      CALL add_field_grid_dp_2D( filename, 'beta_eff', long_name='Effective friction', units='Pa m-1 yr')
+    ELSEIF (field_name == 'f_grnd') THEN
+      CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name='Sub-grid grounded-area fraction', units='-')
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
@@ -907,6 +922,7 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'MeltPreviousYear'  , region%SMB%MeltPreviousYear )
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
+    ELSEIF (C%choice_SMB_model == 'snapshot') THEN
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -1089,14 +1105,18 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Hs', region%ice%Hs_a)
     ELSEIF (field_name == 'SL') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SL', region%ice%SL_a)
-    ELSEIF (field_name == 'dHi') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_dt_a)
     ELSEIF (field_name == 'dHs_dx') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dx', region%ice%dHs_dx_a)
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dy', region%ice%dHs_dy_a)
     ELSEIF (field_name == 'f_grnd') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'f_grnd', region%ice%f_grnd_a)
+    ELSEIF (field_name == 'dHi') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_a)
+    ELSEIF (field_name == 'dHs') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs', region%ice%dHs_a)
+    ELSEIF (field_name == 'dHi_dt') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt', region%ice%dHi_dt_a)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1168,7 +1188,7 @@ CONTAINS
     ELSEIF (field_name == 'SMB') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'SMB', region%SMB%SMB)
     ELSEIF (field_name == 'SMB_year') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SMB_year', SUM( region%SMB%SMB,1))
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'SMB_year', region%SMB%SMB_year)
     ELSEIF (field_name == 'Snowfall') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid,  'Snowfall', region%SMB%Snowfall)
     ELSEIF (field_name == 'Snowfall_year') THEN
@@ -1215,6 +1235,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'T_ocean_3D', region%ocean_matrix%applied%T_ocean_corr_ext)
     ELSEIF (field_name == 'S_ocean_3D') THEN
       CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'S_ocean_3D', region%ocean_matrix%applied%S_ocean_corr_ext)
+    ELSEIF (field_name == 'dT_ocean') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dT_ocean', region%ocean_matrix%applied%dT_ocean)
     ELSEIF (field_name == 'PICO_boxes') THEN
       CALL write_to_field_multiple_options_grid_int_2D( filename, region%grid, 'PICO_boxes', region%BMB%PICO_k)
 
@@ -1255,6 +1277,12 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'alpha_sq', region%ice%alpha_sq_a)
     ELSEIF (field_name == 'beta_sq') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta_sq', region%ice%beta_sq_a)
+    ELSEIF (field_name == 'beta') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta', region%ice%beta_a)
+    ELSEIF (field_name == 'beta_eff') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta_eff', region%ice%beta_eff_a)
+    ELSEIF (field_name == 'f_grnd') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'f_grnd', region%ice%f_grnd_a)
 
     ! Isotopes
     ELSEIF (field_name == 'iso_ice') THEN
