@@ -283,7 +283,9 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   REAL(dp)            :: DIVA_epsilon_sq_0_config                    = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
   REAL(dp)            :: DIVA_visc_eff_min_config                    = 1E3_dp                           ! Minimum value for effective viscosity
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for basal friction coefficient
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for effective basal friction
+  REAL(dp)            :: DIVA_beta_min_thin_ice_config               = 0.0_dp                           ! Minimum value for effective basal friction over thin-ice areas
+  REAL(dp)            :: DIVA_beta_min_thin_ice_H0_config            = 1E20_dp                          ! Threshold thinness below which a minimum beta limit starts to apply
   REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -1047,6 +1049,8 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_epsilon_sq_0
     REAL(dp)                            :: DIVA_visc_eff_min
     REAL(dp)                            :: DIVA_beta_max
+    REAL(dp)                            :: DIVA_beta_min_thin_ice
+    REAL(dp)                            :: DIVA_beta_min_thin_ice_H0
     REAL(dp)                            :: DIVA_vel_max
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
@@ -1938,6 +1942,8 @@ CONTAINS
                      DIVA_epsilon_sq_0_config,                        &
                      DIVA_visc_eff_min_config,                        &
                      DIVA_beta_max_config,                            &
+                     DIVA_beta_min_thin_ice_config,                   &
+                     DIVA_beta_min_thin_ice_H0_config,                &
                      DIVA_vel_max_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
                      DIVA_boundary_BC_u_east_config,                  &
@@ -2720,6 +2726,8 @@ CONTAINS
     C%DIVA_epsilon_sq_0                        = DIVA_epsilon_sq_0_config
     C%DIVA_visc_eff_min                        = DIVA_visc_eff_min_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
+    C%DIVA_beta_min_thin_ice                   = DIVA_beta_min_thin_ice_config
+    C%DIVA_beta_min_thin_ice_H0                = DIVA_beta_min_thin_ice_H0_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
