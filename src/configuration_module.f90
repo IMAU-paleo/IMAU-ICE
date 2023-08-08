@@ -491,6 +491,7 @@ MODULE configuration_module
   LOGICAL             :: do_ocean_temperature_inversion_config       = .FALSE.                          ! Whether or not to apply the inversion
   REAL(dp)            :: ocean_temperature_inv_t_start_config        = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
   REAL(dp)            :: ocean_temperature_inv_t_end_config          = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+  CHARACTER(LEN=256)  :: ocean_filename_output_config                = 'ocean_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
@@ -553,6 +554,14 @@ MODULE configuration_module
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      /)
   LOGICAL             :: do_invert_linear_per_basin_config           = .FALSE.                          ! Whether or not to invert for ocean temperature based on thinning rates
+
+  ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+  CHARACTER(LEN=256)  :: ocean_filename_baseline_config        = ''                              ! NetCDF file containing the baseline ocean for the ISMIP-style ocean
+  CHARACTER(LEN=256)  :: ocean_foldername_aTO_config           = ''                              ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
+  CHARACTER(LEN=256)  :: ocean_basefilename_aTO_config         = ''                              ! Filename without the year (e.g. if the actual file is "aTO-1950.nc",   then this variable should be "aTO-"
+  CHARACTER(LEN=256)  :: ocean_foldername_aSO_config           = ''                              ! Folder containing the single timeframe NetCDF files of the ocean salinity anomaly
+  CHARACTER(LEN=256)  :: ocean_basefilename_aSO_config         = ''                              ! Filename without the year (e.g. if the actual file is "aSO-1950.nc", then this variable should be "aSO-"
+
 
   ! Surface mass balance
   ! ====================
@@ -1251,6 +1260,7 @@ MODULE configuration_module
     LOGICAL                             :: do_ocean_temperature_inversion
     REAL(dp)                            :: ocean_temperature_inv_t_start
     REAL(dp)                            :: ocean_temperature_inv_t_end
+    CHARACTER(LEN=256)                  :: ocean_filename_output
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -1295,6 +1305,13 @@ MODULE configuration_module
     REAL(dp), DIMENSION(100)            :: ocean_T_surf_per_basin
     REAL(dp), DIMENSION(100)            :: ocean_dT_dz_per_basin
     LOGICAL                             :: do_invert_linear_per_basin
+
+    ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+    CHARACTER(LEN=256)                  :: ocean_filename_baseline
+    CHARACTER(LEN=256)                  :: ocean_foldername_aTO
+    CHARACTER(LEN=256)                  :: ocean_basefilename_aTO
+    CHARACTER(LEN=256)                  :: ocean_foldername_aSO
+    CHARACTER(LEN=256)                  :: ocean_basefilename_aSO
 
     ! Surface mass balance
     ! ====================
@@ -2089,6 +2106,7 @@ CONTAINS
                      do_ocean_temperature_inversion_config,           &
                      ocean_temperature_inv_t_start_config,            &
                      ocean_temperature_inv_t_end_config,              &
+                     ocean_filename_output_config,                   &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2118,6 +2136,11 @@ CONTAINS
                      ocean_matrix_CO2vsice_ANT_config,                &
                      ocean_T_surf_per_basin_config,                   &
                      ocean_dT_dz_per_basin_config,                    &
+                     ocean_filename_baseline_config,                  &
+                     ocean_foldername_aTO_config,                     &
+                     ocean_basefilename_aTO_config,                   &
+                     ocean_foldername_aSO_config,                     &
+                     ocean_basefilename_aSO_config,                   &
                      do_invert_linear_per_basin_config,               &
                      choice_SMB_model_config,                         &
                      choice_idealised_SMB_config,                     &
@@ -2925,6 +2948,7 @@ CONTAINS
     C%do_ocean_temperature_inversion           = do_ocean_temperature_inversion_config
     C%ocean_temperature_inv_t_start            = ocean_temperature_inv_t_start_config
     C%ocean_temperature_inv_t_end              = ocean_temperature_inv_t_end_config
+    C%ocean_filename_output                    = ocean_filename_output_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
@@ -2967,6 +2991,13 @@ CONTAINS
     C%ocean_T_surf_per_basin                   = ocean_T_surf_per_basin_config
     C%ocean_dT_dz_per_basin                    = ocean_dT_dz_per_basin_config
     C%do_invert_linear_per_basin               = do_invert_linear_per_basin_config
+
+    ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+    C%ocean_filename_baseline                  = ocean_filename_baseline_config
+    C%ocean_foldername_aTO                     = ocean_foldername_aTO_config
+    C%ocean_basefilename_aTO                   = ocean_basefilename_aTO_config
+    C%ocean_foldername_aSO                     = ocean_foldername_aSO_config
+    C%ocean_basefilename_aSO                   = ocean_basefilename_aSO_config
 
     ! Surface mass balance
     ! ====================

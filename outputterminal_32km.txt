@@ -1,0 +1,2508 @@
+Script started on Fri 04 Aug 2023 12:20:27 AM CEST
+bash: setenv: command not found
+kcaroline@archimedes:~/HetGroteKoppelScript_IMAUICE/IMAU-ICE\[caroline@archimedes IMAU-ICE]$ exit./compile_all.csh; rm -r test_results; mpiexec -n 16 IMAU_ICE_program config-files/config_template_spinup
+mpifort  -O3 -Jmodule-files -Wall -ffree-line-length-none -cpp -fbounds-check -fcheck-array-temporaries -fimplicit-none -I/usr/local/include -I/usr/local/hdf5/include -I/usr/local/include -I/usr/local/include  -I/home/caroline/projects/petsc//include -I/home/caroline/projects/petsc//arch-linux-c-debug/include    -o IMAU_ICE_program object-files/configuration_module.o object-files/parallel_module.o object-files/parameters_module.o object-files/data_types_netcdf_module.o object-files/data_types_module.o object-files/netcdf_module.o object-files/petsc_module.o object-files/utilities_module.o object-files/netcdf_basic_module.o object-files/netcdf_input_module.o object-files/netcdf_extra_module.o object-files/netcdf_output_module.o object-files/netcdf_debug_module.o object-files/derivatives_and_grids_module.o object-files/forcing_module.o object-files/reference_fields_module.o object-files/general_ice_model_data_module.o object-files/basal_conditions_and_sliding_module.o object-files/calving_module.o object-files/ice_velocity_module.o object-files/ice_thickness_module.o object-files/ice_dynamics_module.o object-files/thermodynamics_module.o object-files/SMB_module.o object-files/BMB_module.o object-files/ocean_module.o object-files/climate_module.o object-files/isotopes_module.o object-files/bedrock_ELRA_module.o object-files/scalar_data_output_module.o object-files/IMAU_ICE_main_model.o object-files/IMAU_ICE_program.o -L/usr/local/lib -lnetcdf -L/usr/local/lib -lnetcdff -L/usr/lib64 -llapack -lpthread -Wl,-rpath=/home/caroline/projects/petsc//arch-linux-c-debug/lib /home/caroline/projects/petsc//arch-linux-c-debug/lib/libpetsc.so
+rm: cannot remove ‘test_results’: No such file or directory
+ 
+ ====================================================
+ ===== Running IMAU-ICE v2.0 on  16 cores =====
+ ====================================================
+ 
+  Output directory: test_results/
+ 
+  Reading CO2 record from Datasets/CO2/EPICA_CO2_Bereiter_2015_100yr.dat...
+[93mWARNING:  Model time will reach beyond end of CO2 record; constant extrapolation will be used in that case![0m in [96mIMAU_ICE_program/initialise_global_forcing/initialise_CO2_record[0m on process [96m 0/16[0m (0 = master)
+   Initialising insolation data from Datasets/Insolation/Laskar_etal_2004_insolation.nc...
+[93mWARNING:  Model time will reach beyond end of insolation record; constant extrapolation will be used in that case![0m in [96mIMAU_ICE_program/initialise_global_forcing/initialise_insolation_data[0m on process [96m 0/16[0m (0 = master)
+  Initialising global ocean model "PD_obs"...
+    Reading PD observed ocean data from file Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180.nc...
+ 
+  Initialising model region ANT (Antarctica)...
+   Initialised model grid at 32.00 km resolution: [ 207 x  207] pixels
+   Initialising initial         reference geometry from file Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc...
+   Initialising present-day     reference geometry from file Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc...
+   Initialising GIA equilibrium reference geometry from file Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc...
+   Initialising ice dynamics model...
+   Initialising climate model "PD_obs"...
+   Reading climate for snapshot "PD_obs" from file Datasets/ERA40/ERA40_climate_global.nc
+   Initialising regional ocean model "PD_obs"...
+     Reading high-resolution geometry for ocean extrapolation from file "Datasets/Bedmachine_Antarctica/Bedmachine_v1_Antarctica_5km.nc"...
+     Mapping ocean data from the global lat/lon-grid to the  5.0 km regional x/y-grid...
+     Defining ice basins on the  5.0 km regional x/y-grid...
+    Mapping high-resolution extrapolated ocean data to the ice-model grid...
+   Initialising regional SMB model "IMAU-ITM"...
+   Initialising the IMAU-ITM SMB model...
+   Initialising BMB model: sheet = "uniform", shelf = "Favier2019_quad"...
+   Initialising geothermal heat flux data from Datasets/GHF/geothermal_heatflux_ShapiroRitzwoller2004_global_1x1_deg.nc...
+   Initialising ice temperature profile "Robin"...
+  Finished initialising model region ANT.
+ 
+ Coupling model: t =     0.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     0.000 to t =     0.200 kyr
+   t =     0.000 kyr - writing output...
+ 
+ Coupling model: t =     0.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     0.200 to t =     0.400 kyr
+   t =     0.200 kyr - writing output...
+ 
+ Coupling model: t =     0.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     0.400 to t =     0.600 kyr
+   t =     0.400 kyr - writing output...
+ 
+ Coupling model: t =     0.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     0.600 to t =     0.800 kyr
+   t =     0.600 kyr - writing output...
+ 
+ Coupling model: t =     0.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     0.800 to t =     1.000 kyr
+   t =     0.800 kyr - writing output...
+ 
+ Coupling model: t =     1.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     1.000 to t =     1.200 kyr
+   t =     1.000 kyr - writing output...
+ 
+ Coupling model: t =     1.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     1.200 to t =     1.400 kyr
+   t =     1.200 kyr - writing output...
+ 
+ Coupling model: t =     1.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     1.400 to t =     1.600 kyr
+   t =     1.400 kyr - writing output...
+ 
+ Coupling model: t =     1.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     1.600 to t =     1.800 kyr
+   t =     1.600 kyr - writing output...
+ 
+ Coupling model: t =     1.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     1.800 to t =     2.000 kyr
+   t =     1.800 kyr - writing output...
+ 
+ Coupling model: t =     2.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     2.000 to t =     2.200 kyr
+   t =     2.000 kyr - writing output...
+ 
+ Coupling model: t =     2.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     2.200 to t =     2.400 kyr
+   t =     2.200 kyr - writing output...
+ 
+ Coupling model: t =     2.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     2.400 to t =     2.600 kyr
+   t =     2.400 kyr - writing output...
+ 
+ Coupling model: t =     2.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     2.600 to t =     2.800 kyr
+   t =     2.600 kyr - writing output...
+ 
+ Coupling model: t =     2.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     2.800 to t =     3.000 kyr
+   t =     2.800 kyr - writing output...
+ 
+ Coupling model: t =     3.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     3.000 to t =     3.200 kyr
+   t =     3.000 kyr - writing output...
+ 
+ Coupling model: t =     3.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     3.200 to t =     3.400 kyr
+   t =     3.200 kyr - writing output...
+ 
+ Coupling model: t =     3.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     3.400 to t =     3.600 kyr
+   t =     3.400 kyr - writing output...
+ 
+ Coupling model: t =     3.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     3.600 to t =     3.800 kyr
+   t =     3.600 kyr - writing output...
+ 
+ Coupling model: t =     3.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     3.800 to t =     4.000 kyr
+   t =     3.800 kyr - writing output...
+ 
+ Coupling model: t =     4.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     4.000 to t =     4.200 kyr
+   t =     4.000 kyr - writing output...
+ 
+ Coupling model: t =     4.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     4.200 to t =     4.400 kyr
+   t =     4.200 kyr - writing output...
+ 
+ Coupling model: t =     4.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     4.400 to t =     4.600 kyr
+   t =     4.400 kyr - writing output...
+ 
+ Coupling model: t =     4.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     4.600 to t =     4.800 kyr
+   t =     4.600 kyr - writing output...
+ 
+ Coupling model: t =     4.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     4.800 to t =     5.000 kyr
+   t =     4.800 kyr - writing output...
+ 
+ Coupling model: t =     5.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     5.000 to t =     5.200 kyr
+   t =     5.000 kyr - writing output...
+ 
+ Coupling model: t =     5.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     5.200 to t =     5.400 kyr
+   t =     5.200 kyr - writing output...
+ 
+ Coupling model: t =     5.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     5.400 to t =     5.600 kyr
+   t =     5.400 kyr - writing output...
+ 
+ Coupling model: t =     5.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     5.600 to t =     5.800 kyr
+   t =     5.600 kyr - writing output...
+ 
+ Coupling model: t =     5.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     5.800 to t =     6.000 kyr
+   t =     5.800 kyr - writing output...
+ 
+ Coupling model: t =     6.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     6.000 to t =     6.200 kyr
+   t =     6.000 kyr - writing output...
+ 
+ Coupling model: t =     6.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     6.200 to t =     6.400 kyr
+   t =     6.200 kyr - writing output...
+ 
+ Coupling model: t =     6.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     6.400 to t =     6.600 kyr
+   t =     6.400 kyr - writing output...
+ 
+ Coupling model: t =     6.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     6.600 to t =     6.800 kyr
+   t =     6.600 kyr - writing output...
+ 
+ Coupling model: t =     6.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     6.800 to t =     7.000 kyr
+   t =     6.800 kyr - writing output...
+ 
+ Coupling model: t =     7.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     7.000 to t =     7.200 kyr
+   t =     7.000 kyr - writing output...
+ 
+ Coupling model: t =     7.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     7.200 to t =     7.400 kyr
+   t =     7.200 kyr - writing output...
+ 
+ Coupling model: t =     7.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     7.400 to t =     7.600 kyr
+   t =     7.400 kyr - writing output...
+ 
+ Coupling model: t =     7.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     7.600 to t =     7.800 kyr
+   t =     7.600 kyr - writing output...
+ 
+ Coupling model: t =     7.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     7.800 to t =     8.000 kyr
+   t =     7.800 kyr - writing output...
+ 
+ Coupling model: t =     8.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     8.000 to t =     8.200 kyr
+   t =     8.000 kyr - writing output...
+ 
+ Coupling model: t =     8.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     8.200 to t =     8.400 kyr
+   t =     8.200 kyr - writing output...
+ 
+ Coupling model: t =     8.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     8.400 to t =     8.600 kyr
+   t =     8.400 kyr - writing output...
+ 
+ Coupling model: t =     8.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     8.600 to t =     8.800 kyr
+   t =     8.600 kyr - writing output...
+ 
+ Coupling model: t =     8.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     8.800 to t =     9.000 kyr
+   t =     8.800 kyr - writing output...
+ 
+ Coupling model: t =     9.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =     9.000 to t =     9.200 kyr
+   t =     9.000 kyr - writing output...
+ 
+ Coupling model: t =     9.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =     9.200 to t =     9.400 kyr
+   t =     9.200 kyr - writing output...
+ 
+ Coupling model: t =     9.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =     9.400 to t =     9.600 kyr
+   t =     9.400 kyr - writing output...
+ 
+ Coupling model: t =     9.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =     9.600 to t =     9.800 kyr
+   t =     9.600 kyr - writing output...
+ 
+ Coupling model: t =     9.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =     9.800 to t =    10.000 kyr
+   t =     9.800 kyr - writing output...
+ 
+ Coupling model: t =    10.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    10.000 to t =    10.200 kyr
+   t =    10.000 kyr - writing output...
+ 
+ Coupling model: t =    10.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    10.200 to t =    10.400 kyr
+   t =    10.200 kyr - writing output...
+ 
+ Coupling model: t =    10.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    10.400 to t =    10.600 kyr
+   t =    10.400 kyr - writing output...
+ 
+ Coupling model: t =    10.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    10.600 to t =    10.800 kyr
+   t =    10.600 kyr - writing output...
+ 
+ Coupling model: t =    10.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    10.800 to t =    11.000 kyr
+   t =    10.800 kyr - writing output...
+ 
+ Coupling model: t =    11.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    11.000 to t =    11.200 kyr
+   t =    11.000 kyr - writing output...
+ 
+ Coupling model: t =    11.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    11.200 to t =    11.400 kyr
+   t =    11.200 kyr - writing output...
+ 
+ Coupling model: t =    11.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    11.400 to t =    11.600 kyr
+   t =    11.400 kyr - writing output...
+ 
+ Coupling model: t =    11.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    11.600 to t =    11.800 kyr
+   t =    11.600 kyr - writing output...
+ 
+ Coupling model: t =    11.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    11.800 to t =    12.000 kyr
+   t =    11.800 kyr - writing output...
+ 
+ Coupling model: t =    12.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    12.000 to t =    12.200 kyr
+   t =    12.000 kyr - writing output...
+ 
+ Coupling model: t =    12.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    12.200 to t =    12.400 kyr
+   t =    12.200 kyr - writing output...
+ 
+ Coupling model: t =    12.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    12.400 to t =    12.600 kyr
+   t =    12.400 kyr - writing output...
+ 
+ Coupling model: t =    12.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    12.600 to t =    12.800 kyr
+   t =    12.600 kyr - writing output...
+ 
+ Coupling model: t =    12.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    12.800 to t =    13.000 kyr
+   t =    12.800 kyr - writing output...
+ 
+ Coupling model: t =    13.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    13.000 to t =    13.200 kyr
+   t =    13.000 kyr - writing output...
+ 
+ Coupling model: t =    13.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    13.200 to t =    13.400 kyr
+   t =    13.200 kyr - writing output...
+ 
+ Coupling model: t =    13.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    13.400 to t =    13.600 kyr
+   t =    13.400 kyr - writing output...
+ 
+ Coupling model: t =    13.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    13.600 to t =    13.800 kyr
+   t =    13.600 kyr - writing output...
+ 
+ Coupling model: t =    13.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    13.800 to t =    14.000 kyr
+   t =    13.800 kyr - writing output...
+ 
+ Coupling model: t =    14.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    14.000 to t =    14.200 kyr
+   t =    14.000 kyr - writing output...
+ 
+ Coupling model: t =    14.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    14.200 to t =    14.400 kyr
+   t =    14.200 kyr - writing output...
+ 
+ Coupling model: t =    14.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    14.400 to t =    14.600 kyr
+   t =    14.400 kyr - writing output...
+ 
+ Coupling model: t =    14.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    14.600 to t =    14.800 kyr
+   t =    14.600 kyr - writing output...
+ 
+ Coupling model: t =    14.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    14.800 to t =    15.000 kyr
+   t =    14.800 kyr - writing output...
+ 
+ Coupling model: t =    15.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    15.000 to t =    15.200 kyr
+   t =    15.000 kyr - writing output...
+ 
+ Coupling model: t =    15.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    15.200 to t =    15.400 kyr
+   t =    15.200 kyr - writing output...
+ 
+ Coupling model: t =    15.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    15.400 to t =    15.600 kyr
+   t =    15.400 kyr - writing output...
+ 
+ Coupling model: t =    15.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    15.600 to t =    15.800 kyr
+   t =    15.600 kyr - writing output...
+ 
+ Coupling model: t =    15.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    15.800 to t =    16.000 kyr
+   t =    15.800 kyr - writing output...
+ 
+ Coupling model: t =    16.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    16.000 to t =    16.200 kyr
+   t =    16.000 kyr - writing output...
+ 
+ Coupling model: t =    16.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    16.200 to t =    16.400 kyr
+   t =    16.200 kyr - writing output...
+ 
+ Coupling model: t =    16.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    16.400 to t =    16.600 kyr
+   t =    16.400 kyr - writing output...
+ 
+ Coupling model: t =    16.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    16.600 to t =    16.800 kyr
+   t =    16.600 kyr - writing output...
+ 
+ Coupling model: t =    16.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    16.800 to t =    17.000 kyr
+   t =    16.800 kyr - writing output...
+ 
+ Coupling model: t =    17.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    17.000 to t =    17.200 kyr
+   t =    17.000 kyr - writing output...
+ 
+ Coupling model: t =    17.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    17.200 to t =    17.400 kyr
+   t =    17.200 kyr - writing output...
+ 
+ Coupling model: t =    17.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    17.400 to t =    17.600 kyr
+   t =    17.400 kyr - writing output...
+ 
+ Coupling model: t =    17.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    17.600 to t =    17.800 kyr
+   t =    17.600 kyr - writing output...
+ 
+ Coupling model: t =    17.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    17.800 to t =    18.000 kyr
+   t =    17.800 kyr - writing output...
+ 
+ Coupling model: t =    18.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    18.000 to t =    18.200 kyr
+   t =    18.000 kyr - writing output...
+ 
+ Coupling model: t =    18.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    18.200 to t =    18.400 kyr
+   t =    18.200 kyr - writing output...
+ 
+ Coupling model: t =    18.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    18.400 to t =    18.600 kyr
+   t =    18.400 kyr - writing output...
+ 
+ Coupling model: t =    18.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    18.600 to t =    18.800 kyr
+   t =    18.600 kyr - writing output...
+ 
+ Coupling model: t =    18.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    18.800 to t =    19.000 kyr
+   t =    18.800 kyr - writing output...
+ 
+ Coupling model: t =    19.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    19.000 to t =    19.200 kyr
+   t =    19.000 kyr - writing output...
+ 
+ Coupling model: t =    19.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    19.200 to t =    19.400 kyr
+   t =    19.200 kyr - writing output...
+ 
+ Coupling model: t =    19.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    19.400 to t =    19.600 kyr
+   t =    19.400 kyr - writing output...
+ 
+ Coupling model: t =    19.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    19.600 to t =    19.800 kyr
+   t =    19.600 kyr - writing output...
+ 
+ Coupling model: t =    19.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    19.800 to t =    20.000 kyr
+   t =    19.800 kyr - writing output...
+ 
+ Coupling model: t =    20.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    20.000 to t =    20.200 kyr
+   t =    20.000 kyr - writing output...
+ 
+ Coupling model: t =    20.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    20.200 to t =    20.400 kyr
+   t =    20.200 kyr - writing output...
+ 
+ Coupling model: t =    20.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    20.400 to t =    20.600 kyr
+   t =    20.400 kyr - writing output...
+ 
+ Coupling model: t =    20.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    20.600 to t =    20.800 kyr
+   t =    20.600 kyr - writing output...
+ 
+ Coupling model: t =    20.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    20.800 to t =    21.000 kyr
+   t =    20.800 kyr - writing output...
+ 
+ Coupling model: t =    21.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    21.000 to t =    21.200 kyr
+   t =    21.000 kyr - writing output...
+ 
+ Coupling model: t =    21.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    21.200 to t =    21.400 kyr
+   t =    21.200 kyr - writing output...
+ 
+ Coupling model: t =    21.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    21.400 to t =    21.600 kyr
+   t =    21.400 kyr - writing output...
+ 
+ Coupling model: t =    21.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    21.600 to t =    21.800 kyr
+   t =    21.600 kyr - writing output...
+ 
+ Coupling model: t =    21.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    21.800 to t =    22.000 kyr
+   t =    21.800 kyr - writing output...
+ 
+ Coupling model: t =    22.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    22.000 to t =    22.200 kyr
+   t =    22.000 kyr - writing output...
+ 
+ Coupling model: t =    22.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    22.200 to t =    22.400 kyr
+   t =    22.200 kyr - writing output...
+ 
+ Coupling model: t =    22.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    22.400 to t =    22.600 kyr
+   t =    22.400 kyr - writing output...
+ 
+ Coupling model: t =    22.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    22.600 to t =    22.800 kyr
+   t =    22.600 kyr - writing output...
+ 
+ Coupling model: t =    22.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    22.800 to t =    23.000 kyr
+   t =    22.800 kyr - writing output...
+ 
+ Coupling model: t =    23.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    23.000 to t =    23.200 kyr
+   t =    23.000 kyr - writing output...
+ 
+ Coupling model: t =    23.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    23.200 to t =    23.400 kyr
+   t =    23.200 kyr - writing output...
+ 
+ Coupling model: t =    23.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    23.400 to t =    23.600 kyr
+   t =    23.400 kyr - writing output...
+ 
+ Coupling model: t =    23.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    23.600 to t =    23.800 kyr
+   t =    23.600 kyr - writing output...
+ 
+ Coupling model: t =    23.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    23.800 to t =    24.000 kyr
+   t =    23.800 kyr - writing output...
+ 
+ Coupling model: t =    24.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    24.000 to t =    24.200 kyr
+   t =    24.000 kyr - writing output...
+ 
+ Coupling model: t =    24.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    24.200 to t =    24.400 kyr
+   t =    24.200 kyr - writing output...
+ 
+ Coupling model: t =    24.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    24.400 to t =    24.600 kyr
+   t =    24.400 kyr - writing output...
+ 
+ Coupling model: t =    24.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    24.600 to t =    24.800 kyr
+   t =    24.600 kyr - writing output...
+ 
+ Coupling model: t =    24.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    24.800 to t =    25.000 kyr
+   t =    24.800 kyr - writing output...
+ 
+ Coupling model: t =    25.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    25.000 to t =    25.200 kyr
+   t =    25.000 kyr - writing output...
+ 
+ Coupling model: t =    25.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    25.200 to t =    25.400 kyr
+   t =    25.200 kyr - writing output...
+ 
+ Coupling model: t =    25.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    25.400 to t =    25.600 kyr
+   t =    25.400 kyr - writing output...
+ 
+ Coupling model: t =    25.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    25.600 to t =    25.800 kyr
+   t =    25.600 kyr - writing output...
+ 
+ Coupling model: t =    25.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    25.800 to t =    26.000 kyr
+   t =    25.800 kyr - writing output...
+ 
+ Coupling model: t =    26.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    26.000 to t =    26.200 kyr
+   t =    26.000 kyr - writing output...
+ 
+ Coupling model: t =    26.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    26.200 to t =    26.400 kyr
+   t =    26.200 kyr - writing output...
+ 
+ Coupling model: t =    26.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    26.400 to t =    26.600 kyr
+   t =    26.400 kyr - writing output...
+ 
+ Coupling model: t =    26.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    26.600 to t =    26.800 kyr
+   t =    26.600 kyr - writing output...
+ 
+ Coupling model: t =    26.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    26.800 to t =    27.000 kyr
+   t =    26.800 kyr - writing output...
+ 
+ Coupling model: t =    27.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    27.000 to t =    27.200 kyr
+   t =    27.000 kyr - writing output...
+ 
+ Coupling model: t =    27.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    27.200 to t =    27.400 kyr
+   t =    27.200 kyr - writing output...
+ 
+ Coupling model: t =    27.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    27.400 to t =    27.600 kyr
+   t =    27.400 kyr - writing output...
+ 
+ Coupling model: t =    27.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    27.600 to t =    27.800 kyr
+   t =    27.600 kyr - writing output...
+ 
+ Coupling model: t =    27.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    27.800 to t =    28.000 kyr
+   t =    27.800 kyr - writing output...
+ 
+ Coupling model: t =    28.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    28.000 to t =    28.200 kyr
+   t =    28.000 kyr - writing output...
+ 
+ Coupling model: t =    28.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    28.200 to t =    28.400 kyr
+   t =    28.200 kyr - writing output...
+ 
+ Coupling model: t =    28.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    28.400 to t =    28.600 kyr
+   t =    28.400 kyr - writing output...
+ 
+ Coupling model: t =    28.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    28.600 to t =    28.800 kyr
+   t =    28.600 kyr - writing output...
+ 
+ Coupling model: t =    28.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    28.800 to t =    29.000 kyr
+   t =    28.800 kyr - writing output...
+ 
+ Coupling model: t =    29.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    29.000 to t =    29.200 kyr
+   t =    29.000 kyr - writing output...
+ 
+ Coupling model: t =    29.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    29.200 to t =    29.400 kyr
+   t =    29.200 kyr - writing output...
+ 
+ Coupling model: t =    29.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    29.400 to t =    29.600 kyr
+   t =    29.400 kyr - writing output...
+ 
+ Coupling model: t =    29.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    29.600 to t =    29.800 kyr
+   t =    29.600 kyr - writing output...
+ 
+ Coupling model: t =    29.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    29.800 to t =    30.000 kyr
+   t =    29.800 kyr - writing output...
+ 
+ Coupling model: t =    30.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    30.000 to t =    30.200 kyr
+   t =    30.000 kyr - writing output...
+ 
+ Coupling model: t =    30.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    30.200 to t =    30.400 kyr
+   t =    30.200 kyr - writing output...
+ 
+ Coupling model: t =    30.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    30.400 to t =    30.600 kyr
+   t =    30.400 kyr - writing output...
+ 
+ Coupling model: t =    30.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    30.600 to t =    30.800 kyr
+   t =    30.600 kyr - writing output...
+ 
+ Coupling model: t =    30.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    30.800 to t =    31.000 kyr
+   t =    30.800 kyr - writing output...
+ 
+ Coupling model: t =    31.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    31.000 to t =    31.200 kyr
+   t =    31.000 kyr - writing output...
+ 
+ Coupling model: t =    31.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    31.200 to t =    31.400 kyr
+   t =    31.200 kyr - writing output...
+ 
+ Coupling model: t =    31.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    31.400 to t =    31.600 kyr
+   t =    31.400 kyr - writing output...
+ 
+ Coupling model: t =    31.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    31.600 to t =    31.800 kyr
+   t =    31.600 kyr - writing output...
+ 
+ Coupling model: t =    31.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    31.800 to t =    32.000 kyr
+   t =    31.800 kyr - writing output...
+ 
+ Coupling model: t =    32.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    32.000 to t =    32.200 kyr
+   t =    32.000 kyr - writing output...
+ 
+ Coupling model: t =    32.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    32.200 to t =    32.400 kyr
+   t =    32.200 kyr - writing output...
+ 
+ Coupling model: t =    32.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    32.400 to t =    32.600 kyr
+   t =    32.400 kyr - writing output...
+ 
+ Coupling model: t =    32.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    32.600 to t =    32.800 kyr
+   t =    32.600 kyr - writing output...
+ 
+ Coupling model: t =    32.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    32.800 to t =    33.000 kyr
+   t =    32.800 kyr - writing output...
+ 
+ Coupling model: t =    33.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    33.000 to t =    33.200 kyr
+   t =    33.000 kyr - writing output...
+ 
+ Coupling model: t =    33.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    33.200 to t =    33.400 kyr
+   t =    33.200 kyr - writing output...
+ 
+ Coupling model: t =    33.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    33.400 to t =    33.600 kyr
+   t =    33.400 kyr - writing output...
+ 
+ Coupling model: t =    33.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    33.600 to t =    33.800 kyr
+   t =    33.600 kyr - writing output...
+ 
+ Coupling model: t =    33.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    33.800 to t =    34.000 kyr
+   t =    33.800 kyr - writing output...
+ 
+ Coupling model: t =    34.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    34.000 to t =    34.200 kyr
+   t =    34.000 kyr - writing output...
+ 
+ Coupling model: t =    34.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    34.200 to t =    34.400 kyr
+   t =    34.200 kyr - writing output...
+ 
+ Coupling model: t =    34.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    34.400 to t =    34.600 kyr
+   t =    34.400 kyr - writing output...
+ 
+ Coupling model: t =    34.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    34.600 to t =    34.800 kyr
+   t =    34.600 kyr - writing output...
+ 
+ Coupling model: t =    34.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    34.800 to t =    35.000 kyr
+   t =    34.800 kyr - writing output...
+ 
+ Coupling model: t =    35.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    35.000 to t =    35.200 kyr
+   t =    35.000 kyr - writing output...
+ 
+ Coupling model: t =    35.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    35.200 to t =    35.400 kyr
+   t =    35.200 kyr - writing output...
+ 
+ Coupling model: t =    35.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    35.400 to t =    35.600 kyr
+   t =    35.400 kyr - writing output...
+ 
+ Coupling model: t =    35.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    35.600 to t =    35.800 kyr
+   t =    35.600 kyr - writing output...
+ 
+ Coupling model: t =    35.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    35.800 to t =    36.000 kyr
+   t =    35.800 kyr - writing output...
+ 
+ Coupling model: t =    36.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    36.000 to t =    36.200 kyr
+   t =    36.000 kyr - writing output...
+ 
+ Coupling model: t =    36.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    36.200 to t =    36.400 kyr
+   t =    36.200 kyr - writing output...
+ 
+ Coupling model: t =    36.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    36.400 to t =    36.600 kyr
+   t =    36.400 kyr - writing output...
+ 
+ Coupling model: t =    36.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    36.600 to t =    36.800 kyr
+   t =    36.600 kyr - writing output...
+ 
+ Coupling model: t =    36.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    36.800 to t =    37.000 kyr
+   t =    36.800 kyr - writing output...
+ 
+ Coupling model: t =    37.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    37.000 to t =    37.200 kyr
+   t =    37.000 kyr - writing output...
+ 
+ Coupling model: t =    37.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    37.200 to t =    37.400 kyr
+   t =    37.200 kyr - writing output...
+ 
+ Coupling model: t =    37.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    37.400 to t =    37.600 kyr
+   t =    37.400 kyr - writing output...
+ 
+ Coupling model: t =    37.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    37.600 to t =    37.800 kyr
+   t =    37.600 kyr - writing output...
+ 
+ Coupling model: t =    37.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    37.800 to t =    38.000 kyr
+   t =    37.800 kyr - writing output...
+ 
+ Coupling model: t =    38.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    38.000 to t =    38.200 kyr
+   t =    38.000 kyr - writing output...
+ 
+ Coupling model: t =    38.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    38.200 to t =    38.400 kyr
+   t =    38.200 kyr - writing output...
+ 
+ Coupling model: t =    38.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    38.400 to t =    38.600 kyr
+   t =    38.400 kyr - writing output...
+ 
+ Coupling model: t =    38.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    38.600 to t =    38.800 kyr
+   t =    38.600 kyr - writing output...
+ 
+ Coupling model: t =    38.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    38.800 to t =    39.000 kyr
+   t =    38.800 kyr - writing output...
+ 
+ Coupling model: t =    39.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    39.000 to t =    39.200 kyr
+   t =    39.000 kyr - writing output...
+ 
+ Coupling model: t =    39.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    39.200 to t =    39.400 kyr
+   t =    39.200 kyr - writing output...
+ 
+ Coupling model: t =    39.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    39.400 to t =    39.600 kyr
+   t =    39.400 kyr - writing output...
+ 
+ Coupling model: t =    39.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    39.600 to t =    39.800 kyr
+   t =    39.600 kyr - writing output...
+ 
+ Coupling model: t =    39.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    39.800 to t =    40.000 kyr
+   t =    39.800 kyr - writing output...
+ 
+ Coupling model: t =    40.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    40.000 to t =    40.200 kyr
+   t =    40.000 kyr - writing output...
+ 
+ Coupling model: t =    40.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    40.200 to t =    40.400 kyr
+   t =    40.200 kyr - writing output...
+ 
+ Coupling model: t =    40.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    40.400 to t =    40.600 kyr
+   t =    40.400 kyr - writing output...
+ 
+ Coupling model: t =    40.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    40.600 to t =    40.800 kyr
+   t =    40.600 kyr - writing output...
+ 
+ Coupling model: t =    40.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    40.800 to t =    41.000 kyr
+   t =    40.800 kyr - writing output...
+ 
+ Coupling model: t =    41.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    41.000 to t =    41.200 kyr
+   t =    41.000 kyr - writing output...
+ 
+ Coupling model: t =    41.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    41.200 to t =    41.400 kyr
+   t =    41.200 kyr - writing output...
+ 
+ Coupling model: t =    41.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    41.400 to t =    41.600 kyr
+   t =    41.400 kyr - writing output...
+ 
+ Coupling model: t =    41.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    41.600 to t =    41.800 kyr
+   t =    41.600 kyr - writing output...
+ 
+ Coupling model: t =    41.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    41.800 to t =    42.000 kyr
+   t =    41.800 kyr - writing output...
+ 
+ Coupling model: t =    42.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    42.000 to t =    42.200 kyr
+   t =    42.000 kyr - writing output...
+ 
+ Coupling model: t =    42.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    42.200 to t =    42.400 kyr
+   t =    42.200 kyr - writing output...
+ 
+ Coupling model: t =    42.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    42.400 to t =    42.600 kyr
+   t =    42.400 kyr - writing output...
+ 
+ Coupling model: t =    42.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    42.600 to t =    42.800 kyr
+   t =    42.600 kyr - writing output...
+ 
+ Coupling model: t =    42.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    42.800 to t =    43.000 kyr
+   t =    42.800 kyr - writing output...
+ 
+ Coupling model: t =    43.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    43.000 to t =    43.200 kyr
+   t =    43.000 kyr - writing output...
+ 
+ Coupling model: t =    43.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    43.200 to t =    43.400 kyr
+   t =    43.200 kyr - writing output...
+ 
+ Coupling model: t =    43.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    43.400 to t =    43.600 kyr
+   t =    43.400 kyr - writing output...
+ 
+ Coupling model: t =    43.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    43.600 to t =    43.800 kyr
+   t =    43.600 kyr - writing output...
+ 
+ Coupling model: t =    43.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    43.800 to t =    44.000 kyr
+   t =    43.800 kyr - writing output...
+ 
+ Coupling model: t =    44.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    44.000 to t =    44.200 kyr
+   t =    44.000 kyr - writing output...
+ 
+ Coupling model: t =    44.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    44.200 to t =    44.400 kyr
+   t =    44.200 kyr - writing output...
+ 
+ Coupling model: t =    44.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    44.400 to t =    44.600 kyr
+   t =    44.400 kyr - writing output...
+ 
+ Coupling model: t =    44.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    44.600 to t =    44.800 kyr
+   t =    44.600 kyr - writing output...
+ 
+ Coupling model: t =    44.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    44.800 to t =    45.000 kyr
+   t =    44.800 kyr - writing output...
+ 
+ Coupling model: t =    45.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    45.000 to t =    45.200 kyr
+   t =    45.000 kyr - writing output...
+ 
+ Coupling model: t =    45.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    45.200 to t =    45.400 kyr
+   t =    45.200 kyr - writing output...
+ 
+ Coupling model: t =    45.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    45.400 to t =    45.600 kyr
+   t =    45.400 kyr - writing output...
+ 
+ Coupling model: t =    45.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    45.600 to t =    45.800 kyr
+   t =    45.600 kyr - writing output...
+ 
+ Coupling model: t =    45.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    45.800 to t =    46.000 kyr
+   t =    45.800 kyr - writing output...
+ 
+ Coupling model: t =    46.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    46.000 to t =    46.200 kyr
+   t =    46.000 kyr - writing output...
+ 
+ Coupling model: t =    46.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    46.200 to t =    46.400 kyr
+   t =    46.200 kyr - writing output...
+ 
+ Coupling model: t =    46.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    46.400 to t =    46.600 kyr
+   t =    46.400 kyr - writing output...
+ 
+ Coupling model: t =    46.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    46.600 to t =    46.800 kyr
+   t =    46.600 kyr - writing output...
+ 
+ Coupling model: t =    46.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    46.800 to t =    47.000 kyr
+   t =    46.800 kyr - writing output...
+ 
+ Coupling model: t =    47.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    47.000 to t =    47.200 kyr
+   t =    47.000 kyr - writing output...
+ 
+ Coupling model: t =    47.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    47.200 to t =    47.400 kyr
+   t =    47.200 kyr - writing output...
+ 
+ Coupling model: t =    47.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    47.400 to t =    47.600 kyr
+   t =    47.400 kyr - writing output...
+ 
+ Coupling model: t =    47.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    47.600 to t =    47.800 kyr
+   t =    47.600 kyr - writing output...
+ 
+ Coupling model: t =    47.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    47.800 to t =    48.000 kyr
+   t =    47.800 kyr - writing output...
+ 
+ Coupling model: t =    48.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    48.000 to t =    48.200 kyr
+   t =    48.000 kyr - writing output...
+ 
+ Coupling model: t =    48.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    48.200 to t =    48.400 kyr
+   t =    48.200 kyr - writing output...
+ 
+ Coupling model: t =    48.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    48.400 to t =    48.600 kyr
+   t =    48.400 kyr - writing output...
+ 
+ Coupling model: t =    48.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    48.600 to t =    48.800 kyr
+   t =    48.600 kyr - writing output...
+ 
+ Coupling model: t =    48.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    48.800 to t =    49.000 kyr
+   t =    48.800 kyr - writing output...
+ 
+ Coupling model: t =    49.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    49.000 to t =    49.200 kyr
+   t =    49.000 kyr - writing output...
+ 
+ Coupling model: t =    49.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    49.200 to t =    49.400 kyr
+   t =    49.200 kyr - writing output...
+ 
+ Coupling model: t =    49.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    49.400 to t =    49.600 kyr
+   t =    49.400 kyr - writing output...
+ 
+ Coupling model: t =    49.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    49.600 to t =    49.800 kyr
+   t =    49.600 kyr - writing output...
+ 
+ Coupling model: t =    49.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    49.800 to t =    50.000 kyr
+   t =    49.800 kyr - writing output...
+ 
+ Coupling model: t =    50.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    50.000 to t =    50.200 kyr
+   t =    50.000 kyr - writing output...
+ 
+ Coupling model: t =    50.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    50.200 to t =    50.400 kyr
+   t =    50.200 kyr - writing output...
+ 
+ Coupling model: t =    50.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    50.400 to t =    50.600 kyr
+   t =    50.400 kyr - writing output...
+ 
+ Coupling model: t =    50.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    50.600 to t =    50.800 kyr
+   t =    50.600 kyr - writing output...
+ 
+ Coupling model: t =    50.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    50.800 to t =    51.000 kyr
+   t =    50.800 kyr - writing output...
+ 
+ Coupling model: t =    51.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    51.000 to t =    51.200 kyr
+   t =    51.000 kyr - writing output...
+ 
+ Coupling model: t =    51.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    51.200 to t =    51.400 kyr
+   t =    51.200 kyr - writing output...
+ 
+ Coupling model: t =    51.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    51.400 to t =    51.600 kyr
+   t =    51.400 kyr - writing output...
+ 
+ Coupling model: t =    51.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    51.600 to t =    51.800 kyr
+   t =    51.600 kyr - writing output...
+ 
+ Coupling model: t =    51.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    51.800 to t =    52.000 kyr
+   t =    51.800 kyr - writing output...
+ 
+ Coupling model: t =    52.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    52.000 to t =    52.200 kyr
+   t =    52.000 kyr - writing output...
+ 
+ Coupling model: t =    52.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    52.200 to t =    52.400 kyr
+   t =    52.200 kyr - writing output...
+ 
+ Coupling model: t =    52.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    52.400 to t =    52.600 kyr
+   t =    52.400 kyr - writing output...
+ 
+ Coupling model: t =    52.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    52.600 to t =    52.800 kyr
+   t =    52.600 kyr - writing output...
+ 
+ Coupling model: t =    52.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    52.800 to t =    53.000 kyr
+   t =    52.800 kyr - writing output...
+ 
+ Coupling model: t =    53.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    53.000 to t =    53.200 kyr
+   t =    53.000 kyr - writing output...
+ 
+ Coupling model: t =    53.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    53.200 to t =    53.400 kyr
+   t =    53.200 kyr - writing output...
+ 
+ Coupling model: t =    53.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    53.400 to t =    53.600 kyr
+   t =    53.400 kyr - writing output...
+ 
+ Coupling model: t =    53.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    53.600 to t =    53.800 kyr
+   t =    53.600 kyr - writing output...
+ 
+ Coupling model: t =    53.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    53.800 to t =    54.000 kyr
+   t =    53.800 kyr - writing output...
+ 
+ Coupling model: t =    54.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    54.000 to t =    54.200 kyr
+   t =    54.000 kyr - writing output...
+ 
+ Coupling model: t =    54.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    54.200 to t =    54.400 kyr
+   t =    54.200 kyr - writing output...
+ 
+ Coupling model: t =    54.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    54.400 to t =    54.600 kyr
+   t =    54.400 kyr - writing output...
+ 
+ Coupling model: t =    54.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    54.600 to t =    54.800 kyr
+   t =    54.600 kyr - writing output...
+ 
+ Coupling model: t =    54.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    54.800 to t =    55.000 kyr
+   t =    54.800 kyr - writing output...
+ 
+ Coupling model: t =    55.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    55.000 to t =    55.200 kyr
+   t =    55.000 kyr - writing output...
+ 
+ Coupling model: t =    55.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    55.200 to t =    55.400 kyr
+   t =    55.200 kyr - writing output...
+ 
+ Coupling model: t =    55.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    55.400 to t =    55.600 kyr
+   t =    55.400 kyr - writing output...
+ 
+ Coupling model: t =    55.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    55.600 to t =    55.800 kyr
+   t =    55.600 kyr - writing output...
+ 
+ Coupling model: t =    55.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    55.800 to t =    56.000 kyr
+   t =    55.800 kyr - writing output...
+ 
+ Coupling model: t =    56.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    56.000 to t =    56.200 kyr
+   t =    56.000 kyr - writing output...
+ 
+ Coupling model: t =    56.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    56.200 to t =    56.400 kyr
+   t =    56.200 kyr - writing output...
+ 
+ Coupling model: t =    56.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    56.400 to t =    56.600 kyr
+   t =    56.400 kyr - writing output...
+ 
+ Coupling model: t =    56.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    56.600 to t =    56.800 kyr
+   t =    56.600 kyr - writing output...
+ 
+ Coupling model: t =    56.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    56.800 to t =    57.000 kyr
+   t =    56.800 kyr - writing output...
+ 
+ Coupling model: t =    57.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    57.000 to t =    57.200 kyr
+   t =    57.000 kyr - writing output...
+ 
+ Coupling model: t =    57.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    57.200 to t =    57.400 kyr
+   t =    57.200 kyr - writing output...
+ 
+ Coupling model: t =    57.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    57.400 to t =    57.600 kyr
+   t =    57.400 kyr - writing output...
+ 
+ Coupling model: t =    57.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    57.600 to t =    57.800 kyr
+   t =    57.600 kyr - writing output...
+ 
+ Coupling model: t =    57.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    57.800 to t =    58.000 kyr
+   t =    57.800 kyr - writing output...
+ 
+ Coupling model: t =    58.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    58.000 to t =    58.200 kyr
+   t =    58.000 kyr - writing output...
+ 
+ Coupling model: t =    58.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    58.200 to t =    58.400 kyr
+   t =    58.200 kyr - writing output...
+ 
+ Coupling model: t =    58.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    58.400 to t =    58.600 kyr
+   t =    58.400 kyr - writing output...
+ 
+ Coupling model: t =    58.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    58.600 to t =    58.800 kyr
+   t =    58.600 kyr - writing output...
+ 
+ Coupling model: t =    58.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    58.800 to t =    59.000 kyr
+   t =    58.800 kyr - writing output...
+ 
+ Coupling model: t =    59.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    59.000 to t =    59.200 kyr
+   t =    59.000 kyr - writing output...
+ 
+ Coupling model: t =    59.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    59.200 to t =    59.400 kyr
+   t =    59.200 kyr - writing output...
+ 
+ Coupling model: t =    59.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    59.400 to t =    59.600 kyr
+   t =    59.400 kyr - writing output...
+ 
+ Coupling model: t =    59.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    59.600 to t =    59.800 kyr
+   t =    59.600 kyr - writing output...
+ 
+ Coupling model: t =    59.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    59.800 to t =    60.000 kyr
+   t =    59.800 kyr - writing output...
+ 
+ Coupling model: t =    60.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    60.000 to t =    60.200 kyr
+   t =    60.000 kyr - writing output...
+ 
+ Coupling model: t =    60.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    60.200 to t =    60.400 kyr
+   t =    60.200 kyr - writing output...
+ 
+ Coupling model: t =    60.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    60.400 to t =    60.600 kyr
+   t =    60.400 kyr - writing output...
+ 
+ Coupling model: t =    60.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    60.600 to t =    60.800 kyr
+   t =    60.600 kyr - writing output...
+ 
+ Coupling model: t =    60.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    60.800 to t =    61.000 kyr
+   t =    60.800 kyr - writing output...
+ 
+ Coupling model: t =    61.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    61.000 to t =    61.200 kyr
+   t =    61.000 kyr - writing output...
+ 
+ Coupling model: t =    61.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    61.200 to t =    61.400 kyr
+   t =    61.200 kyr - writing output...
+ 
+ Coupling model: t =    61.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    61.400 to t =    61.600 kyr
+   t =    61.400 kyr - writing output...
+ 
+ Coupling model: t =    61.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    61.600 to t =    61.800 kyr
+   t =    61.600 kyr - writing output...
+ 
+ Coupling model: t =    61.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    61.800 to t =    62.000 kyr
+   t =    61.800 kyr - writing output...
+ 
+ Coupling model: t =    62.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    62.000 to t =    62.200 kyr
+   t =    62.000 kyr - writing output...
+ 
+ Coupling model: t =    62.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    62.200 to t =    62.400 kyr
+   t =    62.200 kyr - writing output...
+ 
+ Coupling model: t =    62.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    62.400 to t =    62.600 kyr
+   t =    62.400 kyr - writing output...
+ 
+ Coupling model: t =    62.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    62.600 to t =    62.800 kyr
+   t =    62.600 kyr - writing output...
+ 
+ Coupling model: t =    62.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    62.800 to t =    63.000 kyr
+   t =    62.800 kyr - writing output...
+ 
+ Coupling model: t =    63.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    63.000 to t =    63.200 kyr
+   t =    63.000 kyr - writing output...
+ 
+ Coupling model: t =    63.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    63.200 to t =    63.400 kyr
+   t =    63.200 kyr - writing output...
+ 
+ Coupling model: t =    63.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    63.400 to t =    63.600 kyr
+   t =    63.400 kyr - writing output...
+ 
+ Coupling model: t =    63.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    63.600 to t =    63.800 kyr
+   t =    63.600 kyr - writing output...
+ 
+ Coupling model: t =    63.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    63.800 to t =    64.000 kyr
+   t =    63.800 kyr - writing output...
+ 
+ Coupling model: t =    64.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    64.000 to t =    64.200 kyr
+   t =    64.000 kyr - writing output...
+ 
+ Coupling model: t =    64.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    64.200 to t =    64.400 kyr
+   t =    64.200 kyr - writing output...
+ 
+ Coupling model: t =    64.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    64.400 to t =    64.600 kyr
+   t =    64.400 kyr - writing output...
+ 
+ Coupling model: t =    64.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    64.600 to t =    64.800 kyr
+   t =    64.600 kyr - writing output...
+ 
+ Coupling model: t =    64.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    64.800 to t =    65.000 kyr
+   t =    64.800 kyr - writing output...
+ 
+ Coupling model: t =    65.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    65.000 to t =    65.200 kyr
+   t =    65.000 kyr - writing output...
+ 
+ Coupling model: t =    65.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    65.200 to t =    65.400 kyr
+   t =    65.200 kyr - writing output...
+ 
+ Coupling model: t =    65.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    65.400 to t =    65.600 kyr
+   t =    65.400 kyr - writing output...
+ 
+ Coupling model: t =    65.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    65.600 to t =    65.800 kyr
+   t =    65.600 kyr - writing output...
+ 
+ Coupling model: t =    65.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    65.800 to t =    66.000 kyr
+   t =    65.800 kyr - writing output...
+ 
+ Coupling model: t =    66.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    66.000 to t =    66.200 kyr
+   t =    66.000 kyr - writing output...
+ 
+ Coupling model: t =    66.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    66.200 to t =    66.400 kyr
+   t =    66.200 kyr - writing output...
+ 
+ Coupling model: t =    66.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    66.400 to t =    66.600 kyr
+   t =    66.400 kyr - writing output...
+ 
+ Coupling model: t =    66.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    66.600 to t =    66.800 kyr
+   t =    66.600 kyr - writing output...
+ 
+ Coupling model: t =    66.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    66.800 to t =    67.000 kyr
+   t =    66.800 kyr - writing output...
+ 
+ Coupling model: t =    67.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    67.000 to t =    67.200 kyr
+   t =    67.000 kyr - writing output...
+ 
+ Coupling model: t =    67.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    67.200 to t =    67.400 kyr
+   t =    67.200 kyr - writing output...
+ 
+ Coupling model: t =    67.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    67.400 to t =    67.600 kyr
+   t =    67.400 kyr - writing output...
+ 
+ Coupling model: t =    67.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    67.600 to t =    67.800 kyr
+   t =    67.600 kyr - writing output...
+ 
+ Coupling model: t =    67.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    67.800 to t =    68.000 kyr
+   t =    67.800 kyr - writing output...
+ 
+ Coupling model: t =    68.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    68.000 to t =    68.200 kyr
+   t =    68.000 kyr - writing output...
+ 
+ Coupling model: t =    68.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    68.200 to t =    68.400 kyr
+   t =    68.200 kyr - writing output...
+ 
+ Coupling model: t =    68.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    68.400 to t =    68.600 kyr
+   t =    68.400 kyr - writing output...
+ 
+ Coupling model: t =    68.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    68.600 to t =    68.800 kyr
+   t =    68.600 kyr - writing output...
+ 
+ Coupling model: t =    68.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    68.800 to t =    69.000 kyr
+   t =    68.800 kyr - writing output...
+ 
+ Coupling model: t =    69.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    69.000 to t =    69.200 kyr
+   t =    69.000 kyr - writing output...
+ 
+ Coupling model: t =    69.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    69.200 to t =    69.400 kyr
+   t =    69.200 kyr - writing output...
+ 
+ Coupling model: t =    69.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    69.400 to t =    69.600 kyr
+   t =    69.400 kyr - writing output...
+ 
+ Coupling model: t =    69.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    69.600 to t =    69.800 kyr
+   t =    69.600 kyr - writing output...
+ 
+ Coupling model: t =    69.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    69.800 to t =    70.000 kyr
+   t =    69.800 kyr - writing output...
+ 
+ Coupling model: t =    70.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    70.000 to t =    70.200 kyr
+   t =    70.000 kyr - writing output...
+ 
+ Coupling model: t =    70.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    70.200 to t =    70.400 kyr
+   t =    70.200 kyr - writing output...
+ 
+ Coupling model: t =    70.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    70.400 to t =    70.600 kyr
+   t =    70.400 kyr - writing output...
+ 
+ Coupling model: t =    70.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    70.600 to t =    70.800 kyr
+   t =    70.600 kyr - writing output...
+ 
+ Coupling model: t =    70.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    70.800 to t =    71.000 kyr
+   t =    70.800 kyr - writing output...
+ 
+ Coupling model: t =    71.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    71.000 to t =    71.200 kyr
+   t =    71.000 kyr - writing output...
+ 
+ Coupling model: t =    71.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    71.200 to t =    71.400 kyr
+   t =    71.200 kyr - writing output...
+ 
+ Coupling model: t =    71.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    71.400 to t =    71.600 kyr
+   t =    71.400 kyr - writing output...
+ 
+ Coupling model: t =    71.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    71.600 to t =    71.800 kyr
+   t =    71.600 kyr - writing output...
+ 
+ Coupling model: t =    71.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    71.800 to t =    72.000 kyr
+   t =    71.800 kyr - writing output...
+ 
+ Coupling model: t =    72.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    72.000 to t =    72.200 kyr
+   t =    72.000 kyr - writing output...
+ 
+ Coupling model: t =    72.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    72.200 to t =    72.400 kyr
+   t =    72.200 kyr - writing output...
+ 
+ Coupling model: t =    72.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    72.400 to t =    72.600 kyr
+   t =    72.400 kyr - writing output...
+ 
+ Coupling model: t =    72.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    72.600 to t =    72.800 kyr
+   t =    72.600 kyr - writing output...
+ 
+ Coupling model: t =    72.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    72.800 to t =    73.000 kyr
+   t =    72.800 kyr - writing output...
+ 
+ Coupling model: t =    73.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    73.000 to t =    73.200 kyr
+   t =    73.000 kyr - writing output...
+ 
+ Coupling model: t =    73.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    73.200 to t =    73.400 kyr
+   t =    73.200 kyr - writing output...
+ 
+ Coupling model: t =    73.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    73.400 to t =    73.600 kyr
+   t =    73.400 kyr - writing output...
+ 
+ Coupling model: t =    73.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    73.600 to t =    73.800 kyr
+   t =    73.600 kyr - writing output...
+ 
+ Coupling model: t =    73.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    73.800 to t =    74.000 kyr
+   t =    73.800 kyr - writing output...
+ 
+ Coupling model: t =    74.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    74.000 to t =    74.200 kyr
+   t =    74.000 kyr - writing output...
+ 
+ Coupling model: t =    74.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    74.200 to t =    74.400 kyr
+   t =    74.200 kyr - writing output...
+ 
+ Coupling model: t =    74.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    74.400 to t =    74.600 kyr
+   t =    74.400 kyr - writing output...
+ 
+ Coupling model: t =    74.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    74.600 to t =    74.800 kyr
+   t =    74.600 kyr - writing output...
+ 
+ Coupling model: t =    74.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    74.800 to t =    75.000 kyr
+   t =    74.800 kyr - writing output...
+ 
+ Coupling model: t =    75.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    75.000 to t =    75.200 kyr
+   t =    75.000 kyr - writing output...
+ 
+ Coupling model: t =    75.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    75.200 to t =    75.400 kyr
+   t =    75.200 kyr - writing output...
+ 
+ Coupling model: t =    75.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    75.400 to t =    75.600 kyr
+   t =    75.400 kyr - writing output...
+ 
+ Coupling model: t =    75.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    75.600 to t =    75.800 kyr
+   t =    75.600 kyr - writing output...
+ 
+ Coupling model: t =    75.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    75.800 to t =    76.000 kyr
+   t =    75.800 kyr - writing output...
+ 
+ Coupling model: t =    76.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    76.000 to t =    76.200 kyr
+   t =    76.000 kyr - writing output...
+ 
+ Coupling model: t =    76.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    76.200 to t =    76.400 kyr
+   t =    76.200 kyr - writing output...
+ 
+ Coupling model: t =    76.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    76.400 to t =    76.600 kyr
+   t =    76.400 kyr - writing output...
+ 
+ Coupling model: t =    76.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    76.600 to t =    76.800 kyr
+   t =    76.600 kyr - writing output...
+ 
+ Coupling model: t =    76.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    76.800 to t =    77.000 kyr
+   t =    76.800 kyr - writing output...
+ 
+ Coupling model: t =    77.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    77.000 to t =    77.200 kyr
+   t =    77.000 kyr - writing output...
+ 
+ Coupling model: t =    77.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    77.200 to t =    77.400 kyr
+   t =    77.200 kyr - writing output...
+ 
+ Coupling model: t =    77.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    77.400 to t =    77.600 kyr
+   t =    77.400 kyr - writing output...
+ 
+ Coupling model: t =    77.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    77.600 to t =    77.800 kyr
+   t =    77.600 kyr - writing output...
+ 
+ Coupling model: t =    77.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    77.800 to t =    78.000 kyr
+   t =    77.800 kyr - writing output...
+ 
+ Coupling model: t =    78.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    78.000 to t =    78.200 kyr
+   t =    78.000 kyr - writing output...
+ 
+ Coupling model: t =    78.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    78.200 to t =    78.400 kyr
+   t =    78.200 kyr - writing output...
+ 
+ Coupling model: t =    78.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    78.400 to t =    78.600 kyr
+   t =    78.400 kyr - writing output...
+ 
+ Coupling model: t =    78.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    78.600 to t =    78.800 kyr
+   t =    78.600 kyr - writing output...
+ 
+ Coupling model: t =    78.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    78.800 to t =    79.000 kyr
+   t =    78.800 kyr - writing output...
+ 
+ Coupling model: t =    79.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    79.000 to t =    79.200 kyr
+   t =    79.000 kyr - writing output...
+ 
+ Coupling model: t =    79.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    79.200 to t =    79.400 kyr
+   t =    79.200 kyr - writing output...
+ 
+ Coupling model: t =    79.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    79.400 to t =    79.600 kyr
+   t =    79.400 kyr - writing output...
+ 
+ Coupling model: t =    79.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    79.600 to t =    79.800 kyr
+   t =    79.600 kyr - writing output...
+ 
+ Coupling model: t =    79.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    79.800 to t =    80.000 kyr
+   t =    79.800 kyr - writing output...
+ 
+ Coupling model: t =    80.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    80.000 to t =    80.200 kyr
+   t =    80.000 kyr - writing output...
+ 
+ Coupling model: t =    80.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    80.200 to t =    80.400 kyr
+   t =    80.200 kyr - writing output...
+ 
+ Coupling model: t =    80.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    80.400 to t =    80.600 kyr
+   t =    80.400 kyr - writing output...
+ 
+ Coupling model: t =    80.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    80.600 to t =    80.800 kyr
+   t =    80.600 kyr - writing output...
+ 
+ Coupling model: t =    80.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    80.800 to t =    81.000 kyr
+   t =    80.800 kyr - writing output...
+ 
+ Coupling model: t =    81.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    81.000 to t =    81.200 kyr
+   t =    81.000 kyr - writing output...
+ 
+ Coupling model: t =    81.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    81.200 to t =    81.400 kyr
+   t =    81.200 kyr - writing output...
+ 
+ Coupling model: t =    81.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    81.400 to t =    81.600 kyr
+   t =    81.400 kyr - writing output...
+ 
+ Coupling model: t =    81.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    81.600 to t =    81.800 kyr
+   t =    81.600 kyr - writing output...
+ 
+ Coupling model: t =    81.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    81.800 to t =    82.000 kyr
+   t =    81.800 kyr - writing output...
+ 
+ Coupling model: t =    82.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    82.000 to t =    82.200 kyr
+   t =    82.000 kyr - writing output...
+ 
+ Coupling model: t =    82.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    82.200 to t =    82.400 kyr
+   t =    82.200 kyr - writing output...
+ 
+ Coupling model: t =    82.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    82.400 to t =    82.600 kyr
+   t =    82.400 kyr - writing output...
+ 
+ Coupling model: t =    82.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    82.600 to t =    82.800 kyr
+   t =    82.600 kyr - writing output...
+ 
+ Coupling model: t =    82.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    82.800 to t =    83.000 kyr
+   t =    82.800 kyr - writing output...
+ 
+ Coupling model: t =    83.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    83.000 to t =    83.200 kyr
+   t =    83.000 kyr - writing output...
+ 
+ Coupling model: t =    83.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    83.200 to t =    83.400 kyr
+   t =    83.200 kyr - writing output...
+ 
+ Coupling model: t =    83.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    83.400 to t =    83.600 kyr
+   t =    83.400 kyr - writing output...
+ 
+ Coupling model: t =    83.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    83.600 to t =    83.800 kyr
+   t =    83.600 kyr - writing output...
+ 
+ Coupling model: t =    83.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    83.800 to t =    84.000 kyr
+   t =    83.800 kyr - writing output...
+ 
+ Coupling model: t =    84.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    84.000 to t =    84.200 kyr
+   t =    84.000 kyr - writing output...
+ 
+ Coupling model: t =    84.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    84.200 to t =    84.400 kyr
+   t =    84.200 kyr - writing output...
+ 
+ Coupling model: t =    84.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    84.400 to t =    84.600 kyr
+   t =    84.400 kyr - writing output...
+ 
+ Coupling model: t =    84.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    84.600 to t =    84.800 kyr
+   t =    84.600 kyr - writing output...
+ 
+ Coupling model: t =    84.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    84.800 to t =    85.000 kyr
+   t =    84.800 kyr - writing output...
+ 
+ Coupling model: t =    85.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    85.000 to t =    85.200 kyr
+   t =    85.000 kyr - writing output...
+ 
+ Coupling model: t =    85.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    85.200 to t =    85.400 kyr
+   t =    85.200 kyr - writing output...
+ 
+ Coupling model: t =    85.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    85.400 to t =    85.600 kyr
+   t =    85.400 kyr - writing output...
+ 
+ Coupling model: t =    85.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    85.600 to t =    85.800 kyr
+   t =    85.600 kyr - writing output...
+ 
+ Coupling model: t =    85.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    85.800 to t =    86.000 kyr
+   t =    85.800 kyr - writing output...
+ 
+ Coupling model: t =    86.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    86.000 to t =    86.200 kyr
+   t =    86.000 kyr - writing output...
+ 
+ Coupling model: t =    86.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    86.200 to t =    86.400 kyr
+   t =    86.200 kyr - writing output...
+ 
+ Coupling model: t =    86.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    86.400 to t =    86.600 kyr
+   t =    86.400 kyr - writing output...
+ 
+ Coupling model: t =    86.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    86.600 to t =    86.800 kyr
+   t =    86.600 kyr - writing output...
+ 
+ Coupling model: t =    86.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    86.800 to t =    87.000 kyr
+   t =    86.800 kyr - writing output...
+ 
+ Coupling model: t =    87.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    87.000 to t =    87.200 kyr
+   t =    87.000 kyr - writing output...
+ 
+ Coupling model: t =    87.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    87.200 to t =    87.400 kyr
+   t =    87.200 kyr - writing output...
+ 
+ Coupling model: t =    87.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    87.400 to t =    87.600 kyr
+   t =    87.400 kyr - writing output...
+ 
+ Coupling model: t =    87.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    87.600 to t =    87.800 kyr
+   t =    87.600 kyr - writing output...
+ 
+ Coupling model: t =    87.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    87.800 to t =    88.000 kyr
+   t =    87.800 kyr - writing output...
+ 
+ Coupling model: t =    88.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    88.000 to t =    88.200 kyr
+   t =    88.000 kyr - writing output...
+ 
+ Coupling model: t =    88.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    88.200 to t =    88.400 kyr
+   t =    88.200 kyr - writing output...
+ 
+ Coupling model: t =    88.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    88.400 to t =    88.600 kyr
+   t =    88.400 kyr - writing output...
+ 
+ Coupling model: t =    88.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    88.600 to t =    88.800 kyr
+   t =    88.600 kyr - writing output...
+ 
+ Coupling model: t =    88.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    88.800 to t =    89.000 kyr
+   t =    88.800 kyr - writing output...
+ 
+ Coupling model: t =    89.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    89.000 to t =    89.200 kyr
+   t =    89.000 kyr - writing output...
+ 
+ Coupling model: t =    89.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    89.200 to t =    89.400 kyr
+   t =    89.200 kyr - writing output...
+ 
+ Coupling model: t =    89.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    89.400 to t =    89.600 kyr
+   t =    89.400 kyr - writing output...
+ 
+ Coupling model: t =    89.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    89.600 to t =    89.800 kyr
+   t =    89.600 kyr - writing output...
+ 
+ Coupling model: t =    89.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    89.800 to t =    90.000 kyr
+   t =    89.800 kyr - writing output...
+ 
+ Coupling model: t =    90.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    90.000 to t =    90.200 kyr
+   t =    90.000 kyr - writing output...
+ 
+ Coupling model: t =    90.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    90.200 to t =    90.400 kyr
+   t =    90.200 kyr - writing output...
+ 
+ Coupling model: t =    90.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    90.400 to t =    90.600 kyr
+   t =    90.400 kyr - writing output...
+ 
+ Coupling model: t =    90.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    90.600 to t =    90.800 kyr
+   t =    90.600 kyr - writing output...
+ 
+ Coupling model: t =    90.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    90.800 to t =    91.000 kyr
+   t =    90.800 kyr - writing output...
+ 
+ Coupling model: t =    91.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    91.000 to t =    91.200 kyr
+   t =    91.000 kyr - writing output...
+ 
+ Coupling model: t =    91.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    91.200 to t =    91.400 kyr
+   t =    91.200 kyr - writing output...
+ 
+ Coupling model: t =    91.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    91.400 to t =    91.600 kyr
+   t =    91.400 kyr - writing output...
+ 
+ Coupling model: t =    91.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    91.600 to t =    91.800 kyr
+   t =    91.600 kyr - writing output...
+ 
+ Coupling model: t =    91.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    91.800 to t =    92.000 kyr
+   t =    91.800 kyr - writing output...
+ 
+ Coupling model: t =    92.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    92.000 to t =    92.200 kyr
+   t =    92.000 kyr - writing output...
+ 
+ Coupling model: t =    92.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    92.200 to t =    92.400 kyr
+   t =    92.200 kyr - writing output...
+ 
+ Coupling model: t =    92.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    92.400 to t =    92.600 kyr
+   t =    92.400 kyr - writing output...
+ 
+ Coupling model: t =    92.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    92.600 to t =    92.800 kyr
+   t =    92.600 kyr - writing output...
+ 
+ Coupling model: t =    92.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    92.800 to t =    93.000 kyr
+   t =    92.800 kyr - writing output...
+ 
+ Coupling model: t =    93.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    93.000 to t =    93.200 kyr
+   t =    93.000 kyr - writing output...
+ 
+ Coupling model: t =    93.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    93.200 to t =    93.400 kyr
+   t =    93.200 kyr - writing output...
+ 
+ Coupling model: t =    93.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    93.400 to t =    93.600 kyr
+   t =    93.400 kyr - writing output...
+ 
+ Coupling model: t =    93.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    93.600 to t =    93.800 kyr
+   t =    93.600 kyr - writing output...
+ 
+ Coupling model: t =    93.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    93.800 to t =    94.000 kyr
+   t =    93.800 kyr - writing output...
+ 
+ Coupling model: t =    94.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    94.000 to t =    94.200 kyr
+   t =    94.000 kyr - writing output...
+ 
+ Coupling model: t =    94.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    94.200 to t =    94.400 kyr
+   t =    94.200 kyr - writing output...
+ 
+ Coupling model: t =    94.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    94.400 to t =    94.600 kyr
+   t =    94.400 kyr - writing output...
+ 
+ Coupling model: t =    94.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    94.600 to t =    94.800 kyr
+   t =    94.600 kyr - writing output...
+ 
+ Coupling model: t =    94.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    94.800 to t =    95.000 kyr
+   t =    94.800 kyr - writing output...
+ 
+ Coupling model: t =    95.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    95.000 to t =    95.200 kyr
+   t =    95.000 kyr - writing output...
+ 
+ Coupling model: t =    95.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    95.200 to t =    95.400 kyr
+   t =    95.200 kyr - writing output...
+ 
+ Coupling model: t =    95.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    95.400 to t =    95.600 kyr
+   t =    95.400 kyr - writing output...
+ 
+ Coupling model: t =    95.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    95.600 to t =    95.800 kyr
+   t =    95.600 kyr - writing output...
+ 
+ Coupling model: t =    95.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    95.800 to t =    96.000 kyr
+   t =    95.800 kyr - writing output...
+ 
+ Coupling model: t =    96.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    96.000 to t =    96.200 kyr
+   t =    96.000 kyr - writing output...
+ 
+ Coupling model: t =    96.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    96.200 to t =    96.400 kyr
+   t =    96.200 kyr - writing output...
+ 
+ Coupling model: t =    96.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    96.400 to t =    96.600 kyr
+   t =    96.400 kyr - writing output...
+ 
+ Coupling model: t =    96.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    96.600 to t =    96.800 kyr
+   t =    96.600 kyr - writing output...
+ 
+ Coupling model: t =    96.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    96.800 to t =    97.000 kyr
+   t =    96.800 kyr - writing output...
+ 
+ Coupling model: t =    97.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    97.000 to t =    97.200 kyr
+   t =    97.000 kyr - writing output...
+ 
+ Coupling model: t =    97.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    97.200 to t =    97.400 kyr
+   t =    97.200 kyr - writing output...
+ 
+ Coupling model: t =    97.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    97.400 to t =    97.600 kyr
+   t =    97.400 kyr - writing output...
+ 
+ Coupling model: t =    97.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    97.600 to t =    97.800 kyr
+   t =    97.600 kyr - writing output...
+ 
+ Coupling model: t =    97.800 kyr
+ 
+  Running model region ANT (Antarctica) from t =    97.800 to t =    98.000 kyr
+   t =    97.800 kyr - writing output...
+ 
+ Coupling model: t =    98.000 kyr
+ 
+  Running model region ANT (Antarctica) from t =    98.000 to t =    98.200 kyr
+   t =    98.000 kyr - writing output...
+ 
+ Coupling model: t =    98.200 kyr
+ 
+  Running model region ANT (Antarctica) from t =    98.200 to t =    98.400 kyr
+   t =    98.200 kyr - writing output...
+ 
+ Coupling model: t =    98.400 kyr
+ 
+  Running model region ANT (Antarctica) from t =    98.400 to t =    98.600 kyr
+   t =    98.400 kyr - writing output...
+ 
+ Coupling model: t =    98.600 kyr
+ 
+  Running model region ANT (Antarctica) from t =    98.600 to t =    98.800 kyr
+   t =    98.600 kyr - writing output...

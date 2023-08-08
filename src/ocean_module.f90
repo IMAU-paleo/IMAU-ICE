@@ -15,7 +15,7 @@ MODULE ocean_module
                                              type_climate_model, type_reference_geometry
   USE netcdf_input_module,             ONLY: setup_z_ocean_from_file, read_field_from_xy_file_2D, &
                                              read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D
-  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file
+  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file, create_inverted_ocean_file
   USE netcdf_basic_module,             ONLY: field_name_options_T_ocean,field_name_options_S_ocean
   USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
@@ -126,6 +126,10 @@ CONTAINS
       ! Allocate all the snapshots used in the warm/cold ocean matrix
 
       CALL initialise_ocean_matrix_regional( region, ocean_matrix_global)
+
+    ELSEIF (C%choice_ocean_model == 'anomalies') THEN
+      ! Initialise ocean with baseline for anomalies
+      CALL initialise_ocean_model_anomalies(region)
 
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
@@ -935,6 +939,9 @@ CONTAINS
     END DO
     CALL sync
 
+    CALL save_variable_as_netcdf_dp_3D(ocean_matrix%applied%T_ocean_corr_ext,'T_ocean_corr_ext')
+
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1139,6 +1146,100 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_ocean_model_matrix_warm_cold
+
+! == Apply anomalies to ocean baseline
+! ============================================
+
+  SUBROUTINE initialise_ocean_model_anomalies( region)
+    ! Initialise the regional ocean model
+    ! Use ISMIP style ocean temperature and salinity
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_anomalies'
+    INTEGER                                            :: i,j,k, wnz_ocean_raw, wTO_3D_raw, wSO_3D_raw, wz_ocean_raw, wTO_3D_zIMAU, wSO_3D_zIMAU
+    INTEGER, POINTER                                   :: nz_ocean_raw
+    ! TYPE(type_netcdf_regional_ocean_data)              :: netcdf
+    TYPE(type_grid)                                    :: grid_raw
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: TO_3D_raw, SO_3D_raw, TO_3D_zIMAU, SO_3D_zIMAU
+    REAL(dp), DIMENSION(:), POINTER                    :: z_ocean_raw
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%applied, name = 'applied')
+    ! CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%baseline, name = 'baseline')
+    ! CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%anomaly_t0, name = 'anomaly_t0')
+    ! CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%anomaly_t1, name = 'anomaly_t1')
+
+    CALL allocate_shared_dp_0D(                               region%ocean_matrix%timeframe_t0,     region%ocean_matrix%wtimeframe_t0    )
+    CALL allocate_shared_dp_0D(                               region%ocean_matrix%timeframe_t1,     region%ocean_matrix%wtimeframe_t1    )
+    CALL allocate_shared_int_0D( nz_ocean_raw, wnz_ocean_raw)
+
+    ! time is before start time of run to make sure first time run_ocean_model is called, it will update the timeframes
+    region%ocean_matrix%timeframe_t0 = C%start_time_of_run - 10._dp
+    region%ocean_matrix%timeframe_t1 = C%start_time_of_run - 9._dp
+
+    ! ! Read baseline ocean temperatures and salinity
+
+    ! ! Determine the name of the file containing the timeframe
+    ! netcdf%filename = TRIM( C%ocean_filename_baseline)
+
+    ! ! Set up the grid from the NetCDF file
+    ! CALL setup_grid_from_file( netcdf%filename, grid_raw)
+    ! ! Inquire if everything we need is present in the file
+    ! CALL inquire_regional_ocean_file_3D( netcdf, grid_raw%nx, grid_raw%ny, nz_ocean_raw)
+
+    ! Allocate memory, read the data
+    CALL allocate_shared_dp_1D( nz_ocean_raw, z_ocean_raw, wz_ocean_raw)
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, nz_ocean_raw, TO_3D_raw, wTO_3D_raw)
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, nz_ocean_raw, SO_3D_raw, wSO_3D_raw)
+
+    ! CALL read_regional_ocean_file_3D( netcdf, grid_raw%x, grid_raw%y, z_ocean_raw, TO_3D_raw, SO_3D_raw)
+    ! CALL sync
+
+    ! Interpolate to vertical IMAU-ICE z_ocean
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, C%nz_ocean, TO_3D_zIMAU, wTO_3D_zIMAU)
+    CALL allocate_shared_dp_3D( grid_raw%nx, grid_raw%ny, C%nz_ocean, SO_3D_zIMAU, wSO_3D_zIMAU)
+
+    ! CALL map_regional_ocean_data_to_IMAUICE_vertical_grid( grid_raw, TO_3D_raw, SO_3D_raw, nz_ocean_raw, z_ocean_raw, TO_3D_zIMAU, SO_3D_zIMAU)
+
+
+    ! ! Transpose the data from [i,j,k] to [k,j,i] indexing
+    ! CALL transpose_dp_3D( TO_3D_zIMAU, wTO_3D_zIMAU)
+    ! CALL transpose_dp_3D( SO_3D_zIMAU, wSO_3D_zIMAU)
+
+    ! ! Map raw ocean temperatures to IMAU-ICE grid
+    ! CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      ! region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, TO_3D_zIMAU, region%ocean_matrix%baseline%T_ocean_corr_ext)
+    ! CALL map_square_to_square_cons_2nd_order_3D( grid_raw%nx, grid_raw%ny, grid_raw%x, grid_raw%y, &
+      ! region%grid%nx, region%grid%ny, region%grid%x, region%grid%y, SO_3D_zIMAU, region%ocean_matrix%baseline%S_ocean_corr_ext)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( grid_raw%wnx)
+    CALL deallocate_shared( grid_raw%wny)
+    CALL deallocate_shared( grid_raw%wdx)
+    CALL deallocate_shared( grid_raw%wx )
+    CALL deallocate_shared( grid_raw%wy )
+    CALL deallocate_shared( wnz_ocean_raw )
+    CALL deallocate_shared( wTO_3D_raw )
+    CALL deallocate_shared( wSO_3D_raw )
+    CALL deallocate_shared( wz_ocean_raw )
+    CALL deallocate_shared( wTO_3D_zIMAU )
+    CALL deallocate_shared( wSO_3D_zIMAU )
+
+    ! ! Copy to applied type
+    ! region%ocean_matrix%applied%T_ocean_corr_ext = region%ocean_matrix%baseline%T_ocean_corr_ext
+    ! region%ocean_matrix%applied%S_ocean_corr_ext = region%ocean_matrix%baseline%S_ocean_corr_ext
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_ocean_model_anomalies
 
 ! == Initialise the global ocean matrix
   SUBROUTINE initialise_ocean_matrix_global( ocean_matrix)
@@ -2552,7 +2653,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE ocean_temperature_inversion
-
   SUBROUTINE extrapolate_updated_ocean_temperature( grid, mask, dT_ocean)
     ! The geometry-based ocean temperature inversion routine only yields values
     ! beneath floating ice; extrapolate new values to cover the entire domain.
@@ -2594,5 +2694,36 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_ocean_temperature
+  SUBROUTINE write_inverted_ocean_to_file( grid, ocean)
+    ! Create a new NetCDF file and write the inverted ocean temperature and salinity to it
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
+    INTEGER                                            :: i,j,k
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_inverted_ocean_to_file'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, C%nz_ocean
+      ocean%T_ocean_corr_ext( k,j,i) = ocean%T_ocean_corr_ext( k,j,i) + ocean%dT_ocean( j,i)
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    CALL create_inverted_ocean_file( grid, ocean)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_inverted_ocean_to_file
 
 END MODULE ocean_module

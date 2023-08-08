@@ -24,7 +24,7 @@ MODULE netcdf_output_module
 
   ! Import specific functionality
   USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_model_region, type_ice_model, type_global_scalar_data, &
-                                             type_highres_ocean_data
+                                             type_highres_ocean_data, type_ocean_snapshot_regional
   USE netcdf,                          ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
                                              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
                                              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
@@ -1338,11 +1338,65 @@ CONTAINS
 
     ! Write the T_ocean and S_ocean fields
     CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%T_ocean)
-    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%S_ocean)
+    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'S_ocean', hires%S_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
   END SUBROUTINE create_extrapolated_ocean_file
+
+    ! Create an inverted ocean data file
+  SUBROUTINE create_inverted_ocean_file(  grid, ocean)
+    ! Create a new folder extrapolated ocean data file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional),    INTENT(IN)  :: ocean
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'create_inverted_ocean_file'
+    CHARACTER(LEN=256)                                 :: filename
+    LOGICAL                                            :: file_exists
+    INTEGER                                            :: id_var
+    REAL(dp), DIMENSION(:,:), POINTER                  :: d_grid
+    INTEGER                                            :: wd_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    ! CALL allocate_shared_dp_3D( grid%ny, grid%nx, d_grid, wd_grid)
+
+    filename = TRIM(C%output_dir) // TRIM(C%ocean_filename_output)
+    ! INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
+    ! IF (file_exists) THEN
+      ! CALL crash('file "' // TRIM( filename) // '" already exists!')
+    ! END IF
+
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE(0,*) ' Writing inverted ocean to file "', TRIM( filename), '"...'
+
+    ! Create a new NetCDF file
+    CALL create_new_netcdf_file_for_writing( filename)
+
+    ! Add ocean depth dimension
+    CALL add_ocean_dimension_to_file(  filename)
+
+    ! Set up the grids in this file
+    CALL setup_xy_grid_in_netcdf_file( filename, grid)
+
+    ! Add T_ocean and S_ocean fields
+    CALL add_field_grid_dp_3D_notime( filename, 'T', long_name = '3-D ocean temperature'  , units = 'K'  )
+    CALL add_field_grid_dp_3D_notime( filename, 'S', long_name = '3-D ocean salinity'     , units = 'PSU')
+
+    ! Write the T_ocean and S_ocean fields
+    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, grid, 'T', ocean%T_ocean_corr_ext)
+    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, grid, 'S', ocean%S_ocean_corr_ext)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+  END SUBROUTINE create_inverted_ocean_file
 
    ! Inverted basal roughness
   SUBROUTINE create_BIV_bed_roughness_file( grid, ice )

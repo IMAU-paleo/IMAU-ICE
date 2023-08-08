@@ -169,7 +169,6 @@ MODULE data_types_netcdf_module
 
   END TYPE type_netcdf_global_ocean_data
 
-
   TYPE type_netcdf_insolation
     ! For reading an input file containing an insolation history reconstruction (e.g. Lasker et al., 2004),
     ! describing top-of-the-atmosphere insolation for every month of the year at a latitudinal grid.

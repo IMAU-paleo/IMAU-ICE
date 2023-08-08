@@ -27,7 +27,7 @@ MODULE IMAU_ICE_main_model
   USE ice_velocity_module,                 ONLY: solve_DIVA
   USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
   USE thermodynamics_module,               ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
-  USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model, ocean_temperature_inversion
+  USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model, ocean_temperature_inversion, write_inverted_ocean_to_file
   USE climate_module,                      ONLY: initialise_climate_model,          run_climate_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
@@ -231,6 +231,7 @@ CONTAINS
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
       IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
+      IF (C%do_ocean_temperature_inversion) CALL write_inverted_ocean_to_file( region%grid, region%ocean_matrix%applied)
     END IF
 
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
