@@ -498,6 +498,7 @@ MODULE configuration_module
   REAL(dp)            :: ocean_temperature_inv_tau_config            = 200.0_dp                         ! Time scale for regularisation in Pien's delta inversion method
   REAL(dp)            :: ocean_temperature_inv_min_config            = -3.0_dp                          ! Lower delta temperature limit in Pien's delta inversion method
   REAL(dp)            :: ocean_temperature_inv_max_config            = +3.0_dp                          ! Upper delta temperature limit in Pien's delta inversion method
+  CHARACTER(LEN=256)  :: inverted_ocean_filename_output_config       = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean state will be saved
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
@@ -1265,6 +1266,7 @@ MODULE configuration_module
     REAL(dp)                            :: ocean_temperature_inv_tau
     REAL(dp)                            :: ocean_temperature_inv_min
     REAL(dp)                            :: ocean_temperature_inv_max
+    CHARACTER(LEN=256)                  :: inverted_ocean_filename_output
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -2110,6 +2112,7 @@ CONTAINS
                      ocean_temperature_inv_tau_config,                &
                      ocean_temperature_inv_min_config,                &
                      ocean_temperature_inv_max_config,                &
+                     inverted_ocean_filename_output_config,           &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2953,6 +2956,7 @@ CONTAINS
     C%ocean_temperature_inv_tau                = ocean_temperature_inv_tau_config
     C%ocean_temperature_inv_min                = ocean_temperature_inv_min_config
     C%ocean_temperature_inv_max                = ocean_temperature_inv_max_config
+    C%inverted_ocean_filename_output           = inverted_ocean_filename_output_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config

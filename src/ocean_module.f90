@@ -15,7 +15,7 @@ MODULE ocean_module
                                              type_climate_model, type_reference_geometry
   USE netcdf_input_module,             ONLY: setup_z_ocean_from_file, read_field_from_xy_file_2D, &
                                              read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D
-  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file
+  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file, create_inverted_ocean_file
   USE netcdf_basic_module,             ONLY: field_name_options_T_ocean,field_name_options_S_ocean
   USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
@@ -1429,11 +1429,11 @@ CONTAINS
         IF (par%master) WRITE(0,*) '   Found valid extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
         CALL get_hires_ocean_data_from_file( region, hires, hires_ocean_foldername)
       ELSE
-      ! No header fitting the current ice model set-up was found. Create a new one describing
-      ! the current set-up, and generate extrapolated ocean data files from scratch.
-      IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
-      CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
-      CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
+        ! No header fitting the current ice model set-up was found. Create a new one describing
+        ! the current set-up, and generate extrapolated ocean data files from scratch.
+        IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
+        CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
+        CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
       END IF ! IF (.NOT. foundmatch) THEN
     ELSE
       CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
@@ -1485,7 +1485,6 @@ CONTAINS
     ! Check if the NetCDF file has all the required dimensions and variables
     hires%filename = TRIM( hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     CALL sync
-
 
     ! Read the data from the NetCDF file
     IF (par%master) WRITE(0,*) '    Reading high-resolution extrapolated ocean data from file "', TRIM( hires%filename), '"...'
@@ -2618,5 +2617,30 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_ocean_temperature
+
+  SUBROUTINE write_inverted_ocean_temperature_to_file( grid, ocean)
+    ! Create a new NetCDF file and write the inverted ocean
+    ! temperature to it
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_inverted_ocean_temperature_to_file'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL create_inverted_ocean_file( grid, ocean)
+
+    call save_variable_as_netcdf_dp_3D(ocean%T_ocean_corr_ext,'T_ocean_corr_ext')
+    call save_variable_as_netcdf_dp_2D(ocean%dT_ocean,'dT_ocean')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_inverted_ocean_temperature_to_file
 
 END MODULE ocean_module
