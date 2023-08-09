@@ -400,7 +400,7 @@ CONTAINS
     REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_xy_file_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_xy_file_ocean_3D'
     INTEGER                                            :: nz_ocean
     REAL(dp), DIMENSION(:    ), POINTER                :: z_ocean
     INTEGER                                            :: wz_ocean
