@@ -31,7 +31,7 @@
   ! =======================================================================
 
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'results_spinup_40km_era5_cross' ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'results_spinup_40km_era5'       ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -134,7 +134,7 @@
   ! Ice dynamics - velocity
   ! =======================
 
-  choice_ice_dynamics_config                  = 'SIA/SSA'                        ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  choice_ice_dynamics_config                  = 'SIA/SSA'                        ! Choice of ice-dynamics approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   n_flow_config                               = 3.0                              ! Exponent in Glen`s flow law
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
@@ -481,7 +481,7 @@
   help_field_12_config                        = 'phi_fric'
   help_field_13_config                        = 'beta'
   help_field_14_config                        = 'beta_eff'
-  help_field_15_config                        = 'none'
+  help_field_15_config                        = 'dHi_dt'
   help_field_16_config                        = 'none'
   help_field_17_config                        = 'none'
   help_field_18_config                        = 'none'

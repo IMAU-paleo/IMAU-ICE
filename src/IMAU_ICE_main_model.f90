@@ -191,23 +191,33 @@ CONTAINS
       END IF
 
     ! Ocean temperature inversion
-    ! ==============================
+    ! ===========================
 
       IF (C%do_ocean_temperature_inversion .AND. region%do_BMB) THEN
         IF (region%time > C%ocean_temperature_inv_t_start .AND. region%time < C%ocean_temperature_inv_t_end) THEN
           ! Adjust ocean temperatures
-          CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%time)
+          IF (C%do_asynchronous_BMB) THEN
+            ! Use custom BMB time step
+            CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, C%dt_BMB)
+          ELSE
+            ! Use main model time step
+            CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%dt)
+          END IF
         END IF
       END IF
 
     ! Time step and output
     ! ====================
 
-      ! Write output
+      ! Write main output
       IF (region%do_output) THEN
         CALL write_to_restart_file_grid( region%restart_filename, region)
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
       END IF
+
+      ! Write scalar output
+      CALL calculate_icesheet_volume_and_area(region)
+      CALL write_regional_scalar_data( region, region%time)
 
       ! Update ice geometry and advance region time
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
