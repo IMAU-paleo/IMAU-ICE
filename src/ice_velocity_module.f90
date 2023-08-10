@@ -918,6 +918,7 @@ CONTAINS
     INTEGER                                            :: i,j
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  u_a,  v_a
     INTEGER                                            :: wu_a, wv_a
+    REAL(dp)                                           :: beta_min
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -937,7 +938,20 @@ CONTAINS
     CALl deallocate_shared( wu_a)
     CALl deallocate_shared( wv_a)
 
-    ! Limit beta to improve stability
+    ! Limit minimum beta over thin-ice areas to prevent super-fast ice on steep slopes
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ! Multiply config-reference minimum beta by a number between 0 and 1,
+      ! depending on how much thinner than a config-reference threshold
+      ! the current model thickness is. If thicker, no limit is applied.
+      beta_min = C%DIVA_beta_min_thin_ice * MIN( 1._dp, MAX( 0._dp, 1._dp - ice%Hi_a( j,i) / C%DIVA_beta_min_thin_ice_H0))
+      ! Apply dynamic minimum limit to beta
+      ice%beta_a( j,i) = MAX( ice%beta_a( j,i), beta_min )
+    END DO
+    END DO
+    CALL sync
+
+    ! Limit maximum beta to improve stability
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ice%beta_a( j,i) = MIN( ice%beta_a( j,i), C%DIVA_beta_max)

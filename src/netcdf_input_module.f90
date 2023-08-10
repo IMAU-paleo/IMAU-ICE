@@ -46,7 +46,7 @@ MODULE netcdf_input_module
                                              check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                                              check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_ocean_3D, &
                                              check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                                             inquire_xy_grid, inquire_lonlat_grid
+                                             inquire_xy_grid, inquire_lonlat_grid, check_xy_grid_field_dp_3D_ocean
 
   IMPLICIT NONE
 
@@ -384,8 +384,8 @@ CONTAINS
 
   END SUBROUTINE read_field_from_file_ocean_3D
 
-  SUBROUTINE read_field_from_xy_file_ocean_3D(             filename, field_name_options, region_name, grid, d, wd, time_to_read)
-    ! Read a 3-D data field from a NetCDF file on an x/y-grid,
+  SUBROUTINE read_field_from_xy_file_ocean_3D(             filename, field_name_options, region_name, grid, d_z_ocean, wd_z_ocean, time_to_read)
+    ! Read a 3-D ocean data field from a NetCDF file on an x/y-grid,
     ! and return both the grid and the data.
 
     IMPLICIT NONE
@@ -395,8 +395,8 @@ CONTAINS
     CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     TYPE(type_grid),                     INTENT(INOUT) :: grid
-    REAL(dp), DIMENSION(:,:,:), POINTER, INTENT(OUT)   :: d
-    INTEGER,                             INTENT(OUT)   :: wd
+    REAL(dp), DIMENSION(:,:,:), POINTER, INTENT(OUT)   :: d_z_ocean
+    INTEGER,                             INTENT(OUT)   :: wd_z_ocean
     REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
 
     ! Local variables:
@@ -410,8 +410,6 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:,:), POINTER              :: d_with_time
     INTEGER                                            :: wd_with_time
     INTEGER                                            :: ti
-    REAL(dp), DIMENSION(:,:,:), POINTER                :: d_z_ocean
-    INTEGER                                            :: wd_z_ocean
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -427,7 +425,7 @@ CONTAINS
     IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
 
     ! Check if the variable has the required dimensions
-    CALL check_xy_grid_field_dp_3D( filename, var_name, should_have_time = PRESENT( time_to_read))
+    CALL check_xy_grid_field_dp_3D_ocean( filename, var_name, should_have_time = PRESENT( time_to_read))
 
     ! Determine indexing and dimension directions
     CALL determine_xy_indexing( filename, var_name, indexing, xdir, ydir)
@@ -448,7 +446,7 @@ CONTAINS
         ! Read data
         CALL read_var_dp_4D( filename, id_var, d_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%nx, grid%ny, nz_ocean, 1 /) )
         ! Copy to output memory
-        d( grid%i1:grid%i2,:,:) = d_with_time( grid%i1:grid%i2,:,:,1)
+        d_z_ocean( grid%i1:grid%i2,:,:) = d_with_time( grid%i1:grid%i2,:,:,1)
         ! Clean up after yourself
         CALL deallocate_shared( wd_with_time)
       END IF
@@ -469,7 +467,7 @@ CONTAINS
         ! Read data
         CALL read_var_dp_4D( filename, id_var, d_with_time, start = (/ 1, 1, 1, ti /), count = (/ grid%ny, grid%nx, nz_ocean, 1 /) )
         ! Copy to output memory
-        d( :,grid%i1:grid%i2,:) = d_with_time( :,grid%i1:grid%i2,:,1)
+        d_z_ocean( :,grid%i1:grid%i2,:) = d_with_time( :,grid%i1:grid%i2,:,1)
         ! Clean up after yourself
         CALL deallocate_shared( wd_with_time)
       END IF
@@ -484,7 +482,7 @@ CONTAINS
     IF     (indexing == 'xy') THEN
       ! No need to do anything
     ELSEIF (indexing == 'yx') THEN
-      CALL permute_3D_dp( d, wd, map = [2,1,3])
+      CALL permute_3D_dp( d_z_ocean, wd_z_ocean, map = [2,1,3])
     ELSE
       CALL crash('unknown indexing = "' // TRIM( indexing) // '"!')
     END IF
@@ -494,7 +492,7 @@ CONTAINS
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
       CALL flip_1D_dp( grid%x)
-      CALL flip_3D_x1_dp( d)
+      CALL flip_3D_x1_dp( d_z_ocean)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
     END IF
@@ -504,16 +502,13 @@ CONTAINS
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
       CALL flip_1D_dp( grid%y)
-      CALL flip_3D_x2_dp( d)
+      CALL flip_3D_x2_dp( d_z_ocean)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
     END IF
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_3D( grid%nx, grid%ny, C%nz, d, wd)
-
     ! Transpose the input data
-    CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_3D( d_z_ocean, wd_z_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

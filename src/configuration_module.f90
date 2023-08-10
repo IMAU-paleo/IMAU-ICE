@@ -283,7 +283,9 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   REAL(dp)            :: DIVA_epsilon_sq_0_config                    = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
   REAL(dp)            :: DIVA_visc_eff_min_config                    = 1E3_dp                           ! Minimum value for effective viscosity
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for basal friction coefficient
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for effective basal friction
+  REAL(dp)            :: DIVA_beta_min_thin_ice_config               = 0.0_dp                           ! Minimum value for effective basal friction over thin-ice areas
+  REAL(dp)            :: DIVA_beta_min_thin_ice_H0_config            = 1E20_dp                          ! Threshold thinness below which a minimum beta limit starts to apply
   REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -491,7 +493,12 @@ MODULE configuration_module
   LOGICAL             :: do_ocean_temperature_inversion_config       = .FALSE.                          ! Whether or not to apply the inversion
   REAL(dp)            :: ocean_temperature_inv_t_start_config        = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
   REAL(dp)            :: ocean_temperature_inv_t_end_config          = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
-  CHARACTER(LEN=256)  :: ocean_filename_output_config                = 'ocean_inv.nc'           ! NetCDF file where the final inverted basal roughness will be saved
+  REAL(dp)            :: ocean_temperature_inv_dT0_config            = 1.0_dp                           ! Adjustment scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_H0_config             = 200.0_dp                         ! Ice thickness scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_tau_config            = 200.0_dp                         ! Time scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_min_config            = -3.0_dp                          ! Lower delta temperature limit in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_max_config            = +3.0_dp                          ! Upper delta temperature limit in Pien's delta inversion method
+  CHARACTER(LEN=256)  :: inverted_ocean_filename_output_config       = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean state will be saved
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
@@ -1056,6 +1063,8 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_epsilon_sq_0
     REAL(dp)                            :: DIVA_visc_eff_min
     REAL(dp)                            :: DIVA_beta_max
+    REAL(dp)                            :: DIVA_beta_min_thin_ice
+    REAL(dp)                            :: DIVA_beta_min_thin_ice_H0
     REAL(dp)                            :: DIVA_vel_max
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
@@ -1260,7 +1269,12 @@ MODULE configuration_module
     LOGICAL                             :: do_ocean_temperature_inversion
     REAL(dp)                            :: ocean_temperature_inv_t_start
     REAL(dp)                            :: ocean_temperature_inv_t_end
-    CHARACTER(LEN=256)                  :: ocean_filename_output
+    REAL(dp)                            :: ocean_temperature_inv_dT0
+    REAL(dp)                            :: ocean_temperature_inv_H0
+    REAL(dp)                            :: ocean_temperature_inv_tau
+    REAL(dp)                            :: ocean_temperature_inv_min
+    REAL(dp)                            :: ocean_temperature_inv_max
+    CHARACTER(LEN=256)                  :: inverted_ocean_filename_output
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -1955,6 +1969,8 @@ CONTAINS
                      DIVA_epsilon_sq_0_config,                        &
                      DIVA_visc_eff_min_config,                        &
                      DIVA_beta_max_config,                            &
+                     DIVA_beta_min_thin_ice_config,                   &
+                     DIVA_beta_min_thin_ice_H0_config,                &
                      DIVA_vel_max_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
                      DIVA_boundary_BC_u_east_config,                  &
@@ -2106,7 +2122,12 @@ CONTAINS
                      do_ocean_temperature_inversion_config,           &
                      ocean_temperature_inv_t_start_config,            &
                      ocean_temperature_inv_t_end_config,              &
-                     ocean_filename_output_config,                   &
+                     ocean_temperature_inv_dT0_config,                &
+                     ocean_temperature_inv_H0_config,                 &
+                     ocean_temperature_inv_tau_config,                &
+                     ocean_temperature_inv_min_config,                &
+                     ocean_temperature_inv_max_config,                &
+                     inverted_ocean_filename_output_config,           &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2743,6 +2764,8 @@ CONTAINS
     C%DIVA_epsilon_sq_0                        = DIVA_epsilon_sq_0_config
     C%DIVA_visc_eff_min                        = DIVA_visc_eff_min_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
+    C%DIVA_beta_min_thin_ice                   = DIVA_beta_min_thin_ice_config
+    C%DIVA_beta_min_thin_ice_H0                = DIVA_beta_min_thin_ice_H0_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
@@ -2948,7 +2971,12 @@ CONTAINS
     C%do_ocean_temperature_inversion           = do_ocean_temperature_inversion_config
     C%ocean_temperature_inv_t_start            = ocean_temperature_inv_t_start_config
     C%ocean_temperature_inv_t_end              = ocean_temperature_inv_t_end_config
-    C%ocean_filename_output                    = ocean_filename_output_config
+    C%ocean_temperature_inv_dT0                = ocean_temperature_inv_dT0_config
+    C%ocean_temperature_inv_H0                 = ocean_temperature_inv_H0_config
+    C%ocean_temperature_inv_tau                = ocean_temperature_inv_tau_config
+    C%ocean_temperature_inv_min                = ocean_temperature_inv_min_config
+    C%ocean_temperature_inv_max                = ocean_temperature_inv_max_config
+    C%inverted_ocean_filename_output           = inverted_ocean_filename_output_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config

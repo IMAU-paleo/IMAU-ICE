@@ -1687,11 +1687,11 @@ CONTAINS
         IF (par%master) WRITE(0,*) '   Found valid extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
         CALL get_hires_ocean_data_from_file( region, hires, hires_ocean_foldername)
       ELSE
-      ! No header fitting the current ice model set-up was found. Create a new one describing
-      ! the current set-up, and generate extrapolated ocean data files from scratch.
-      IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
-      CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
-      CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
+        ! No header fitting the current ice model set-up was found. Create a new one describing
+        ! the current set-up, and generate extrapolated ocean data files from scratch.
+        IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
+        CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
+        CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
       END IF ! IF (.NOT. foundmatch) THEN
     ELSE
       CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
@@ -1743,7 +1743,6 @@ CONTAINS
     ! Check if the NetCDF file has all the required dimensions and variables
     hires%filename = TRIM( hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     CALL sync
-
 
     ! Read the data from the NetCDF file
     IF (par%master) WRITE(0,*) '    Reading high-resolution extrapolated ocean data from file "', TRIM( hires%filename), '"...'
@@ -2735,7 +2734,7 @@ CONTAINS
 ! == Ocean (delta) temperature inversion
 ! ======================================
 
-  SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, time)
+  SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, dt)
     ! Invert delta ocean temps using the reference topography
 
     IMPLICIT NONE
@@ -2745,50 +2744,58 @@ CONTAINS
     TYPE(type_ice_model),               INTENT(IN)    :: ice
     TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
     TYPE(type_reference_geometry),      INTENT(IN)    :: refgeo
-    REAL(dp),                           INTENT(IN)    :: time
+    REAL(dp),                           INTENT(IN)    :: dt
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'ocean_temperature_inversion'
     INTEGER                                           :: i,j
     INTEGER,  DIMENSION(:,:), POINTER                 ::  mask
     INTEGER                                           :: wmask
-    REAL(dp)                                          :: h_delta
+    REAL(dp), DIMENSION(:,:), POINTER                 ::  dT_dt
+    INTEGER                                           :: wdT_dt
+    REAL(dp)                                          :: h_delta, reg_1st, reg_2nd
     REAL(dp), PARAMETER                               :: sigma = 500._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dT_dt, wdT_dt)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask,  wmask)
 
     ! Loop over all grid points within this process
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-      ! Skip calving-front and non-shelf grid points
+      ! Skip non-shelf and non-GL calving-front grid points
       IF ( ice%mask_shelf_a( j,i) == 0 .OR. &
-           ice%mask_cf_a(    j,i) == 1) THEN
+           (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_glf_a( j,i) == 0) ) THEN
         ! Mark for extrapolation
         mask( j,i) = 1
         ! Go to next grid point
         CYCLE
       END IF
 
+      ! == Misfit
+      ! =========
+
       ! Ice thickness difference w.r.t. observations (positive if too thick)
-      h_delta = ice%Hi_a( j,i) - refgeo%Hi( j,i)
+      h_delta = ice%Hi_a(j,i) - refgeo%Hi(j,i)
 
-      ! Adjust dT_ocean based on misfit
-      IF ( h_delta > 0._dp) THEN
-        ! Too thick: increase ocean temperature
-        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) + .01_dp
-      ELSEIF ( h_delta < 0._dp) THEN
-        ! Too thin: decrease ocean temperature
-        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) - .01_dp
-      END IF
+      ! == Regularisation
+      ! =================
 
-      ! Limit dT_ocean so it does not go to infinity
-      ocean%dT_ocean( j,i) = MAX( ocean%dT_ocean( j,i), -3._dp)
-      ocean%dT_ocean( j,i) = MIN( ocean%dT_ocean( j,i), +3._dp)
+      ! First regularisation term
+      reg_1st = h_delta / C%ocean_temperature_inv_H0 / C%ocean_temperature_inv_tau
+
+      ! Second regularisation term
+      reg_2nd = ice%dHi_dt_a( j,i) * 2._dp / C%ocean_temperature_inv_H0
+
+      ! == Adjustment
+      ! =============
+
+      ! Compute adjustment to delta temperature
+      dT_dt( j,i) = C%ocean_temperature_inv_dT0 * (reg_1st + reg_2nd)
 
       ! Use this point as seed during extrapolation
       mask( j,i) = 2
@@ -2798,12 +2805,28 @@ CONTAINS
     CALL sync
 
     ! Extrapolate inverted field beyond ice shelves
-    CALL extrapolate_updated_ocean_temperature( grid, mask, ocean%dT_ocean)
+    CALL extrapolate_updated_ocean_temperature( grid, mask, dT_dt)
 
     ! Apply regularisation
-    CALL smooth_Gaussian_2D( grid, ocean%dT_ocean, sigma)
+    CALL smooth_Gaussian_2D( grid, dT_dt, sigma)
+
+    ! Apply adjustment
+    IF (par%master) THEN
+      ocean%dT_ocean = ocean%dT_ocean + dT_dt * dt
+    END IF
+    CALL sync
+
+    ! Limit delta temperature
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean%dT_ocean( j,i) = MAX( ocean%dT_ocean( j,i), C%ocean_temperature_inv_min)
+      ocean%dT_ocean( j,i) = MIN( ocean%dT_ocean( j,i), C%ocean_temperature_inv_max)
+    END DO
+    END DO
+    CALL sync
 
     ! Clean up after yourself
+    CALL deallocate_shared( wdT_dt)
     CALL deallocate_shared( wmask)
 
     ! Finalise routine path
@@ -2851,36 +2874,30 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_ocean_temperature
-  SUBROUTINE write_inverted_ocean_to_file( grid, ocean)
-    ! Create a new NetCDF file and write the inverted ocean temperature and salinity to it
+
+  SUBROUTINE write_inverted_ocean_temperature_to_file( grid, ocean)
+    ! Create a new NetCDF file and write the inverted ocean
+    ! temperature to it
 
     IMPLICIT NONE
 
     ! Input variables:
-    TYPE(type_grid),                     INTENT(IN)    :: grid
-    TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
-    INTEGER                                            :: i,j,k
-
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_inverted_ocean_to_file'
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_inverted_ocean_temperature_to_file'
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-    DO k = 1, C%nz_ocean
-      ocean%T_ocean_corr_ext( k,j,i) = ocean%T_ocean_corr_ext( k,j,i) + ocean%dT_ocean( j,i)
-    END DO
-    END DO
-    END DO
-    CALL sync
-
     CALL create_inverted_ocean_file( grid, ocean)
+
+    call save_variable_as_netcdf_dp_3D(ocean%T_ocean_corr_ext,'T_ocean_corr_ext')
+    call save_variable_as_netcdf_dp_2D(ocean%dT_ocean,'dT_ocean')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_inverted_ocean_to_file
+  END SUBROUTINE write_inverted_ocean_temperature_to_file
 
 END MODULE ocean_module

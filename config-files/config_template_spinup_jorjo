@@ -31,7 +31,7 @@
   ! =======================================================================
 
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'results_spinup_32km_era5'       ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'results_spinup_40km'            ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -62,7 +62,7 @@
   xmax_ANT_config                             = 3300000.0                        ! Eastern  boundary     of the Antarctica domain [m]
   ymin_ANT_config                             = -3300000.0                       ! Southern boundary     of the Antarctica domain [m]
   ymax_ANT_config                             = 3300000.0                        ! Northern boundary     of the Antarctica domain [m]
-  dx_ANT_config                               = 32000.0                          ! Horizontal resolution of the Antarctica domain [m]
+  dx_ANT_config                               = 40000.0                          ! Horizontal resolution of the Antarctica domain [m]
 
   ! Reference geometries (initial, present-day, and GIA equilibrium)
   ! ================================================================
@@ -134,7 +134,7 @@
   ! Ice dynamics - velocity
   ! =======================
 
-  choice_ice_dynamics_config                  = 'SIA/SSA'                        ! Choice of ice-dynamica approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
+  choice_ice_dynamics_config                  = 'SIA/SSA'                        ! Choice of ice-dynamics approximation: "none" (= fixed geometry), "SIA", "SSA", "SIA/SSA", "DIVA"
   n_flow_config                               = 3.0                              ! Exponent in Glen`s flow law
   m_enh_sheet_config                          = 1.0                              ! Ice flow enhancement factor for grounded ice
   m_enh_shelf_config                          = 1.0                              ! Ice flow enhancement factor for floating ice
@@ -151,6 +151,8 @@
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
   DIVA_visc_eff_min_config                    = 1E3                              ! Minimum value for effective viscosity
   DIVA_beta_max_config                        = 1E20                             ! Maximum value for basal friction coefficient
+  DIVA_beta_min_thin_ice_config               = 1000.0                           ! Minimum value for effective basal friction over thin-ice areas
+  DIVA_beta_min_thin_ice_H0_config            = 200.0                            ! Threshold thinness below which a minimum beta limit starts to apply
   DIVA_vel_max_config                         = 8000.0                           ! DIVA velocities are limited to this value
   DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -202,8 +204,8 @@
   fixed_shelf_geometry_config                 = 0.0                              ! Fix (1), release (0), or delay floating ice geometry evolution
   fixed_grounding_line_g_config               = 1.0                              ! Fix (1), release (0), or delay GL geometry evolution (grounded side)
   fixed_grounding_line_f_config               = 1.0                              ! Fix (1), release (0), or delay GL geometry evolution (floating side)
-  fixed_decay_t_start_config                  = 5000.0                           ! Start time of linear transition between fixed/delayed and free evolution
-  fixed_decay_t_end_config                    = 10000.0                          ! End   time of linear transition between fixed/delayed and free evolution
+  fixed_decay_t_start_config                  = 1000.0                           ! Start time of linear transition between fixed/delayed and free evolution
+  fixed_decay_t_end_config                    = 2000.0                           ! End   time of linear transition between fixed/delayed and free evolution
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -318,7 +320,7 @@
   choice_ocean_model_config                   = 'PD_obs'                         ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
-  filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180.nc'
+  filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   name_ocean_temperature_obs_config           = 't_an'                           ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
   name_ocean_salinity_obs_config              = 's_an'                           ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
@@ -326,7 +328,7 @@
   choice_ocean_vertical_grid_config           = 'regular'                        ! Choice of vertical grid to be used for ocean data
   ocean_vertical_grid_max_depth_config        = 1500.0                           ! Maximum depth           to be used for ocean data
   ocean_regular_grid_dz_config                = 150.0                            ! Vertical grid spacing   to be used for ocean data when choice_ocean_vertical_grid_config = 'regular'
-  do_ocean_extrap_config                      = .FALSE.                          ! Create extrapolated ocean file
+  do_ocean_extrap_config                      = .TRUE.                           ! Create extrapolated ocean file
   ocean_extrap_dir_config                     = 'Datasets/extrapolated_ocean_files'       ! Directory where extrapolated ocean files are stored
   ocean_extrap_res_config                     = 5000.0                           ! High resolution at which the ocean data extrapolation should be performed
   ocean_extrap_Gauss_sigma_config             = 8000.0                           ! 1-sigma of the Gaussian smoothing operation used to extrapolate the ocean data
@@ -339,6 +341,12 @@
   do_ocean_temperature_inversion_config       = .TRUE.                           ! Whether or not to apply the inversion
   ocean_temperature_inv_t_start_config        = -9.9E9                           ! Minimum model time when the inversion is allowed
   ocean_temperature_inv_t_end_config          = +9.9E9                           ! Maximum model time when the inversion is allowed
+  ocean_temperature_inv_dT0_config            = 1.0                              ! Adjustment scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_H0_config             = 200.0                            ! Ice thickness scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_tau_config            = 200.0                            ! Time scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_min_config            = -3.0                             ! Lower delta temperature limit in Pien`s delta inversion method
+  ocean_temperature_inv_max_config            = +3.0                             ! Upper delta temperature limit in Pien`s delta inversion method
+  inverted_ocean_filename_output_config       = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean state will be saved
 
   ! Surface mass balance
   ! ====================
@@ -474,12 +482,12 @@
   help_field_07_config                        = 'SMB_year'
   help_field_08_config                        = 'BMB'
   help_field_09_config                        = 'T_ocean_base'
-  help_field_10_config                        = 'uabs_surf'
-  help_field_11_config                        = 'phi_fric'
-  help_field_12_config                        = 'beta'
-  help_field_13_config                        = 'beta_eff'
-  help_field_14_config                        = 'none'
-  help_field_15_config                        = 'none'
+  help_field_10_config                        = 'dT_ocean'
+  help_field_11_config                        = 'uabs_surf'
+  help_field_12_config                        = 'phi_fric'
+  help_field_13_config                        = 'beta'
+  help_field_14_config                        = 'beta_eff'
+  help_field_15_config                        = 'dHi_dt'
   help_field_16_config                        = 'none'
   help_field_17_config                        = 'none'
   help_field_18_config                        = 'none'
