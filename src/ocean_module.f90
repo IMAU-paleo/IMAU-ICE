@@ -2345,7 +2345,7 @@ CONTAINS
     CALL write_ocean_header( hires, filename_ocean_glob, hires_ocean_foldername)
 
     ! Create a NetCDF file and write data to it
-    IF (par%master) hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
+    hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     IF (par%master) WRITE(0,*) '    Writing extrapolated ocean data to file "', TRIM(hires_ocean_filename), '"...'
     CALL create_extrapolated_ocean_file(  hires, hires_ocean_filename)
 
