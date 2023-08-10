@@ -14,7 +14,7 @@ MODULE ocean_module
                                              type_ocean_snapshot_regional, type_ocean_matrix_regional, type_highres_ocean_data, &
                                              type_climate_model, type_reference_geometry
   USE netcdf_input_module,             ONLY: setup_z_ocean_from_file, read_field_from_xy_file_2D, &
-                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D
+                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D, read_field_from_file_2D
   USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file, create_inverted_ocean_file
   USE netcdf_basic_module,             ONLY: field_name_options_T_ocean,field_name_options_S_ocean
   USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
@@ -1166,6 +1166,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_anomalies'
+    TYPE(type_grid)                                    :: grid_raw
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1182,22 +1183,18 @@ CONTAINS
     region%ocean_matrix%timeframe_t0 = C%start_time_of_run - 10._dp
     region%ocean_matrix%timeframe_t1 = C%start_time_of_run - 9._dp
 
-    ! ! Read baseline ocean temperatures and salinity
+    ! Read baseline ocean temperatures and salinity
 
-    ! IF (par%master) WRITE(0,*) '    Reading baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
-
-    ! CALL read_field_from_xy_file_ocean_3D( TRIM(C%ocean_filename_baseline), 'T', region%name, region%grid, region%ocean_matrix%baseline%T_ocean_corr_ext, region%ocean_matrix%baseline%wT_ocean_corr_ext)
-    ! CALL read_field_from_xy_file_ocean_3D( TRIM(C%ocean_filename_baseline), 'S', region%name, region%grid, region%ocean_matrix%baseline%S_ocean_corr_ext, region%ocean_matrix%baseline%wS_ocean_corr_ext)
-
-    ! IF (par%master) WRITE(0,*) '    Finished reading baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
-
-    ! Use a uniform ocean temperature just for testing the subroutine CvC
-    region%ocean_matrix%baseline%T_ocean_corr_ext = -1._dp
-    region%ocean_matrix%baseline%S_ocean_corr_ext = 38._dp
+    IF (par%master) WRITE(0,*) '    Reading baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
+    CALL read_field_from_xy_file_ocean_3D( C%ocean_filename_baseline, 'T_ocean', 'N/A', grid_raw, region%ocean_matrix%baseline%T_ocean_corr_ext, region%ocean_matrix%baseline%wT_ocean_corr_ext)
+    CALL read_field_from_xy_file_ocean_3D( C%ocean_filename_baseline, 'S_ocean', 'N/A', grid_raw, region%ocean_matrix%baseline%S_ocean_corr_ext, region%ocean_matrix%baseline%wS_ocean_corr_ext)
 
     ! Copy baseline temperature and salinity to applied
     region%ocean_matrix%applied%T_ocean_corr_ext = region%ocean_matrix%baseline%T_ocean_corr_ext
     region%ocean_matrix%applied%S_ocean_corr_ext = region%ocean_matrix%baseline%S_ocean_corr_ext
+
+    ! Deallocate variables
+    CALL deallocate_grid(grid_raw)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1279,14 +1276,19 @@ CONTAINS
     INTEGER                                                 :: i,j,k,i1,i2
     INTEGER                                                 :: year0, year1
     CHARACTER(LEN=4)                                        :: year0str, year1str
-    REAL(dp), DIMENSION(:,: ), POINTER                      :: aTO_2D_raw,  aSO_2D_raw, aTO_2D, aSO_2D
-    INTEGER                                                 :: waTO_2D_raw, waSO_2D_raw, waTO_2D, waSO_2D
+    REAL(dp), DIMENSION(:,: ), POINTER                      :: aTO_2D, aSO_2D, aT1_2D, aS1_2D
+    INTEGER                                                 :: waTO_2D, waSO_2D, waT1_2D, waS1_2D
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Since we have anomaly NetCDF files for each individual year, determining which two files we need to read is simple enough.
+    ! Allocate variables
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aTO_2D, waTO_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aT1_2D, waT1_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aSO_2D, waSO_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aS1_2D, waS1_2D)
 
+    ! Since we have anomaly NetCDF files for each individual year, determining which two files we need to read is simple enough.
     year0 = FLOOR(        time)
     year1 = MAX( CEILING( time), year0+1)
 
@@ -1305,27 +1307,17 @@ CONTAINS
 
     ! Determine the name of the file containing the timeframe
     ! filename = TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc'
-
-    ! Read the above mentioned filename and call the variable aTO_2D_raw
-
-    ! Map aTO_2D_raw to IMAU-ICE grid and name it aTO_2D
+    ! Read the above mentioned filename and call the variable aTO_2D and map to IMAU-ICE grid
+    IF (par%master) WRITE(0,*) '    Reading ocean anomaly from file "', TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc'
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc', 'dT', grid, aTO_2D, 'N/A')
+    CALL save_variable_as_netcdf_dp_2D( aTO_2D,'aTO_2D')
 
     ! Create 3D field from aTO_2D
-    ! DO i = grid%i1, grid%i2
-    ! DO j = 1, grid%ny
-      ! ocean_matrix%anomaly_t0%T_ocean_corr_ext( :,j,i) = aTO_2D( j,i)
-    ! END DO
-    ! END DO
-
-    ! Just for testing this subroutine CvC
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    DO k = 1, C%nz_ocean
-      ocean_matrix%anomaly_t0%T_ocean_corr_ext( k,j,i) = 0.2_dp
+      ocean_matrix%anomaly_t0%T_ocean_corr_ext( :,j,i) = aTO_2D( j,i)
     END DO
     END DO
-    END DO
-
     CALL sync
 
     ! Timeframe 1
@@ -1333,24 +1325,13 @@ CONTAINS
 
     ! Determine the name of the file containing the timeframe
     ! filename = TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year1str // '.nc'
+    ! Read the above mentioned filename and call the variable aT1_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year1str // '.nc', 'dT', grid, aT1_2D, 'N/A')
 
-    ! Read the above mentioned filename and call the variable aTO_2D_raw
-
-    ! Map aTO_2D_raw to IMAU-ICE grid and name it aTO_2D
-
-    ! Create 3D field from aTO_2D
-    ! DO i = grid%i1, grid%i2
-    ! DO j = 1, grid%ny
-      ! ocean_matrix%anomaly_t1%T_ocean_corr_ext( :,j,i) = aTO_2D( j,i)
-    ! END DO
-    ! END DO
-
-    ! Just for testing this subroutine CvC
+    ! Create 3D field from aT1_2D
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    DO k = 1, C%nz_ocean
-      ocean_matrix%anomaly_t1%T_ocean_corr_ext( k,j,i) = 0.4_dp
-    END DO
+      ocean_matrix%anomaly_t1%T_ocean_corr_ext( :,j,i) = aT1_2D( j,i)
     END DO
     END DO
 
@@ -1364,34 +1345,36 @@ CONTAINS
 
     ! Determine the name of the file containing the timeframe
     ! filename = TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year0str // '.nc'
-
-    ! Read the above mentioned filename and call the variable aSO_2D_raw
-
-    ! Map aSO_2D_raw to IMAU-ICE grid and name it aSO_2D
+    ! Read the above mentioned filename and call the variable aSO_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year0str // '.nc', 'dS', grid, aSO_2D, 'N/A')
 
     ! Create 3D field from aSO_2D
-    ! DO i = grid%i1, grid%i2
-    ! DO j = 1, grid%ny
-      ! ocean_matrix%anomaly_t0%S_ocean_corr_ext( :,j,i) = aSO_2D( j,i)
-    ! END DO
-    ! END DO
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t0%S_ocean_corr_ext( :,j,i) = aSO_2D( j,i)
+    END DO
+    END DO
 
     ! Timeframe 1
     ! ===========
 
     ! Determine the name of the file containing the timeframe
     ! filename = TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year1str // '.nc'
+    ! Read the above mentioned filename and call the variable aS1_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year1str // '.nc', 'dS', grid, aS1_2D, 'N/A')
 
-    ! Read the above mentioned filename and call the variable aSO_2D_raw
+    ! Create 3D field from aS1_2D
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t1%S_ocean_corr_ext( :,j,i) = aS1_2D( j,i)
+    END DO
+    END DO
 
-    ! Map aSO_2D_raw to IMAU-ICE grid and name it aSO_2D
-
-    ! Create 3D field from aSO_2D
-    ! DO i = grid%i1, grid%i2
-    ! DO j = 1, grid%ny
-      ! ocean_matrix%anomaly_t1%S_ocean_corr_ext( :,j,i) = aSO_2D( j,i)
-    ! END DO
-    ! END DO
+    ! Deallocate variables
+    CALL deallocate_shared(waTO_2D)
+    CALL deallocate_shared(waT1_2D)
+    CALL deallocate_shared(waSO_2D)
+    CALL deallocate_shared(waS1_2D)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2345,7 +2328,7 @@ CONTAINS
     CALL write_ocean_header( hires, filename_ocean_glob, hires_ocean_foldername)
 
     ! Create a NetCDF file and write data to it
-    hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
+    IF (par%master) hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     IF (par%master) WRITE(0,*) '    Writing extrapolated ocean data to file "', TRIM(hires_ocean_filename), '"...'
     CALL create_extrapolated_ocean_file(  hires, hires_ocean_filename)
 

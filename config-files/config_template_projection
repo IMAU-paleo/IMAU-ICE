@@ -151,6 +151,8 @@
   DIVA_epsilon_sq_0_config                    = 1E-15                            ! Normalisation term so that zero velocity gives non-zero viscosity
   DIVA_visc_eff_min_config                    = 1E3                              ! Minimum value for effective viscosity
   DIVA_beta_max_config                        = 1E20                             ! Maximum value for basal friction coefficient
+  DIVA_beta_min_thin_ice_config               = 1000.0                           ! Minimum value for effective basal friction over thin-ice areas
+  DIVA_beta_min_thin_ice_H0_config            = 200.0
   DIVA_vel_max_config                         = 8000.0                           ! DIVA velocities are limited to this value
   DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -318,7 +320,7 @@
   choice_ocean_model_config                   = 'anomalies'                         ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold", "anomalies"
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
-  filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180.nc'
+  filename_PD_obs_ocean_config                = 'Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
   name_ocean_temperature_obs_config           = 't_an'                           ! E.g. objectively analysed mean (t_an) or statistical mean (t_mn)
   name_ocean_salinity_obs_config              = 's_an'                           ! E.g. objectively analysed mean (s_an) or statistical mean (s_mn)
 
@@ -339,13 +341,19 @@
   do_ocean_temperature_inversion_config       = .FALSE.                          ! Whether or not to apply the inversion
   ocean_temperature_inv_t_start_config        = -9.9E9                           ! Minimum model time when the inversion is allowed
   ocean_temperature_inv_t_end_config          = +9.9E9                           ! Maximum model time when the inversion is allowed
-  ocean_filename_output_config                = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean temperature and salinity will be saved
+  ocean_temperature_inv_dT0_config            = 1.0                              ! Adjustment scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_H0_config             = 200.0                            ! Ice thickness scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_tau_config            = 200.0                            ! Time scale for regularisation in Pien`s delta inversion method
+  ocean_temperature_inv_min_config            = -3.0                             ! Lower delta temperature limit in Pien`s delta inversion method
+  ocean_temperature_inv_max_config            = +3.0                             ! Upper delta temperature limit in Pien`s delta inversion method
+  inverted_ocean_filename_output_config       = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean state will be saved
 
-  ocean_foldername_aTO_config                 = 'Datasets/CMIP6/CESM2-WACCM_ssp585/Temperature'                 ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
+  ! Anomaly options
+  ocean_foldername_aTO_config                 = 'Datasets/CMIP6/CESM2-WACCM_ssp585/Ocean/Temperature'                 ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
   ocean_basefilename_aTO_config               = 'CESM2-WACCM_ssp585_dTO_'                                       ! Filename without the year (e.g. if the actual file is "aTO-1950.nc",   then this variable should be "aTO-"
-  ocean_foldername_aSO_config                 = 'Datasets/CMIP6/CESM2-WACCM_ssp585/Salinity'                    ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
+  ocean_foldername_aSO_config                 = 'Datasets/CMIP6/CESM2-WACCM_ssp585/Ocean/Salinity'                    ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
   ocean_basefilename_aSO_config               = 'CESM2-WACCM_ssp585_dSO_'                                       ! Filename without the year (e.g. if the actual file is "aTO-1950.nc",   then this variable should be "aTO-"
-  ocean_filename_baseline_config              = 'restartfile/Ocean_baseline.nc'
+  ocean_filename_baseline_config              = 'restartfile/ocean_inv.nc'
 
   ! Surface mass balance
   ! ====================
