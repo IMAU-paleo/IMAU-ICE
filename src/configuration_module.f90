@@ -340,6 +340,8 @@ MODULE configuration_module
   REAL(dp)            :: fixed_grounding_line_f_config               = 0.0_dp                           ! Fix (1), release (0), or delay GL geometry evolution (floating side)
   REAL(dp)            :: fixed_decay_t_start_config                  = 0.0_dp                           ! Start time of linear transition between fixed/delayed and free evolution
   REAL(dp)            :: fixed_decay_t_end_config                    = 0.0_dp                           ! End   time of linear transition between fixed/delayed and free evolution
+  REAL(dp)            :: relax_thick_t_start_config                  = -9.9e99_dp                       ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+  REAL(dp)            :: relax_thick_t_end_config                    = -8.8e88_dp                       ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -1118,6 +1120,8 @@ MODULE configuration_module
     REAL(dp)                            :: fixed_grounding_line_f
     REAL(dp)                            :: fixed_decay_t_start
     REAL(dp)                            :: fixed_decay_t_end
+    REAL(dp)                            :: relax_thick_t_start
+    REAL(dp)                            :: relax_thick_t_end
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -2015,6 +2019,8 @@ CONTAINS
                      fixed_grounding_line_f_config,                   &
                      fixed_decay_t_start_config,                      &
                      fixed_decay_t_end_config,                        &
+                     relax_thick_t_start_config,                      &
+                     relax_thick_t_end_config,                        &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2820,6 +2826,8 @@ CONTAINS
     C%fixed_grounding_line_f                   = fixed_grounding_line_f_config
     C%fixed_decay_t_start                      = fixed_decay_t_start_config
     C%fixed_decay_t_end                        = fixed_decay_t_end_config
+    C%relax_thick_t_start                      = relax_thick_t_start_config
+    C%relax_thick_t_end                        = relax_thick_t_end_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================

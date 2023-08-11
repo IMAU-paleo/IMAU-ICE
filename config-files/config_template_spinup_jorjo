@@ -4,9 +4,9 @@
   ! ====================
 
   start_time_of_run_config                    = 0.0                              ! Start time (in years) of the simulations
-  end_time_of_run_config                      = 10000.0                          ! End   time (in years) of the simulations
+  end_time_of_run_config                      = 12000.0                          ! End   time (in years) of the simulations
   dt_coupling_config                          = 1E20                             ! Interval of coupling (in years) between the four ice-sheets
-  dt_max_config                               = 10.0                             ! Maximum time step (in years) of the ice model
+  dt_max_config                               = 1.0                              ! Maximum time step (in years) of the ice model
   dt_min_config                               = 0.01                             ! Smallest allowed time step [yr]
   dt_startup_phase_config                     = 1.0                              ! Length of time window (in years) after start_time and before end_time when dt = dt_min, to ensure smooth restarts
   dt_thermo_config                            = 1.0                              ! Time step (in years) for updating thermodynamics
@@ -153,7 +153,7 @@
   DIVA_beta_max_config                        = 1E20                             ! Maximum value for basal friction coefficient
   DIVA_beta_min_thin_ice_config               = 1000.0                           ! Minimum value for effective basal friction over thin-ice areas
   DIVA_beta_min_thin_ice_H0_config            = 200.0                            ! Threshold thinness below which a minimum beta limit starts to apply
-  DIVA_vel_max_config                         = 8000.0                           ! DIVA velocities are limited to this value
+  DIVA_vel_max_config                         = 2000.0                           ! DIVA velocities are limited to this value
   DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
   DIVA_boundary_BC_u_south_config             = 'infinite'
@@ -166,8 +166,8 @@
   DIVA_SOR_nit_config                         = 10000                            ! DIVA SOR   solver - maximum number of iterations
   DIVA_SOR_tol_config                         = 2.5                              ! DIVA SOR   solver - stop criterion, absolute difference
   DIVA_SOR_omega_config                       = 1.3                              ! DIVA SOR   solver - over-relaxation parameter
-  DIVA_PETSc_rtol_config                      = 0.01                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
-  DIVA_PETSc_abstol_config                    = 2.5                              ! DIVA PETSc solver - stop criterion, absolute difference
+  DIVA_PETSc_rtol_config                      = 1e-3                             ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
+  DIVA_PETSc_abstol_config                    = 1e-3                             ! DIVA PETSc solver - stop criterion, absolute difference
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -204,8 +204,10 @@
   fixed_shelf_geometry_config                 = 0.0                              ! Fix (1), release (0), or delay floating ice geometry evolution
   fixed_grounding_line_g_config               = 1.0                              ! Fix (1), release (0), or delay GL geometry evolution (grounded side)
   fixed_grounding_line_f_config               = 1.0                              ! Fix (1), release (0), or delay GL geometry evolution (floating side)
-  fixed_decay_t_start_config                  = 1000.0                           ! Start time of linear transition between fixed/delayed and free evolution
-  fixed_decay_t_end_config                    = 2000.0                           ! End   time of linear transition between fixed/delayed and free evolution
+  fixed_decay_t_start_config                  = 0000.0                           ! Start time of linear transition between fixed/delayed and free evolution
+  fixed_decay_t_end_config                    = 1000.0                           ! End   time of linear transition between fixed/delayed and free evolution
+  relax_thick_t_start_config                  = -9.9e99                          ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+  relax_thick_t_end_config                    = 10.0                             ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -246,8 +248,8 @@
 
   ! Basal inversion
   do_BIVgeo_config                            = .TRUE.                           ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
-  BIVgeo_t_start_config                       = -9.9E9                           ! Minimum model time when the inversion is allowed
-  BIVgeo_t_end_config                         = +9.9E9                           ! Maximum model time when the inversion is allowed
+  BIVgeo_t_start_config                       = -9.9e9                           ! Minimum model time when the inversion is allowed
+  BIVgeo_t_end_config                         = 1e4                              ! Maximum model time when the inversion is allowed
   choice_BIVgeo_method_config                 = 'Pien2023'                       ! Choice of geometry-based inversion method: "PDC2012", "Lipscomb2021", "CISM+", "Berends2022", "Bernales2017"
   BIVgeo_dt_config                            = 5.0                              ! Time step      for bed roughness updates in the PDC2012 geometry-based basal inversion method [yr]
   BIVgeo_PDC2012_hinv_config                  = 500.0                            ! Scaling factor for bed roughness updates in the PDC2012 geometry-based basal inversion method [m]
@@ -339,7 +341,7 @@
 
   ! Delta ocean temperature inversion
   do_ocean_temperature_inversion_config       = .TRUE.                           ! Whether or not to apply the inversion
-  ocean_temperature_inv_t_start_config        = -9.9E9                           ! Minimum model time when the inversion is allowed
+  ocean_temperature_inv_t_start_config        = -9.9e9                           ! Minimum model time when the inversion is allowed
   ocean_temperature_inv_t_end_config          = +9.9E9                           ! Maximum model time when the inversion is allowed
   ocean_temperature_inv_dT0_config            = 1.0                              ! Adjustment scale for regularisation in Pien`s delta inversion method
   ocean_temperature_inv_H0_config             = 200.0                            ! Ice thickness scale for regularisation in Pien`s delta inversion method
