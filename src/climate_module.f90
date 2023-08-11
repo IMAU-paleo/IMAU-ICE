@@ -575,6 +575,9 @@ CONTAINS
     filename0 = TRIM( direct_climate_foldername) // '/' // TRIM( direct_climate_basefilename) // year0str // '.nc'
     filename1 = TRIM( direct_climate_foldername) // '/' // TRIM( direct_climate_basefilename) // year1str // '.nc'
 
+    ! Prevent weird screen message output when using time display
+    IF (par%master .AND. C%do_time_display .AND. time > C%start_time_of_run) WRITE(0,*) ''
+
     ! Read timeframes from files
     CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds, region_name)
     ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0)) !CvC

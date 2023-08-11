@@ -765,7 +765,7 @@ CONTAINS
     CALL transpose_dp_3D( d, wd )
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    CALL finalise_routine( routine_name, 19)
 
   END SUBROUTINE read_field_from_xy_file_2D_monthly
 
