@@ -1308,9 +1308,7 @@ CONTAINS
     ! Determine the name of the file containing the timeframe
     ! filename = TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc'
     ! Read the above mentioned filename and call the variable aTO_2D and map to IMAU-ICE grid
-    IF (par%master) WRITE(0,*) '    Reading ocean anomaly from file "', TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc'
     CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc', 'dT', grid, aTO_2D, 'N/A')
-    CALL save_variable_as_netcdf_dp_2D( aTO_2D,'aTO_2D')
 
     ! Create 3D field from aTO_2D
     DO i = grid%i1, grid%i2
@@ -2874,9 +2872,6 @@ CONTAINS
     CALL init_routine( routine_name)
 
     CALL create_inverted_ocean_file( grid, ocean)
-
-    call save_variable_as_netcdf_dp_3D(ocean%T_ocean_corr_ext,'T_ocean_corr_ext')
-    call save_variable_as_netcdf_dp_2D(ocean%dT_ocean,'dT_ocean')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
