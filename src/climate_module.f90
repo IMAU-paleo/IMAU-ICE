@@ -577,9 +577,9 @@ CONTAINS
 
     ! Read timeframes from files
     CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds, region_name)
-    IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0))
+    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0)) !CvC
     CALL read_climate_snapshot( filename1, grid, climate%direct%timeframe1, found_winds, region_name)
-    IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename1))
+    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename1))
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1501,6 +1501,9 @@ CONTAINS
 
          ! Make sure to project SN and WE winds to DU and LR winds
          CALL rotate_wind_to_model_grid( grid, snapshot%wind_WE, snapshot%wind_SN, snapshot%wind_LR, snapshot%wind_DU)
+    ELSE
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_LR', grid, snapshot%wind_LR, region_name) !CvC added this else statement
+         CALL read_field_from_file_2D_monthly( filename, 'Wind_DU', grid, snapshot%Wind_DU, region_name)
     END IF
 
     ! Safety checks
