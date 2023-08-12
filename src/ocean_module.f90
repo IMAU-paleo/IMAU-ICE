@@ -14,7 +14,7 @@ MODULE ocean_module
                                              type_ocean_snapshot_regional, type_ocean_matrix_regional, type_highres_ocean_data, &
                                              type_climate_model, type_reference_geometry
   USE netcdf_input_module,             ONLY: setup_z_ocean_from_file, read_field_from_xy_file_2D, &
-                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D, read_field_from_file_2D
+                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D, read_field_from_file_2D, read_field_from_file_ocean_3D
   USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file, create_inverted_ocean_file
   USE netcdf_basic_module,             ONLY: field_name_options_T_ocean,field_name_options_S_ocean
   USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
@@ -1166,7 +1166,6 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_anomalies'
-    TYPE(type_grid)                                    :: grid_raw
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1185,16 +1184,13 @@ CONTAINS
 
     ! Read baseline ocean temperatures and salinity
 
-    IF (par%master) WRITE(0,*) '    Reading baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
-    CALL read_field_from_xy_file_ocean_3D( C%ocean_filename_baseline, 'T_ocean', 'N/A', grid_raw, region%ocean_matrix%baseline%T_ocean_corr_ext, region%ocean_matrix%baseline%wT_ocean_corr_ext)
-    CALL read_field_from_xy_file_ocean_3D( C%ocean_filename_baseline, 'S_ocean', 'N/A', grid_raw, region%ocean_matrix%baseline%S_ocean_corr_ext, region%ocean_matrix%baseline%wS_ocean_corr_ext)
+    IF (par%master) WRITE(0,*) '    Reading and mapping baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
+    CALL read_field_from_file_ocean_3D( C%ocean_filename_baseline, 'T_ocean', region%grid, region%ocean_matrix%baseline%T_ocean_corr_ext, 'N/A')
+    CALL read_field_from_file_ocean_3D( C%ocean_filename_baseline, 'S_ocean', region%grid, region%ocean_matrix%baseline%S_ocean_corr_ext, 'N/A')
 
     ! Copy baseline temperature and salinity to applied
     region%ocean_matrix%applied%T_ocean_corr_ext = region%ocean_matrix%baseline%T_ocean_corr_ext
     region%ocean_matrix%applied%S_ocean_corr_ext = region%ocean_matrix%baseline%S_ocean_corr_ext
-
-    ! Deallocate variables
-    CALL deallocate_grid(grid_raw)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
