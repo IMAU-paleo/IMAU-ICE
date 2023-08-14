@@ -32,7 +32,7 @@
   ! =======================================================================
 
   create_procedural_output_dir_config         = .FALSE.                          ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'results_spinup_40km_tmp'        ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'results_spinup_40km'            ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .TRUE.
   do_write_global_scalar_output_config        = .TRUE.
