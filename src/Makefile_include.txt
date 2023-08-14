@@ -1,0 +1,84 @@
+# Depends on this file
+$(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
+
+# Compiler
+# ========
+
+# If you got gfotran and OpenMPI, then you got mpifort.
+  F90 = mpifort
+
+# Library paths
+# =============
+
+# These variables should point to the include and lib
+# directories of each of the required external libraries.
+#
+# "include" paths should be prefixed with -I
+#
+# "lib" paths should be prefixed with -L, and after them
+# the name of corresponding the library file.
+#
+# If you got nc-config, nf-config, or pkg-config, those can
+# do that job for you. If you do not, here is an example of
+# manually adding the paths for NetCDF:
+#
+# NCINC = -I/usr/local/netcdf/include
+# NCLIB = -L/usr/local/netcdf/lib -lnetcdf
+
+# NetCDF and NetCDF-Fortran
+  NCINC     = $(shell nc-config --cflags)
+  NCLIB     = $(shell nc-config --libs)
+  NFINC     = $(shell nf-config --fflags)
+  NFLIB     = $(shell nf-config --flibs)
+
+# PETSc
+  PETSCINC  = $(shell pkg-config petsc --cflags )
+  PETSCLIB  = $(shell pkg-config petsc --libs )
+
+# LAPACK: not really needed to be declared in macOS,
+# so they are left blank here. Feel free to uncomment
+# and adjust to your needs if using another system.
+  LAPACKINC = # -I/opt/homebrew/opt/lapack/include
+  LAPACKLIB = # -L/opt/homebrew/opt/lapack/lib -llapack
+
+# SELEN
+# =====
+
+# Compile with SELEN: anything else than yes (no quotes) will skip all
+# SELEN-related stuff both in the Makefile and in the model code
+  DO_SELEN = no
+
+# Compiler flags
+# ==============
+
+# ---
+# From this line on your settings above will be put together
+# and later used to compile the model code. If you get errors,
+# it is very likely something in the lines above is missing.
+# ---
+
+# SELEN:
+  ifeq ($(DO_SELEN),yes)
+    COMPILER_FLAGS_SELEN  = -DDO_SELEN
+  endif
+
+# Basic flags:
+  COMPILER_FLAGS_BASIC    = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp
+
+# Check flags:
+  COMPILER_FLAGS_CHECK    = -fbounds-check -fcheck-array-temporaries -fimplicit-none \
+                            -finit-real=nan -finit-integer=-42 -finit-character=33 \
+                            -ffpe-trap=zero,overflow
+
+# Library flags:
+  COMPILER_FLAGS_INCLS    = ${NCINC} ${NFINC} ${PETSCINC} ${LAPACKINC}
+
+# Final list
+  F90FLAGS                = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} \
+                            ${COMPILER_FLAGS_SELEN} ${COMPILER_FLAGS_INCLS}
+
+# Library linking
+# ===============
+
+  LDFLAGS                 = ${NCLIB} ${NFLIB} ${PETSCLIB} ${LAPACKLIB}
+

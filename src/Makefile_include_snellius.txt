@@ -22,11 +22,6 @@
                            ${NCINC} -I${PETSC_DIR}/include
 
 # Linking flags of libaries:
-#  LDFLAGS                = -g ${NCLIB} \
-#                           -lpetsc \
-#                           -lmkl_rt
-
-# Linking flags of libaries:
   LDFLAGS                 = -g ${NCLIB} \
                             -lpetsc \
                             -lopenblas
