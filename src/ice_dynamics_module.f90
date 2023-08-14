@@ -21,7 +21,7 @@ MODULE ice_dynamics_module
   USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
                                                  initialise_ice_velocity_ISMIP_HOM, initialise_velocities_from_restart_file
   USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
-                                                 remove_unconnected_shelves
+                                                 remove_unconnected_shelves, initialise_target_dHi_dt
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
                                                  determine_masks_transitions
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
@@ -976,6 +976,14 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_output)
 
+      region%do_output_restart = .FALSE.
+      IF (region%time == region%t_next_output_restart) THEN
+        region%do_output_restart      = .TRUE.
+        region%t_last_output_restart  = region%time
+        region%t_next_output_restart  = region%t_last_output_restart + C%dt_output_restart
+      END IF
+      t_next = MIN( t_next, region%t_next_output_restart)
+
       ! Set time step so that we move forward to the next action
       region%dt = t_next - region%time
 
@@ -1083,8 +1091,14 @@ CONTAINS
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
 
+    ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( grid, ice, region_name)
+    END IF
+
+    ! Read target dHi_dt from external file
+    IF (C%do_target_dhdt) THEN
+      CALL initialise_target_dHi_dt( grid, ice, region_name)
     END IF
 
     ! Finalise routine path
@@ -1296,6 +1310,7 @@ CONTAINS
     ! Useful stuff
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_dt_target        , ice%wdHi_dt_target        )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

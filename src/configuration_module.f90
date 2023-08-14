@@ -60,7 +60,8 @@ MODULE configuration_module
   REAL(dp)            :: dt_BMB_config                               = 10._dp                           ! Time step (in years) for updating the BMB
   REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
-  REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing output
+  REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing help output
+  REAL(dp)            :: dt_output_restart_config                    = 10000.0_dp                       ! Time step (in years) for writing restart output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -342,6 +343,11 @@ MODULE configuration_module
   REAL(dp)            :: fixed_decay_t_end_config                    = 0.0_dp                           ! End   time of linear transition between fixed/delayed and free evolution
   REAL(dp)            :: relax_thick_t_start_config                  = -9.9e99_dp                       ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
   REAL(dp)            :: relax_thick_t_end_config                    = -8.8e88_dp                       ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+
+  ! Target dHi_dt during model spinup
+  LOGICAL             :: do_target_dhdt_config                       = .FALSE.                          ! Whether or not to perform spinup using a target dHi_dt field
+  CHARACTER(LEN=256)  :: target_dhdt_filename_config                 = 'dhdt_target.nc'                 ! NetCDF file containing target dHi_dt for model spinup
+  REAL(dp)            :: target_dhdt_t_end_config                    = -9.9e99_dp                       ! Time at which the target dHi_dt field is released into the wild
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -861,6 +867,7 @@ MODULE configuration_module
     REAL(dp)                            :: dt_bedrock_ELRA
     REAL(dp)                            :: dt_SELEN
     REAL(dp)                            :: dt_output
+    REAL(dp)                            :: dt_output_restart
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -1122,6 +1129,11 @@ MODULE configuration_module
     REAL(dp)                            :: fixed_decay_t_end
     REAL(dp)                            :: relax_thick_t_start
     REAL(dp)                            :: relax_thick_t_end
+
+    ! Target dHi_dt during model spinup
+    LOGICAL                             :: do_target_dhdt
+    CHARACTER(LEN=256)                  :: target_dhdt_filename
+    REAL(dp)                            :: target_dhdt_t_end
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1844,6 +1856,7 @@ CONTAINS
                      dt_bedrock_ELRA_config,                          &
                      dt_SELEN_config,                                 &
                      dt_output_config,                                &
+                     dt_output_restart_config,                        &
                      do_NAM_config,                                   &
                      do_EAS_config,                                   &
                      do_GRL_config,                                   &
@@ -2021,6 +2034,9 @@ CONTAINS
                      fixed_decay_t_end_config,                        &
                      relax_thick_t_start_config,                      &
                      relax_thick_t_end_config,                        &
+                     do_target_dhdt_config,                           &
+                     target_dhdt_filename_config,                     &
+                     target_dhdt_t_end_config,                        &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2566,6 +2582,7 @@ CONTAINS
     C%dt_bedrock_ELRA                          = dt_bedrock_ELRA_config
     C%dt_SELEN                                 = dt_SELEN_config
     C%dt_output                                = dt_output_config
+    C%dt_output_restart                        = dt_output_restart_config
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -2828,6 +2845,11 @@ CONTAINS
     C%fixed_decay_t_end                        = fixed_decay_t_end_config
     C%relax_thick_t_start                      = relax_thick_t_start_config
     C%relax_thick_t_end                        = relax_thick_t_end_config
+
+    ! Target dHi_dt during model spinup
+    C%do_target_dhdt                           = do_target_dhdt_config
+    C%target_dhdt_filename                     = target_dhdt_filename_config
+    C%target_dhdt_t_end                        = target_dhdt_t_end_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================

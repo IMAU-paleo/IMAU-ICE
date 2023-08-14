@@ -19,6 +19,7 @@ MODULE ice_thickness_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D
 
   IMPLICIT NONE
 
@@ -285,6 +286,11 @@ CONTAINS
       IF (j > 1      ) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) + ice%Qy_cy( j-1,i  ) / (grid%dx * grid%dx * dt)
       IF (j < grid%ny) ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) - ice%Qy_cy( j  ,i  ) / (grid%dx * grid%dx * dt)
 
+      ! Apply target dHi_dt
+      IF (C%do_target_dhdt .AND. time < C%target_dhdt_t_end) THEN
+        ice%dHi_dt_a( j,i) = ice%dHi_dt_a( j,i) - ice%dHi_dt_target( j,i)
+      END IF
+
       ! Don't allow negative ice thickness
       ice%dHi_dt_a( j,i) = MAX( ice%dHi_dt_a( j,i), -ice%Hi_a( j,i) / dt)
 
@@ -405,6 +411,11 @@ CONTAINS
           MB_net = 0._dp
         ELSE
           MB_net = (SMB%SMB_year( j,i) + BMB%BMB( j,i))
+        END IF
+
+        ! Apply target dHi_dt
+        IF (C%do_target_dhdt .AND. time < C%target_dhdt_t_end) THEN
+          MB_net = MB_net - ice%dHi_dt_target( j,i)
         END IF
 
         IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
@@ -1097,5 +1108,31 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_implicit_ice_thickness_matrix_tables
+
+  SUBROUTINE initialise_target_dHi_dt( grid, ice, region_name)
+    ! Initialise the target velocity fields used in a velocity-based basal inversion routine
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),      INTENT(IN)    :: grid
+    TYPE(type_ice_model), INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),     INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER       :: routine_name = 'initialise_target_dHi_dt'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) WRITE(0,*) '  Initialising target dHi/dt from file ', TRIM( C%target_dhdt_filename), '...'
+
+    ! Read data from file
+    CALL read_field_from_file_2D( C%target_dhdt_filename, 'dHdt', grid, ice%dHi_dt_target, region_name)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_target_dHi_dt
 
 END MODULE ice_thickness_module
