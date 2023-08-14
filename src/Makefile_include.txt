@@ -16,14 +16,20 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
 # "include" paths should be prefixed with -I
 #
 # "lib" paths should be prefixed with -L, and after them
-# the name of corresponding the library file.
+# the name of the corresponding library file.
 #
 # If you got nc-config, nf-config, or pkg-config, those can
 # do that job for you. If you do not, here is an example of
-# manually adding the paths for NetCDF:
+# manually adding the paths:
 #
-# NCINC = -I/usr/local/netcdf/include
-# NCLIB = -L/usr/local/netcdf/lib -lnetcdf
+# NCINC     = -I/my_path/netcdf/include
+# NCLIB     = -L/my_path/netcdf/lib -lnetcdf
+# NFINC     = -I/my_path/netcdf-fortran/include
+# NFLIB     = -L/my_path/netcdf-fortran/lib -lnetcdff
+# PETSCINC  = -I/my_path/petsc/include
+# PETSCLIB  = -L/my_path/petsc/lib -lpetsc
+# LAPACKINC = -I/my_path/lapack/include
+# LAPACKLIB = -L/my_path/lapack/lib -llapack
 
 # NetCDF and NetCDF-Fortran
   NCINC     = $(shell nc-config --cflags)
@@ -59,26 +65,26 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
 
 # SELEN:
   ifeq ($(DO_SELEN),yes)
-    COMPILER_FLAGS_SELEN  = -DDO_SELEN
+    COMPILER_FLAGS_SELEN = -DDO_SELEN
   endif
 
 # Basic flags:
-  COMPILER_FLAGS_BASIC    = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp
+  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp
 
 # Check flags:
-  COMPILER_FLAGS_CHECK    = -fbounds-check -fcheck-array-temporaries -fimplicit-none \
-                            -finit-real=nan -finit-integer=-42 -finit-character=33 \
-                            -ffpe-trap=zero,overflow
+  COMPILER_FLAGS_CHECK   = -fbounds-check -fcheck-array-temporaries -fimplicit-none \
+                           -finit-real=nan -finit-integer=-42 -finit-character=33 \
+                           -ffpe-trap=zero,overflow
 
 # Library flags:
-  COMPILER_FLAGS_INCLS    = ${NCINC} ${NFINC} ${PETSCINC} ${LAPACKINC}
+  COMPILER_FLAGS_INCLS   = ${NCINC} ${NFINC} ${PETSCINC} ${LAPACKINC}
 
 # Final list
-  F90FLAGS                = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} \
-                            ${COMPILER_FLAGS_SELEN} ${COMPILER_FLAGS_INCLS}
+  F90FLAGS               = ${COMPILER_FLAGS_BASIC} ${COMPILER_FLAGS_CHECK} \
+                           ${COMPILER_FLAGS_SELEN} ${COMPILER_FLAGS_INCLS}
 
 # Library linking
 # ===============
 
-  LDFLAGS                 = ${NCLIB} ${NFLIB} ${PETSCLIB} ${LAPACKLIB}
+  LDFLAGS                = ${NCLIB} ${NFLIB} ${PETSCLIB} ${LAPACKLIB}
 
