@@ -939,10 +939,6 @@ CONTAINS
       CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
 
-    IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing done. Running...'
-    END IF
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -962,6 +958,10 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
+    END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
     CALL write_time_to_file( filename, region%time)

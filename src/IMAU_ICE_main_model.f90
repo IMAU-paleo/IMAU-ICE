@@ -134,7 +134,7 @@ CONTAINS
           write(*,"(A)",advance=trim(r_adv)) repeat(c_backspace,999) // &
                 "   t = " // trim(r_time) // " kyr - dt_ave = " // trim(r_step) // " yr"
         end if
-        if (region%do_output) then
+        if (region%do_output .OR. region%do_output_restart) then
           r_adv = "no"
           write(*,"(A)",advance=trim(r_adv)) repeat(c_backspace,999)
         end if
