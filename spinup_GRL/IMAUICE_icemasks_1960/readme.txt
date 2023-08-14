@@ -1,8 +1,0 @@
-file "IMAUICE_icemasks_1960/IMAUICE1_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_PMIP3ens_40km"
-file "IMAUICE_icemasks_1960/IMAUICE2_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_PMIP3ens_30km"
-file "IMAUICE_icemasks_1960/IMAUICE3_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_PMIP3ens_20km"
-file "IMAUICE_icemasks_1960/IMAUICE4_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_PMIP3ens_16km"
-file "IMAUICE_icemasks_1960/IMAUICE5_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_PMIP3ens_10km"
-file "IMAUICE_icemasks_1960/IMAUICE6_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_HadCM3_20km"
-file "IMAUICE_icemasks_1960/IMAUICE7_sftgif.nc" corresponds to spin-up variation "hybrid_ZoetIverson_CCSM_20km"
-file "IMAUICE_icemasks_1960/IMAUICE8_sftgif.nc" corresponds to spin-up variation "hybrid_Coulombreg_PMIP3ens_20km"
