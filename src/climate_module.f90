@@ -1478,9 +1478,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Write message to screen
-    IF (par%master) WRITE(0,*) '    Reading climate for snapshot "' // TRIM( snapshot%name) // '" from file ' // TRIM( filename)
-
     ! Check if wind fields are included in this file; if not, return -1
     CALL inquire_var( filename, 'Wind_WE', found_wind_WE)
     CALL inquire_var( filename, 'Wind_SN', found_wind_SN)
