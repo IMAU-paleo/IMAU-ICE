@@ -4,7 +4,7 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
 # Compiler
 # ========
 
-# If you got gfotran and OpenMPI, then you got mpifort.
+# If you got gfortran and OpenMPI, then you got mpifort.
   F90 = mpifort
 
 # Library paths
@@ -58,7 +58,7 @@ $(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
 # ==============
 
 # ---
-# From this line on your settings above will be put together
+# From this line on, your settings above will be put together
 # and later used to compile the model code. If you get errors,
 # it is very likely something in the lines above is missing.
 # ---
