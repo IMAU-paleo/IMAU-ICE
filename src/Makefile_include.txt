@@ -1,3 +1,6 @@
+# Depends on this file
+$(OBJ_PATH)/%.o : %.f90 Makefile_include.txt
+
 # Compiler
 # ========
 
@@ -27,15 +30,6 @@
 # PETSCLIB  = -L/my_path/petsc/lib -lpetsc
 # LAPACKINC = -I/my_path/lapack/include
 # LAPACKLIB = -L/my_path/lapack/lib -llapack
-#
-# NOTE for Snellius: When you load the modules on Snellius for
-# each of the required libraries, those are automatically added
-# to your PATH and LD_LIBRARY_PATH variables, plus other variables
-# pointing to those libraries. Thus, your terminal will have no
-# issue finding the files even if you do not define their paths
-# here explicitly. That's why the variables for PETSc and LAPACK
-# below are either empty, use some already existing variable,
-# or contain just the name/flag of the target library file.
 
 # NetCDF and NetCDF-Fortran
   NCINC     = $(shell nc-config --cflags)
@@ -44,13 +38,14 @@
   NFLIB     = $(shell nf-config --flibs)
 
 # PETSc
-  PETSCINC  = -I${PETSC_DIR}/include
-  PETSCLIB  = -L${PETSC_DIR}/lib -lpetsc
+  PETSCINC  = $(shell pkg-config petsc --cflags )
+  PETSCLIB  = $(shell pkg-config petsc --libs )
 
-# LAPACK: for Snellius, the simplest is to load the OpenBlas
-# module and then use that library as your LAPACK implementation.
-  LAPACKINC =
-  LAPACKLIB = -lopenblas
+# LAPACK: not really needed to be declared in macOS,
+# so they are left blank here. Feel free to uncomment
+# and adjust to your needs if using another system.
+  LAPACKINC = # -I/opt/homebrew/opt/lapack/include
+  LAPACKLIB = # -L/opt/homebrew/opt/lapack/lib -llapack
 
 # SELEN
 # =====
@@ -74,11 +69,12 @@
   endif
 
 # Basic flags:
-  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp \
-                           -g # -Werror=implicit-interface
+  COMPILER_FLAGS_BASIC   = -O3 -J${MOD_PATH} -Wall -ffree-line-length-none -cpp
 
 # Check flags:
-  COMPILER_FLAGS_CHECK   = -fcheck=all -fbacktrace -fimplicit-none
+  COMPILER_FLAGS_CHECK   = -fbounds-check -fcheck-array-temporaries -fimplicit-none \
+                           -finit-real=nan -finit-integer=-42 -finit-character=33 \
+                           -ffpe-trap=zero,overflow
 
 # Library flags:
   COMPILER_FLAGS_INCLS   = ${NCINC} ${NFINC} ${PETSCINC} ${LAPACKINC}
@@ -91,3 +87,4 @@
 # ===============
 
   LDFLAGS                = ${NCLIB} ${NFLIB} ${PETSCLIB} ${LAPACKLIB}
+

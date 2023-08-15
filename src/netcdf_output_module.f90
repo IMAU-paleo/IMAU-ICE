@@ -661,6 +661,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHi_dt') THEN
       CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Ice thickness rate of change', units = 'm/yr')
+    ELSEIF (field_name == 'dHi_dt_target') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi_dt_target', long_name = 'Target ice thickness rate of change', units = 'm/yr')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -876,7 +878,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing output...'
+      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
@@ -956,6 +958,10 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
+    END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
     CALL write_time_to_file( filename, region%time)
@@ -1117,6 +1123,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs', region%ice%dHs_a)
     ELSEIF (field_name == 'dHi_dt') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt', region%ice%dHi_dt_a)
+    ELSEIF (field_name == 'dHi_dt_target') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_target', region%ice%dHi_dt_target)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN

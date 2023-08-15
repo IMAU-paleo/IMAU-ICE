@@ -301,7 +301,7 @@ CONTAINS
 
   END SUBROUTINE read_field_from_file_3D
 
-   SUBROUTINE read_field_from_file_ocean_3D(         filename, field_name_options, grid, d, region_name, time_to_read)
+  SUBROUTINE read_field_from_file_ocean_3D(         filename, field_name_options, grid, d, region_name, time_to_read)
     ! Read a data field from a NetCDF file, and map it to the model grid.
     !
     ! Ultimate flexibility; the file can provide the data on a global lon/lat-grid,
@@ -400,14 +400,14 @@ CONTAINS
     REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_xy_file_3D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_xy_file_ocean_3D'
     INTEGER                                            :: nz_ocean
-    REAL(dp), DIMENSION(:    ), POINTER                ::  z_ocean
+    REAL(dp), DIMENSION(:    ), POINTER                :: z_ocean
     INTEGER                                            :: wz_ocean
     INTEGER                                            :: id_var
     CHARACTER(LEN=256)                                 :: var_name
     CHARACTER(LEN=256)                                 :: indexing, xdir, ydir
-    REAL(dp), DIMENSION(:,:,:,:), POINTER              ::  d_with_time
+    REAL(dp), DIMENSION(:,:,:,:), POINTER              :: d_with_time
     INTEGER                                            :: wd_with_time
     INTEGER                                            :: ti
 
@@ -509,7 +509,7 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d_z_ocean, wd_z_ocean)
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -765,7 +765,7 @@ CONTAINS
     CALL transpose_dp_3D( d, wd )
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+    CALL finalise_routine( routine_name, 19)
 
   END SUBROUTINE read_field_from_xy_file_2D_monthly
 
@@ -787,15 +787,15 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_xy_file_3D'
     INTEGER                                            :: nzeta_from_file
-    REAL(dp), DIMENSION(:    ), POINTER                ::  zeta_from_file
+    REAL(dp), DIMENSION(:    ), POINTER                :: zeta_from_file
     INTEGER                                            :: wzeta_from_file
     INTEGER                                            :: id_var
     CHARACTER(LEN=256)                                 :: var_name
     CHARACTER(LEN=256)                                 :: indexing, xdir, ydir
-    REAL(dp), DIMENSION(:,:,:,:), POINTER              ::  d_with_time
+    REAL(dp), DIMENSION(:,:,:,:), POINTER              :: d_with_time
     INTEGER                                            :: wd_with_time
     INTEGER                                            :: ti
-    REAL(dp), DIMENSION(:,:,:), POINTER                ::  d_zeta_from_file
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: d_zeta_from_file
     INTEGER                                            :: wd_zeta_from_file
 
     ! Add routine to path
