@@ -264,6 +264,17 @@ MODULE configuration_module
   REAL(dp)            :: inverse_d18O_to_CO2_scaling_config          = 68._dp                           ! Scaling factor between modelled d18O anomaly and modelled CO2 change (value from Berends et al., 2019)
   REAL(dp)            :: inverse_d18O_to_CO2_initial_CO2_config      = 280._dp                          ! CO2 value at the start of the simulation when using the inverse method to calculate CO2
 
+  ! Initial file for the inverse d18O
+  CHARACTER(LEN=256)  :: choice_d18O_inverse_init_NAM_config       =  'init'
+  CHARACTER(LEN=256)  :: choice_d18O_inverse_init_EAS_config       =  'init'
+  CHARACTER(LEN=256)  :: choice_d18O_inverse_init_GRL_config       =  'init'
+  CHARACTER(LEN=256)  :: choice_d18O_inverse_init_ANT_config       =  'init'
+
+  CHARACTER(LEN=256)  :: filename_d18O_inverse_init_NAM_config       = ''
+  CHARACTER(LEN=256)  :: filename_d18O_inverse_init_EAS_config       = ''
+  CHARACTER(LEN=256)  :: filename_d18O_inverse_init_GRL_config       = ''
+  CHARACTER(LEN=256)  :: filename_d18O_inverse_init_ANT_config       = ''
+
   ! Ice dynamics - velocity
   ! =======================
 
@@ -1026,6 +1037,17 @@ MODULE configuration_module
     REAL(dp)                            :: CO2_inverse_averaging_window
     REAL(dp)                            :: inverse_d18O_to_CO2_scaling
     REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
+
+    ! Files and choices for initializing the inverse d18O routines
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_NAM       
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_EAS       
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_GRL       
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_ANT       
+
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_NAM     
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_EAS     
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_GRL     
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_ANT      
 
     ! Ice dynamics - velocity
     ! =======================
@@ -1923,6 +1945,14 @@ CONTAINS
                      CO2_inverse_averaging_window_config,             &
                      inverse_d18O_to_CO2_scaling_config,              &
                      inverse_d18O_to_CO2_initial_CO2_config,          &
+                     choice_d18O_inverse_init_NAM_config,             &
+                     choice_d18O_inverse_init_EAS_config,             &
+                     choice_d18O_inverse_init_GRL_config,             &
+                     choice_d18O_inverse_init_ANT_config,             &
+                     filename_d18O_inverse_init_NAM_config,           &
+                     filename_d18O_inverse_init_EAS_config,           &
+                     filename_d18O_inverse_init_GRL_config,           &
+                     filename_d18O_inverse_init_ANT_config,           &
                      choice_ice_dynamics_config,                      &
                      n_flow_config,                                   &
                      m_enh_sheet_config,                              &
@@ -2699,6 +2729,17 @@ CONTAINS
     C%CO2_inverse_averaging_window             = CO2_inverse_averaging_window_config
     C%inverse_d18O_to_CO2_scaling              = inverse_d18O_to_CO2_scaling_config
     C%inverse_d18O_to_CO2_initial_CO2          = inverse_d18O_to_CO2_initial_CO2_config
+
+    ! Intitial inverse d18O history (from restart file netcdf)
+    C%choice_d18O_inverse_init_NAM             = choice_d18O_inverse_init_NAM_config
+    C%choice_d18O_inverse_init_EAS             = choice_d18O_inverse_init_EAS_config
+    C%choice_d18O_inverse_init_GRL             = choice_d18O_inverse_init_GRL_config
+    C%choice_d18O_inverse_init_ANT             = choice_d18O_inverse_init_ANT_config
+
+    C%filename_d18O_inverse_init_NAM           = filename_d18O_inverse_init_NAM_config
+    C%filename_d18O_inverse_init_EAS           = filename_d18O_inverse_init_EAS_config
+    C%filename_d18O_inverse_init_GRL           = filename_d18O_inverse_init_GRL_config
+    C%filename_d18O_inverse_init_ANT           = filename_d18O_inverse_init_ANT_config
 
     ! Ice dynamics - velocity
     ! =======================

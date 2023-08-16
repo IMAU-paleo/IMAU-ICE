@@ -647,7 +647,10 @@ CONTAINS
 
     ! Update forcing at model time
     CALL get_insolation_at_time( grid, time, climate%Q_TOA)
-    CALL update_CO2_at_model_time( time)
+    
+    IF (C%choice_forcing_method == 'CO2_direct') THEN
+        CALL update_CO2_at_model_time( time)
+    END IF
 
     ! Use the (CO2 + absorbed insolation)-based interpolation scheme for temperature
     CALL run_climate_model_matrix_temperature( grid, ice, SMB, climate, region_name)
@@ -822,6 +825,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_climate_model_matrix_precipitation'
     INTEGER                                            :: i,j
+    REAL(dp)                                           :: CO2
     REAL(dp), DIMENSION(:,:  ), POINTER                ::  w_warm,  w_cold
     INTEGER                                            :: ww_warm, ww_cold
     REAL(dp)                                           :: w_tot
@@ -843,6 +847,18 @@ CONTAINS
 
     ! Calculate interpolation weights based on ice geometry
     ! =====================================================
+
+    IF     (C%choice_forcing_method == 'CO2_direct') THEN
+      CO2 = forcing%CO2_obs
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CO2 = forcing%CO2_mod
+    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      CO2 = 0._dp
+      CALL crash('must only be called with the correct forcing method, check your code!')
+    ELSE
+      CO2 = 0._dp
+      CALL crash('unknown choice_forcing_method"' // TRIM(C%choice_forcing_method) // '"!')
+    END IF
 
     ! First calculate the total ice volume term (second term in the equation)
     w_tot = MAX(-w_cutoff, MIN(1._dp + w_cutoff, &
@@ -891,7 +907,7 @@ CONTAINS
     END IF
 
     IF (C%switch_glacial_index_precip) THEN ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
-      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (forcing%CO2_obs - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
+      w_tot = 1._dp - (MAX( -w_cutoff, MIN( 1._dp + w_cutoff, (CO2 - C%matrix_low_CO2_level) / (C%matrix_high_CO2_level - C%matrix_low_CO2_level) )) )
       w_cold( :,grid%i1:grid%i2) = w_tot
       w_warm( :,grid%i1:grid%i2) = 1._dp - w_cold( :,grid%i1:grid%i2)
     END IF
@@ -1021,7 +1037,7 @@ CONTAINS
     CALL initialise_matrix_calc_absorbed_insolation( grid, climate%matrix%GCM_cold, region_name, mask_noice)
 
     ! Initialise applied climate with present-day observations
-    DO i = grid%i2, grid%i2
+    DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
     DO m = 1, 12
       climate%T2m(     m,j,i) = climate%matrix%PD_obs%T2m(     m,j,i)
@@ -1374,8 +1390,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    IF (par%master) PRINT*,('Save netcdf')
-    CALL save_variable_as_netcdf_dp_2D(snapshot%I_abs, 'I_abs')
 
     ! Clean up after yourself
     CALL deallocate_shared( ice_dummy%wmask_ocean_a)

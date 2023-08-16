@@ -205,7 +205,7 @@ CONTAINS
 
       ! Write output
       IF (region%do_output) THEN
-        CALL write_to_restart_file_grid( region%restart_filename, region)
+        CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
       END IF
 
@@ -226,7 +226,7 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      CALL write_to_restart_file_grid( region%restart_filename, region)
+      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
       IF (C%do_BIVgeo) CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)

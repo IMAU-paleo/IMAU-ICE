@@ -191,7 +191,6 @@ CONTAINS
         global_data%CO2_obs        = forcing%CO2_obs
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-        global_data%CO2_obs        = forcing%CO2_obs
         global_data%CO2_mod        = forcing%CO2_mod
       ELSE
         CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
@@ -286,23 +285,18 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-      CALL allocate_shared_dp_0D( global_data%CO2_obs       , global_data%wCO2_obs       )
       CALL allocate_shared_dp_0D( global_data%CO2_mod       , global_data%wCO2_mod       )
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
     END IF
 
     ! d18O
-    IF     (C%choice_forcing_method == 'none') THEN
-    ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+    IF     (C%do_calculate_benthic_d18O) THEN
+      ! Temperature (surface and deep-water)
+      CALL allocate_shared_dp_0D( global_data%dT_glob       , global_data%wdT_glob       )
+      CALL allocate_shared_dp_0D( global_data%dT_dw         , global_data%wdT_dw         )
+    
+      ! d18O      
       CALL allocate_shared_dp_0D( global_data%d18O_obs      , global_data%wd18O_obs      )
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
@@ -311,22 +305,7 @@ CONTAINS
       CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
       CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
       CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-      CALL allocate_shared_dp_0D( global_data%d18O_obs      , global_data%wd18O_obs      )
-      CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )
-      CALL allocate_shared_dp_0D( global_data%d18O_Tdw      , global_data%wd18O_Tdw      )
-      CALL allocate_shared_dp_0D( global_data%d18O_NAM      , global_data%wd18O_NAM      )
-      CALL allocate_shared_dp_0D( global_data%d18O_EAS      , global_data%wd18O_EAS      )
-      CALL allocate_shared_dp_0D( global_data%d18O_GRL      , global_data%wd18O_GRL      )
-      CALL allocate_shared_dp_0D( global_data%d18O_ANT      , global_data%wd18O_ANT      )
-    ELSE
-      CALL crash('unknown choice_forcing_method "' // TRIM( C%choice_forcing_method) // '"!')
     END IF
-
-    ! Temperature (surface and deep-water)
-    CALL allocate_shared_dp_0D( global_data%dT_glob       , global_data%wdT_glob       )
-    CALL allocate_shared_dp_0D( global_data%dT_dw         , global_data%wdT_dw         )
 
     ! Computation times
     CALL allocate_shared_dp_0D( global_data%tcomp_total   , global_data%wtcomp_total   )

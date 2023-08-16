@@ -14,7 +14,7 @@ MODULE forcing_module
                                              deallocate_shared
   USE data_types_module,               ONLY: type_forcing_data, type_model_region, type_grid, type_grid_lonlat, type_ice_model
   USE netcdf_extra_module,             ONLY: inquire_insolation_data_file, read_insolation_data_file_time_lat, read_insolation_data_file_timeframes
-  USE netcdf_input_module,             ONLY: read_field_from_lonlat_file_2D, read_field_from_file_2D
+  USE netcdf_input_module,             ONLY: read_field_from_lonlat_file_2D, read_field_from_file_2D, read_field_from_file_history_1D
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              map_glob_to_grid_2D
@@ -32,7 +32,7 @@ CONTAINS
 ! == Main routines that are called from IMAU_ICE_program
   SUBROUTINE update_global_forcing( NAM, EAS, GRL, ANT, time)
     ! Update global forcing data (d18O, CO2, insolation, geothermal heat flux)
-
+	
     IMPLICIT NONE
 
     ! In/output variables:
@@ -52,9 +52,7 @@ CONTAINS
     ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       ! The global climate is calculated based on a prescribed CO2 record (e.g. from ice cores),
       ! either using a glacial-index method or a climate-matrix method, following Berends et al. (2018)
-
-      CALL update_CO2_at_model_time( time)
-
+      
       IF (C%do_calculate_benthic_d18O) THEN
         CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
       END IF
@@ -73,11 +71,10 @@ CONTAINS
       ! (following Berends et al., 2019). The climate itself can then be calculated using either a
       ! glacial-index method or a climate-matrix method
 
-      CALL update_CO2_at_model_time( time)
+      CALL update_d18O_at_model_time( time)
       CALL update_global_mean_temperature_change_history( NAM, EAS, GRL, ANT)
       CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
       CALL inverse_routine_CO2
-
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
@@ -107,16 +104,11 @@ CONTAINS
 
       CALL initialise_CO2_record
 
-      IF (C%do_calculate_benthic_d18O) THEN
-        CALL initialise_modelled_benthic_d18O_data
-      END IF
-
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! The global climate is calculated using the observed present-day climate plus a global
       ! temperature offset, which is calculated using the inverse routine, following de Boer et al. (2014)
-
-      CALL initialise_d18O_record
       CALL initialise_modelled_benthic_d18O_data
+      CALL initialise_d18O_record
       CALL initialise_inverse_routine_data
 
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
@@ -124,8 +116,8 @@ CONTAINS
       ! (following Berends et al., 2019). The climate itself can then be calculated using either a
       ! glacial-index method or a climate-matrix method
 
-      CALL initialise_CO2_record
       CALL initialise_modelled_benthic_d18O_data
+      CALL initialise_d18O_record      
       CALL initialise_inverse_routine_data
 
     ELSE
@@ -162,7 +154,7 @@ CONTAINS
 
     ! Safety
     IF (.NOT. C%do_calculate_benthic_d18O) THEN
-      CALL crash('should only be called when do_calculate_benthic_d18O = .TRUE.!')
+       CALL crash('should only be called when do_calculate_benthic_d18O = .TRUE.!')
     END IF
     IF (C%choice_ice_isotopes_model == 'none') THEN
       CALL crash('choice_ice_isotopes_model = none; cannot calculate d18O contribution of ice sheets when no englacial isotope calculation is being done!')
@@ -212,7 +204,7 @@ CONTAINS
     REAL(dp),                   POINTER                ::  dT_NAM,  dT_EAS,  dT_GRL,  dT_ANT
     INTEGER                                            :: wdT_NAM, wdT_EAS, wdT_GRL, wdT_ANT
     REAL(dp)                                           :: dT_glob_average_over_window
-    INTEGER                                            :: n_glob
+    REAL(dp)                                           :: n_glob
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -234,21 +226,22 @@ CONTAINS
       forcing%dT_glob = 0._dp
       n_glob          = 0
 
+      ! Calculate the mean global temperature using the weighted average (across AREA) of the domains
       IF (C%do_NAM) THEN
-        forcing%dT_glob = forcing%dT_glob + (dT_NAM * NAM%grid%nx * NAM%grid%ny)
-        n_glob  = n_glob  + NAM%grid%nx * NAM%grid%ny
+        forcing%dT_glob = forcing%dT_glob + (dT_NAM * NAM%grid%nx * NAM%grid%ny * NAM%grid%dx * NAM%grid%dx)
+        n_glob  = n_glob  + NAM%grid%nx * NAM%grid%ny * NAM%grid%dx * NAM%grid%dx
       END IF
       IF (C%do_EAS) THEN
-        forcing%dT_glob = forcing%dT_glob + (dT_EAS * EAS%grid%nx * EAS%grid%ny)
-        n_glob  = n_glob  + EAS%grid%nx * EAS%grid%ny
+        forcing%dT_glob = forcing%dT_glob + (dT_EAS * EAS%grid%nx * EAS%grid%ny * EAS%grid%dx * EAS%grid%dx)
+        n_glob  = n_glob  + EAS%grid%nx * EAS%grid%ny * EAS%grid%dx * EAS%grid%dx
       END IF
       IF (C%do_GRL) THEN
-        forcing%dT_glob = forcing%dT_glob + (dT_GRL * GRL%grid%nx * GRL%grid%ny)
-        n_glob  = n_glob  + GRL%grid%nx * GRL%grid%ny
+        forcing%dT_glob = forcing%dT_glob + (dT_GRL * GRL%grid%nx * GRL%grid%ny * GRL%grid%dx * GRL%grid%dx)
+        n_glob  = n_glob  + GRL%grid%nx * GRL%grid%ny * GRL%grid%dx * GRL%grid%dx
       END IF
       IF (C%do_ANT) THEN
-        forcing%dT_glob = forcing%dT_glob + (dT_ANT * ANT%grid%nx * ANT%grid%ny)
-        n_glob  = n_glob  + ANT%grid%nx * ANT%grid%ny
+        forcing%dT_glob = forcing%dT_glob + (dT_ANT * ANT%grid%nx * ANT%grid%ny * ANT%grid%dx * ANT%grid%dx)
+        n_glob  = n_glob  + ANT%grid%nx * ANT%grid%ny * ANT%grid%dx * ANT%grid%dx
       END IF
 
       forcing%dT_glob = forcing%dT_glob / n_glob
@@ -304,32 +297,31 @@ CONTAINS
     IF     (C%choice_climate_model == 'PD_obs') THEN
       Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%Hs(    :,region%grid%i1:region%grid%i2)
       T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%PD_obs%snapshot%T2m( :,:,region%grid%i1:region%grid%i2)
-    ELSEIF (C%choice_climate_model == 'matrix_warm_cold') THEN
+    ELSEIF (C%choice_climate_model == 'matrix') THEN
       Hs_PD(    :,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%Hs(    :,region%grid%i1:region%grid%i2)
       T2m_PD( :,:,region%grid%i1:region%grid%i2) = region%climate%matrix%PD_obs%T2m( :,:,region%grid%i1:region%grid%i2)
     ELSE
       CALL crash('present-day temperature not known for choice_climate_model "'//TRIM( C%choice_climate_model)//'"!')
     END IF
 
-    IF (par%master) THEN
-
-      dT = 0._dp
-
-      DO i = region%grid%i1, region%grid%i2
-      DO j = 1, region%grid%ny
-        dT_lapse_mod = region%ice%Hs_a( j,i) * C%constant_lapserate
-        dT_lapse_PD  = Hs_PD(           j,i) * C%constant_lapserate
-        DO m = 1, 12
-          T_pot_mod = region%climate%T2m( m,j,i) - dT_lapse_mod
-          T_pot_PD  = T2m_PD(             m,j,i) - dT_lapse_PD
-          dT = dT + T_pot_mod - T_pot_PD
-        END DO
+    dT = 0._dp
+    
+    DO i = region%grid%i1, region%grid%i2
+    DO j = 1, region%grid%ny
+      dT_lapse_mod = region%ice%Hs_a(          j,i) * C%constant_lapserate
+      dT_lapse_PD  = Hs_PD(                    j,i) * C%constant_lapserate
+      DO m = 1, 12
+        T_pot_mod = region%climate%T2m(         m,j,i) + dT_lapse_mod
+        T_pot_PD  = T2m_PD(                     m,j,i) + dT_lapse_PD
+        dT = dT + T_pot_mod - T_pot_PD
       END DO
-      END DO
+    END DO
+    END DO
+    CALL sync
 
-      dT = dT / (region%grid%nx * region%grid%ny * 12._dp)
-
-    END IF ! IF (par%master) THEN
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+   
+    dT = dT / (region%grid%nx * region%grid%ny * 12._dp)
     CALL sync
 
     ! Clean up after yourself
@@ -347,13 +339,16 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_modelled_benthic_d18O_data'
+    CHARACTER(LEN=256)                                 :: filename
+    CHARACTER(LEN=256)                                 :: choice_d18O_inverse_init
+    REAL(dp)                                           :: time_to_restart_from
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (.NOT. C%do_calculate_benthic_d18O) THEN
-      CALL crash('should only be called when do_calculate_benthic_d18O = .TRUE.!')
+    IF (.NOT. C%do_calculate_benthic_d18O) THEN  
+       CALL crash('should only be called when do_calculate_benthic_d18O = .TRUE.!')
     END IF
 
     ! Allocate shared memory
@@ -369,15 +364,59 @@ CONTAINS
     CALL allocate_shared_dp_0D( forcing%d18O_obs_PD,               forcing%wd18O_obs_PD              )
     CALL allocate_shared_dp_0D( forcing%d18O_mod,                  forcing%wd18O_mod                 )
 
+    ! Determine which type of d18O initialization, and which filename
+    IF  (C%do_NAM) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_NAM
+      filename                 = C%filename_d18O_inverse_init_NAM
+      time_to_restart_from     = C%time_to_restart_from_NAM
+    ELSEIF (C%do_EAS) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_EAS
+      filename                 = C%filename_d18O_inverse_init_EAS
+      time_to_restart_from     = C%time_to_restart_from_EAS
+    ELSEIF (C%do_GRL) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_GRL
+      filename                 = C%filename_d18O_inverse_init_GRL
+      time_to_restart_from     = C%time_to_restart_from_GRL
+    ELSEIF (C%do_ANT) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_ANT
+      filename                 = C%filename_d18O_inverse_init_ANT
+      time_to_restart_from     = C%time_to_restart_from_ANT
+    END IF
+
     ! Determine number of entries in the global mean temperature change history
     CALL allocate_shared_int_0D( forcing%ndT_glob_history, forcing%wndT_glob_history)
     IF (par%master) forcing%ndT_glob_history = CEILING( C%dT_deepwater_averaging_window / C%dt_coupling)
     CALL sync
-    ! Allocate memory for the global mean temperature change history
-    CALL allocate_shared_dp_1D( forcing%ndT_glob_history, forcing%dT_glob_history, forcing%wdT_glob_history)
 
     IF (par%master) forcing%d18O_obs_PD = 3.23_dp
     CALL sync
+
+    IF (choice_d18O_inverse_init == 'init') THEN
+       ! Starting from a clean run
+
+       ! Allocate memory for the global mean temperature change history
+       CALL allocate_shared_dp_1D( forcing%ndT_glob_history, forcing%dT_glob_history, forcing%wdT_glob_history)
+        
+       IF (par%master) forcing%dT_glob_history = 0._dp
+       
+       CALL sync
+
+    ELSEIF (choice_d18O_inverse_init == 'restart') THEN
+        ! If starting from a restart file
+        
+        ! Load from restart file
+        CALL read_field_from_file_history_1D(         filename, 'dT_glob_history',    'time_dT_glob_history',     forcing%dT_glob_history     , forcing%wdT_glob_history,     time_to_restart_from )
+
+        ! Crash if the length of the inverse history does not match between restart and model 
+        IF (SIZE(forcing%dT_glob_history) /= forcing%ndT_glob_history) THEN
+            CALL crash('Length of dT_glob_history is not the same between current model set-up and restart. Check dt_coupling and CO2_averaging_window')
+        END IF
+        
+        CALL sync
+
+    ELSE
+      CALL crash('unknown choice_forcing_method "' // TRIM(choice_d18O_inverse_init) // '"!')
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -475,8 +514,9 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_inverse_routine_data'
-    !CHARACTER(LEN=256)                                 :: filename
-
+    CHARACTER(LEN=256)                                 :: filename
+    CHARACTER(LEN=256)                                 :: choice_d18O_inverse_init
+    REAL(dp)                                           :: time_to_restart_from
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -515,36 +555,70 @@ CONTAINS
 
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
 
-      CALL crash('need to fix the inverse routine stuff to cope with restarting!')
+      ! Determine which type of d18O initialization, and which filename
+      IF  (C%do_NAM) THEN
+        choice_d18O_inverse_init = C%choice_d18O_inverse_init_NAM
+        filename                 = C%filename_d18O_inverse_init_NAM
+        time_to_restart_from     = C%time_to_restart_from_NAM
+      ELSEIF (C%do_EAS) THEN
+        choice_d18O_inverse_init = C%choice_d18O_inverse_init_EAS
+        filename                 = C%filename_d18O_inverse_init_EAS
+        time_to_restart_from     = C%time_to_restart_from_EAS
+      ELSEIF (C%do_GRL) THEN
+        choice_d18O_inverse_init = C%choice_d18O_inverse_init_GRL
+        filename                 = C%filename_d18O_inverse_init_GRL
+        time_to_restart_from     = C%time_to_restart_from_GRL
+      ELSEIF (C%do_ANT) THEN
+        choice_d18O_inverse_init = C%choice_d18O_inverse_init_ANT
+        filename                 = C%filename_d18O_inverse_init_ANT
+        time_to_restart_from     = C%time_to_restart_from_ANT
+      END IF
 
-!      CALL allocate_shared_dp_0D( forcing%CO2_inverse, forcing%wCO2_inverse)
-!      ! Determine number of entries in the history
-!      CALL allocate_shared_int_0D( forcing%nCO2_inverse_history, forcing%wnCO2_inverse_history)
-!      IF (par%master) forcing%nCO2_inverse_history = CEILING( C%CO2_inverse_averaging_window / C%dt_coupling)
-!      CALL sync
-!      ! Allocate memory for the global mean temperature change history
-!      CALL allocate_shared_dp_1D( forcing%nCO2_inverse_history, forcing%CO2_inverse_history, forcing%wCO2_inverse_history)
-!      IF (par%master) forcing%CO2_inverse_history = C%inverse_d18O_to_CO2_initial_CO2
-!      IF (par%master) forcing%CO2_inverse         = C%inverse_d18O_to_CO2_initial_CO2
-!      IF (par%master) forcing%CO2_mod             = C%inverse_d18O_to_CO2_initial_CO2
-!
-!      ! If we're restarting a previous run, read inverse routine history from one of the restart files
-!      IF (C%is_restart) THEN
-!        IF (C%do_NAM) THEN
-!          filename = C%filename_init_NAM
-!        ELSEIF (C%do_EAS) THEN
-!          filename = C%filename_init_EAS
-!        ELSEIF (C%do_GRL) THEN
-!          filename = C%filename_init_GRL
-!        ELSEIF (C%do_ANT) THEN
-!          filename = C%filename_init_ANT
-!        END IF
-!        IF (par%master) CALL read_inverse_routine_history_dT_glob(     forcing, C%filename_init_NAM)
-!        IF (par%master) CALL read_inverse_routine_history_CO2_inverse( forcing, C%filename_init_NAM)
-!        IF (par%master) forcing%CO2_inverse = forcing%CO2_inverse_history(1)
-!        IF (par%master) forcing%CO2_mod     = forcing%CO2_inverse
-!        CALL sync
-!      END IF
+      ! Allocate 
+      CALL allocate_shared_dp_0D(  forcing%CO2_inverse,              forcing%wCO2_inverse)
+      CALL allocate_shared_dp_0D(  forcing%CO2_mod,                  forcing%wCO2_mod)
+      CALL allocate_shared_int_0D( forcing%nCO2_inverse_history,     forcing%wnCO2_inverse_history)
+      CALL allocate_shared_dp_0D(  forcing%dT_glob_inverse,          forcing%wdT_glob_inverse)
+      CALL allocate_shared_int_0D( forcing%ndT_glob_inverse_history, forcing%wndT_glob_inverse_history)
+
+      ! Determine number of entries in the history
+      IF (par%master) forcing%nCO2_inverse_history     = CEILING( C%CO2_inverse_averaging_window / C%dt_coupling)
+      IF (par%master) forcing%ndT_glob_inverse_history = CEILING( C%dT_glob_inverse_averaging_window / C%dt_coupling)
+      CALL sync
+
+      IF (choice_d18O_inverse_init == 'init') THEN
+        ! Starting from the beginning, so we use a constant value
+
+        ! Allocate
+        CALL allocate_shared_dp_1D(  forcing%nCO2_inverse_history, forcing%CO2_inverse_history, forcing%wCO2_inverse_history)
+        CALL allocate_shared_dp_1D(  forcing%ndT_glob_inverse_history, forcing%dT_glob_inverse_history, forcing%wdT_glob_inverse_history)
+
+        ! Add a uniform value for the inverse history
+        IF (par%master) forcing%CO2_inverse_history = C%inverse_d18O_to_CO2_initial_CO2 
+        IF (par%master) forcing%CO2_inverse         = C%inverse_d18O_to_CO2_initial_CO2
+        IF (par%master) forcing%CO2_mod             = C%inverse_d18O_to_CO2_initial_CO2
+
+        CALL sync
+
+      ELSEIF (choice_d18O_inverse_init == 'restart') THEN
+        ! If starting from a restart file
+        ! Read dT_glob
+        CALL read_field_from_file_history_1D(         filename, 'CO2_inverse_history',    'time_CO2_inverse_history',     forcing%CO2_inverse_history     , forcing%wCO2_inverse_history,     time_to_restart_from )
+       
+        ! Crash if the length of the inverse history does not match between restart and model 
+        IF (SIZE(forcing%CO2_inverse_history) /= forcing%nCO2_inverse_history) THEN
+            CALL crash('Length of CO2_inverse_history is not the same between current model set-up and restart. Check dt_coupling and CO2_averaging_window')
+        END IF       
+    
+        ! Get the current CO2_inverse and CO2_mod from the restart file
+        IF (par%master) forcing%CO2_inverse = forcing%CO2_inverse_history(1)
+        IF (par%master) forcing%CO2_mod     = forcing%CO2_inverse 
+        
+        CALL sync
+      
+      ELSE
+          CALL crash('unknown choice_inverse_clim_init "' // TRIM(choice_d18O_inverse_init) // '"!')
+      END IF
 
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
@@ -718,11 +792,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_forcing_method == 'inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'inverse_CO2') THEN
+    IF     (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
+            C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       ! Observed d18O is needed for these forcing methods.
     ELSE
-      CALL crash('should only be called when choice_forcing_method = "inverse_dT_glob" or "inverse_CO2"!')
+      CALL crash('should only be called when choice_forcing_method = "d18O_inverse_dT_glob" or "d18O_inverse_CO2"!')
     END IF
 
     IF (par%master) THEN
@@ -769,11 +843,11 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_forcing_method == 'inverse_dT_glob' .OR. &
-            C%choice_forcing_method == 'inverse_CO2') THEN
-      ! Observed d18O is needed for these forcing methods.
+    IF     (C%choice_forcing_method == 'd18O_inverse_dT_glob' .OR. &
+             C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+       ! Observed d18O is needed for these forcing methods.
     ELSE
-      CALL crash('should only be called when choice_forcing_method = "inverse_dT_glob" or "inverse_CO2"!')
+       CALL crash('should only be called when choice_forcing_method = "d18O_inverse_dT_glob" or "d18O_inverse_CO2"!')
     END IF
 
     IF (par%master) WRITE(0,*) ' Reading d18O record from ', TRIM(C%filename_d18O_record), '...'

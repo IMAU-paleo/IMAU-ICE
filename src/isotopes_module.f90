@@ -16,6 +16,12 @@ MODULE isotopes_module
                                              check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
                                              surface_elevation
   USE forcing_module,                  ONLY: forcing
+  USE netcdf_input_module,             ONLY: read_field_from_file_2D
+
+  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+
+
 
   IMPLICIT NONE
 
@@ -129,16 +135,26 @@ CONTAINS
 
       IF ( region%SMB%SMB_year( j,i) > 0._dp ) THEN
         ! Surface accumulation has the isotope content of precipitation
-        region%ice%MB_iso( j,i) = region%ice%MB_iso( j,i) + region%SMB%SMB_year( j,i) * region%ice%IsoSurf( j,i) * region%grid%dx * region%grid%dx    ! (applied MB) mass gain, so d18O from precipitation
+        region%ice%MB_iso( j,i) = region%ice%MB_iso( j,i) + region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%ice%IsoSurf( j,i) * region%grid%dx * region%grid%dx    ! (applied MB) mass gain, so d18O from precipitation
       ELSE
         ! Surface melt has the isotope content of the ice itself
-        region%ice%MB_iso( j,i) = region%ice%MB_iso( j,i) + region%SMB%SMB_year( j,i) * region%ice%IsoIce(  j,i) * region%grid%dx * region%grid%dx    ! (applied MB) mass loss, so d18O from ice
+        region%ice%MB_iso( j,i) = region%ice%MB_iso( j,i) + region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%ice%IsoIce(  j,i) * region%grid%dx * region%grid%dx    ! (applied MB) mass loss, so d18O from ice
       END IF
 
       ! Both basal melt and basal freezing have the isotope content of the ice itself (the latter
       ! is not really true, but it's the best we can do for now)
-      region%ice%MB_iso(   j,i) = region%ice%MB_iso( j,i) + region%BMB%BMB(      j,i) * region%ice%IsoIce(  j,i) * region%grid%dx * region%grid%dx
+      region%ice%MB_iso(   j,i) = region%ice%MB_iso( j,i) + region%BMB%BMB( j,i) * region%ice%float_margin_frac_a( j,i) * region%ice%IsoIce(  j,i) * region%grid%dx * region%grid%dx
 
+      ! In case more ice is removed by melt than physically possible, set IsoIce to 0 and Mb to 0 just to be sure.
+      !  Therefore, all Iso is removed. All ice has melted, but some may have been transported from neighbouring cells.
+      ! To reflect this, set IsoIce to 0.
+      IF (((region%BMB%BMB(     j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
+         ((region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
+         (((region%BMB%BMB(     j,i) + region%SMB%SMB_year(            j,i))  * region%ice%float_margin_frac_a( j,i) * region%dt)  < -region%ice%Hi_a( j,i))) THEN
+           region%ice%IsoIce( j,i) = 0._dp
+           region%ice%MB_iso( j,i) = 0._dp
+      END IF
+      
     END DO
     END DO
     CALL sync
@@ -182,9 +198,14 @@ CONTAINS
         dIso_dt( j,i) = region%ice%MB_iso( j,i) + dIso_xl - dIso_xr + dIso_yd - dIso_yu
 
         ! Update vertically averaged ice isotope content
-        VIso = region%ice%IsoIce( j,i) * region%ice%Hi_a_prev( j,i) * region%grid%dx * region%grid%dx
+        VIso = region%ice%IsoIce( j,i) * region%ice%Hi_a( j,i) * region%grid%dx * region%grid%dx
         VIso = VIso + dIso_dt( j,i) * region%dt
-        IsoIce_new( j,i) = MIN( IsoMax, MAX( IsoMin, VIso / (region%grid%dx * region%grid%dx * region%ice%Hi_a( j,i)) ))
+
+        IsoIce_new( j,i) = MIN( IsoMax, MAX( IsoMin, VIso / (region%grid%dx * region%grid%dx * region%ice%Hi_tplusdt_a( j,i)) ))
+
+        ! Fail save: No isotopes if the ice thickness is very small (and perhaps newly formed). We are dealing with 
+        ! concentrations and this becomes a big number / small number problem. 
+        IF (region%ice%Hi_tplusdt_a( j,i) < 0.1_dp) IsoIce_new( j,i) = 0._dp
 
       END IF ! IF (ice%mask_ice_a( j,i) == 1) THEN
     END DO
@@ -195,7 +216,7 @@ CONTAINS
     region%ice%IsoIce( :,region%grid%i1:region%grid%i2) = IsoIce_new( :,region%grid%i1:region%grid%i2)
 
     ! Calculate mean isotope content of the whole ice sheet
-    CALL calculate_isotope_content( region%grid, region%ice%Hi_a, region%ice%IsoIce, region%mean_isotope_content, region%d18O_contribution)
+    CALL calculate_isotope_content( region%grid, region%ice%Hi_tplusdt_a, region%ice%IsoIce, region%mean_isotope_content, region%d18O_contribution)
 
     ! Clean up after yourself
     CALL deallocate_shared( wdIso_dt   )
@@ -326,11 +347,37 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_isotopes_model_ANICE_legacy'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: Ts, Ts_ref, Hs, Hs_ref
+    CHARACTER(LEN=256)                                 :: filename
+    CHARACTER(LEN=256)                                 :: choice_d18O_inverse_init
+    REAL(dp)                                           :: time_to_restart_from
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     IF (par%master) WRITE (0,*) '  Initialising ANICE_legacy isotopes model ...'
+
+    IF (.NOT.(C%choice_climate_model == 'matrix')) THEN
+      CALL crash('Can only be called if choice_climate_model_config == matrix for now') 
+    END IF
+
+    ! Determine which type of d18O initialization, and which filename
+    IF  (C%do_NAM) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_NAM
+      filename                 = C%filename_d18O_inverse_init_NAM
+      time_to_restart_from     = C%time_to_restart_from_NAM
+    ELSEIF (C%do_EAS) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_EAS
+      filename                 = C%filename_d18O_inverse_init_EAS
+      time_to_restart_from     = C%time_to_restart_from_EAS
+    ELSEIF (C%do_GRL) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_GRL
+      filename                 = C%filename_d18O_inverse_init_GRL
+      time_to_restart_from     = C%time_to_restart_from_GRL
+    ELSEIF (C%do_ANT) THEN
+      choice_d18O_inverse_init = C%choice_d18O_inverse_init_ANT
+      filename                 = C%filename_d18O_inverse_init_ANT
+      time_to_restart_from     = C%time_to_restart_from_ANT
+    END IF
 
     ! Allocate memory
     CALL allocate_shared_dp_2D( region%grid%ny, region%grid%nx, region%ice%IsoRef    , region%ice%wIsoRef    )
@@ -369,7 +416,7 @@ CONTAINS
       ELSE
         region%ice%IsoIce( j,i) = 0._dp ! = No ice
       END IF
-
+    
     END DO
     END DO
     CALL sync
@@ -379,30 +426,39 @@ CONTAINS
 
     ! ===== Initial =====
     ! ===================
+    IF (choice_d18O_inverse_init == 'init') THEN
 
-    ! Initialise ice sheet isotope content with the isotope content of annual mean precipitation
-    DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
+      ! Initialise ice sheet isotope content with the isotope content of annual mean precipitation
+      DO i = region%grid%i1, region%grid%i2
+      DO j = 1, region%grid%ny
 
-      IF (region%ice%mask_ice_a( j,i) == 1) THEN
+        IF (region%ice%mask_ice_a( j,i) == 1) THEN
 
-        Ts     = SUM( region%climate%T2m( :,j,i)) / 12._dp
-        Ts_ref = SUM( region%climate%matrix%PD_obs%T2m(  :,j,i)) / 12._dp
-        Hs     = region%ice%Hs_a( j,i)
-        Hs_ref = region%climate%matrix%PD_obs%Hs( j,i)
+          Ts     = SUM( region%climate%T2m( :,j,i)) / 12._dp
+          Ts_ref = SUM( region%climate%matrix%PD_obs%T2m(  :,j,i)) / 12._dp
+          Hs     = region%ice%Hs_a( j,i)
+          Hs_ref = region%climate%matrix%PD_obs%Hs( j,i)
 
-        region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
-                                + 0.35_dp              * (Ts - Ts_ref    &
-                                - C%constant_lapserate * (Hs - Hs_ref))  &
-                                - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
+          region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
+                                  + 0.35_dp              * (Ts - Ts_ref    &
+                                  - C%constant_lapserate * (Hs - Hs_ref))  &
+                                  - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
 
-      ELSE
-        region%ice%IsoIce( j,i) = 0._dp ! = No ice
-      END IF
-
-    END DO
-    END DO
-    CALL sync
+        ELSE
+          region%ice%IsoIce( j,i) = 0._dp ! = No ice
+        END IF
+ 
+      END DO
+      END DO
+      CALL sync
+     
+    ELSEIF (choice_d18O_inverse_init == 'restart') THEN
+      ! Read data from input file
+      CALL read_field_from_file_2D(         filename, 'IsoIce', region%grid, region%ice%IsoIce, 'N/A', time_to_restart_from)
+    
+    ELSE
+       CALL crash('unknown choice_forcing_method "' // TRIM(choice_d18O_inverse_init) // '"!')
+    END IF
 
     ! Calculate mean isotope content of the whole ice sheet at the start of the simulation
     CALL calculate_isotope_content( region%grid, region%ice%Hi_a, region%ice%IsoIce, region%mean_isotope_content, region%d18O_contribution)
