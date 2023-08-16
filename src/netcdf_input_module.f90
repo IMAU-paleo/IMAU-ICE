@@ -638,6 +638,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_2D( d, wd)
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -763,6 +765,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -902,6 +906,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Clean up after yourself
     CALL deallocate_shared(   wzeta_from_file)
@@ -1473,7 +1479,7 @@ CONTAINS
     INTEGER                                            :: wntime_history, wtime_history,wd_with_time
     INTEGER                                            :: ti
 
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -1512,16 +1518,16 @@ CONTAINS
       CALL find_timeframe( filename, time_to_read, ti)
       ! Read data
       CALL read_var_dp_2D( filename, id_var, d_with_time, start = (/ 1, ti /), count = (/ ntime_history, 1 /) )
-      
+
       ! Copy to output memory
-      IF (par%master) THEN  
+      IF (par%master) THEN
          d( :) = d_with_time( :,1)
-      END IF 
+      END IF
       CALL sync
 
       ! Clean up after yourself
       CALL deallocate_shared( wd_with_time)
-      
+
    END IF
 
    CALL deallocate_shared( wntime_history)
@@ -1531,7 +1537,7 @@ CONTAINS
    CALL finalise_routine( routine_name, 19)
 
    END SUBROUTINE read_field_from_file_history_1D
- 
+
   ! ===== Set up grids from a NetCDF file =====
   ! ================================================
 
