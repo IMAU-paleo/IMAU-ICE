@@ -24,7 +24,7 @@ MODULE netcdf_output_module
 
   ! Import specific functionality
   USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_model_region, type_ice_model, type_global_scalar_data, &
-                                             type_highres_ocean_data, type_ocean_snapshot_regional
+                                             type_highres_ocean_data, type_forcing_data, type_ocean_snapshot_regional
   USE netcdf,                          ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
                                              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
                                              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
@@ -45,7 +45,7 @@ MODULE netcdf_output_module
                                              write_var_dp_0D , write_var_dp_1D , write_var_dp_2D , write_var_dp_3D , write_var_dp_4D, &
                                              check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                                              check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                                             inquire_xy_grid, inquire_lonlat_grid, get_first_option_from_list, check_month, check_time, check_xy_grid_field_dp_3D_ocean
+                                             inquire_xy_grid, inquire_lonlat_grid, get_first_option_from_list, check_month, check_time, check_time_history, check_xy_grid_field_dp_3D_ocean
 
   IMPLICIT NONE
 
@@ -74,13 +74,13 @@ CONTAINS
 
     ! Write model data
     ! ================
-    CALL write_to_scalar_field_dp( filename, 'ice_volume',    region%ice_volume)
-    CALL write_to_scalar_field_dp( filename, 'ice_volume_af', region%ice_volume_above_flotation)
-    CALL write_to_scalar_field_dp( filename, 'ice_area',      region%ice_area)
-    CALL write_to_scalar_field_dp( filename, 'T2m',           region%int_T2m)
-    CALL write_to_scalar_field_dp( filename, 'SMB',           region%int_SMB)
-    CALL write_to_scalar_field_dp( filename, 'BMB',           region%int_BMB)
-    CALL write_to_scalar_field_dp( filename, 'MB',            region%int_MB)
+    CALL write_to_field_dp_0D( filename, 'ice_volume',    region%ice_volume)
+    CALL write_to_field_dp_0D( filename, 'ice_volume_af', region%ice_volume_above_flotation)
+    CALL write_to_field_dp_0D( filename, 'ice_area',      region%ice_area)
+    CALL write_to_field_dp_0D( filename, 'T2m',           region%int_T2m)
+    CALL write_to_field_dp_0D( filename, 'SMB',           region%int_SMB)
+    CALL write_to_field_dp_0D( filename, 'BMB',           region%int_BMB)
+    CALL write_to_field_dp_0D( filename, 'MB',            region%int_MB)
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
@@ -91,11 +91,11 @@ CONTAINS
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
-       CALL write_to_scalar_field_dp( filename, 'snowfall',   region%int_snowfall)
-       CALL write_to_scalar_field_dp( filename, 'rainfall',   region%int_rainfall)
-       CALL write_to_scalar_field_dp( filename, 'melt',       region%int_melt)
-       CALL write_to_scalar_field_dp( filename, 'refreezing', region%int_refreezing)
-       CALL write_to_scalar_field_dp( filename, 'runoff',     region%int_runoff)
+       CALL write_to_field_dp_0D( filename, 'snowfall',   region%int_snowfall)
+       CALL write_to_field_dp_0D( filename, 'rainfall',   region%int_rainfall)
+       CALL write_to_field_dp_0D( filename, 'melt',       region%int_melt)
+       CALL write_to_field_dp_0D( filename, 'refreezing', region%int_refreezing)
+       CALL write_to_field_dp_0D( filename, 'runoff',     region%int_runoff)
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -126,43 +126,43 @@ CONTAINS
 
     ! Write global variables
     ! ================
-    CALL write_to_scalar_field_dp( filename, 'GMSL',     global_data%GMSL)
-    CALL write_to_scalar_field_dp( filename, 'GMSL_NAM', global_data%GMSL_NAM)
-    CALL write_to_scalar_field_dp( filename, 'GMSL_EAS', global_data%GMSL_EAS)
-    CALL write_to_scalar_field_dp( filename, 'GMSL_GRL', global_data%GMSL_GRL)
-    CALL write_to_scalar_field_dp( filename, 'GMSL_ANT', global_data%GMSL_ANT)
+    CALL write_to_field_dp_0D( filename, 'GMSL',     global_data%GMSL)
+    CALL write_to_field_dp_0D( filename, 'GMSL_NAM', global_data%GMSL_NAM)
+    CALL write_to_field_dp_0D( filename, 'GMSL_EAS', global_data%GMSL_EAS)
+    CALL write_to_field_dp_0D( filename, 'GMSL_GRL', global_data%GMSL_GRL)
+    CALL write_to_field_dp_0D( filename, 'GMSL_ANT', global_data%GMSL_ANT)
 
     ! CO2
     IF     (C%choice_forcing_method == 'none') THEN
     ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
-      CALL write_to_scalar_field_dp( filename, 'CO2_obs', global_data%CO2_obs)
+      CALL write_to_field_dp_0D( filename, 'CO2_obs', global_data%CO2_obs)
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-      CALL write_to_scalar_field_dp( filename, 'CO2_obs', global_data%CO2_obs)
-      CALL write_to_scalar_field_dp( filename, 'CO2_mod', global_data%CO2_mod)
+!      CALL write_to_field_dp_0D( filename, 'CO2_obs', global_data%CO2_obs)
+      CALL write_to_field_dp_0D( filename, 'CO2_mod', global_data%CO2_mod)
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
 
     ! d18O
     IF     (C%do_calculate_benthic_d18O) THEN
-      CALL write_to_scalar_field_dp( filename, 'dT_glob',  global_data%dT_glob)
-      CALL write_to_scalar_field_dp( filename, 'dT_dw',    global_data%dT_dw)
-      CALL write_to_scalar_field_dp( filename, 'd18O_mod', global_data%d18O_mod)
-      CALL write_to_scalar_field_dp( filename, 'd18O_ice', global_data%d18O_ice)
-      CALL write_to_scalar_field_dp( filename, 'd18O_Tdw', global_data%d18O_Tdw)
-      CALL write_to_scalar_field_dp( filename, 'd18O_NAM', global_data%d18O_NAM)
-      CALL write_to_scalar_field_dp( filename, 'd18O_EAS', global_data%d18O_EAS)
-      CALL write_to_scalar_field_dp( filename, 'd18O_GRL', global_data%d18O_GRL)
-      CALL write_to_scalar_field_dp( filename, 'd18O_ANT', global_data%d18O_ANT)
+      CALL write_to_field_dp_0D( filename, 'dT_glob',  global_data%dT_glob)
+      CALL write_to_field_dp_0D( filename, 'dT_dw',    global_data%dT_dw)
+      CALL write_to_field_dp_0D( filename, 'd18O_mod', global_data%d18O_mod)
+      CALL write_to_field_dp_0D( filename, 'd18O_ice', global_data%d18O_ice)
+      CALL write_to_field_dp_0D( filename, 'd18O_Tdw', global_data%d18O_Tdw)
+      CALL write_to_field_dp_0D( filename, 'd18O_NAM', global_data%d18O_NAM)
+      CALL write_to_field_dp_0D( filename, 'd18O_EAS', global_data%d18O_EAS)
+      CALL write_to_field_dp_0D( filename, 'd18O_GRL', global_data%d18O_GRL)
+      CALL write_to_field_dp_0D( filename, 'd18O_ANT', global_data%d18O_ANT)
     END IF
 
     ! Computation time for different model components
-    CALL write_to_scalar_field_dp( filename, 'tcomp_total',   global_data%tcomp_total)
-    CALL write_to_scalar_field_dp( filename, 'tcomp_ice',     global_data%tcomp_ice)
-    CALL write_to_scalar_field_dp( filename, 'tcomp_thermo',  global_data%tcomp_thermo)
-    CALL write_to_scalar_field_dp( filename, 'tcomp_climate', global_data%tcomp_climate)
-    CALL write_to_scalar_field_dp( filename, 'tcomp_GIA',     global_data%tcomp_GIA)
+    CALL write_to_field_dp_0D( filename, 'tcomp_total',   global_data%tcomp_total)
+    CALL write_to_field_dp_0D( filename, 'tcomp_ice',     global_data%tcomp_ice)
+    CALL write_to_field_dp_0D( filename, 'tcomp_thermo',  global_data%tcomp_thermo)
+    CALL write_to_field_dp_0D( filename, 'tcomp_climate', global_data%tcomp_climate)
+    CALL write_to_field_dp_0D( filename, 'tcomp_GIA',     global_data%tcomp_GIA)
 
 
     ! Finalise routine path
@@ -171,8 +171,7 @@ CONTAINS
   END SUBROUTINE write_to_global_scalar_file
 
     ! Write data to a grid output file
-
-  SUBROUTINE write_to_scalar_field_dp( filename, field_name_options, d)
+  SUBROUTINE write_to_field_dp_0D( filename, field_name_options, d)
     ! Write output data to a scalar field
 
     IMPLICIT NONE
@@ -183,7 +182,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: d
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_scalar_field_dp'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_dp_0D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
     TYPE(type_grid)                                    :: grid
@@ -216,7 +215,7 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE write_to_scalar_field_dp
+  END SUBROUTINE write_to_field_dp_0D
 
   SUBROUTINE create_regional_scalar_file(region_name, filename)
     ! Create an empty regional scalar file
@@ -252,13 +251,13 @@ CONTAINS
 
     ! Create region variables
     ! ================
-    CALL add_scalar_field_dp( filename, 'ice_volume',    long_name='Ice volume', units='m.s.l.e')
-    CALL add_scalar_field_dp( filename, 'ice_volume_af', long_name='Ice volume above flotation', units='m.s.l.e')
-    CALL add_scalar_field_dp( filename, 'ice_area',      long_name='Ice volume', units='km^2')
-    CALL add_scalar_field_dp( filename, 'T2m',           long_name='Regionally averaged annual mean surface temperature', units='K')
-    CALL add_scalar_field_dp( filename, 'SMB',           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
-    CALL add_scalar_field_dp( filename, 'BMB',           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
-    CALL add_scalar_field_dp( filename, 'MB',            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'ice_volume',    long_name='Ice volume', units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_volume_af', long_name='Ice volume above flotation', units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_area',      long_name='Ice volume', units='km^2')
+    CALL add_field_dp_0D( filename, 'T2m',           long_name='Regionally averaged annual mean surface temperature', units='K')
+    CALL add_field_dp_0D( filename, 'SMB',           long_name='Ice-sheet integrated surface mass balance', units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'BMB',           long_name='Ice-sheet integrated basal mass balance', units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'MB',            long_name='Ice-sheet integrated mass balance', units='Gigaton yr^-1')
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
@@ -269,11 +268,11 @@ CONTAINS
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
-       CALL add_scalar_field_dp( filename, 'snowfall',   long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
-       CALL add_scalar_field_dp( filename, 'rainfall',   long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
-       CALL add_scalar_field_dp( filename, 'melt',       long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
-       CALL add_scalar_field_dp( filename, 'refreezing', long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
-       CALL add_scalar_field_dp( filename, 'runoff',     long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'snowfall',   long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'rainfall',   long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'melt',       long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'refreezing', long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'runoff',     long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -314,50 +313,50 @@ CONTAINS
 
     ! Create global variables
     ! ================
-    CALL add_scalar_field_dp( filename, 'GMSL',     long_name='Global mean sea level change', units='m')
-    CALL add_scalar_field_dp( filename, 'GMSL_NAM', long_name='Global mean sea level change from ice in North America', units='m')
-    CALL add_scalar_field_dp( filename, 'GMSL_EAS', long_name='Global mean sea level change from ice in Eurasia',       units='m')
-    CALL add_scalar_field_dp( filename, 'GMSL_GRL', long_name='Global mean sea level change from ice in Greenland',       units='m')
-    CALL add_scalar_field_dp( filename, 'GMSL_ANT', long_name='Global mean sea level change from ice in Antarctica',       units='m')
+    CALL add_field_dp_0D( filename, 'GMSL',     long_name='Global mean sea level change', units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_NAM', long_name='Global mean sea level change from ice in North America', units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_EAS', long_name='Global mean sea level change from ice in Eurasia',       units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_GRL', long_name='Global mean sea level change from ice in Greenland',       units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_ANT', long_name='Global mean sea level change from ice in Antarctica',       units='m')
 
     ! CO2
     IF     (C%choice_forcing_method == 'none') THEN
     ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
-      CALL add_scalar_field_dp( filename, 'CO2_obs',  long_name='Observed atmospheric CO2 concentration', units='ppm')
+      CALL add_field_dp_0D( filename, 'CO2_obs',  long_name='Observed atmospheric CO2 concentration', units='ppm')
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
-      CALL add_scalar_field_dp( filename, 'CO2_obs', long_name='Observed atmospheric CO2 concentration', units='ppm')
-      CALL add_scalar_field_dp( filename, 'CO2_mod', long_name='Modelled atmospheric CO2 concentration', units='ppm')
+      ! CALL add_field_dp_0D( filename, 'CO2_obs', long_name='Observed atmospheric CO2 concentration', units='ppm')
+      CALL add_field_dp_0D( filename, 'CO2_mod', long_name='Modelled atmospheric CO2 concentration', units='ppm')
     ELSE
       CALL crash('unknown choice_forcing_method "' // TRIM(C%choice_forcing_method) // '"!')
     END IF
 
     ! d18O
     IF     (C%do_calculate_benthic_d18O) THEN
-      CALL add_scalar_field_dp( filename, 'dT_glob',  long_name='Global annual mean surface temperature change', units='K')
-      CALL add_scalar_field_dp( filename, 'dT_dw',    long_name='Deep-water temperature change', units='K')
-      CALL add_scalar_field_dp( filename, 'd18O_mod', long_name='Modelled benthic d18O', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_ice', long_name='Modelled benthic d18O from global ice volume', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_Tdw', long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_NAM', long_name='Modelled benthic d18O from ice in North America', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_EAS', long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_GRL', long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
-      CALL add_scalar_field_dp( filename, 'd18O_ANT', long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+      CALL add_field_dp_0D( filename, 'dT_glob',  long_name='Global annual mean surface temperature change', units='K')
+      CALL add_field_dp_0D( filename, 'dT_dw',    long_name='Deep-water temperature change', units='K')
+      CALL add_field_dp_0D( filename, 'd18O_mod', long_name='Modelled benthic d18O', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_ice', long_name='Modelled benthic d18O from global ice volume', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_Tdw', long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_NAM', long_name='Modelled benthic d18O from ice in North America', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_EAS', long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_GRL', long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_ANT', long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
     END IF
 
     ! Computation time for different model components
-    CALL add_scalar_field_dp( filename, 'tcomp_total',   long_name='Total computation time', units='s')
-    CALL add_scalar_field_dp( filename, 'tcomp_ice',     long_name='Total computation time for ice dynamics', units='s')
-    CALL add_scalar_field_dp( filename, 'tcomp_thermo',  long_name='Total computation time for thermodynamics', units='s')
-    CALL add_scalar_field_dp( filename, 'tcomp_climate', long_name='Total computation time for climate+SMB+BMB', units='s')
-    CALL add_scalar_field_dp( filename, 'tcomp_GIA',     long_name='Total computation time for GIA', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_total',   long_name='Total computation time', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_ice',     long_name='Total computation time for ice dynamics', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_thermo',  long_name='Total computation time for thermodynamics', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_climate', long_name='Total computation time for climate+SMB+BMB', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_GIA',     long_name='Total computation time for GIA', units='s')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_global_scalar_file
 
-  SUBROUTINE add_scalar_field_dp( filename, var_name, long_name, units)
+  SUBROUTINE add_field_dp_0D( filename, var_name, long_name, units)
     ! Add a 1-D variable to an existing NetCDF file
 
     IMPLICIT NONE
@@ -369,7 +368,7 @@ CONTAINS
     CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_2D'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_dp_0D'
     INTEGER                                            :: id_dim_time, id_var
 
     ! Add routine to path
@@ -394,8 +393,68 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE add_scalar_field_dp
+  END SUBROUTINE add_field_dp_0D
 
+  SUBROUTINE add_field_history_dp_1D( filename, var_name, ntime_history, long_name, units)
+    ! Add a 1-D variable to an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    INTEGER,                             INTENT(IN)    :: ntime_history
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: long_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_history_dp_1D'
+    INTEGER                                            :: id_dim_time_history, id_dim_time, id_var
+    CHARACTER(LEN=256)                                 :: var_name_time_history
+    INTEGER                                            :: i
+    REAL(dp), DIMENSION( :), POINTER                   :: time_history
+    INTEGER                                            :: wtime_history
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Variable name for the time_history dimension 
+    var_name_time_history = 'time_' // TRIM( var_name)
+
+    CALL allocate_shared_dp_1D(      ntime_history, time_history, wtime_history )
+
+    DO i = 1,ntime_history
+        time_history( i) = -i * C%dt_coupling 
+    END DO
+
+    ! Add the time_history to file
+    CALL add_time_history_dimension_to_file( filename, var_name_time_history, time_history)
+
+    ! Check if x,y, and time dimensions and variables are there
+    CALL check_time_history( filename, var_name_time_history)
+
+    ! Inquire dimensions
+    CALL inquire_dim_multiple_options( filename, var_name_time_history, id_dim_time_history)
+    CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time)
+
+    ! Safety
+    IF (id_dim_time_history == -1) CALL crash('no time_history dimension could be found in file "' // TRIM( filename) // '"!')
+
+    ! Create variable
+    CALL create_variable( filename, var_name, NF90_DOUBLE, (/ id_dim_time_history,  id_dim_time/), id_var)
+
+    ! Add attributes
+    IF (PRESENT( long_name)) CALL add_attribute_char( filename, id_var, 'long_name', long_name)
+    IF (PRESENT( units    )) CALL add_attribute_char( filename, id_var, 'units'    , units    )
+
+    ! Clean up after yourself
+    CALL deallocate_shared(wtime_history)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_field_history_dp_1D
+  
   SUBROUTINE create_restart_file_grid( filename, grid)
     ! Create an empty restart file with the specified grid
 
@@ -421,6 +480,12 @@ CONTAINS
     CALL add_time_dimension_to_file(  filename)
     CALL add_zeta_dimension_to_file(  filename)
     CALL add_month_dimension_to_file( filename)
+    
+    ! Add a time_history dimension for the inverse 18O simulation
+    !IF (C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
+    !   (C%choice_forcing_method == 'd18O_inverse_dT_glob')) THEN
+    !    CALL add_time_history_dimension_to_file(  filename)    
+    !END IF
 
     ! Create variables
     ! ================
@@ -470,7 +535,14 @@ CONTAINS
     END IF
 
     ! Inverse routine data
-    ! MS: Needs to be fixed
+    IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+        CALL add_field_history_dp_1D( filename, 'CO2_inverse_history' ,  CEILING( C%CO2_inverse_averaging_window     / C%dt_coupling), long_name='inverse history of CO2' ,                    units='ppm')
+        CALL add_field_history_dp_1D( filename, 'dT_glob_history' ,       CEILING( C%dT_deepwater_averaging_window / C%dt_coupling),   long_name= 'history of deep water temperature' , units='K')
+    END IF
+
+    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+        CALL add_field_history_dp_1D( filename, 'dT_glob_inverse_history' , CEILING( C%dT_glob_inverse_averaging_window / C%dt_coupling), long_name='inverse history of deep water temperature' , units='K')
+    END IF
 
 
     ! Finalise routine path
@@ -861,7 +933,7 @@ CONTAINS
   END SUBROUTINE create_help_field_grid
 
   ! Write to restart and help fields files
-  SUBROUTINE write_to_restart_file_grid( filename, region)
+  SUBROUTINE write_to_restart_file_grid( filename, region, forcing)
     ! Write model output to the grid restart file
 
     IMPLICIT NONE
@@ -869,6 +941,7 @@ CONTAINS
     ! In/output variables:
     CHARACTER(LEN=*),                    INTENT(IN)    :: filename
     TYPE(type_model_region),             INTENT(INOUT) :: region
+    TYPE(type_forcing_data), OPTIONAL,   INTENT(IN)    :: forcing
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_restart_file_grid'
@@ -938,7 +1011,19 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
-
+    
+    ! Inverse routine data
+    IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
+      CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'CO2_inverse_history',  forcing%CO2_inverse_history)
+      CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_history,     'dT_glob_history',      forcing%dT_glob_history)
+    END IF
+    
+    IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
+      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_dT_glob is used')    
+      CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_inverse_history, 'dT_glob_inverse_history' , forcing%dT_glob_inverse_history)
+    END IF
+    
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -1588,6 +1673,59 @@ CONTAINS
 
   END SUBROUTINE write_to_field_multiple_options_grid_dp_2D
 
+  ! Write data to a grid output file
+  SUBROUTINE write_to_field_history_dp_1D( filename, ntime_history, field_name_options, d)
+    ! Write a 1-D data field to a NetCDF file variable on a time_history array
+    !
+    ! Write to the last time frame of the variable
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    INTEGER,                             INTENT(IN)    :: ntime_history
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp), DIMENSION(: ),             INTENT(IN)    :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_history_dp_1D'
+    INTEGER                                            :: id_var, id_dim_time, ti
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:), POINTER                  ::  d_grid_with_time
+    INTEGER                                            :: wd_grid_with_time
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    ! CALL check_time_history( filename)
+
+    ! Inquire length of time dimension
+    CALL inquire_dim_multiple_options( filename, field_name_options_time, id_dim_time, dim_length = ti)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( ntime_history, 1, d_grid_with_time, wd_grid_with_time)
+
+    ! Copy data
+    d_grid_with_time( :, 1) = d( :)
+    CALL sync
+
+    ! Write data to the variable
+    CALL write_var_dp_2D( filename, id_var, d_grid_with_time, start = (/ 1, ti /), count = (/ ntime_history, 1 /) )
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid_with_time)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_history_dp_1D
+
+
   SUBROUTINE write_to_field_multiple_options_grid_int_2D( filename, grid, field_name_options, d)
     ! Write a 2-D data field to a NetCDF file variable on an x/y-grid
     ! (Mind you, that's 2-D in the physical sense, so a 1-D array!)
@@ -1797,10 +1935,11 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
 
     d_grid( :,grid%i1:grid%i2) = d( :,grid%i1:grid%i2)
-    CALL transpose_dp_2D( d_grid, wd_grid)
+
+    CALL permute_2D_dp( d_grid, wd_grid , map = [2,1])
 
     ! Write data to the variable
-    CALL write_var_dp_2D( filename, id_var, d)
+    CALL write_var_dp_2D( filename, id_var, d_grid)
 
     ! Clean up after yourself
     CALL deallocate_shared( wd_grid)
@@ -2016,9 +2155,6 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
-
     ! Create x/y dimensions
     CALL create_dimension( filename, get_first_option_from_list( field_name_options_x), grid%nx, id_dim_x)
     CALL create_dimension( filename, get_first_option_from_list( field_name_options_y), grid%ny, id_dim_y)
@@ -2041,18 +2177,22 @@ CONTAINS
     ! lon
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lon), long_name = 'Longitude', units = 'degrees east')
     CALL inquire_var_multiple_options( filename, field_name_options_lon, id_var_lon)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
     d_grid( :, grid%i1:grid%i2) = grid%lon( :,grid%i1:grid%i2)
     CALL sync
     CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
     CALL write_var_dp_2D( filename, id_var_lon, d_grid)
-
+    CALL deallocate_shared(wd_grid)
+    
     ! lat
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lat), long_name = 'Latitude', units = 'degrees north')
     CALL inquire_var_multiple_options( filename, field_name_options_lat, id_var_lat)
-    d_grid( :, grid%i1:grid%i2) = grid%lat( :,grid%i1:grid%i2)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
+    d_grid( :, grid%i1:grid%i2) = grid%lon( :,grid%i1:grid%i2)
     CALL sync
     CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
-    CALL write_var_dp_2D( filename, id_var_lat, grid%lat)
+    CALL write_var_dp_2D( filename, id_var_lat, d_grid)
+    CALL deallocate_shared(wd_grid)
 
     ! Clean up after yourself
     CALL deallocate_shared( wd_grid)
@@ -2336,7 +2476,7 @@ CONTAINS
     IF (id_dim_y == -1) CALL crash('no y dimension could be found in file "' // TRIM( filename) // '"!')
 
     ! Create variable
-    CALL create_variable( filename, var_name, NF90_DOUBLE, (/ id_dim_y, id_dim_x /), id_var)
+    CALL create_variable( filename, var_name, NF90_DOUBLE, (/ id_dim_x, id_dim_y /), id_var)
 
     ! Add attributes
     IF (PRESENT( long_name)) CALL add_attribute_char( filename, id_var, 'long_name', long_name)
@@ -2524,6 +2664,46 @@ CONTAINS
 
   END SUBROUTINE add_time_dimension_to_file
 
+  SUBROUTINE add_time_history_dimension_to_file( filename, var_name_time_history, time_history)
+    ! Add a time_history dimension and variable to an existing NetCDF file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=256),                  INTENT(IN)    :: var_name_time_history
+    REAL(dp), DIMENSION(:    ),          INTENT(IN)    :: time_history
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_time_history_dimension_to_file'
+    INTEGER                                            :: id_dim_time_history
+    INTEGER                                            :: id_var_time_history
+
+    INTEGER                                            :: i
+    INTEGER                                            :: ntime_history
+
+    ! Number of time history
+    ntime_history = SIZE(time_history,1) 
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Create time_history dimension
+    CALL create_dimension( filename, var_name_time_history, ntime_history, id_dim_time_history)
+
+    ! Create time_history variable
+    CALL create_variable(    filename, var_name_time_history, NF90_DOUBLE, (/ id_dim_time_history /), id_var_time_history)
+    CALL add_attribute_char( filename, id_var_time_history, 'long_name', 'time_history from current model time-step')
+    CALL add_attribute_char( filename, id_var_time_history, 'units', 'years')
+
+    ! Write time_history variable
+    CALL write_var_dp_1D( filename, id_var_time_history, time_history)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_time_history_dimension_to_file
+  
   SUBROUTINE add_month_dimension_to_file( filename)
     ! Add a month dimension and variable to an existing NetCDF file
 

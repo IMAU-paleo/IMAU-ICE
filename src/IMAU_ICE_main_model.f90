@@ -216,7 +216,7 @@ CONTAINS
 
       ! Write to restart file
       IF (region%do_output_restart) THEN
-        CALL write_to_restart_file_grid( region%restart_filename, region)
+        CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       END IF
 
       ! Write scalar output
@@ -240,7 +240,7 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      CALL write_to_restart_file_grid( region%restart_filename, region)
+      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
       ! Write inverted bed roughness field to file
