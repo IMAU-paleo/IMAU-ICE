@@ -60,7 +60,8 @@ MODULE configuration_module
   REAL(dp)            :: dt_BMB_config                               = 10._dp                           ! Time step (in years) for updating the BMB
   REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
-  REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing output
+  REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing help output
+  REAL(dp)            :: dt_output_restart_config                    = 10000.0_dp                       ! Time step (in years) for writing restart output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -294,7 +295,9 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_visc_it_relax_config                   = 0.4_dp                           ! Relaxation parameter for subsequent viscosity iterations (for improved stability)
   REAL(dp)            :: DIVA_epsilon_sq_0_config                    = 1E-15_dp                         ! Normalisation term so that zero velocity gives non-zero viscosity
   REAL(dp)            :: DIVA_visc_eff_min_config                    = 1E3_dp                           ! Minimum value for effective viscosity
-  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for basal friction coefficient
+  REAL(dp)            :: DIVA_beta_max_config                        = 1E20_dp                          ! Maximum value for effective basal friction
+  REAL(dp)            :: DIVA_beta_min_thin_ice_config               = 0.0_dp                           ! Minimum value for effective basal friction over thin-ice areas
+  REAL(dp)            :: DIVA_beta_min_thin_ice_H0_config            = 1E20_dp                          ! Threshold thinness below which a minimum beta limit starts to apply
   REAL(dp)            :: DIVA_vel_max_config                         = 5000._dp                         ! DIVA velocities are limited to this value
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_west_config              = 'infinite'                       ! Boundary conditions for the ice velocity field at the domain boundary in the DIVA
   CHARACTER(LEN=256)  :: DIVA_boundary_BC_u_east_config              = 'infinite'                       ! Allowed choices: "infinite", "periodic", "zero"
@@ -349,6 +352,13 @@ MODULE configuration_module
   REAL(dp)            :: fixed_grounding_line_f_config               = 0.0_dp                           ! Fix (1), release (0), or delay GL geometry evolution (floating side)
   REAL(dp)            :: fixed_decay_t_start_config                  = 0.0_dp                           ! Start time of linear transition between fixed/delayed and free evolution
   REAL(dp)            :: fixed_decay_t_end_config                    = 0.0_dp                           ! End   time of linear transition between fixed/delayed and free evolution
+  REAL(dp)            :: relax_thick_t_start_config                  = -9.9e99_dp                       ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+  REAL(dp)            :: relax_thick_t_end_config                    = -8.8e88_dp                       ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+
+  ! Target dHi_dt during model spinup
+  LOGICAL             :: do_target_dhdt_config                       = .FALSE.                          ! Whether or not to perform spinup using a target dHi_dt field
+  CHARACTER(LEN=256)  :: target_dhdt_filename_config                 = 'dhdt_target.nc'                 ! NetCDF file containing target dHi_dt for model spinup
+  REAL(dp)            :: target_dhdt_t_end_config                    = -9.9e99_dp                       ! Time at which the target dHi_dt field is released into the wild
 
   ! Ice dynamics - basal conditions and sliding
   ! ===========================================
@@ -502,6 +512,12 @@ MODULE configuration_module
   LOGICAL             :: do_ocean_temperature_inversion_config       = .FALSE.                          ! Whether or not to apply the inversion
   REAL(dp)            :: ocean_temperature_inv_t_start_config        = -9.9E9_dp                        ! Minimum model time when the inversion is allowed
   REAL(dp)            :: ocean_temperature_inv_t_end_config          = +9.9E9_dp                        ! Maximum model time when the inversion is allowed
+  REAL(dp)            :: ocean_temperature_inv_dT0_config            = 1.0_dp                           ! Adjustment scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_H0_config             = 200.0_dp                         ! Ice thickness scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_tau_config            = 200.0_dp                         ! Time scale for regularisation in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_min_config            = -3.0_dp                          ! Lower delta temperature limit in Pien's delta inversion method
+  REAL(dp)            :: ocean_temperature_inv_max_config            = +3.0_dp                          ! Upper delta temperature limit in Pien's delta inversion method
+  CHARACTER(LEN=256)  :: inverted_ocean_filename_output_config       = 'ocean_inv.nc'                   ! NetCDF file where the final inverted ocean state will be saved
 
   ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
   CHARACTER(LEN=256)  :: filename_PD_obs_ocean_config                = '/Users/berends/Documents/Datasets/WOA/woa18_decav_ts00_04_remapcon_r360x180_NaN.nc'
@@ -564,6 +580,14 @@ MODULE configuration_module
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      , &
           0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      ,  0._dp      /)
   LOGICAL             :: do_invert_linear_per_basin_config           = .FALSE.                          ! Whether or not to invert for ocean temperature based on thinning rates
+
+  ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+  CHARACTER(LEN=256)  :: ocean_filename_baseline_config        = ''                              ! NetCDF file containing the baseline ocean for the ISMIP-style ocean
+  CHARACTER(LEN=256)  :: ocean_foldername_aTO_config           = ''                              ! Folder containing the single timeframe NetCDF files of the ocean temperature anomaly
+  CHARACTER(LEN=256)  :: ocean_basefilename_aTO_config         = ''                              ! Filename without the year (e.g. if the actual file is "aTO-1950.nc",   then this variable should be "aTO-"
+  CHARACTER(LEN=256)  :: ocean_foldername_aSO_config           = ''                              ! Folder containing the single timeframe NetCDF files of the ocean salinity anomaly
+  CHARACTER(LEN=256)  :: ocean_basefilename_aSO_config         = ''                              ! Filename without the year (e.g. if the actual file is "aSO-1950.nc", then this variable should be "aSO-"
+
 
   ! Surface mass balance
   ! ====================
@@ -854,6 +878,7 @@ MODULE configuration_module
     REAL(dp)                            :: dt_bedrock_ELRA
     REAL(dp)                            :: dt_SELEN
     REAL(dp)                            :: dt_output
+    REAL(dp)                            :: dt_output_restart
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -1069,6 +1094,8 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_epsilon_sq_0
     REAL(dp)                            :: DIVA_visc_eff_min
     REAL(dp)                            :: DIVA_beta_max
+    REAL(dp)                            :: DIVA_beta_min_thin_ice
+    REAL(dp)                            :: DIVA_beta_min_thin_ice_H0
     REAL(dp)                            :: DIVA_vel_max
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_west
     CHARACTER(LEN=256)                  :: DIVA_boundary_BC_u_east
@@ -1122,6 +1149,13 @@ MODULE configuration_module
     REAL(dp)                            :: fixed_grounding_line_f
     REAL(dp)                            :: fixed_decay_t_start
     REAL(dp)                            :: fixed_decay_t_end
+    REAL(dp)                            :: relax_thick_t_start
+    REAL(dp)                            :: relax_thick_t_end
+
+    ! Target dHi_dt during model spinup
+    LOGICAL                             :: do_target_dhdt
+    CHARACTER(LEN=256)                  :: target_dhdt_filename
+    REAL(dp)                            :: target_dhdt_t_end
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -1273,6 +1307,12 @@ MODULE configuration_module
     LOGICAL                             :: do_ocean_temperature_inversion
     REAL(dp)                            :: ocean_temperature_inv_t_start
     REAL(dp)                            :: ocean_temperature_inv_t_end
+    REAL(dp)                            :: ocean_temperature_inv_dT0
+    REAL(dp)                            :: ocean_temperature_inv_H0
+    REAL(dp)                            :: ocean_temperature_inv_tau
+    REAL(dp)                            :: ocean_temperature_inv_min
+    REAL(dp)                            :: ocean_temperature_inv_max
+    CHARACTER(LEN=256)                  :: inverted_ocean_filename_output
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     CHARACTER(LEN=256)                  :: filename_PD_obs_ocean
@@ -1317,6 +1357,13 @@ MODULE configuration_module
     REAL(dp), DIMENSION(100)            :: ocean_T_surf_per_basin
     REAL(dp), DIMENSION(100)            :: ocean_dT_dz_per_basin
     LOGICAL                             :: do_invert_linear_per_basin
+
+    ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+    CHARACTER(LEN=256)                  :: ocean_filename_baseline
+    CHARACTER(LEN=256)                  :: ocean_foldername_aTO
+    CHARACTER(LEN=256)                  :: ocean_basefilename_aTO
+    CHARACTER(LEN=256)                  :: ocean_foldername_aSO
+    CHARACTER(LEN=256)                  :: ocean_basefilename_aSO
 
     ! Surface mass balance
     ! ====================
@@ -1831,6 +1878,7 @@ CONTAINS
                      dt_bedrock_ELRA_config,                          &
                      dt_SELEN_config,                                 &
                      dt_output_config,                                &
+                     dt_output_restart_config,                        &
                      do_NAM_config,                                   &
                      do_EAS_config,                                   &
                      do_GRL_config,                                   &
@@ -1968,6 +2016,8 @@ CONTAINS
                      DIVA_epsilon_sq_0_config,                        &
                      DIVA_visc_eff_min_config,                        &
                      DIVA_beta_max_config,                            &
+                     DIVA_beta_min_thin_ice_config,                   &
+                     DIVA_beta_min_thin_ice_H0_config,                &
                      DIVA_vel_max_config,                             &
                      DIVA_boundary_BC_u_west_config,                  &
                      DIVA_boundary_BC_u_east_config,                  &
@@ -2012,6 +2062,11 @@ CONTAINS
                      fixed_grounding_line_f_config,                   &
                      fixed_decay_t_start_config,                      &
                      fixed_decay_t_end_config,                        &
+                     relax_thick_t_start_config,                      &
+                     relax_thick_t_end_config,                        &
+                     do_target_dhdt_config,                           &
+                     target_dhdt_filename_config,                     &
+                     target_dhdt_t_end_config,                        &
                      choice_sliding_law_config,                       &
                      choice_idealised_sliding_law_config,             &
                      slid_delta_v_config,                             &
@@ -2119,6 +2174,12 @@ CONTAINS
                      do_ocean_temperature_inversion_config,           &
                      ocean_temperature_inv_t_start_config,            &
                      ocean_temperature_inv_t_end_config,              &
+                     ocean_temperature_inv_dT0_config,                &
+                     ocean_temperature_inv_H0_config,                 &
+                     ocean_temperature_inv_tau_config,                &
+                     ocean_temperature_inv_min_config,                &
+                     ocean_temperature_inv_max_config,                &
+                     inverted_ocean_filename_output_config,           &
                      filename_PD_obs_ocean_config,                    &
                      name_ocean_temperature_obs_config,               &
                      name_ocean_salinity_obs_config,                  &
@@ -2148,6 +2209,11 @@ CONTAINS
                      ocean_matrix_CO2vsice_ANT_config,                &
                      ocean_T_surf_per_basin_config,                   &
                      ocean_dT_dz_per_basin_config,                    &
+                     ocean_filename_baseline_config,                  &
+                     ocean_foldername_aTO_config,                     &
+                     ocean_basefilename_aTO_config,                   &
+                     ocean_foldername_aSO_config,                     &
+                     ocean_basefilename_aSO_config,                   &
                      do_invert_linear_per_basin_config,               &
                      choice_SMB_model_config,                         &
                      choice_idealised_SMB_config,                     &
@@ -2546,6 +2612,7 @@ CONTAINS
     C%dt_bedrock_ELRA                          = dt_bedrock_ELRA_config
     C%dt_SELEN                                 = dt_SELEN_config
     C%dt_output                                = dt_output_config
+    C%dt_output_restart                        = dt_output_restart_config
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -2761,6 +2828,8 @@ CONTAINS
     C%DIVA_epsilon_sq_0                        = DIVA_epsilon_sq_0_config
     C%DIVA_visc_eff_min                        = DIVA_visc_eff_min_config
     C%DIVA_beta_max                            = DIVA_beta_max_config
+    C%DIVA_beta_min_thin_ice                   = DIVA_beta_min_thin_ice_config
+    C%DIVA_beta_min_thin_ice_H0                = DIVA_beta_min_thin_ice_H0_config
     C%DIVA_vel_max                             = DIVA_vel_max_config
     C%DIVA_boundary_BC_u_west                  = DIVA_boundary_BC_u_west_config
     C%DIVA_boundary_BC_u_east                  = DIVA_boundary_BC_u_east_config
@@ -2815,6 +2884,13 @@ CONTAINS
     C%fixed_grounding_line_f                   = fixed_grounding_line_f_config
     C%fixed_decay_t_start                      = fixed_decay_t_start_config
     C%fixed_decay_t_end                        = fixed_decay_t_end_config
+    C%relax_thick_t_start                      = relax_thick_t_start_config
+    C%relax_thick_t_end                        = relax_thick_t_end_config
+
+    ! Target dHi_dt during model spinup
+    C%do_target_dhdt                           = do_target_dhdt_config
+    C%target_dhdt_filename                     = target_dhdt_filename_config
+    C%target_dhdt_t_end                        = target_dhdt_t_end_config
 
     ! Ice dynamics - basal conditions and sliding
     ! ===========================================
@@ -2966,6 +3042,12 @@ CONTAINS
     C%do_ocean_temperature_inversion           = do_ocean_temperature_inversion_config
     C%ocean_temperature_inv_t_start            = ocean_temperature_inv_t_start_config
     C%ocean_temperature_inv_t_end              = ocean_temperature_inv_t_end_config
+    C%ocean_temperature_inv_dT0                = ocean_temperature_inv_dT0_config
+    C%ocean_temperature_inv_H0                 = ocean_temperature_inv_H0_config
+    C%ocean_temperature_inv_tau                = ocean_temperature_inv_tau_config
+    C%ocean_temperature_inv_min                = ocean_temperature_inv_min_config
+    C%ocean_temperature_inv_max                = ocean_temperature_inv_max_config
+    C%inverted_ocean_filename_output           = inverted_ocean_filename_output_config
 
     ! NetCDF file containing the present-day observed ocean (WOA18) (NetCDF)
     C%filename_PD_obs_ocean                    = filename_PD_obs_ocean_config
@@ -3008,6 +3090,13 @@ CONTAINS
     C%ocean_T_surf_per_basin                   = ocean_T_surf_per_basin_config
     C%ocean_dT_dz_per_basin                    = ocean_dT_dz_per_basin_config
     C%do_invert_linear_per_basin               = do_invert_linear_per_basin_config
+
+    ! Apply anomalies to baseline (used when choice_idealised_ocean = "anomalies")
+    C%ocean_filename_baseline                  = ocean_filename_baseline_config
+    C%ocean_foldername_aTO                     = ocean_foldername_aTO_config
+    C%ocean_basefilename_aTO                   = ocean_basefilename_aTO_config
+    C%ocean_foldername_aSO                     = ocean_foldername_aSO_config
+    C%ocean_basefilename_aSO                   = ocean_basefilename_aSO_config
 
     ! Surface mass balance
     ! ====================

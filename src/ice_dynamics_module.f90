@@ -21,7 +21,7 @@ MODULE ice_dynamics_module
   USE ice_velocity_module,                 ONLY: initialise_SSADIVA_solution_matrix, solve_SIA, solve_SSA, solve_DIVA, &
                                                  initialise_ice_velocity_ISMIP_HOM, initialise_velocities_from_restart_file
   USE ice_thickness_module,                ONLY: calc_dHi_dt, initialise_implicit_ice_thickness_matrix_tables, apply_ice_thickness_BC, &
-                                                 remove_unconnected_shelves
+                                                 remove_unconnected_shelves, initialise_target_dHi_dt
   USE general_ice_model_data_module,       ONLY: update_general_ice_model_data, determine_floating_margin_fraction, determine_masks_ice, &
                                                  determine_masks_transitions
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
@@ -237,7 +237,7 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
       CALL sync
     ELSE
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt, region%time)
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
@@ -341,7 +341,7 @@ CONTAINS
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -407,7 +407,7 @@ CONTAINS
       ! ==============
 
       ! Calculate dHi_dt for the predicted ice thickness and updated velocity
-      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice)
+      CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hstarnp1_unp1( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
 
       ! Go back to old ice thickness. Run all the other modules (climate, SMB, BMB, thermodynamics, etc.)
@@ -552,6 +552,13 @@ CONTAINS
     ! Update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
 
+    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
+      refgeo_PD%Hi( :, grid%i1:grid%i2) = ice%Hi_a( :, grid%i1:grid%i2)
+      refgeo_PD%Hs( :, grid%i1:grid%i2) = ice%Hs_a( :, grid%i1:grid%i2)
+      refgeo_PD%Hb( :, grid%i1:grid%i2) = ice%Hb_a( :, grid%i1:grid%i2)
+    END IF
+    CALL sync
+
     ! Update deviations w.r.t. PD
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -617,6 +624,10 @@ CONTAINS
 
     ! Just in case
     fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
+
+    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
+      fixiness = 0._dp
+    END IF
 
     ! === Fix, delay, limit ====
     ! ==========================
@@ -965,6 +976,14 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_output)
 
+      region%do_output_restart = .FALSE.
+      IF (region%time == region%t_next_output_restart) THEN
+        region%do_output_restart      = .TRUE.
+        region%t_last_output_restart  = region%time
+        region%t_next_output_restart  = region%t_last_output_restart + C%dt_output_restart
+      END IF
+      t_next = MIN( t_next, region%t_next_output_restart)
+
       ! Set time step so that we move forward to the next action
       region%dt = t_next - region%time
 
@@ -1072,8 +1091,14 @@ CONTAINS
     END IF
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
 
+    ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( grid, ice, region_name)
+    END IF
+
+    ! Read target dHi_dt from external file
+    IF (C%do_target_dhdt) THEN
+      CALL initialise_target_dHi_dt( grid, ice, region_name)
     END IF
 
     ! Finalise routine path
@@ -1285,6 +1310,7 @@ CONTAINS
     ! Useful stuff
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_dt_target        , ice%wdHi_dt_target        )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -24,7 +24,7 @@ MODULE netcdf_output_module
 
   ! Import specific functionality
   USE data_types_module,               ONLY: type_grid, type_grid_lonlat, type_model_region, type_ice_model, type_global_scalar_data, &
-                                             type_highres_ocean_data, type_forcing_data
+                                             type_highres_ocean_data, type_forcing_data, type_ocean_snapshot_regional
   USE netcdf,                          ONLY: NF90_NOERR, NF90_OPEN, NF90_CLOSE, NF90_NOWRITE, NF90_INQ_DIMID, NF90_INQUIRE_DIMENSION, &
                                              NF90_INQ_VARID, NF90_INQUIRE_VARIABLE, NF90_MAX_VAR_DIMS, NF90_GET_VAR, &
                                              NF90_CREATE, NF90_NOCLOBBER, NF90_NETCDF4, NF90_ENDDEF, NF90_REDEF, NF90_DEF_DIM, NF90_DEF_VAR, &
@@ -45,7 +45,7 @@ MODULE netcdf_output_module
                                              write_var_dp_0D , write_var_dp_1D , write_var_dp_2D , write_var_dp_3D , write_var_dp_4D, &
                                              check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                                              check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
-                                             inquire_xy_grid, inquire_lonlat_grid, get_first_option_from_list, check_month, check_time, check_time_history
+                                             inquire_xy_grid, inquire_lonlat_grid, get_first_option_from_list, check_month, check_time, check_time_history, check_xy_grid_field_dp_3D_ocean
 
   IMPLICIT NONE
 
@@ -104,7 +104,6 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_regional_scalar_file
-
 
   SUBROUTINE write_to_global_scalar_file( filename, global_data, time)
     ! Write model output to the global scalar file
@@ -734,6 +733,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dHs', long_name = 'Surface elevation difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHi_dt') THEN
       CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Ice thickness rate of change', units = 'm/yr')
+    ELSEIF (field_name == 'dHi_dt_target') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi_dt_target', long_name = 'Target ice thickness rate of change', units = 'm/yr')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -950,7 +951,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing output...'
+      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
@@ -1042,6 +1043,10 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
+    END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
     CALL write_time_to_file( filename, region%time)
@@ -1203,6 +1208,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs', region%ice%dHs_a)
     ELSEIF (field_name == 'dHi_dt') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt', region%ice%dHi_dt_a)
+    ELSEIF (field_name == 'dHi_dt_target') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_target', region%ice%dHi_dt_target)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1419,19 +1426,19 @@ CONTAINS
     CALL setup_xy_grid_in_netcdf_file( filename, hires%grid)
 
     ! Add T_ocean and S_ocean fields
-    CALL add_field_grid_dp_3D_notime( filename, 'T_ocean', long_name = '3-D ocean temperature'  , units = 'K'  )
-    CALL add_field_grid_dp_3D_notime( filename, 'S_ocean', long_name = '3-D ocean salinity'     , units = 'PSU')
+    CALL add_field_grid_dp_3D_ocean_notime( filename, 'T_ocean', long_name = '3-D ocean temperature'  , units = 'K'  )
+    CALL add_field_grid_dp_3D_ocean_notime( filename, 'S_ocean', long_name = '3-D ocean salinity'     , units = 'PSU')
 
     ! Write the T_ocean and S_ocean fields
-    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%T_ocean)
-    CALL write_to_field_multiple_options_grid_dp_3D_notime( filename, hires%grid, 'T_ocean', hires%S_ocean)
+    CALL write_to_field_multiple_options_grid_dp_3D_ocean_notime( filename, hires%grid, 'T_ocean', hires%T_ocean)
+    CALL write_to_field_multiple_options_grid_dp_3D_ocean_notime( filename, hires%grid, 'S_ocean', hires%S_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
   END SUBROUTINE create_extrapolated_ocean_file
 
-   ! Inverted basal roughness
-  SUBROUTINE create_BIV_bed_roughness_file( grid, ice )
+  ! Inverted basal roughness
+  SUBROUTINE create_BIV_bed_roughness_file( grid, ice)
     ! Create a new folder extrapolated ocean data file
 
     IMPLICIT NONE
@@ -1538,6 +1545,74 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE create_BIV_bed_roughness_file
+
+  ! Inverted ocean
+  SUBROUTINE create_inverted_ocean_file( grid, ocean)
+    ! Create a new folder extrapolated ocean data file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'create_inverted_ocean_file'
+    CHARACTER(LEN=256)                                :: filename
+    LOGICAL                                           :: file_exists
+    INTEGER                                           :: k, id_var
+    REAL(dp), DIMENSION(:,:,:), POINTER               ::  d_grid
+    INTEGER                                           :: wd_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_3D( C%nz_ocean, grid%ny, grid%nx, d_grid, wd_grid)
+
+    ! Add delta temperatures to baseline field
+    DO k = 1, C%nz_ocean
+      d_grid( k,:,grid%i1:grid%i2) = ocean%T_ocean_corr_ext( k,:,grid%i1:grid%i2) + ocean%dT_ocean( :,grid%i1:grid%i2)
+    END DO
+    CALL sync
+
+    ! Create a new file and, to prevent loss of data,
+    ! stop with an error message if one already exists (not when differences are considered):
+    filename = TRIM(C%output_dir) // TRIM(C%inverted_ocean_filename_output)
+    INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
+    IF (file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" already exists!')
+    END IF
+
+    IF (par%master) WRITE(0,*) ''
+    IF (par%master) WRITE(0,*) ' Writing inverted ocean to file "', TRIM( filename), '"...'
+
+    ! Create a new NetCDF file
+    CALL create_new_netcdf_file_for_writing( filename)
+
+    ! Add ocean depth dimension
+    CALL add_ocean_dimension_to_file(  filename)
+
+    ! Set up the grids in this file
+    CALL setup_xy_grid_in_netcdf_file( filename, grid)
+
+    ! Add field to output file
+    CALL add_field_grid_dp_3D_ocean_notime( filename, 'T_ocean', long_name = '3-D ocean temperature', units = 'degrees C')
+    CALL add_field_grid_dp_3D_ocean_notime( filename, 'S_ocean', long_name = '3-D ocean salinity',    units = 'PSU')
+
+    ! Write field to output file
+    CALL inquire_var_multiple_options( filename, 'T_ocean', id_var)
+    CALL inquire_var_multiple_options( filename, 'S_ocean', id_var)
+
+    CALL write_to_field_multiple_options_grid_dp_3D_ocean_notime( filename, grid, 'T_ocean', d_grid)
+    CALL write_to_field_multiple_options_grid_dp_3D_ocean_notime( filename, grid, 'S_ocean', ocean%S_ocean_corr_ext)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE create_inverted_ocean_file
 
   ! ==== Write data to flexibly-defined fields =====
   ! ================================================
@@ -1968,6 +2043,53 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE write_to_field_multiple_options_grid_dp_3D_notime
+
+  SUBROUTINE write_to_field_multiple_options_grid_dp_3D_ocean_notime( filename, grid, field_name_options, d)
+    ! Write a 3-D ocean data field defined on a grid to a NetCDF file variable on an x/y-grid
+    !
+    ! The variable in the NetCDF file has no time dimension.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    REAL(dp), DIMENSION(:,:,:  ),        INTENT(IN)    :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_multiple_options_grid_dp_3D_notime'
+    INTEGER                                            :: id_var
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:,: ), POINTER               :: d_grid
+    INTEGER                                            :: wd_grid
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Inquire the variable
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('no variables for name options "' // TRIM( field_name_options) // '" were found in file "' // TRIM( filename) // '"!')
+
+    ! Check if this variable has the correct type and dimensions
+    CALL check_xy_grid_field_dp_3D_ocean( filename, var_name, should_have_time = .FALSE.)
+
+    ! Transpose the output data
+    CALL allocate_shared_dp_3D( C%nz_ocean, grid%ny, grid%nx, d_grid, wd_grid)
+
+    d_grid( :, :,grid%i1:grid%i2) = d( :, :, grid%i1:grid%i2)
+    CALL permute_3D_dp( d_grid, wd_grid , map = [3,2,1])
+
+    ! Write data to the variable
+    CALL write_var_dp_3D( filename, id_var, d_grid)
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_grid)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_to_field_multiple_options_grid_dp_3D_ocean_notime
 
   ! Write new time value to file
   SUBROUTINE write_time_to_file( filename, time)
@@ -2464,6 +2586,54 @@ CONTAINS
 
   END SUBROUTINE add_field_grid_dp_3D_notime
 
+  SUBROUTINE add_field_grid_dp_3D_ocean_notime( filename, var_name, long_name, units)
+    ! Add a 3-D ocean variable to an existing NetCDF file with an x/y-grid
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: long_name
+    CHARACTER(LEN=*),          OPTIONAL, INTENT(IN)    :: units
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_field_grid_dp_3D_ocean_notime'
+    INTEGER                                            :: id_dim_x, id_dim_y, id_dim_zeta, id_var
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Check if x,y, and time dimensions and variables are there
+    CALL check_x(       filename)
+    CALL check_y(       filename)
+    CALL check_z_ocean( filename)
+
+    ! Inquire dimensions
+    CALL inquire_dim_multiple_options( filename, field_name_options_x      , id_dim_x   )
+    CALL inquire_dim_multiple_options( filename, field_name_options_y      , id_dim_y   )
+    CALL inquire_dim_multiple_options( filename, field_name_options_z_ocean, id_dim_zeta)
+
+    ! Safety
+    IF (id_dim_x    == -1) CALL crash('no x dimension could be found in file "' // TRIM( filename) // '"!')
+    IF (id_dim_y    == -1) CALL crash('no y dimension could be found in file "' // TRIM( filename) // '"!')
+    IF (id_dim_zeta == -1) CALL crash('no zeta dimension could be found in file "' // TRIM( filename) // '"!')
+
+    ! Create variable
+    CALL create_variable( filename, var_name, NF90_DOUBLE, (/ id_dim_x, id_dim_y, id_dim_zeta /), id_var)
+
+    ! Add attributes
+    IF (PRESENT( long_name)) CALL add_attribute_char( filename, id_var, 'long_name', long_name)
+    IF (PRESENT( units    )) CALL add_attribute_char( filename, id_var, 'units'    , units    )
+
+    ! Final safety check
+    CALL check_xy_grid_field_dp_3D_ocean( filename, var_name, should_have_time = .FALSE.)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE add_field_grid_dp_3D_ocean_notime
+
   ! Add extra dimensions
   SUBROUTINE add_time_dimension_to_file( filename)
     ! Add a time dimension and variable to an existing NetCDF file
@@ -2617,16 +2787,15 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Create ocean dimension
-    ! NOTE: We pretent z_ocean uses id_dim_zeta so it can be used with subroutines such as check_xy_grid_field_dp_3D.
-    CALL create_dimension( filename, get_first_option_from_list( field_name_options_zeta), C%nz_ocean, id_dim_zeta)
+    CALL create_dimension( filename, get_first_option_from_list( field_name_options_z_ocean), C%nz_ocean, id_dim_zeta)
 
     ! Create ocean variable
-    CALL create_variable(  filename, get_first_option_from_list( field_name_options_zeta), NF90_DOUBLE, (/ id_dim_zeta /), id_dim_zeta)
+    CALL create_variable(  filename, get_first_option_from_list( field_name_options_z_ocean), NF90_DOUBLE, (/ id_dim_zeta /), id_var_zeta)
     CALL add_attribute_char( filename, id_var_zeta, 'long_name', 'Depth in ocean')
     CALL add_attribute_char( filename, id_var_zeta, 'units', 'm')
 
     ! Write ocean variable
-    CALL write_var_dp_1D( filename, id_var_zeta, C%zeta)
+    CALL write_var_dp_1D( filename, id_var_zeta, C%z_ocean)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

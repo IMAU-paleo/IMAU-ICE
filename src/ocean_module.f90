@@ -14,8 +14,8 @@ MODULE ocean_module
                                              type_ocean_snapshot_regional, type_ocean_matrix_regional, type_highres_ocean_data, &
                                              type_climate_model, type_reference_geometry
   USE netcdf_input_module,             ONLY: setup_z_ocean_from_file, read_field_from_xy_file_2D, &
-                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D
-  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file
+                                             read_field_from_lonlat_file_ocean_3D, read_field_from_xy_file_ocean_3D, read_field_from_file_2D, read_field_from_file_ocean_3D
+  USE netcdf_output_module,            ONLY: create_extrapolated_ocean_file, create_inverted_ocean_file
   USE netcdf_basic_module,             ONLY: field_name_options_T_ocean,field_name_options_S_ocean
   USE forcing_module,                  ONLY: forcing, update_CO2_at_model_time
   USE utilities_module,                ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
@@ -78,6 +78,11 @@ CONTAINS
 
       CALL run_ocean_model_matrix_warm_cold( grid, ocean_matrix, climate, region_name, time)
 
+    ELSEIF (C%choice_ocean_model == 'anomalies') THEN
+      ! Initialise ocean with baseline for anomalies
+
+      CALL run_ocean_model_anomalies( grid, ocean_matrix, time)
+
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
     END IF
@@ -127,6 +132,10 @@ CONTAINS
 
       CALL initialise_ocean_matrix_regional( region, ocean_matrix_global)
 
+    ELSEIF (C%choice_ocean_model == 'anomalies') THEN
+      ! Initialise ocean with baseline for anomalies
+      CALL initialise_ocean_model_anomalies(region)
+
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
     END IF
@@ -169,6 +178,9 @@ CONTAINS
       ! Allocate all the global snapshots used in the warm/cold ocean matrix
 
       CALL initialise_ocean_matrix_global( ocean_matrix)
+
+    ELSEIF (C%choice_ocean_model == 'anomalies') THEN
+      ! No global ocean data is used at all
 
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
@@ -1140,6 +1152,229 @@ CONTAINS
 
   END SUBROUTINE run_ocean_model_matrix_warm_cold
 
+! == Apply anomalies to ocean baseline
+! ============================================
+
+  SUBROUTINE initialise_ocean_model_anomalies(region)
+    ! Initialise the regional ocean model
+    ! Use ISMIP style ocean temperature and salinity
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_anomalies'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%applied, name = 'applied')
+    CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%baseline, name = 'baseline')
+    CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%anomaly_t0, name = 'anomaly_t0')
+    CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%anomaly_t1, name = 'anomaly_t1')
+
+    CALL allocate_shared_dp_0D(                               region%ocean_matrix%timeframe_t0,     region%ocean_matrix%wtimeframe_t0    )
+    CALL allocate_shared_dp_0D(                               region%ocean_matrix%timeframe_t1,     region%ocean_matrix%wtimeframe_t1    )
+
+    ! time is before start time of run to make sure first time run_ocean_model is called, it will update the timeframes
+    region%ocean_matrix%timeframe_t0 = C%start_time_of_run - 10._dp
+    region%ocean_matrix%timeframe_t1 = C%start_time_of_run - 9._dp
+
+    ! Read baseline ocean temperatures and salinity
+
+    IF (par%master) WRITE(0,*) '    Reading and mapping baseline ocean data from file "', TRIM( C%ocean_filename_baseline), '"...'
+    CALL read_field_from_file_ocean_3D( C%ocean_filename_baseline, 'T_ocean', region%grid, region%ocean_matrix%baseline%T_ocean_corr_ext, 'N/A')
+    CALL read_field_from_file_ocean_3D( C%ocean_filename_baseline, 'S_ocean', region%grid, region%ocean_matrix%baseline%S_ocean_corr_ext, 'N/A')
+
+    ! Copy baseline temperature and salinity to applied
+    region%ocean_matrix%applied%T_ocean_corr_ext = region%ocean_matrix%baseline%T_ocean_corr_ext
+    region%ocean_matrix%applied%S_ocean_corr_ext = region%ocean_matrix%baseline%S_ocean_corr_ext
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_ocean_model_anomalies
+  SUBROUTINE run_ocean_model_anomalies( grid, ocean_matrix, time)
+    ! Run the regional ocean model applying anomalies to temperature and salinity
+    !
+    ! Just use the present-day observed ocean data
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
+    REAL(dp),                            INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_anomalies'
+    INTEGER                                            :: i,j,k
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: dT_at_modeltime
+    REAL(dp), DIMENSION(:,:,:), POINTER                :: dS_at_modeltime
+    INTEGER                                            :: wdT_at_modeltime, wdS_at_modeltime
+    REAL(dp)                                           :: wt0, wt1
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_3D(C%nz_ocean, grid%ny, grid%nx, dT_at_modeltime, wdT_at_modeltime)
+    CALL allocate_shared_dp_3D(C%nz_ocean, grid%ny, grid%nx, dS_at_modeltime, wdS_at_modeltime)
+
+    ! If necessary, update time frames
+    IF (time > ocean_matrix%timeframe_t1 ) THEN
+      CALL sync
+      CALL update_ocean_anomalies_timeframes( grid, ocean_matrix, time)
+    END IF
+
+    ! Linear interpolation in time between time frames
+    wt0 = (ocean_matrix%timeframe_t1 - time) / (ocean_matrix%timeframe_t1 - ocean_matrix%timeframe_t0)
+    wt1 = 1._dp - wt0
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      dT_at_modeltime(   :,j,i) = (wt0 * ocean_matrix%anomaly_t0%T_ocean_corr_ext(   :,j,i)) + (wt1 * ocean_matrix%anomaly_t1%T_ocean_corr_ext(   :,j,i))
+      dS_at_modeltime(   :,j,i) = (wt0 * ocean_matrix%anomaly_t0%S_ocean_corr_ext(   :,j,i)) + (wt1 * ocean_matrix%anomaly_t1%S_ocean_corr_ext(   :,j,i))
+    END DO
+    END DO
+    CALL sync
+
+    ! Add perturbation to baseline
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%applied%T_ocean_corr_ext(   :,j,i) = ocean_matrix%baseline%T_ocean_corr_ext(   :,j,i) + dT_at_modeltime(   :,j,i)
+      ocean_matrix%applied%S_ocean_corr_ext(   :,j,i) = ocean_matrix%baseline%S_ocean_corr_ext(   :,j,i) + dS_at_modeltime(   :,j,i)
+    END DO
+    END DO
+
+    ! Clean up after yourself
+    CALL deallocate_shared(wdT_at_modeltime)
+    CALL deallocate_shared(wdS_at_modeltime)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ocean_model_anomalies
+  SUBROUTINE update_ocean_anomalies_timeframes( grid, ocean_matrix, time)
+    ! Update the two timeframes of the ISMIP-style ocean temperature and salinity forcing
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                          INTENT(IN)    :: grid
+    TYPE(type_ocean_matrix_regional),         INTENT(INOUT) :: ocean_matrix
+    REAL(dp),                                 INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                           :: routine_name = 'update_ocean_anomalies_timeframes'
+    INTEGER                                                 :: i,j,k,i1,i2
+    INTEGER                                                 :: year0, year1
+    CHARACTER(LEN=4)                                        :: year0str, year1str
+    REAL(dp), DIMENSION(:,: ), POINTER                      :: aTO_2D, aSO_2D, aT1_2D, aS1_2D
+    INTEGER                                                 :: waTO_2D, waSO_2D, waT1_2D, waS1_2D
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate variables
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aTO_2D, waTO_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aT1_2D, waT1_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aSO_2D, waSO_2D)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, aS1_2D, waS1_2D)
+
+    ! Since we have anomaly NetCDF files for each individual year, determining which two files we need to read is simple enough.
+    year0 = FLOOR(        time)
+    year1 = MAX( CEILING( time), year0+1)
+
+    WRITE( year0str,'(I4)') year0
+    WRITE( year1str,'(I4)') year1
+
+    ! Update timestamps
+    ocean_matrix%timeframe_t0 = REAL( year0,dp)
+    ocean_matrix%timeframe_t1 = REAL( year1,dp)
+
+  ! ===== aTO =====
+  ! ================
+
+    ! Timeframe 0
+    ! ===========
+
+    ! Determine the name of the file containing the timeframe
+    ! filename = TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc'
+    ! Read the above mentioned filename and call the variable aTO_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year0str // '.nc', 'dT', grid, aTO_2D, 'N/A')
+
+    ! Create 3D field from aTO_2D
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t0%T_ocean_corr_ext( :,j,i) = aTO_2D( j,i)
+    END DO
+    END DO
+    CALL sync
+
+    ! Timeframe 1
+    ! ===========
+
+    ! Determine the name of the file containing the timeframe
+    ! filename = TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year1str // '.nc'
+    ! Read the above mentioned filename and call the variable aT1_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aTO) // '/' // TRIM( C%ocean_basefilename_aTO) // year1str // '.nc', 'dT', grid, aT1_2D, 'N/A')
+
+    ! Create 3D field from aT1_2D
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t1%T_ocean_corr_ext( :,j,i) = aT1_2D( j,i)
+    END DO
+    END DO
+
+    CALL sync
+
+  ! ===== aSO =====
+  ! ================
+
+    ! Timeframe 0
+    ! ===========
+
+    ! Determine the name of the file containing the timeframe
+    ! filename = TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year0str // '.nc'
+    ! Read the above mentioned filename and call the variable aSO_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year0str // '.nc', 'dS', grid, aSO_2D, 'N/A')
+
+    ! Create 3D field from aSO_2D
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t0%S_ocean_corr_ext( :,j,i) = aSO_2D( j,i)
+    END DO
+    END DO
+
+    ! Timeframe 1
+    ! ===========
+
+    ! Determine the name of the file containing the timeframe
+    ! filename = TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year1str // '.nc'
+    ! Read the above mentioned filename and call the variable aS1_2D and map to IMAU-ICE grid
+    CALL read_field_from_file_2D( TRIM( C%ocean_foldername_aSO) // '/' // TRIM( C%ocean_basefilename_aSO) // year1str // '.nc', 'dS', grid, aS1_2D, 'N/A')
+
+    ! Create 3D field from aS1_2D
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean_matrix%anomaly_t1%S_ocean_corr_ext( :,j,i) = aS1_2D( j,i)
+    END DO
+    END DO
+
+    ! Deallocate variables
+    CALL deallocate_shared(waTO_2D)
+    CALL deallocate_shared(waT1_2D)
+    CALL deallocate_shared(waSO_2D)
+    CALL deallocate_shared(waS1_2D)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_ocean_anomalies_timeframes
+
 ! == Initialise the global ocean matrix
   SUBROUTINE initialise_ocean_matrix_global( ocean_matrix)
     ! Initialise the global warm/cold ocean matrix
@@ -1429,11 +1664,11 @@ CONTAINS
         IF (par%master) WRITE(0,*) '   Found valid extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
         CALL get_hires_ocean_data_from_file( region, hires, hires_ocean_foldername)
       ELSE
-      ! No header fitting the current ice model set-up was found. Create a new one describing
-      ! the current set-up, and generate extrapolated ocean data files from scratch.
-      IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
-      CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
-      CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
+        ! No header fitting the current ice model set-up was found. Create a new one describing
+        ! the current set-up, and generate extrapolated ocean data files from scratch.
+        IF (par%master) WRITE(0,*) '   Creating new extrapolated ocean data in folder "', TRIM( hires_ocean_foldername), '"'
+        CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
+        CALL write_hires_extrapolated_ocean_data_to_file( hires, filename_ocean_glob, hires_ocean_foldername)
       END IF ! IF (.NOT. foundmatch) THEN
     ELSE
       CALL map_and_extrapolate_hires_ocean_data( region, ocean_glob, hires)
@@ -1485,7 +1720,6 @@ CONTAINS
     ! Check if the NetCDF file has all the required dimensions and variables
     hires%filename = TRIM( hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     CALL sync
-
 
     ! Read the data from the NetCDF file
     IF (par%master) WRITE(0,*) '    Reading high-resolution extrapolated ocean data from file "', TRIM( hires%filename), '"...'
@@ -2088,7 +2322,7 @@ CONTAINS
     CALL write_ocean_header( hires, filename_ocean_glob, hires_ocean_foldername)
 
     ! Create a NetCDF file and write data to it
-    IF (par%master) hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
+    hires_ocean_filename = TRIM(hires_ocean_foldername)//'/extrapolated_ocean_data.nc'
     IF (par%master) WRITE(0,*) '    Writing extrapolated ocean data to file "', TRIM(hires_ocean_filename), '"...'
     CALL create_extrapolated_ocean_file(  hires, hires_ocean_filename)
 
@@ -2477,7 +2711,7 @@ CONTAINS
 ! == Ocean (delta) temperature inversion
 ! ======================================
 
-  SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, time)
+  SUBROUTINE ocean_temperature_inversion( grid, ice, ocean, refgeo, dt)
     ! Invert delta ocean temps using the reference topography
 
     IMPLICIT NONE
@@ -2487,50 +2721,58 @@ CONTAINS
     TYPE(type_ice_model),               INTENT(IN)    :: ice
     TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
     TYPE(type_reference_geometry),      INTENT(IN)    :: refgeo
-    REAL(dp),                           INTENT(IN)    :: time
+    REAL(dp),                           INTENT(IN)    :: dt
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'ocean_temperature_inversion'
     INTEGER                                           :: i,j
     INTEGER,  DIMENSION(:,:), POINTER                 ::  mask
     INTEGER                                           :: wmask
-    REAL(dp)                                          :: h_delta
+    REAL(dp), DIMENSION(:,:), POINTER                 ::  dT_dt
+    INTEGER                                           :: wdT_dt
+    REAL(dp)                                          :: h_delta, reg_1st, reg_2nd
     REAL(dp), PARAMETER                               :: sigma = 500._dp
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Allocate shared memory
-    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dT_dt, wdT_dt)
+    CALL allocate_shared_int_2D( grid%ny, grid%nx, mask,  wmask)
 
     ! Loop over all grid points within this process
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-      ! Skip calving-front and non-shelf grid points
+      ! Skip non-shelf and non-GL calving-front grid points
       IF ( ice%mask_shelf_a( j,i) == 0 .OR. &
-           ice%mask_cf_a(    j,i) == 1) THEN
+           (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_glf_a( j,i) == 0) ) THEN
         ! Mark for extrapolation
         mask( j,i) = 1
         ! Go to next grid point
         CYCLE
       END IF
 
+      ! == Misfit
+      ! =========
+
       ! Ice thickness difference w.r.t. observations (positive if too thick)
-      h_delta = ice%Hi_a( j,i) - refgeo%Hi( j,i)
+      h_delta = ice%Hi_a(j,i) - refgeo%Hi(j,i)
 
-      ! Adjust dT_ocean based on misfit
-      IF ( h_delta > 0._dp) THEN
-        ! Too thick: increase ocean temperature
-        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) + .01_dp
-      ELSEIF ( h_delta < 0._dp) THEN
-        ! Too thin: decrease ocean temperature
-        ocean%dT_ocean( j,i) = ocean%dT_ocean( j,i) - .01_dp
-      END IF
+      ! == Regularisation
+      ! =================
 
-      ! Limit dT_ocean so it does not go to infinity
-      ocean%dT_ocean( j,i) = MAX( ocean%dT_ocean( j,i), -3._dp)
-      ocean%dT_ocean( j,i) = MIN( ocean%dT_ocean( j,i), +3._dp)
+      ! First regularisation term
+      reg_1st = h_delta / C%ocean_temperature_inv_H0 / C%ocean_temperature_inv_tau
+
+      ! Second regularisation term
+      reg_2nd = ice%dHi_dt_a( j,i) * 2._dp / C%ocean_temperature_inv_H0
+
+      ! == Adjustment
+      ! =============
+
+      ! Compute adjustment to delta temperature
+      dT_dt( j,i) = C%ocean_temperature_inv_dT0 * (reg_1st + reg_2nd)
 
       ! Use this point as seed during extrapolation
       mask( j,i) = 2
@@ -2540,19 +2782,34 @@ CONTAINS
     CALL sync
 
     ! Extrapolate inverted field beyond ice shelves
-    CALL extrapolate_updated_ocean_temperature( grid, mask, ocean%dT_ocean)
+    CALL extrapolate_updated_ocean_temperature( grid, mask, dT_dt)
 
     ! Apply regularisation
-    CALL smooth_Gaussian_2D( grid, ocean%dT_ocean, sigma)
+    CALL smooth_Gaussian_2D( grid, dT_dt, sigma)
+
+    ! Apply adjustment
+    IF (par%master) THEN
+      ocean%dT_ocean = ocean%dT_ocean + dT_dt * dt
+    END IF
+    CALL sync
+
+    ! Limit delta temperature
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ocean%dT_ocean( j,i) = MAX( ocean%dT_ocean( j,i), C%ocean_temperature_inv_min)
+      ocean%dT_ocean( j,i) = MIN( ocean%dT_ocean( j,i), C%ocean_temperature_inv_max)
+    END DO
+    END DO
+    CALL sync
 
     ! Clean up after yourself
+    CALL deallocate_shared( wdT_dt)
     CALL deallocate_shared( wmask)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE ocean_temperature_inversion
-
   SUBROUTINE extrapolate_updated_ocean_temperature( grid, mask, dT_ocean)
     ! The geometry-based ocean temperature inversion routine only yields values
     ! beneath floating ice; extrapolate new values to cover the entire domain.
@@ -2594,5 +2851,27 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE extrapolate_updated_ocean_temperature
+
+  SUBROUTINE write_inverted_ocean_temperature_to_file( grid, ocean)
+    ! Create a new NetCDF file and write the inverted ocean
+    ! temperature to it
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                    INTENT(IN)    :: grid
+    TYPE(type_ocean_snapshot_regional), INTENT(INOUT) :: ocean
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'write_inverted_ocean_temperature_to_file'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL create_inverted_ocean_file( grid, ocean)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE write_inverted_ocean_temperature_to_file
 
 END MODULE ocean_module

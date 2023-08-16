@@ -326,7 +326,8 @@ MODULE data_types_module
     ! Useful stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a                  ! Surface elevation difference w.r.t. PD reference
-    INTEGER :: wdHi_a, wdHs_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_dt_target          ! Target dHi_dt during model spinup
+    INTEGER :: wdHi_a, wdHs_a, wdHi_dt_target
 
   END TYPE type_ice_model
 
@@ -616,6 +617,14 @@ MODULE data_types_module
     TYPE(type_ocean_snapshot_regional)      :: GCM_warm                      ! Warm snapshot
     TYPE(type_ocean_snapshot_regional)      :: GCM_cold                      ! Cold snapshot
     TYPE(type_ocean_snapshot_regional)      :: applied                       ! Final applied ocean
+
+    TYPE(type_ocean_snapshot_regional)      :: baseline                      ! baseline for the anomaly forcing
+    TYPE(type_ocean_snapshot_regional)      :: anomaly_t0                    ! snapshot of first time frame
+    TYPE(type_ocean_snapshot_regional)      :: anomaly_t1                    ! snapshot of second time frame
+
+    REAL(dp),                   POINTER     :: timeframe_t0                  ! timestamp of first time frame
+    REAL(dp),                   POINTER     :: timeframe_t1                  ! timestamp of second time frame
+    INTEGER :: wtimeframe_t0, wtimeframe_t1
 
   END TYPE type_ocean_matrix_regional
 
@@ -1125,6 +1134,7 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: t_last_DIVA,    t_next_DIVA
     REAL(dp), POINTER                       :: t_last_thermo,  t_next_thermo
     REAL(dp), POINTER                       :: t_last_output,  t_next_output
+    REAL(dp), POINTER                       :: t_last_output_restart,  t_next_output_restart
     REAL(dp), POINTER                       :: t_last_climate, t_next_climate
     REAL(dp), POINTER                       :: t_last_ocean,   t_next_ocean
     REAL(dp), POINTER                       :: t_last_SMB,     t_next_SMB
@@ -1140,12 +1150,13 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_SMB
     LOGICAL,  POINTER                       :: do_BMB
     LOGICAL,  POINTER                       :: do_output
+    LOGICAL,  POINTER                       :: do_output_restart
     LOGICAL,  POINTER                       :: do_ELRA
     LOGICAL,  POINTER                       :: do_BIV
     INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
-    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
-    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
-    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_output_restart, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_output_restart, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_output_restart,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
 
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area
