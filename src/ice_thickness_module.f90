@@ -1130,6 +1130,8 @@ CONTAINS
     ! Read data from file
     CALL read_field_from_file_2D( C%target_dhdt_filename, 'dHdt', grid, ice%dHi_dt_target, region_name)
 
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_target, 'ice%dHi_dt_target')
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

@@ -2339,52 +2339,51 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    CALL warning('Reading basal inversion target velocity field has not been thoroughly tested. Please check if the data is read correctly.')
+    call crash('This routines needs to be tested and fixed regarding NetCDF I/O')
 
-    ! Determine filename
-    IF     (C%choice_BIVgeo_method == 'CISM+' .OR. &
-            C%choice_BIVgeo_method == 'Berends2022') THEN
-      BIV_target%filename = C%BIVgeo_target_velocity_filename
-    ELSE
-      CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
-    END IF
+    ! ! Determine filename
+    ! IF     (C%choice_BIVgeo_method == 'CISM+' .OR. &
+    !         C%choice_BIVgeo_method == 'Berends2022') THEN
+    !   BIV_target%filename = C%BIVgeo_target_velocity_filename
+    ! ELSE
+    !   CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
+    ! END IF
 
-    IF (par%master) WRITE(0,*) '  Initialising basal inversion target velocity from file ', TRIM( BIV_target%filename), '...'
+    ! IF (par%master) WRITE(0,*) '  Initialising basal inversion target velocity from file ', TRIM( BIV_target%filename), '...'
 
-    ! Read input field
-    CALL read_BIV_target_velocity( BIV_target, region_name)
-    CALL sync
+    ! ! Read input field
+    ! CALL read_BIV_target_velocity( BIV_target, region_name)
+    ! CALL sync
 
-    ! NOTE: do not check for NaNs in the target velocity field. The Rignot 2011 Antarctica velocity product
-    !       has a lot of missing data points, indicated by NaN values. This is acceptable, the basal inversion
-    !       routine can handle that.
+    ! ! NOTE: do not check for NaNs in the target velocity field. The Rignot 2011 Antarctica velocity product
+    ! !       has a lot of missing data points, indicated by NaN values. This is acceptable, the basal inversion
+    ! !       routine can handle that.
 
-    ! CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf')
-    ! CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf')
+    ! ! CALL check_for_NaN_dp_2D( BIV_target%u_surf, 'BIV_target%u_surf')
+    ! ! CALL check_for_NaN_dp_2D( BIV_target%v_surf, 'BIV_target%v_surf')
 
-    CALL allocate_shared_dp_2D( BIV_target%grid%ny, BIV_target%grid%nx, BIV_target%uabs_surf, BIV_target%wuabs_surf)
+    ! CALL allocate_shared_dp_2D( BIV_target%grid%ny, BIV_target%grid%nx, BIV_target%uabs_surf, BIV_target%wuabs_surf)
 
-    ! Get absolute velocity
-    CALL partition_list( BIV_target%grid%nx, par%i, par%n, i1, i2)
-    DO i = i1, i2
-    DO j = 1, BIV_target%grid%ny
-      BIV_target%uabs_surf( i,j) = SQRT( BIV_target%u_surf( i,j)**2 + BIV_target%v_surf( i,j)**2)
-    END DO
-    END DO
-    CALL sync
+    ! ! Get absolute velocity
+    ! CALL partition_list( BIV_target%grid%nx, par%i, par%n, i1, i2)
+    ! DO i = i1, i2
+    ! DO j = 1, BIV_target%grid%ny
+    !   BIV_target%uabs_surf( i,j) = SQRT( BIV_target%u_surf( i,j)**2 + BIV_target%v_surf( i,j)**2)
+    ! END DO
+    ! END DO
+    ! CALL sync
 
-    ! Allocate shared memory
-    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%BIV_uabs_surf_target, ice%wBIV_uabs_surf_target)
+    ! ! Allocate shared memory
+    ! CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%BIV_uabs_surf_target, ice%wBIV_uabs_surf_target)
 
-    ! Map (transposed) raw data to the model grid
-    CALL map_square_to_square_cons_2nd_order_2D( BIV_target%grid%nx, BIV_target%grid%ny, BIV_target%grid%x, BIV_target%grid%y, grid%nx, grid%ny, grid%x, grid%y, BIV_target%uabs_surf, ice%BIV_uabs_surf_target)
+    ! ! Map (transposed) raw data to the model grid
+    ! CALL map_square_to_square_cons_2nd_order_2D( BIV_target%grid%nx, BIV_target%grid%ny, BIV_target%grid%x, BIV_target%grid%y, grid%nx, grid%ny, grid%x, grid%y, BIV_target%uabs_surf, ice%BIV_uabs_surf_target)
 
-
-    ! Deallocate raw data
-    CALL deallocate_grid(   BIV_target%grid      )
-    CALL deallocate_shared( BIV_target%wu_surf   )
-    CALL deallocate_shared( BIV_target%wv_surf   )
-    CALL deallocate_shared( BIV_target%wuabs_surf)
+    ! ! Deallocate raw data
+    ! CALL deallocate_grid(   BIV_target%grid      )
+    ! CALL deallocate_shared( BIV_target%wu_surf   )
+    ! CALL deallocate_shared( BIV_target%wv_surf   )
+    ! CALL deallocate_shared( BIV_target%wuabs_surf)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -2474,58 +2473,60 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (.NOT. par%master) THEN
-      CALL finalise_routine( routine_name)
-      RETURN
-    END IF
+    call crash('This routines needs to be tested and fixed regarding NetCDF I/O')
 
-    CALL read_field_from_xy_file_2D(           BIV_target%filename, 'u_surf', region_name, BIV_target%grid, BIV_target%u_surf,BIV_target%wu_surf)
-    CALL read_field_from_xy_file_2D(           BIV_target%filename, 'v_surf', region_name, BIV_target%grid, BIV_target%v_surf,BIV_target%wv_surf)
+    ! IF (.NOT. par%master) THEN
+    !   CALL finalise_routine( routine_name)
+    !   RETURN
+    ! END IF
 
-    ! Exception: for some reason, the Rignot 2011 data has the y-axis reversed...
-    is_Rignot2011 = .FALSE.
-    DO i = 1, 256-36
-      IF (BIV_target%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
-        is_Rignot2011 = .TRUE.
-      END IF
-    END DO
-    IF (is_Rignot2011) THEN
+    ! CALL read_field_from_xy_file_2D(           BIV_target%filename, 'u_surf', region_name, BIV_target%grid, BIV_target%u_surf,BIV_target%wu_surf)
+    ! CALL read_field_from_xy_file_2D(           BIV_target%filename, 'v_surf', region_name, BIV_target%grid, BIV_target%v_surf,BIV_target%wv_surf)
 
-      ! Allocate temporary memory for storing the upside-down data
-      ALLOCATE( y_temp( BIV_target%grid%ny))
-      ALLOCATE( u_temp( BIV_target%grid%nx, BIV_target%grid%ny))
-      ALLOCATE( v_temp( BIV_target%grid%nx, BIV_target%grid%ny))
+    ! ! Exception: for some reason, the Rignot 2011 data has the y-axis reversed...
+    ! is_Rignot2011 = .FALSE.
+    ! DO i = 1, 256-36
+    !   IF (BIV_target%filename(i:i+33) == 'antarctica_ice_velocity_450m_v2.nc') THEN
+    !     is_Rignot2011 = .TRUE.
+    !   END IF
+    ! END DO
+    ! IF (is_Rignot2011) THEN
 
-      ! Copy the upside-down data to temporary memory
-      y_temp = BIV_target%grid%y
-      u_temp = BIV_target%u_surf
-      v_temp = BIV_target%v_surf
+    !   ! Allocate temporary memory for storing the upside-down data
+    !   ALLOCATE( y_temp( BIV_target%grid%ny))
+    !   ALLOCATE( u_temp( BIV_target%grid%nx, BIV_target%grid%ny))
+    !   ALLOCATE( v_temp( BIV_target%grid%nx, BIV_target%grid%ny))
 
-      ! Flip the data
-      DO j = 1, BIV_target%grid%ny
-        BIV_target%grid%y(   j) = y_temp(   BIV_target%grid%ny + 1 - j)
-        BIV_target%u_surf( :,j) = u_temp( :,BIV_target%grid%ny + 1 - j)
-        BIV_target%v_surf( :,j) = v_temp( :,BIV_target%grid%ny + 1 - j)
-      END DO
+    !   ! Copy the upside-down data to temporary memory
+    !   y_temp = BIV_target%grid%y
+    !   u_temp = BIV_target%u_surf
+    !   v_temp = BIV_target%v_surf
 
-      ! Deallocate temporary memory
-      DEALLOCATE( y_temp)
-      DEALLOCATE( u_temp)
-      DEALLOCATE( v_temp)
+    !   ! Flip the data
+    !   DO j = 1, BIV_target%grid%ny
+    !     BIV_target%grid%y(   j) = y_temp(   BIV_target%grid%ny + 1 - j)
+    !     BIV_target%u_surf( :,j) = u_temp( :,BIV_target%grid%ny + 1 - j)
+    !     BIV_target%v_surf( :,j) = v_temp( :,BIV_target%grid%ny + 1 - j)
+    !   END DO
 
-      ! Set missing values to NaN
-      NaN = 0._dp
-      NaN = 0._dp / NaN
-      DO i = 1, BIV_target%grid%nx
-      DO j = 1, BIV_target%grid%ny
-        IF (BIV_target%u_surf( i,j) == 0._dp .AND. BIV_target%v_surf( i,j) == 0._dp) THEN
-          BIV_target%u_surf( i,j) = NaN
-          BIV_target%v_surf( i,j) = NaN
-        END IF
-      END DO
-      END DO
+    !   ! Deallocate temporary memory
+    !   DEALLOCATE( y_temp)
+    !   DEALLOCATE( u_temp)
+    !   DEALLOCATE( v_temp)
 
-    END IF ! IF (is_Rignot2011) THEN
+    !   ! Set missing values to NaN
+    !   NaN = 0._dp
+    !   NaN = 0._dp / NaN
+    !   DO i = 1, BIV_target%grid%nx
+    !   DO j = 1, BIV_target%grid%ny
+    !     IF (BIV_target%u_surf( i,j) == 0._dp .AND. BIV_target%v_surf( i,j) == 0._dp) THEN
+    !       BIV_target%u_surf( i,j) = NaN
+    !       BIV_target%v_surf( i,j) = NaN
+    !     END IF
+    !   END DO
+    !   END DO
+
+    ! END IF ! IF (is_Rignot2011) THEN
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

@@ -418,13 +418,13 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Variable name for the time_history dimension 
+    ! Variable name for the time_history dimension
     var_name_time_history = 'time_' // TRIM( var_name)
 
     CALL allocate_shared_dp_1D(      ntime_history, time_history, wtime_history )
 
     DO i = 1,ntime_history
-        time_history( i) = -i * C%dt_coupling 
+        time_history( i) = -i * C%dt_coupling
     END DO
 
     ! Add the time_history to file
@@ -454,7 +454,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE add_field_history_dp_1D
-  
+
   SUBROUTINE create_restart_file_grid( filename, grid)
     ! Create an empty restart file with the specified grid
 
@@ -480,11 +480,11 @@ CONTAINS
     CALL add_time_dimension_to_file(  filename)
     CALL add_zeta_dimension_to_file(  filename)
     CALL add_month_dimension_to_file( filename)
-    
+
     ! Add a time_history dimension for the inverse 18O simulation
     !IF (C%choice_forcing_method == 'd18O_inverse_CO2' .OR. &
     !   (C%choice_forcing_method == 'd18O_inverse_dT_glob')) THEN
-    !    CALL add_time_history_dimension_to_file(  filename)    
+    !    CALL add_time_history_dimension_to_file(  filename)
     !END IF
 
     ! Create variables
@@ -1011,19 +1011,19 @@ CONTAINS
     ELSE
       CALL crash('unknown choice_ice_isotopes_model "' // TRIM(C%choice_ice_isotopes_model) // '"!')
     END IF
-    
+
     ! Inverse routine data
     IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
       CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'CO2_inverse_history',  forcing%CO2_inverse_history)
       CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_history,     'dT_glob_history',      forcing%dT_glob_history)
     END IF
-    
+
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
-      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_dT_glob is used')    
+      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_dT_glob is used')
       CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_inverse_history, 'dT_glob_inverse_history' , forcing%dT_glob_inverse_history)
     END IF
-    
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -2183,12 +2183,12 @@ CONTAINS
     CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
     CALL write_var_dp_2D( filename, id_var_lon, d_grid)
     CALL deallocate_shared(wd_grid)
-    
+
     ! lat
     CALL add_field_grid_dp_2D_notime( filename, get_first_option_from_list( field_name_options_lat), long_name = 'Latitude', units = 'degrees north')
     CALL inquire_var_multiple_options( filename, field_name_options_lat, id_var_lat)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_grid, wd_grid)
-    d_grid( :, grid%i1:grid%i2) = grid%lon( :,grid%i1:grid%i2)
+    d_grid( :, grid%i1:grid%i2) = grid%lat( :,grid%i1:grid%i2)
     CALL sync
     CALL permute_2D_dp( d_grid, wd_grid, map = [2,1])
     CALL write_var_dp_2D( filename, id_var_lat, d_grid)
@@ -2683,7 +2683,7 @@ CONTAINS
     INTEGER                                            :: ntime_history
 
     ! Number of time history
-    ntime_history = SIZE(time_history,1) 
+    ntime_history = SIZE(time_history,1)
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2703,7 +2703,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE add_time_history_dimension_to_file
-  
+
   SUBROUTINE add_month_dimension_to_file( filename)
     ! Add a month dimension and variable to an existing NetCDF file
 
