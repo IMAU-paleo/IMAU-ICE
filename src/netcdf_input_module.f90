@@ -1595,9 +1595,6 @@ CONTAINS
     CALL allocate_shared_dp_0D(                    grid%ymin       , grid%wymin       )
     CALL allocate_shared_dp_0D(                    grid%ymax       , grid%wymax       )
     CALL allocate_shared_dp_0D(                    grid%dx         , grid%wdx         )
-    CALL allocate_shared_dp_0D(                    grid%tol_dist   , grid%wtol_dist   )
-    CALL allocate_shared_int_2D( grid%nx, grid%ny, grid%ij2n       , grid%wij2n       )
-    CALL allocate_shared_int_2D( grid%n , 2,       grid%n2ij       , grid%wn2ij       )
     CALL allocate_shared_dp_0D(                    grid%lambda_m   , grid%wlambda_m   )
     CALL allocate_shared_dp_0D(                    grid%phi_m      , grid%wphi_m      )
     CALL allocate_shared_dp_0D(                    grid%beta_stereo, grid%wbeta_stereo)
@@ -1623,27 +1620,6 @@ CONTAINS
       grid%xmax = MAXVAL( grid%x)
       grid%ymin = MINVAL( grid%y)
       grid%ymax = MAXVAL( grid%y)
-
-      ! Tolerance; points lying within this distance of each other are treated as identical
-      grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
-
-      ! Conversion tables for grid-form vs. vector-form data
-      n = 0
-      DO i = 1, grid%nx
-        IF (MOD(i,2) == 1) THEN
-          DO j = 1, grid%ny
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        ELSE
-          DO j = grid%ny, 1, -1
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        END IF
-      END DO
 
     END IF ! IF (par%master) THEN
     CALL sync
@@ -1680,7 +1656,7 @@ CONTAINS
     CALL sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name, 18)
+    CALL finalise_routine( routine_name, 15)
 
   END SUBROUTINE setup_xy_grid_from_file
 

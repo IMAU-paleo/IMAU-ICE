@@ -14,11 +14,10 @@ MODULE data_types_module
     ! A regular square grid
 
     INTEGER,                    POINTER     :: nx, ny, n
-    REAL(dp),                   POINTER     :: dx, tol_dist
-    INTEGER,  DIMENSION(:,:  ), POINTER     :: ij2n, n2ij
+    REAL(dp),                   POINTER     :: dx
     REAL(dp), DIMENSION(:    ), POINTER     :: x, y
     REAL(dp),                   POINTER     :: xmin, xmax, ymin, ymax
-    INTEGER :: wnx, wny, wn, wdx, wtol_dist, wij2n, wn2ij, wx, wy, wxmin, wxmax, wymin, wymax
+    INTEGER :: wnx, wny, wn, wdx, wx, wy, wxmin, wxmax, wymin, wymax
     INTEGER                                 :: i1, i2, j1, j2 ! Parallelisation by domain decomposition
 
     REAL(dp),                   POINTER     :: lambda_M
