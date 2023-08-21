@@ -638,6 +638,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_2D( d, wd)
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -763,6 +765,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -902,6 +906,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Clean up after yourself
     CALL deallocate_shared(   wzeta_from_file)
@@ -1473,7 +1479,7 @@ CONTAINS
     INTEGER                                            :: wntime_history, wtime_history,wd_with_time
     INTEGER                                            :: ti
 
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
@@ -1512,16 +1518,16 @@ CONTAINS
       CALL find_timeframe( filename, time_to_read, ti)
       ! Read data
       CALL read_var_dp_2D( filename, id_var, d_with_time, start = (/ 1, ti /), count = (/ ntime_history, 1 /) )
-      
+
       ! Copy to output memory
-      IF (par%master) THEN  
+      IF (par%master) THEN
          d( :) = d_with_time( :,1)
-      END IF 
+      END IF
       CALL sync
 
       ! Clean up after yourself
       CALL deallocate_shared( wd_with_time)
-      
+
    END IF
 
    CALL deallocate_shared( wntime_history)
@@ -1531,7 +1537,7 @@ CONTAINS
    CALL finalise_routine( routine_name, 19)
 
    END SUBROUTINE read_field_from_file_history_1D
- 
+
   ! ===== Set up grids from a NetCDF file =====
   ! ================================================
 
@@ -1589,9 +1595,6 @@ CONTAINS
     CALL allocate_shared_dp_0D(                    grid%ymin       , grid%wymin       )
     CALL allocate_shared_dp_0D(                    grid%ymax       , grid%wymax       )
     CALL allocate_shared_dp_0D(                    grid%dx         , grid%wdx         )
-    CALL allocate_shared_dp_0D(                    grid%tol_dist   , grid%wtol_dist   )
-    CALL allocate_shared_int_2D( grid%nx, grid%ny, grid%ij2n       , grid%wij2n       )
-    CALL allocate_shared_int_2D( grid%n , 2,       grid%n2ij       , grid%wn2ij       )
     CALL allocate_shared_dp_0D(                    grid%lambda_m   , grid%wlambda_m   )
     CALL allocate_shared_dp_0D(                    grid%phi_m      , grid%wphi_m      )
     CALL allocate_shared_dp_0D(                    grid%beta_stereo, grid%wbeta_stereo)
@@ -1617,27 +1620,6 @@ CONTAINS
       grid%xmax = MAXVAL( grid%x)
       grid%ymin = MINVAL( grid%y)
       grid%ymax = MAXVAL( grid%y)
-
-      ! Tolerance; points lying within this distance of each other are treated as identical
-      grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
-
-      ! Conversion tables for grid-form vs. vector-form data
-      n = 0
-      DO i = 1, grid%nx
-        IF (MOD(i,2) == 1) THEN
-          DO j = 1, grid%ny
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        ELSE
-          DO j = grid%ny, 1, -1
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        END IF
-      END DO
 
     END IF ! IF (par%master) THEN
     CALL sync
@@ -1674,7 +1656,7 @@ CONTAINS
     CALL sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name, 18)
+    CALL finalise_routine( routine_name, 15)
 
   END SUBROUTINE setup_xy_grid_from_file
 

@@ -1790,10 +1790,6 @@ CONTAINS
     CALL map_glob_to_grid_3D( ocean_glob%grid%nlat, ocean_glob%grid%nlon, ocean_glob%grid%lat, ocean_glob%grid%lon, hires%grid, ocean_glob%T_ocean, hires%T_ocean)
     CALL map_glob_to_grid_3D( ocean_glob%grid%nlat, ocean_glob%grid%nlon, ocean_glob%grid%lat, ocean_glob%grid%lon, hires%grid, ocean_glob%S_ocean, hires%S_ocean)
 
-    ! Permute the i and j dimensions to account for some weird orientation issue during mapping
-    CALL permute_3D_dp( hires%T_ocean, hires%wT_ocean, map = [1,3,2])
-    CALL permute_3D_dp( hires%S_ocean, hires%wS_ocean, map = [1,3,2])
-
     ! ===== Perform the extrapolation on the high-resolution grid =====
     ! =================================================================
 
