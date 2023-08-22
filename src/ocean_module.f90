@@ -612,7 +612,7 @@ CONTAINS
     TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_WARM'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_COLD'
     INTEGER                                            :: i,j,k
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      = -1.9_dp    ! Sea floor   temperature [degC]
@@ -662,7 +662,7 @@ CONTAINS
     TYPE(type_ocean_snapshot_regional),  INTENT(INOUT) :: ocean
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_WARM'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_MEDIUM'
     INTEGER                                            :: i,j,k
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
     REAL(dp), PARAMETER                                :: Tbot      =  0.0_dp    ! Sea floor   temperature [degC]
