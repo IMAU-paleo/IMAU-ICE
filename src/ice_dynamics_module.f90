@@ -89,12 +89,16 @@ CONTAINS
     ! ==============
 
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
-    IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+    IF (C%dt_startup_phase > 0) THEN
+      IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+      ELSE
+        r_solver_acc = 1._dp
+      END IF
     ELSE
-      r_solver_acc = 1._dp
+      r_solver_acc = 1._dp 
     END IF
 
     region%ice%DIVA_SOR_nit      = C%DIVA_SOR_nit      * CEILING( 1._dp / r_solver_acc)
@@ -104,12 +108,16 @@ CONTAINS
     region%ice%DIVA_PETSc_abstol = C%DIVA_PETSc_abstol * r_solver_acc
 
     ! Reduce the time-step during the start-up phase
-    IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+    IF (C%dt_startup_phase > 0) THEN
+      IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+      ELSE
+        dt_max = C%dt_max
+      END IF
     ELSE
-      dt_max = C%dt_max
+      dt_max = C%dt_max 
     END IF
 
     ! Calculate ice velocities with the selected ice-dynamical approximation
@@ -293,12 +301,16 @@ CONTAINS
     ! ==============
 
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
-    IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+    IF (C%dt_startup_phase > 0) THEN
+      IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+      ELSE
+        r_solver_acc = 1._dp
+      END IF
     ELSE
-      r_solver_acc = 1._dp
+      r_solver_acc = 1._dp 
     END IF
 
     region%ice%DIVA_SOR_nit      = C%DIVA_SOR_nit      * CEILING( 1._dp / r_solver_acc)
@@ -308,12 +320,16 @@ CONTAINS
     region%ice%DIVA_PETSc_abstol = C%DIVA_PETSc_abstol * r_solver_acc
 
     ! Reduce the time-step during the start-up phase
-    IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+    IF (C%dt_startup_phase > 0) THEN
+      IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+      ELSE
+        dt_max = C%dt_max
+      END IF
     ELSE
-      dt_max = C%dt_max
+      dt_max = C%dt_max 
     END IF
 
     IF (do_update_ice_velocity) THEN
