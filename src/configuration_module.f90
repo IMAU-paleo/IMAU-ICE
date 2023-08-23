@@ -379,7 +379,7 @@ MODULE configuration_module
 
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
-  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit to overburden pressure [1 = 100% allowed; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 

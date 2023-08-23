@@ -2806,6 +2806,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE ocean_temperature_inversion
+
   SUBROUTINE extrapolate_updated_ocean_temperature( grid, mask, dT_ocean)
     ! The geometry-based ocean temperature inversion routine only yields values
     ! beneath floating ice; extrapolate new values to cover the entire domain.

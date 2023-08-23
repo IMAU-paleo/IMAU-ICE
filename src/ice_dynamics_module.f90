@@ -573,7 +573,7 @@ CONTAINS
     ! during this time, no SMB or BMB is applied, so the ice sheet
     ! can just flow and reshape itself. Ideal during initial years
     ! of spinup.
-    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
+    IF (time >= C%relax_thick_t_start .AND. time <= C%relax_thick_t_end) THEN
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         ! Make sure we are not spreading beyond observed margins
@@ -653,7 +653,7 @@ CONTAINS
     ! Just in case
     fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
 
-    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
+    IF (time >= C%relax_thick_t_start .AND. time <= C%relax_thick_t_end) THEN
       fixiness = 0._dp
     END IF
 
