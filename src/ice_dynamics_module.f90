@@ -98,7 +98,7 @@ CONTAINS
         r_solver_acc = 1._dp
       END IF
     ELSE
-      r_solver_acc = 1._dp 
+      r_solver_acc = 1._dp
     END IF
 
     region%ice%DIVA_SOR_nit      = C%DIVA_SOR_nit      * CEILING( 1._dp / r_solver_acc)
@@ -117,7 +117,7 @@ CONTAINS
         dt_max = C%dt_max
       END IF
     ELSE
-      dt_max = C%dt_max 
+      dt_max = C%dt_max
     END IF
 
     ! Calculate ice velocities with the selected ice-dynamical approximation
@@ -310,7 +310,7 @@ CONTAINS
         r_solver_acc = 1._dp
       END IF
     ELSE
-      r_solver_acc = 1._dp 
+      r_solver_acc = 1._dp
     END IF
 
     region%ice%DIVA_SOR_nit      = C%DIVA_SOR_nit      * CEILING( 1._dp / r_solver_acc)
@@ -329,7 +329,7 @@ CONTAINS
         dt_max = C%dt_max
       END IF
     ELSE
-      dt_max = C%dt_max 
+      dt_max = C%dt_max
     END IF
 
     IF (do_update_ice_velocity) THEN
@@ -568,10 +568,22 @@ CONTAINS
     ! Update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
 
+    ! If wanted, relax a bit the target geometry for a while by
+    ! making it equal to the current model geometry. Idea is that
+    ! during this time, no SMB or BMB is applied, so the ice sheet
+    ! can just flow and reshape itself. Ideal during initial years
+    ! of spinup.
     IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
-      refgeo_PD%Hi( :, grid%i1:grid%i2) = ice%Hi_a( :, grid%i1:grid%i2)
-      refgeo_PD%Hs( :, grid%i1:grid%i2) = ice%Hs_a( :, grid%i1:grid%i2)
-      refgeo_PD%Hb( :, grid%i1:grid%i2) = ice%Hb_a( :, grid%i1:grid%i2)
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ! Make sure we are not spreading beyond observed margins
+        IF (refgeo_PD%Hi( j,i) > 0._dp) THEN
+          refgeo_PD%Hi( j,i) = ice%Hi_a( j,i)
+          refgeo_PD%Hs( j,i) = ice%Hs_a( j,i)
+          refgeo_PD%Hb( j,i) = ice%Hb_a( j,i)
+        END IF
+      END DO
+      END DO
     END IF
     CALL sync
 
