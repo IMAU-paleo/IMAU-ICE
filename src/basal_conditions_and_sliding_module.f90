@@ -229,7 +229,7 @@ CONTAINS
       lambda_p = MIN( 1._dp, MAX( 0._dp, 1._dp - (ice%Hb_a( j,i) - ice%SL_a( j,i) - C%Martin2011_hydro_Hb_min) / (C%Martin2011_hydro_Hb_max - C%Martin2011_hydro_Hb_min) ))
 
       ! Pore water pressure (Martin et al., 2011, Eq. 11)
-      ice%pore_water_pressure_a( j,i) = 0.96_dp * ice_density * grav * ice%Hi_a( j,i) * lambda_p
+      ice%pore_water_pressure_a( j,i) = C%Martin2011_hydro_N_lim * ice_density * grav * ice%Hi_a( j,i) * lambda_p
 
     END DO
     END DO
@@ -1098,8 +1098,13 @@ CONTAINS
       ! Include a normalisation term following Bueler & Brown (2009) to prevent divide-by-zero errors.
       uabs_a = SQRT( C%slid_delta_v**2 + u_a( j,i)**2 + v_a( j,i)**2)
 
-      ! Zoet & Iverson (2020), Eq. (3) (divided by u to give beta = tau_b / u)
-      beta_a( j,i) = ice%Neff_a( j,i) * TAN((pi / 180._dp) * ice%phi_fric_a( j,i)) * (uabs_a**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs_a + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
+      IF (C%do_slid_ZI_no_angle) THEN
+        ! Zoet & Iverson (2020), Eq. (3) (divided by u to give beta = tau_b / u)
+        beta_a( j,i) = ice%Neff_a( j,i) * ice%phi_fric_a( j,i) * (uabs_a**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs_a + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
+      ELSE
+        ! Zoet & Iverson (2020), Eq. (3) (divided by u to give beta = tau_b / u)
+        beta_a( j,i) = ice%Neff_a( j,i) * TAN((pi / 180._dp) * ice%phi_fric_a( j,i)) * (uabs_a**(1._dp / C%slid_ZI_p - 1._dp)) * ((uabs_a + C%slid_ZI_ut)**(-1._dp / C%slid_ZI_p))
+      END IF
 
     END DO
     END DO
@@ -1313,7 +1318,7 @@ CONTAINS
 ! == Basal inversion routines
 ! ===========================
 
-  SUBROUTINE basal_inversion_geo( grid, ice, refgeo_PD, dt)
+  SUBROUTINE basal_inversion_geo( grid, ice, refgeo_PD, dt, time)
     ! Invert for bed roughness based on modelled vs. target geometry
 
     IMPLICIT NONE
@@ -1323,6 +1328,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     REAL(dp),                            INTENT(IN)    :: dt
+    REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'basal_inversion_geo'
@@ -1358,7 +1364,7 @@ CONTAINS
     ELSEIF (C%choice_BIVgeo_method == 'Pien2023') THEN
       ! Update the bed roughness according to Pien and friends (2023)
 
-      CALL update_bed_roughness_Pien2023( grid, ice, refgeo_PD, dt)
+      CALL update_bed_roughness_Pien2023( grid, ice, refgeo_PD, dt, time)
 
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
@@ -2121,7 +2127,7 @@ CONTAINS
 
   END SUBROUTINE update_bed_roughness_Bernales2017_CoulombZoetIverson
 
-  SUBROUTINE update_bed_roughness_Pien2023( grid, ice, refgeo, dt)
+  SUBROUTINE update_bed_roughness_Pien2023( grid, ice, refgeo, dt, time)
     ! Update bed roughness according to Pien and friends, following
     ! Lipscomb et al. (2021) and van dem Akker et al. (202X).
 
@@ -2132,14 +2138,15 @@ CONTAINS
     TYPE(type_ice_model),          INTENT(INOUT) :: ice
     TYPE(type_reference_geometry), INTENT(IN)    :: refgeo
     REAL(dp),                      INTENT(IN)    :: dt
+    REAL(dp),                      INTENT(IN)    :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                :: routine_name = 'update_bed_roughness_Pien2023'
     INTEGER                                      :: i,j
     INTEGER, DIMENSION(:,:), POINTER             ::  mask
     INTEGER                                      :: wmask
-    REAL(dp), DIMENSION(:,:), POINTER            ::  dC_dt,  phi_fric_relax
-    INTEGER                                      :: wdC_dt, wphi_fric_relax
+    REAL(dp), DIMENSION(:,:), POINTER            ::  dC_dt
+    INTEGER                                      :: wdC_dt
     REAL(dp), PARAMETER                          :: sigma = 500._dp
     REAL(dp)                                     :: h_delta, w_Hb, c_ratio, reg_1st, reg_2nd, reg_3rd
 
@@ -2148,16 +2155,36 @@ CONTAINS
 
     ! Allocate shared memory
     CALL allocate_shared_dp_2D(  grid%ny, grid%nx, dC_dt, wdC_dt)
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx, phi_fric_relax, wphi_fric_relax)
     CALL allocate_shared_int_2D( grid%ny, grid%nx, mask, wmask)
 
     ! Loop over all grid points within this process
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
+      ! == Relaxation field
+      ! ===================
+
+      ! ! Bedrock elevation weight
+      ! w_Hb = (ice%Hb_a( j,i) - C%BIVgeo_Pien2023_lowerHb) / (C%BIVgeo_Pien2023_lowerHb - C%BIVgeo_Pien2023_upperHb)
+      ! ! Limit weight to [0,1]
+      ! w_Hb = MIN( 1._dp, MAX( 0._dp, w_Hb))
+      ! ! Compute target relaxation friction based on bedrock elevation
+      ! phi_fric_relax( j,i) = (1._dp - w_Hb) * C%BIVgeo_Pien2023_min + w_Hb * C%BIVgeo_Pien2023_max
+
+      IF (time < 5000._dp) THEN
+        ice%phi_fric_relax( j,i) = ice%phi_fric_a( j,i)
+      END IF
+
+      ! Ratio between modelled friction and a target relaxation friction
+      c_ratio = ice%phi_fric_a( j,i) / ice%phi_fric_relax( j,i)
+
+      ! == Point skip
+      ! =============
+
       ! Skip non-grounded, non-interior grid points
-      IF (ice%mask_sheet_a(j,i) == 0 .OR. &
-          ice%mask_gl_a(j,i) == 1) THEN
+      ! IF (ice%mask_sheet_a(j,i) == 0 .OR. &
+      !     ice%mask_gl_a(j,i) == 1) THEN
+      IF (ice%mask_sheet_a(j,i) == 0) THEN
         ! Mark for extrapolation
         mask( j,i) = 1
         ! Go to next grid point
@@ -2169,19 +2196,6 @@ CONTAINS
 
       ! Ice thickness difference w.r.t. observations (positive if too thick)
       h_delta = ice%Hi_a(j,i) - refgeo%Hi(j,i)
-
-      ! == Relaxation field
-      ! ===================
-
-      ! Bedrock elevation weight
-      w_Hb = (ice%Hb_a( j,i) - C%BIVgeo_Pien2023_lowerHb) / (C%BIVgeo_Pien2023_lowerHb - C%BIVgeo_Pien2023_upperHb)
-      ! Limit weight to [0,1]
-      w_Hb = MIN( 1._dp, MAX( 0._dp, w_Hb))
-      ! Compute target relaxation friction based on bedrock elevation
-      phi_fric_relax( j,i) = (1._dp - w_Hb) * C%BIVgeo_Pien2023_min + w_Hb * C%BIVgeo_Pien2023_max
-
-      ! Ratio between modelled friction and a target relaxation friction
-      c_ratio = ice%phi_fric_a( j,i) / phi_fric_relax( j,i)
 
       ! == Regularisation
       ! =================
@@ -2200,6 +2214,9 @@ CONTAINS
 
       ! Compute adjustment to friction field
       dC_dt( j,i) = -ice%phi_fric_a( j,i) * (reg_1st + reg_2nd - reg_3rd)
+
+      ! print*,''
+      ! print*,'r1:',reg_1st,'r2:',reg_2nd,'r3:',reg_3rd,'tot:',-(reg_1st+reg_2nd-reg_3rd),'log:',LOG(c_ratio)
 
       ! Use this point as seed during extrapolation
       mask( j,i) = 2
@@ -2231,7 +2248,6 @@ CONTAINS
 
     ! Clean up after yourself
     CALL deallocate_shared( wdC_dt)
-    CALL deallocate_shared( wphi_fric_relax)
     CALL deallocate_shared( wmask)
 
     ! Finalise routine path
@@ -2298,19 +2314,22 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! If needed, initialise target velocity fields
-    ! ============================================
-
     IF     (C%choice_BIVgeo_method == 'PDC2012' .OR. &
             C%choice_BIVgeo_method == 'Lipscomb2021' .OR. &
-            C%choice_BIVgeo_method == 'Bernales2017' .OR. &
-            C%choice_BIVgeo_method == 'Pien2023') THEN
-      ! Not needed in these methods
+            C%choice_BIVgeo_method == 'Bernales2017') THEN
+
+      ! No need to do anything
+
     ELSEIF (C%choice_BIVgeo_method == 'CISM+' .OR. &
             C%choice_BIVgeo_method == 'Berends2022') THEN
-      ! Needed in these methods
 
+      ! Initialise target surface velocities
       CALL initialise_basal_inversion_target_velocity( grid, ice, region_name)
+
+    ELSEIF (C%choice_BIVgeo_method == 'Pien2023') THEN
+
+      ! Initialise target relaxation till friction angle
+      CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%phi_fric_relax, ice%wphi_fric_relax)
 
     ELSE
       CALL crash('unknown choice_BIVgeo_method "' // TRIM(C%choice_BIVgeo_method) // '"!')
