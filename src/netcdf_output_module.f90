@@ -849,7 +849,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dSL_dt', long_name = 'Geoid deformation rate', units = 'm yr^-1')
     ELSEIF (field_name == 'dHb') THEN
       CALL add_field_grid_dp_2D( filename, 'dHb', long_name='Change in bedrock elevation w.r.t. PD', units='m')
-
+    ELSEIF (field_name == 'surface_load_rel') THEN
+      CALL add_field_grid_dp_2D( filename, 'surface_load_rel', long_name='surface_load_rel w.r.t. PD', units='m')
     ! Safety
     ELSE
       CALL crash('unknown help field name "' // TRIM( field_name) // '"!')
@@ -1303,7 +1304,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dSL_dt', region%ice%dSL_dt_a)
     ELSEIF (field_name == 'dHb') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHb', region%ice%dHb_a)
-
+    ELSEIF (field_name == 'surface_load_rel') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'surface_load_rel', region%ice%surface_load_rel)
     ! Safety
     ELSE
       CALL crash('unknown help field name "' // TRIM( field_name) // '"!')

@@ -313,7 +313,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MB_iso
     INTEGER :: wHi_a_prev, wIsoRef, wIsoSurf, wIsoIce, wMB_iso
 
-    ! ELRA GIA model
+    ! GIA model
     INTEGER,                    POINTER     :: flex_prof_rad
     REAL(dp), DIMENSION(:,:  ), POINTER     :: flex_prof
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_topo
@@ -321,7 +321,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
-    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_3D
+    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq, wdHb_3D
 
     ! Useful stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference

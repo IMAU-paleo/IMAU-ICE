@@ -17,7 +17,7 @@ MODULE IMAU_ICE_main_model
                                                  type_ocean_matrix_global
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                                 inverse_oblique_sg_projection, surface_elevation
+                                                 inverse_oblique_sg_projection, surface_elevation, is_floating
   USE parameters_module
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
@@ -101,6 +101,8 @@ CONTAINS
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
 # endif
+      ELSEIF (C%choice_GIA_model == '3DGIA') THEN       ! CvC
+        CALL update_Hb_with_3D_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
@@ -240,6 +242,11 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
+
+      IF (C%choice_GIA_model == '3DGIA') THEN
+        CALL calculate_output_for_3D_GIA_model(region%grid, region%ice, region%refgeo_GIAeq)
+      END IF
+
       CALL write_to_restart_file_grid( region%restart_filename, region)
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
@@ -251,6 +258,7 @@ CONTAINS
       IF (C%do_ocean_temperature_inversion) THEN
         CALL write_inverted_ocean_temperature_to_file( region%grid, region%ocean_matrix%applied)
       END IF
+
     END IF
 
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -267,6 +275,113 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_model
+
+  ! 3D GIA subroutines
+  SUBROUTINE read_dHb_3D_file( grid, ice)
+  ! Caroline van Calcar 08/2022
+
+    IMPLICIT NONE
+
+    ! in/output variables:
+    TYPE(type_grid),                  INTENT(IN)        :: grid
+    TYPE(type_ice_model),             INTENT(INOUT)     :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'read_dHb_3D_file'
+    INTEGER                                             :: i,j
+
+    CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+      ! open (91, file = TRIM( C%deformation_foldername) // '/dHb_3D.dat', status = 'old')
+            ! open (91, file = '/home/caroline/HetGroteKoppelScript_IMAUICE/IMAU-ICE/Datasets/3DGIA/reference_surface_load.dat', status = 'old')
+
+        open (91, file = '/home/caroline/HetGroteKoppelScript_IMAUICE/IMAU-ICE/Datasets/GIA_V2/dHb_3D.dat', status = 'old')
+        do i = 1,grid%NX
+          read(91,*) (ice%dHb_3D(j,i),j=1,grid%NY)
+        enddo
+      close(91)
+    END IF
+    CALL SYNC
+
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_dHb_3D_file
+  SUBROUTINE update_Hb_with_3D_GIA_model_output( grid, ice, time, refgeo_init)
+    ! Caroline van Calcar 08/2022
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                  INTENT(IN)        :: grid
+    TYPE(type_ice_model),             INTENT(INOUT)     :: ice
+    TYPE(type_reference_geometry),    INTENT(IN)        :: refgeo_init
+    REAL(dp),                         INTENT(IN)        :: time
+
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'Update_Hb_with_3D_GIA_model_output'
+    INTEGER                                             :: i,j
+
+    CALL init_routine( routine_name)
+
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dHb_dt_a(j,i) = ice%dHb_3D(j,i) / (C%end_time_of_run - C%start_time_of_run) * C%dt_coupling
+      ice%Hb_a(j,i) = refgeo_init%Hb(j,i) + ice%dHb_3D(j,i) * (time - C%start_time_of_run)/ (C%end_time_of_run - C%start_time_of_run)
+      ice%dHb_a(j,i) = ice%Hb_a(j,i) - refgeo_init%Hb(j,i)
+    END DO
+    END DO
+
+    CALL SYNC
+
+  ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE update_Hb_with_3D_GIA_model_output
+  SUBROUTINE calculate_output_for_3D_GIA_model(grid, ice, refgeo_GIAeq)
+    ! Caroline van Calcar 08/2022
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_ice_model),             INTENT(INOUT)     :: ice
+    TYPE(type_grid),                  INTENT(IN)        :: grid
+    TYPE(type_reference_geometry),    INTENT(IN)    :: refgeo_GIAeq
+
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'calculate_output_for_3D_GIA_model'
+    INTEGER                                             :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)) THEN
+            IF (is_floating( refgeo_GIAeq%Hi( j,i), refgeo_GIAeq%Hb( j,i), 0._dp)) THEN
+              ice%surface_load_rel( j,i) = 0; ! % dHi for the GIA model is zero (from floating to floating)
+            ELSE
+              ice%surface_load_rel( j,i) = -(refgeo_GIAeq%Hi( j,i)+refgeo_GIAeq%Hb( j,i)*seawater_density/ice_density); !%dHi for GIA model is minus the floating part of Hi,1
+            END IF
+
+      ELSE !% Hi,2 is grounded
+            IF (is_floating( refgeo_GIAeq%Hi( j,i), refgeo_GIAeq%Hb( j,i), 0._dp)) THEN
+                ice%surface_load_rel( j,i) = ice%Hi_a( j,i) +ice%Hb_a( j,i)*(seawater_density/ice_density);
+            ELSE
+                ice%surface_load_rel( j,i) = ice%Hi_a( j,i) - refgeo_GIAeq%Hi( j,i) + (ice%Hb_a( j,i) - refgeo_GIAeq%Hb( j,i))*(seawater_density/ice_density); ! % dHi for GIA model is the difference in ice thickness minus the difference in bedrock elevation*density compensation
+            END IF
+      END IF
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calculate_output_for_3D_GIA_model
 
   ! Initialise the entire model region - read initial and PD data, initialise the ice dynamics, climate and SMB sub models
   SUBROUTINE initialise_model( region, name, ocean_matrix_global)
@@ -411,6 +526,10 @@ CONTAINS
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
 # endif
+    ELSEIF (C%choice_GIA_model == '3DGIA') THEN
+      CALL allocate_shared_dp_2D(        region%grid%ny  , region%grid%nx  , region%ice%dHb_3D                , region%ice%wdHb_3D)
+      CALL allocate_shared_dp_2D(        region%grid%ny  , region%grid%nx  , region%ice%surface_load_rel , region%ice%wsurface_load_rel)
+      CALL read_dHb_3D_file(region%grid, region%ice)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF
