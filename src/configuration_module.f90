@@ -372,11 +372,14 @@ MODULE configuration_module
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
   REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
+  LOGICAL             :: do_slid_ZI_no_angle_config                  = .FALSE.                          ! If .TRUE., use phi_fric as a fraction (i.e./e.g. [0 1]) instead of an angle. Adjust its limits accordingly elsewhere.
   LOGICAL             :: include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
   REAL(dp)            :: deltaT_basal_freezing_config                = 2._dp                            ! See above.
+  REAL(dp)            :: subgrid_friction_exponent_config            = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
 
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
+  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
@@ -1064,15 +1067,15 @@ MODULE configuration_module
     REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
 
     ! Files and choices for initializing the inverse d18O routines
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_NAM       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_EAS       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_GRL       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_ANT       
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_NAM
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_EAS
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_GRL
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_ANT
 
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_NAM     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_EAS     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_GRL     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_ANT      
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_NAM
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_EAS
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_GRL
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_ANT
 
     ! Ice dynamics - velocity
     ! =======================
@@ -1169,11 +1172,14 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
     REAL(dp)                            :: slid_ZI_ut
     REAL(dp)                            :: slid_ZI_p
+    LOGICAL                             :: do_slid_ZI_no_angle
     LOGICAL                             :: include_basal_freezing
     REAL(dp)                            :: deltaT_basal_freezing
+    REAL(dp)                            :: subgrid_friction_exponent
 
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
+    REAL(dp)                            :: Martin2011_hydro_N_lim
     REAL(dp)                            :: Martin2011_hydro_Hb_min
     REAL(dp)                            :: Martin2011_hydro_Hb_max
 
@@ -2075,9 +2081,12 @@ CONTAINS
                      slid_Coulomb_reg_u_threshold_config,             &
                      slid_ZI_ut_config,                               &
                      slid_ZI_p_config,                                &
+                     do_slid_ZI_no_angle_config,                      &
                      include_basal_freezing_config,                   &
                      deltaT_basal_freezing_config,                    &
+                     subgrid_friction_exponent_config,                &
                      choice_basal_hydrology_config,                   &
+                     Martin2011_hydro_N_lim_config,                   &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
                      choice_basal_roughness_config,                   &
@@ -2904,11 +2913,14 @@ CONTAINS
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
     C%slid_ZI_ut                               = slid_ZI_ut_config
     C%slid_ZI_p                                = slid_ZI_p_config
+    C%do_slid_ZI_no_angle                      = do_slid_ZI_no_angle_config
     C%include_basal_freezing                   = include_basal_freezing_config
     C%deltaT_basal_freezing                    = deltaT_basal_freezing_config
+    C%subgrid_friction_exponent                = subgrid_friction_exponent_config
 
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
+    C%Martin2011_hydro_N_lim                   = Martin2011_hydro_N_lim_config
     C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
 
