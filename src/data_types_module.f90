@@ -318,10 +318,11 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_topo
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_grid_GIA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_3D
-    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_ext, wdHb_eq, wdHb_3D
+    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_grid_GIA, wsurface_load_rel_ext, wdHb_eq, wdHb_3D
 
     ! Useful stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference

@@ -3,10 +3,10 @@
 #    For "make" syntax search on "make tutorial", or see:
 #    http://www.gnu.org/software/make/manual/make.html
 
-include Makefile_include.txt
+# include Makefile_include.txt
 # include Makefile_include_snellius.txt
 # include Makefile_include_gemini.txt
-# include Makefile_include_archimedes.txt
+include Makefile_include_archimedes.txt
 
 # The OBJ_PATH and the MOD_PATH are defined:
 OBJ_PATH = object-files
@@ -63,7 +63,7 @@ IMAU_ICE_program_objects = \
         ocean_module.o \
         climate_module.o \
         isotopes_module.o \
-        bedrock_ELRA_module.o \
+        bedrock_module.o \
         SELEN_mapping_module.o \
         SELEN_harmonics_module.o \
         SELEN_fmvals_module.o \
@@ -108,7 +108,7 @@ IMAU_ICE_program_objects = \
         ocean_module.o \
         climate_module.o \
         isotopes_module.o \
-        bedrock_ELRA_module.o \
+        bedrock_module.o \
         scalar_data_output_module.o \
         IMAU_ICE_main_model.o \
         IMAU_ICE_program.o

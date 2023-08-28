@@ -32,7 +32,7 @@ MODULE IMAU_ICE_main_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
-  USE bedrock_ELRA_module,                 ONLY: initialise_ELRA_model,             run_ELRA_model
+  USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   initialise_GIA_model, calculate_relative_ice_load
 # if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
 # endif
@@ -243,8 +243,8 @@ CONTAINS
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
 
-      IF (C%choice_GIA_model == '3DGIA') THEN
-        CALL calculate_output_for_3D_GIA_model(region%grid, region%ice, region%refgeo_GIAeq)
+      IF (C%choice_GIA_model == '3DGIA') THEN ! CvC
+        CALL calculate_relative_ice_load(region%grid, region%ice)
       END IF
 
       CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
@@ -348,7 +348,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_ice_model),             INTENT(INOUT)     :: ice
     TYPE(type_grid),                  INTENT(IN)        :: grid
-    TYPE(type_reference_geometry),    INTENT(IN)    :: refgeo_GIAeq
+    TYPE(type_reference_geometry),    INTENT(IN)        :: refgeo_GIAeq
 
 
     ! Local variables:
@@ -528,8 +528,9 @@ CONTAINS
 # endif
     ELSEIF (C%choice_GIA_model == '3DGIA') THEN
       CALL allocate_shared_dp_2D(        region%grid%ny  , region%grid%nx  , region%ice%dHb_3D                , region%ice%wdHb_3D)
-      CALL allocate_shared_dp_2D(        region%grid%ny  , region%grid%nx  , region%ice%surface_load_rel , region%ice%wsurface_load_rel)
+      ! CALL allocate_shared_dp_2D(        region%grid%ny  , region%grid%nx  , region%ice%surface_load_rel , region%ice%wsurface_load_rel)
       CALL read_dHb_3D_file(region%grid, region%ice)
+      CALL initialise_GIA_model( region%grid, region%ice, region%refgeo_GIAeq)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF
