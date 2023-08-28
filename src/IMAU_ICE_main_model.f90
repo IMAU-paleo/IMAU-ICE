@@ -101,7 +101,7 @@ CONTAINS
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
 # endif
-      ELSEIF (C%choice_GIA_model == '3DGIA') THEN       ! CvC
+      ELSEIF (C%choice_GIA_model == '3DGIA') THEN
         CALL update_Hb_with_3D_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
