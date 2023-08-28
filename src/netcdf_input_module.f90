@@ -638,6 +638,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_2D( d, wd)
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -763,6 +765,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name, 19)
@@ -902,6 +906,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d, wd )
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Clean up after yourself
     CALL deallocate_shared(   wzeta_from_file)
@@ -1447,6 +1453,91 @@ CONTAINS
 
   END SUBROUTINE read_field_from_lonlat_file_ocean_3D
 
+  SUBROUTINE read_field_from_file_history_1D(             filename, field_name_options, var_name_time_history, d, wd, time_to_read)
+    ! Read a 2-D data field from a NetCDF file on an x/y-grid,
+    ! and return both the grid and the data.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name_time_history
+    REAL(dp), DIMENSION(:  ),   POINTER, INTENT(OUT)   :: d
+    INTEGER,                             INTENT(OUT)   :: wd
+    REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_file_history_1D'
+    INTEGER                                            :: id_var
+    CHARACTER(LEN=256)                                 :: var_name
+    REAL(dp), DIMENSION(:,:), POINTER                  :: d_with_time
+    REAL(dp), DIMENSION(:  ), POINTER                  :: time_history
+    INTEGER, POINTER                                   :: ntime_history
+    INTEGER                                            :: id_dim_time_history
+    INTEGER                                            :: id_var_time_history
+    INTEGER                                            :: wntime_history, wtime_history,wd_with_time
+    INTEGER                                            :: ti
+
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate memory for the grid size
+    CALL allocate_shared_int_0D( ntime_history, wntime_history)
+
+    ! Inquire x and y dimensions
+    CALL inquire_dim_multiple_options( filename, var_name_time_history, id_dim_time_history, dim_length = ntime_history)
+
+    ! Allocate memory for time_history
+    CALL allocate_shared_dp_1D( ntime_history, time_history, wtime_history)
+
+    ! Inquire time_history variable
+    CALL inquire_var_multiple_options( filename, var_name_time_history, id_var_time_history)
+
+    ! Read time_history
+    CALL read_var_dp_1D(  filename, id_var_time_history, time_history )
+
+    ! Look for the specified variable in the file
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+
+    ! Check if the variable has the required dimensions
+    ! CALL check_time_history_field_dp_1D( filename, var_name, should_have_time = PRESENT( time_to_read))
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_1D( ntime_history, d, wd)
+
+    ! Read data from file
+    IF (.NOT. PRESENT( time_to_read)) THEN
+      CALL read_var_dp_1D( filename, id_var, d)
+    ELSE
+      ! Allocate shared memory
+      CALL allocate_shared_dp_2D( ntime_history, 1, d_with_time, wd_with_time)
+      ! Find out which timeframe to read
+      CALL find_timeframe( filename, time_to_read, ti)
+      ! Read data
+      CALL read_var_dp_2D( filename, id_var, d_with_time, start = (/ 1, ti /), count = (/ ntime_history, 1 /) )
+
+      ! Copy to output memory
+      IF (par%master) THEN
+         d( :) = d_with_time( :,1)
+      END IF
+      CALL sync
+
+      ! Clean up after yourself
+      CALL deallocate_shared( wd_with_time)
+
+   END IF
+
+   CALL deallocate_shared( wntime_history)
+   CALL deallocate_shared( wtime_history )
+
+   ! Finalise routine path
+   CALL finalise_routine( routine_name, 19)
+
+   END SUBROUTINE read_field_from_file_history_1D
+
   ! ===== Set up grids from a NetCDF file =====
   ! ================================================
 
@@ -1504,9 +1595,6 @@ CONTAINS
     CALL allocate_shared_dp_0D(                    grid%ymin       , grid%wymin       )
     CALL allocate_shared_dp_0D(                    grid%ymax       , grid%wymax       )
     CALL allocate_shared_dp_0D(                    grid%dx         , grid%wdx         )
-    CALL allocate_shared_dp_0D(                    grid%tol_dist   , grid%wtol_dist   )
-    CALL allocate_shared_int_2D( grid%nx, grid%ny, grid%ij2n       , grid%wij2n       )
-    CALL allocate_shared_int_2D( grid%n , 2,       grid%n2ij       , grid%wn2ij       )
     CALL allocate_shared_dp_0D(                    grid%lambda_m   , grid%wlambda_m   )
     CALL allocate_shared_dp_0D(                    grid%phi_m      , grid%wphi_m      )
     CALL allocate_shared_dp_0D(                    grid%beta_stereo, grid%wbeta_stereo)
@@ -1532,27 +1620,6 @@ CONTAINS
       grid%xmax = MAXVAL( grid%x)
       grid%ymin = MINVAL( grid%y)
       grid%ymax = MAXVAL( grid%y)
-
-      ! Tolerance; points lying within this distance of each other are treated as identical
-      grid%tol_dist = ((grid%xmax - grid%xmin) + (grid%ymax - grid%ymin)) * tol / 2._dp
-
-      ! Conversion tables for grid-form vs. vector-form data
-      n = 0
-      DO i = 1, grid%nx
-        IF (MOD(i,2) == 1) THEN
-          DO j = 1, grid%ny
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        ELSE
-          DO j = grid%ny, 1, -1
-            n = n+1
-            grid%ij2n( i,j) = n
-            grid%n2ij( n,:) = [i,j]
-          END DO
-        END IF
-      END DO
 
     END IF ! IF (par%master) THEN
     CALL sync
@@ -1589,7 +1656,7 @@ CONTAINS
     CALL sync
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name, 18)
+    CALL finalise_routine( routine_name, 15)
 
   END SUBROUTINE setup_xy_grid_from_file
 
@@ -2017,8 +2084,6 @@ CONTAINS
       IF (grid_lonlat%lon( i+1) <= grid_lonlat%lon( i)) is_correct = .FALSE.
     END DO
     IF (.NOT. is_correct) CALL crash('something is seriously wrong with the longitude of file "' // TRIM( filename) // '"!')
-
-    PRINT*,('This should not appear for now')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

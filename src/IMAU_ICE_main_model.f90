@@ -218,7 +218,7 @@ CONTAINS
 
       ! Write to restart file
       IF (region%do_output_restart) THEN
-        CALL write_to_restart_file_grid( region%restart_filename, region)
+        CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       END IF
 
       ! Write scalar output
@@ -247,7 +247,7 @@ CONTAINS
         CALL calculate_output_for_3D_GIA_model(region%grid, region%ice, region%refgeo_GIAeq)
       END IF
 
-      CALL write_to_restart_file_grid( region%restart_filename, region)
+      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
       ! Write inverted bed roughness field to file

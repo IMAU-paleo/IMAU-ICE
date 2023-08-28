@@ -858,6 +858,83 @@ CONTAINS
 
   END SUBROUTINE check_time
 
+
+  SUBROUTINE check_time_history( filename,var_name_time_history)
+    ! Check if this file contains a valid time dimension and variable
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: var_name_time_history
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'check_time_history'
+    INTEGER                                            :: id_dim
+    INTEGER                                            :: n
+    CHARACTER(LEN=256)                                 :: dim_name
+    INTEGER                                            :: id_var
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: var_type
+    INTEGER                                            :: ndims_of_var
+    INTEGER,  DIMENSION( NF90_MAX_VAR_DIMS)            :: dims_of_var
+    REAL(dp), DIMENSION(:    ), POINTER                :: time_history
+    INTEGER                                            :: wtime_history
+    INTEGER,  DIMENSION(:    ), POINTER                :: time_history_int
+    INTEGER                                            :: wtime_history_int
+    INTEGER                                            :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name, do_track_resource_use = .FALSE.)
+
+    ! Inquire dimension
+    CALL inquire_dim_multiple_options( filename, var_name_time_history, id_dim, dim_length = n, dim_name = dim_name)
+
+    ! Safety checks on dimension
+    IF (id_dim == -1) CALL crash('no valid time_history dimension could be found in file "' // TRIM( filename) // '"!')
+    IF (n < 0) CALL crash('time_history dimension in file "' // TRIM( filename) // '" has length n = {int_01}!', int_01  = n)
+
+    ! Inquire variable
+    CALL inquire_var_multiple_options( filename, var_name_time_history, id_var, var_name = var_name, var_type = var_type, ndims_of_var = ndims_of_var, dims_of_var = dims_of_var)
+    IF (id_var == -1) CALL crash('no valid time_history variable could be found in file "' // TRIM( filename) // '"!')
+    IF (.NOT. (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE .OR. var_type == NF90_INT .OR. var_type == NF90_INT64)) &
+      CALL crash('time variable in file "' // TRIM( filename) // '" is not of type NF90_FLOAT, NF90_DOUBLE, or NF90_INT!')
+    IF (ndims_of_var /= 1) CALL crash('time_history variable in file "' // TRIM( filename) // '" has {int_01} dimensions!', int_01 = ndims_of_var)
+    IF (dims_of_var( 1) /= id_dim) CALL crash('time_history variable in file "' // TRIM( filename) // '" does not have time_history as a dimension!')
+
+    ! For new output files, time is still empty. If it's not, check if entries are valid
+    IF (n > 0) THEN
+
+      ! Allocate shared memory
+      CALL allocate_shared_dp_1D( n, time_history, wtime_history)
+
+      ! Read variable
+      IF (var_type == NF90_FLOAT .OR. var_type == NF90_DOUBLE) THEN
+        CALL read_var_dp_1D( filename, id_var, time_history)
+      ELSEIF (var_type == NF90_INT .OR. var_type == NF90_INT64) THEN
+        CALL allocate_shared_int_1D( n, time_history_int, wtime_history_int)
+        CALL read_var_int_1D( filename, id_var, time_history_int)
+        DO ti = 1, n
+          time_history( ti) = REAL( time_history_int( ti),dp)
+        END DO
+        CALL deallocate_shared( wtime_history_int)
+      ELSE
+        CALL crash('whaa!')
+      END IF
+
+      ! Check validity
+      CALL check_for_NaN_dp_1D( time_history, 'time_history')
+
+      ! Clean up after yourself
+      CALL deallocate_shared( wtime_history)
+
+    END IF ! IF (n > 0) THEN
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE check_time_history
+  
   ! x/y-grid field variables
   SUBROUTINE check_xy_grid_field_int_2D(            filename, var_name, should_have_time)
     ! Check if this file contains a 2-D x/y-grid variable by this name

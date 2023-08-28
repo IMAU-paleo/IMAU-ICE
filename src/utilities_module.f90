@@ -1983,7 +1983,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE transpose_dp_3D
-  
+
   SUBROUTINE transpose_int_2D( d, wd)
     ! Transpose a data field (i.e. go from [i,j] to [j,i] indexing or the other way round)
 
@@ -3183,7 +3183,7 @@ CONTAINS
     ! Clean up after yourself
     CALL deallocate_shared( grid%wnx         )
     CALL deallocate_shared( grid%wny         )
-	CALL deallocate_shared( grid%wn          )
+	  CALL deallocate_shared( grid%wn          )
     CALL deallocate_shared( grid%wx          )
     CALL deallocate_shared( grid%wy          )
     CALL deallocate_shared( grid%wdx         )
@@ -3191,9 +3191,6 @@ CONTAINS
     CALL deallocate_shared( grid%wxmax       )
     CALL deallocate_shared( grid%wymin       )
     CALL deallocate_shared( grid%wymax       )
-    CALL deallocate_shared( grid%wtol_dist   )
-    CALL deallocate_shared( grid%wij2n       )
-    CALL deallocate_shared( grid%wn2ij       )
     CALL deallocate_shared( grid%wlambda_m   )
     CALL deallocate_shared( grid%wphi_m      )
     CALL deallocate_shared( grid%wbeta_stereo)
