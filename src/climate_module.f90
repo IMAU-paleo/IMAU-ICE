@@ -650,7 +650,7 @@ CONTAINS
 
     ! Update forcing at model time
     CALL get_insolation_at_time( grid, time, climate%Q_TOA)
-    
+
     IF (C%choice_forcing_method == 'CO2_direct') THEN
         CALL update_CO2_at_model_time( time)
     END IF
@@ -1487,7 +1487,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                     :: routine_name = 'read_climate_snapshot'
     CHARACTER(LEN=256)                                :: file_grid_type
-    INTEGER                                           :: found_wind_WE, found_wind_SN
+    INTEGER                                           :: found_wind_WE, found_wind_SN, n1,n2,n3,i1,i2,i,j,k
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1519,6 +1519,28 @@ CONTAINS
          CALL read_field_from_file_2D_monthly( filename, 'Wind_LR', grid, snapshot%wind_LR, region_name) !CvC added this else statement
          CALL read_field_from_file_2D_monthly( filename, 'Wind_DU', grid, snapshot%Wind_DU, region_name)
     END IF
+
+    ! CvC set all negative precipitation values to zero
+
+    ! Get field size
+    n1 = SIZE( snapshot%Precip,1)
+    n2 = SIZE( snapshot%Precip,2)
+    n3 = SIZE( snapshot%Precip,3)
+
+    ! Parallelisation
+    CALL partition_list( n3, par%i, par%n, i1, i2)
+
+    DO i = i1, i2
+    DO j = 1, n2
+    DO k = 1, n1
+      IF     (snapshot%Precip( k,j,i) < 0._dp) THEN
+        snapshot%Precip( k,j,i) = 0._dp
+        ! CALL warning('negative precipitation detected and set to zero at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
+      END IF
+    END DO
+    END DO
+    END DO
+    CALL sync
 
     ! Safety checks
     CALL check_safety_temperature(   snapshot%T2m   )
@@ -1870,8 +1892,8 @@ CONTAINS
     DO k = 1, n1
 
       ! Precipitation errors
-      IF     (Precip( k,j,i) <= 0._dp) THEN
-        CALL crash('zero/negative precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
+      IF     (Precip( k,j,i) < 0._dp) THEN
+        CALL crash('negative precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
       ELSEIF (ISNAN(Precip( k,j,i))) THEN
         CALL crash('NaN precipitation detected at [{int_01},{int_02},{int_03}]', int_01 = k, int_02 = j, int_03 = i)
       END IF
