@@ -229,6 +229,11 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
+      ! Run the BMB model again to get updated BMB for next 'run_ice_model'
+      IF (region%do_BMB) THEN
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
+      END IF
+
       ! DENK DROM
       ! region%time = t_end
 
@@ -431,6 +436,10 @@ CONTAINS
     ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
     CALL run_climate_model( region, C%start_time_of_run)
     CALL run_SMB_model( region%grid, region%ice, region%climate, C%start_time_of_run, region%SMB, region%mask_noice)
+
+    ! Run the ocean and BMB models once, to get the correct BMB field for the first run_ice_model time step
+    CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, region%time, region%refgeo_PD)
+    CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
 
     ! Initialise the temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
