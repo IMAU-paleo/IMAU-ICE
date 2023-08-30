@@ -123,12 +123,12 @@
   time_to_restart_from_NAM_config             = 0.0                              ! Can be different from C%start_time_of_run, though this will issue a warning
   time_to_restart_from_EAS_config             = 0.0
   time_to_restart_from_GRL_config             = 0.0
-  time_to_restart_from_ANT_config             = 30000
+  time_to_restart_from_ANT_config             = 50000
   choice_refgeo_init_idealised_config         = ''                               ! Choice of schematic initial geometry; see "generate_idealised_geometry" in reference_fields_module for options
   filename_refgeo_init_NAM_config             = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = 'data/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_init_GRL_config             = 'data/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
-  filename_refgeo_init_ANT_config             = 'spinup/MISMIPplus_2km_Hybrid_Schoof_tuneGL_spinup_32_01_petsc/restart_ANT.nc'
+  filename_refgeo_init_ANT_config             = '/Users/5941962/surfdrive/P1_OUTPUT/spinup/MISMIPplus_2km_Hybrid_Schoof_tuneGL_spinup_32_01_petsc_new/restart_ANT.nc'
   do_read_velocities_from_restart_config      = .TRUE.
 
   ! Present-day geometry
@@ -270,7 +270,7 @@
   fixed_decay_t_start_config                  = 0.0                              ! Start time of linear transition between fixed/delayed and free evolution
   fixed_decay_t_end_config                    = 0.0                              ! End   time of linear transition between fixed/delayed and free evolution
   relax_thick_t_start_config                  = -9.9e99                          ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
-  relax_thick_t_end_config                    = 10.0                             ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
+  relax_thick_t_end_config                    = -8.8e88                          ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
   
   do_target_dhdt_config                       = .FALSE.                          ! Whether or not to perform spinup using a target dHi_dt field
   target_dhdt_filename_config                 = '' 								 ! NetCDF file containing target dHi_dt for model spinup
@@ -506,7 +506,7 @@
   ! Basal mass balance
   ! ==================
 
-  choice_BMB_shelf_model_config               = 'PICO'                 ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP", "LADDIE"
+  choice_BMB_shelf_model_config               = 'Favier2019_quad'                 ! Choice of shelf BMB: "uniform", "idealised", "ANICE_legacy", "Favier2019_lin", "Favier2019_quad", "Favier2019_Mplus", "Lazeroms2018_plume", "PICO", "PICOP", "LADDIE"
   choice_idealised_BMB_shelf_config           = ''
   choice_BMB_sheet_model_config               = 'uniform'                        ! Choice of sheet BMB: "uniform"
   BMB_shelf_uniform_config                    = 10.0                              ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
