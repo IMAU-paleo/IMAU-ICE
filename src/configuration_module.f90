@@ -98,11 +98,12 @@ MODULE configuration_module
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
 
-  LOGICAL             :: create_procedural_output_dir_config         = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  CHARACTER(LEN=256)  :: fixed_output_dir_config                     = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
-  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
-  LOGICAL             :: do_write_regional_scalar_output_config      = .TRUE.
-  LOGICAL             :: do_write_global_scalar_output_config        = .TRUE.
+  LOGICAL             :: create_procedural_output_dir_config            = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  CHARACTER(LEN=256)  :: fixed_output_dir_config                        = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
+  LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
+  LOGICAL             :: do_write_regional_scalar_every_timestep_config = .FALSE.
 
   ! Debugging
   ! =========
@@ -246,6 +247,17 @@ MODULE configuration_module
   ! d18O record (ASCII text file, so the number of rows needs to be specified)
   CHARACTER(LEN=256)  :: filename_d18O_record_config                 = '/Users/berends/Documents/Datasets/d18O/Ahn2017_d18O.dat'
   INTEGER             :: d18O_record_length_config                   = 2051
+
+  ! Parameters for combining insolation and CO2 in the matrix method
+  LOGICAL             :: do_combine_CO2_and_insolation_config        = .FALSE.                          ! Combine the effect of insolation and CO2 to calculate the external forcing in the matrix method
+  REAL(dp)            :: insolation_weigth_mean_NAM_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_NAM_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_EAS_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_EAS_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_GRL_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_GRL_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_ANT_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_ANT_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
 
   ! Geothermal heat flux
   CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
@@ -482,6 +494,15 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
 
+  ! Ice and ocean mask from GCM snapshots
+  CHARACTER(LEN=256)  :: reference_mask_method_config                = 'estimate'                        ! 'estimate' (based on GCM topography and temperature) or 'file' from a selected file
+  
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_PD_obs_config        = ''   
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_PI_config        = ''
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_warm_config      = ''
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_cold_config      = ''
+  
+  ! Lapse rate
   REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
 
   ! Scaling factor for CO2 vs ice weights
@@ -920,6 +941,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
     LOGICAL                             :: do_write_global_scalar_output
+    LOGICAL                             :: do_write_regional_scalar_every_timestep
 
     ! Debugging
     ! =========
@@ -1044,6 +1066,16 @@ MODULE configuration_module
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     CHARACTER(LEN=256)                  :: filename_d18O_record
     INTEGER                             :: d18O_record_length
+
+    LOGICAL                            :: do_combine_CO2_and_insolation
+    REAL(dp)                           :: insolation_weigth_mean_NAM         
+    REAL(dp)                           :: insolation_weigth_amplitude_NAM    
+    REAL(dp)                           :: insolation_weigth_mean_EAS         
+    REAL(dp)                           :: insolation_weigth_amplitude_EAS    
+    REAL(dp)                           :: insolation_weigth_mean_GRL         
+    REAL(dp)                           :: insolation_weigth_amplitude_GRL    
+    REAL(dp)                           :: insolation_weigth_mean_ANT         
+    REAL(dp)                           :: insolation_weigth_amplitude_ANT
 
     ! Geothermal heat flux
     CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
@@ -1279,6 +1311,15 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_cold
 
+    ! Ice and ocean mask from GCM snapshots
+    CHARACTER(LEN=256)                  :: reference_mask_method
+    
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_PD_obs 
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_PI
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_warm
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_cold  
+  
+    ! Lapse rate
     REAL(dp)                            :: constant_lapserate
 
     ! Scaling factor for CO2 vs ice weights
@@ -1900,6 +1941,7 @@ CONTAINS
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
                      do_write_global_scalar_output_config,            &
+                     do_write_regional_scalar_every_timestep_config,  &
                      do_check_for_NaN_config,                         &
                      do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
@@ -1981,6 +2023,15 @@ CONTAINS
                      CO2_record_length_config,                        &
                      filename_d18O_record_config,                     &
                      d18O_record_length_config,                       &
+                     do_combine_CO2_and_insolation_config,            &
+                     insolation_weigth_mean_NAM_config,               &
+                     insolation_weigth_amplitude_NAM_config,          &
+                     insolation_weigth_mean_EAS_config,               &
+                     insolation_weigth_amplitude_EAS_config,          &
+                     insolation_weigth_mean_GRL_config ,              &
+                     insolation_weigth_amplitude_GRL_config,          &
+                     insolation_weigth_mean_ANT_config,               &
+                     insolation_weigth_amplitude_ANT_config,          &
                      choice_geothermal_heat_flux_config,              &
                      constant_geothermal_heat_flux_config,            &
                      filename_geothermal_heat_flux_config,            &
@@ -2157,6 +2208,11 @@ CONTAINS
                      filename_climate_snapshot_PI_config,             &
                      filename_climate_snapshot_warm_config,           &
                      filename_climate_snapshot_cold_config,           &
+                     reference_mask_method_config,                    &      
+                     filename_snapshot_mask_PD_obs_config,            &
+                     filename_snapshot_mask_GCM_PI_config,            &
+                     filename_snapshot_mask_GCM_warm_config,          &
+                     filename_snapshot_mask_GCM_cold_config,          &
                      constant_lapserate_config,                       &
                      climate_matrix_CO2vsice_NAM_config,              &
                      climate_matrix_CO2vsice_EAS_config,              &
@@ -2653,7 +2709,7 @@ CONTAINS
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
-
+    C%do_write_regional_scalar_every_timestep  = do_write_regional_scalar_every_timestep_config
     ! Debugging
     ! =========
 
@@ -2778,6 +2834,18 @@ CONTAINS
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     C%filename_d18O_record                     = filename_d18O_record_config
     C%d18O_record_length                       = d18O_record_length_config
+
+    ! Parameters for combining insolation and CO2 in the matrix method
+    C%do_combine_CO2_and_insolation            = do_combine_CO2_and_insolation_config
+    
+    C%insolation_weigth_mean_NAM               = insolation_weigth_mean_NAM_config
+    C%insolation_weigth_amplitude_NAM          = insolation_weigth_amplitude_NAM_config
+    C%insolation_weigth_mean_EAS               = insolation_weigth_mean_EAS_config
+    C%insolation_weigth_amplitude_EAS          = insolation_weigth_amplitude_EAS_config
+    C%insolation_weigth_mean_GRL               = insolation_weigth_mean_GRL_config
+    C%insolation_weigth_amplitude_GRL          = insolation_weigth_amplitude_GRL_config
+    C%insolation_weigth_mean_ANT               = insolation_weigth_mean_ANT_config
+    C%insolation_weigth_amplitude_ANT          = insolation_weigth_amplitude_ANT_config
 
     ! Geothermal heat flux
     C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
@@ -3013,7 +3081,16 @@ CONTAINS
     C%filename_climate_snapshot_PI             = filename_climate_snapshot_PI_config
     C%filename_climate_snapshot_warm           = filename_climate_snapshot_warm_config
     C%filename_climate_snapshot_cold           = filename_climate_snapshot_cold_config
+    
+    ! GCM snapshots in the matrix_warm_cold option
+    C%reference_mask_method                    = reference_mask_method_config 
+    
+    C%filename_snapshot_mask_PD_obs            = filename_snapshot_mask_PD_obs_config
+    C%filename_snapshot_mask_GCM_PI            = filename_snapshot_mask_GCM_PI_config
+    C%filename_snapshot_mask_GCM_warm          = filename_snapshot_mask_GCM_warm_config
+    C%filename_snapshot_mask_GCM_cold          = filename_snapshot_mask_GCM_cold_config
 
+    ! Constant lapse rate
     C%constant_lapserate                       = constant_lapserate_config
 
     ! Scaling factor for CO2 vs ice weights

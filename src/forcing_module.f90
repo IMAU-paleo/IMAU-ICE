@@ -32,7 +32,7 @@ CONTAINS
 ! == Main routines that are called from IMAU_ICE_program
   SUBROUTINE update_global_forcing( NAM, EAS, GRL, ANT, time)
     ! Update global forcing data (d18O, CO2, insolation, geothermal heat flux)
-	
+
     IMPLICIT NONE
 
     ! In/output variables:
@@ -94,6 +94,11 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    ! Initialise benthic d18O
+     IF (C%do_calculate_benthic_d18O) THEN
+       CALL initialise_modelled_benthic_d18O_data   
+     END IF
+
     ! Climate forcing stuff: CO2, d18O, inverse routine data
     IF     (C%choice_forcing_method == 'none') THEN
       ! Nothing needed; climate is either parameterised, or prescribed directly
@@ -107,7 +112,6 @@ CONTAINS
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       ! The global climate is calculated using the observed present-day climate plus a global
       ! temperature offset, which is calculated using the inverse routine, following de Boer et al. (2014)
-      CALL initialise_modelled_benthic_d18O_data
       CALL initialise_d18O_record
       CALL initialise_inverse_routine_data
 
@@ -115,8 +119,6 @@ CONTAINS
       ! The global climate is calculated based on modelled CO2, which follows from the inverse routine
       ! (following Berends et al., 2019). The climate itself can then be calculated using either a
       ! glacial-index method or a climate-matrix method
-
-      CALL initialise_modelled_benthic_d18O_data
       CALL initialise_d18O_record      
       CALL initialise_inverse_routine_data
 
@@ -201,8 +203,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_global_mean_temperature_change_history'
-    REAL(dp),                   POINTER                ::  dT_NAM,  dT_EAS,  dT_GRL,  dT_ANT
-    INTEGER                                            :: wdT_NAM, wdT_EAS, wdT_GRL, wdT_ANT
+    REAL(dp)                                           ::  dT_NAM,  dT_EAS,  dT_GRL,  dT_ANT
     REAL(dp)                                           :: dT_glob_average_over_window
     REAL(dp)                                           :: n_glob
 
@@ -210,11 +211,6 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine annual mean surface temperature change for all model regions
-    CALL allocate_shared_dp_0D( dT_NAM, wdT_NAM)
-    CALL allocate_shared_dp_0D( dT_EAS, wdT_EAS)
-    CALL allocate_shared_dp_0D( dT_GRL, wdT_GRL)
-    CALL allocate_shared_dp_0D( dT_ANT, wdT_ANT)
-
     IF (C%do_NAM) CALL calculate_mean_temperature_change_region( NAM, dT_NAM)
     IF (C%do_EAS) CALL calculate_mean_temperature_change_region( EAS, dT_EAS)
     IF (C%do_GRL) CALL calculate_mean_temperature_change_region( GRL, dT_GRL)
@@ -259,12 +255,6 @@ CONTAINS
     END IF ! IF (par%master) THEN
     CALL sync
 
-    ! Clean up after yourself
-    CALL deallocate_shared( wdT_NAM)
-    CALL deallocate_shared( wdT_EAS)
-    CALL deallocate_shared( wdT_GRL)
-    CALL deallocate_shared( wdT_ANT)
-
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -285,6 +275,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:,:), POINTER                :: T2m_PD
     INTEGER                                            :: wHs_PD, wT2m_PD
     REAL(dp)                                           :: dT_lapse_mod, dT_lapse_PD, T_pot_mod, T_pot_PD
+    INTEGER                                            :: n_dT
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -304,24 +295,40 @@ CONTAINS
       CALL crash('present-day temperature not known for choice_climate_model "'//TRIM( C%choice_climate_model)//'"!')
     END IF
 
-    dT = 0._dp
-    
+    dT   = 0._dp
+    n_dT = 0
+
     DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny
-      dT_lapse_mod = region%ice%Hs_a(          j,i) * C%constant_lapserate
-      dT_lapse_PD  = Hs_PD(                    j,i) * C%constant_lapserate
-      DO m = 1, 12
-        T_pot_mod = region%climate%T2m(         m,j,i) + dT_lapse_mod
-        T_pot_PD  = T2m_PD(                     m,j,i) + dT_lapse_PD
-        dT = dT + T_pot_mod - T_pot_PD
-      END DO
+    DO j = 1, region%grid%ny      
+    ! Do not calculate dT_glob over no_ice regions (assume difference is 0)
+      IF (region%mask_noice( j,i) == 0) THEN
+
+        ! Correct to sea level to prevent temperature differences from topography
+        dT_lapse_mod = region%ice%Hs_a(          j,i) * C%constant_lapserate
+        dT_lapse_PD  = Hs_PD(                    j,i) * C%constant_lapserate
+        DO m = 1, 12
+          n_dT = n_dT + 1
+
+          T_pot_mod = region%climate%T2m(         m,j,i) + dT_lapse_mod
+          T_pot_PD  = T2m_PD(                     m,j,i) + dT_lapse_PD
+          dT = dT + T_pot_mod - T_pot_PD
+        END DO
+      END IF
     END DO
     END DO
     CALL sync
 
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
-   
-    dT = dT / (region%grid%nx * region%grid%ny * 12._dp)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, dT,   1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, n_dT, 1, MPI_INTEGER,          MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    ! Calculate the mean temperature difference
+    IF (par%master) THEN
+      IF (n_dT == 0) THEN ! We don't want to divide by 0!
+        dT = 0 
+      ELSE
+        dT = dT / REAL(n_dT,dp)
+      END IF
+    END IF
     CALL sync
 
     ! Clean up after yourself
@@ -440,7 +447,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! The inverse routine might not work properly when not all ice sheets are simulated
-    IF ((.NOT. C%do_NAM) .OR. (.NOT. C%do_EAS) .OR. (.NOT. C%do_GRL) .OR. (.NOT. C%do_ANT)) THEN
+    IF (((.NOT. C%do_NAM) .OR. (.NOT. C%do_EAS) .OR. (.NOT. C%do_GRL) .OR. (.NOT. C%do_ANT)) .AND. par%master) THEN
       CALL warning('the inverse routine only works properly when all four ice sheets are simulated! ' // &
                   'Leaving one out means you will miss that contribution to the d18O, which the ' // &
                   'routine will try to compensate for by making the world colder. ' // &
@@ -479,7 +486,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! The inverse routine might not work properly when not all ice sheets are simulated
-    IF ((.NOT. C%do_NAM) .OR. (.NOT. C%do_EAS) .OR. (.NOT. C%do_GRL) .OR. (.NOT. C%do_ANT)) THEN
+    IF (((.NOT. C%do_NAM) .OR. (.NOT. C%do_EAS) .OR. (.NOT. C%do_GRL) .OR. (.NOT. C%do_ANT)) .AND. par%master) THEN
       CALL warning('the inverse routine only works properly when all four ice sheets are simulated! ' // &
                   'Leaving one out means you will miss that contribution to the d18O, which the ' // &
                   'routine will try to compensate for by making the world colder. ' // &
@@ -499,6 +506,10 @@ CONTAINS
       forcing%CO2_inverse_history( 1) = forcing%CO2_inverse
 
       forcing%CO2_mod = forcing%CO2_inverse
+
+      ! Keep track of the new CO2 concentration
+      WRITE(0,'(A,F9.3,A)') '  - CO2 concentration has updated to ', forcing%CO2_mod, ' ppm'
+
 
     END IF ! IF (par%master) THEN
     CALL sync
@@ -1026,6 +1037,51 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE get_insolation_at_time_month_and_lat
+  
+  SUBROUTINE get_summer_insolation_at_time( time)
+    ! Obtain the summer insolation in the Northern (65N) and Southern (80S) Hemispheres
+
+    IMPLICIT NONE
+
+    REAL(dp),                            INTENT(IN)    :: time
+    
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'get_summer_insolation_at_time'
+    REAL(dp)                                           :: Q_TOA_JJA_65N_raw, Q_TOA_DJF_80S_raw
+    INTEGER                                            :: m
+    
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Northern Hemisphere (June, July, August)
+    forcing%Q_TOA_JJA_65N = 0._dp
+  
+    DO m = 6,8
+      CALL get_insolation_at_time_month_and_lat( time, m, 65._dp,  Q_TOA_JJA_65N_raw)
+      IF (par%master) forcing%Q_TOA_JJA_65N = forcing%Q_TOA_JJA_65N + Q_TOA_JJA_65N_raw
+    END DO
+  
+    ! Southern Hemisphere (December, January, February)
+    forcing%Q_TOA_DJF_80S = 0._dp
+   
+    DO m = 1,12
+      IF ((m == 1) .OR. (m == 2) .OR. (m == 12)) THEN
+        CALL get_insolation_at_time_month_and_lat( time, m, -80._dp, Q_TOA_DJF_80S_raw)
+        IF (par%master) forcing%Q_TOA_DJF_80S = forcing%Q_TOA_DJF_80S + Q_TOA_DJF_80S_raw
+      END IF
+    END DO 
+
+    IF (par%master) THEN
+      forcing%Q_TOA_DJF_80S = forcing%Q_TOA_DJF_80S/3._dp
+      forcing%Q_TOA_JJA_65N = forcing%Q_TOA_JJA_65N/3._dp
+    END IF
+    CALL sync
+   
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE
+   
   SUBROUTINE update_insolation_timeframes_from_file( time)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
@@ -1139,10 +1195,12 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
       CALL sync
 
       ! Insolation
-      CALL allocate_shared_dp_1D( forcing%ins_nyears,   forcing%ins_time,   forcing%wins_time  )
-      CALL allocate_shared_dp_1D( forcing%ins_nlat,     forcing%ins_lat,    forcing%wins_lat   )
-      CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA0, forcing%wins_Q_TOA0)
-      CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1, forcing%wins_Q_TOA1)
+      CALL allocate_shared_dp_1D( forcing%ins_nyears,   forcing%ins_time,      forcing%wins_time     )
+      CALL allocate_shared_dp_1D( forcing%ins_nlat,     forcing%ins_lat,       forcing%wins_lat      )
+      CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA0,    forcing%wins_Q_TOA0   )
+      CALL allocate_shared_dp_2D( forcing%ins_nlat, 12, forcing%ins_Q_TOA1,    forcing%wins_Q_TOA1   )
+      CALL allocate_shared_dp_0D( forcing%Q_TOA_DJF_80S, forcing%wQ_TOA_DJF_80S)
+      CALL allocate_shared_dp_0D( forcing%Q_TOA_JJA_65N, forcing%wQ_TOA_JJA_65N)
 
       ! Read time and latitude data
       CALL read_insolation_data_file_time_lat( forcing)
@@ -1201,7 +1259,6 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_geothermal_heat_flux_regional
-
 
 ! ===== Sea level records =====
 ! =============================
