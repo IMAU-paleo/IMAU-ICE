@@ -59,6 +59,8 @@ CONTAINS
 
     ! Determine masks
     CALL determine_masks( grid, ice)
+    ! Update floating fractions at calving fronts
+    CALL determine_floating_margin_fraction( grid, ice)
 
     ! Get ice thickness, flow factor, and surface slopes on the required grids
     CALL map_a_to_cx_2D( grid, ice%Hi_a,          ice%Hi_cx    )
@@ -854,12 +856,11 @@ CONTAINS
         IF (Hi_neighbour_max < ice%Hi_a( j,i)) THEN
           ice%float_margin_frac_a( j,i) = 1._dp
           ice%Hi_eff_cf_a(         j,i) = ice%Hi_a( j,i)
-          CYCLE
+        ELSE
+          ! Calculate ice-filled fraction
+          ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_neighbour_max
+          ice%Hi_eff_cf_a(         j,i) = Hi_neighbour_max
         END IF
-
-        ! Calculate ice-filled fraction
-        ice%float_margin_frac_a( j,i) = ice%Hi_a( j,i) / Hi_neighbour_max
-        ice%Hi_eff_cf_a(         j,i) = Hi_neighbour_max
 
       END IF
 

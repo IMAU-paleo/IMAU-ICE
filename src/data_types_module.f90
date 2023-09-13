@@ -222,7 +222,8 @@ MODULE data_types_module
 
     ! Ice dynamics - basal inversion
     REAL(dp), DIMENSION(:,:  ), POINTER     :: BIV_uabs_surf_target  ! Target surface velocity for the basal inversion [m/yr]
-    INTEGER :: wBIV_uabs_surf_target
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: phi_fric_relax        ! Target relaxation till friction angle (degrees)
+    INTEGER :: wBIV_uabs_surf_target, wphi_fric_relax
 
     ! Ice dynamics - physical terms in the SSA/DIVA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: du_dx_b
