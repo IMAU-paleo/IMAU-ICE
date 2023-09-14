@@ -748,8 +748,6 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dHs_dx', long_name = 'Surface slope in x-direction', units = 'm/m')
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL add_field_grid_dp_2D( filename, 'dHs_dy', long_name = 'Surface slope in y-direction', units = 'm/m')
-    ELSEIF (field_name == 'f_grnd') THEN
-      CALL add_field_grid_dp_2D( filename, 'f_grnd', long_name = 'Grounded fraction', units = '%')
     ELSEIF (field_name == 'dHi') THEN
       CALL add_field_grid_dp_2D( filename, 'dHi', long_name = 'Ice thickness difference w.r.t. PD', units = 'm')
     ELSEIF (field_name == 'dHs') THEN
@@ -1235,8 +1233,6 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dx', region%ice%dHs_dx_a)
     ELSEIF (field_name == 'dHs_dy') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHs_dy', region%ice%dHs_dy_a)
-    ELSEIF (field_name == 'f_grnd') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'f_grnd', region%ice%f_grnd_a)
     ELSEIF (field_name == 'dHi') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi', region%ice%dHi_a)
     ELSEIF (field_name == 'dHs') THEN

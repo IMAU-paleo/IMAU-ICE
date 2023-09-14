@@ -89,10 +89,14 @@ CONTAINS
     ! ==============
 
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
-    IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+    IF (C%dt_startup_phase > 0) THEN
+      IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+      ELSE
+        r_solver_acc = 1._dp
+      END IF
     ELSE
       r_solver_acc = 1._dp
     END IF
@@ -104,10 +108,14 @@ CONTAINS
     region%ice%DIVA_PETSc_abstol = C%DIVA_PETSc_abstol * r_solver_acc
 
     ! Reduce the time-step during the start-up phase
-    IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+    IF (C%dt_startup_phase > 0) THEN
+      IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+      ELSE
+        dt_max = C%dt_max
+      END IF
     ELSE
       dt_max = C%dt_max
     END IF
@@ -293,10 +301,14 @@ CONTAINS
     ! ==============
 
     ! Get a more accurate velocity solution during the start-up phase to prevent initialisation "bumps"
-    IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+    IF (C%dt_startup_phase > 0) THEN
+      IF (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (region%time - C%start_time_of_run) / C%dt_startup_phase
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        r_solver_acc = 0.01_dp + 0.99_dp * (C%end_time_of_run - region%time) / C%dt_startup_phase
+      ELSE
+        r_solver_acc = 1._dp
+      END IF
     ELSE
       r_solver_acc = 1._dp
     END IF
@@ -308,10 +320,14 @@ CONTAINS
     region%ice%DIVA_PETSc_abstol = C%DIVA_PETSc_abstol * r_solver_acc
 
     ! Reduce the time-step during the start-up phase
-    IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
-    ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
-      dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+    IF (C%dt_startup_phase > 0) THEN
+      IF     (region%time <= C%start_time_of_run + C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((region%time - C%start_time_of_run) / C%dt_startup_phase)**2
+      ELSEIF (region%time >= C%end_time_of_run   - C%dt_startup_phase) THEN
+        dt_max = C%dt_min + (C%dt_max - C%dt_min) * ((C%end_time_of_run - region%time  ) / C%dt_startup_phase)**2
+      ELSE
+        dt_max = C%dt_max
+      END IF
     ELSE
       dt_max = C%dt_max
     END IF
@@ -552,10 +568,22 @@ CONTAINS
     ! Update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
 
-    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
-      refgeo_PD%Hi( :, grid%i1:grid%i2) = ice%Hi_a( :, grid%i1:grid%i2)
-      refgeo_PD%Hs( :, grid%i1:grid%i2) = ice%Hs_a( :, grid%i1:grid%i2)
-      refgeo_PD%Hb( :, grid%i1:grid%i2) = ice%Hb_a( :, grid%i1:grid%i2)
+    ! If wanted, relax a bit the target geometry for a while by
+    ! making it equal to the current model geometry. Idea is that
+    ! during this time, no SMB or BMB is applied, so the ice sheet
+    ! can just flow and reshape itself. Ideal during initial years
+    ! of spinup.
+    IF (time >= C%relax_thick_t_start .AND. time <= C%relax_thick_t_end) THEN
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+        ! Make sure we are not spreading beyond observed margins
+        IF (refgeo_PD%Hi( j,i) > 0._dp) THEN
+          refgeo_PD%Hi( j,i) = ice%Hi_a( j,i)
+          refgeo_PD%Hs( j,i) = ice%Hs_a( j,i)
+          refgeo_PD%Hb( j,i) = ice%Hb_a( j,i)
+        END IF
+      END DO
+      END DO
     END IF
     CALL sync
 
@@ -625,7 +653,7 @@ CONTAINS
     ! Just in case
     fixiness = MIN( 1._dp, MAX( 0._dp, fixiness))
 
-    IF (time > C%relax_thick_t_start .AND. time < C%relax_thick_t_end) THEN
+    IF (time >= C%relax_thick_t_start .AND. time <= C%relax_thick_t_end) THEN
       fixiness = 0._dp
     END IF
 

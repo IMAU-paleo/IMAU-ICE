@@ -186,7 +186,7 @@ CONTAINS
 
       IF (region%do_BIV) THEN
         IF (region%time > C%BIVgeo_t_start .AND. region%time < C%BIVgeo_t_end) THEN
-          CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt)
+          CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt, region%time)
         END IF
       END IF
 
