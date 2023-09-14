@@ -492,7 +492,10 @@ MODULE data_types_module
     ! GCM bias
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_T2m
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Precip
-    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: GCM_bias_Hs
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_LR
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_DU
+    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
 
     ! Climate matrix interpolation 
     REAL(dp), DIMENSION(:,:), POINTER     :: w_ins_T

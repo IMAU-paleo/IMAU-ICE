@@ -259,6 +259,9 @@ MODULE configuration_module
   REAL(dp)            :: insolation_weigth_mean_ANT_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
   REAL(dp)            :: insolation_weigth_amplitude_ANT_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
 
+  ! Determine if the GCM wind is used in the climate matrix method
+  LOGICAL             :: do_climate_matrix_wind_config               = .TRUE.                            ! If TRUE, use the wind from the climate forcing. If FALSE, use the wind from the reference climate.
+
   ! Geothermal heat flux
   CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
@@ -519,7 +522,7 @@ MODULE configuration_module
 
   ! Whether or not to apply a bias correction to the GCM snapshots
   LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
-  LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
+  LOGICAL             :: climate_matrix_biascorrect_cold_config      = .FALSE.                          ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
 
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
 
@@ -1067,15 +1070,18 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_d18O_record
     INTEGER                             :: d18O_record_length
 
-    LOGICAL                            :: do_combine_CO2_and_insolation
-    REAL(dp)                           :: insolation_weigth_mean_NAM         
-    REAL(dp)                           :: insolation_weigth_amplitude_NAM    
-    REAL(dp)                           :: insolation_weigth_mean_EAS         
-    REAL(dp)                           :: insolation_weigth_amplitude_EAS    
-    REAL(dp)                           :: insolation_weigth_mean_GRL         
-    REAL(dp)                           :: insolation_weigth_amplitude_GRL    
-    REAL(dp)                           :: insolation_weigth_mean_ANT         
-    REAL(dp)                           :: insolation_weigth_amplitude_ANT
+    LOGICAL                             :: do_combine_CO2_and_insolation
+    REAL(dp)                            :: insolation_weigth_mean_NAM         
+    REAL(dp)                            :: insolation_weigth_amplitude_NAM    
+    REAL(dp)                            :: insolation_weigth_mean_EAS         
+    REAL(dp)                            :: insolation_weigth_amplitude_EAS    
+    REAL(dp)                            :: insolation_weigth_mean_GRL         
+    REAL(dp)                            :: insolation_weigth_amplitude_GRL    
+    REAL(dp)                            :: insolation_weigth_mean_ANT         
+    REAL(dp)                            :: insolation_weigth_amplitude_ANT
+
+    ! Climate matrix wind
+    LOGICAL                             :: do_climate_matrix_wind
 
     ! Geothermal heat flux
     CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
@@ -2032,6 +2038,7 @@ CONTAINS
                      insolation_weigth_amplitude_GRL_config,          &
                      insolation_weigth_mean_ANT_config,               &
                      insolation_weigth_amplitude_ANT_config,          &
+                     do_climate_matrix_wind_config,                   &
                      choice_geothermal_heat_flux_config,              &
                      constant_geothermal_heat_flux_config,            &
                      filename_geothermal_heat_flux_config,            &
@@ -2846,6 +2853,9 @@ CONTAINS
     C%insolation_weigth_amplitude_GRL          = insolation_weigth_amplitude_GRL_config
     C%insolation_weigth_mean_ANT               = insolation_weigth_mean_ANT_config
     C%insolation_weigth_amplitude_ANT          = insolation_weigth_amplitude_ANT_config
+
+    ! Climate matrix wind
+    C%do_climate_matrix_wind                   = do_climate_matrix_wind_config
 
     ! Geothermal heat flux
     C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config

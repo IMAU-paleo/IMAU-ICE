@@ -77,7 +77,7 @@ CONTAINS
     ! Apply calving law
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%Hi_eff_cf_a( j,i) < C%calving_threshold_thickness) THEN
+      IF (ice%mask_cf_a( j,i) == 1 .AND. ice%mask_shelf_a( j,i) == 1 .AND. ice%Hi_eff_cf_a( j,i) < C%calving_threshold_thickness) THEN
         ice%Hi_a( j,i) = 0._dp
       END IF
     END DO
