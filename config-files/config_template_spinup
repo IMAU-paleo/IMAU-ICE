@@ -90,7 +90,7 @@
   filename_refgeo_init_NAM_config             = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_init_GRL_config             = 'Datasets/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
-  filename_refgeo_init_ANT_config             = 'Datasets/Bedmachine_Antarctica/Bedmachine_v2_Antarctica_5km.nc'
+  filename_refgeo_init_ANT_config             = 'Datasets/Bedmachine_Antarctica/Bedmachine_v3_Antarctica_5km.nc'
   do_read_velocities_from_restart_config      = .FALSE.
 
   ! Present-day geometry
@@ -102,7 +102,7 @@
   filename_refgeo_PD_NAM_config               = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_PD_EAS_config               = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_PD_GRL_config               = 'Datasets/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
-  filename_refgeo_PD_ANT_config               = 'Datasets/Bedmachine_Antarctica/Bedmachine_v2_Antarctica_5km.nc'
+  filename_refgeo_PD_ANT_config               = 'Datasets/Bedmachine_Antarctica/Bedmachine_v3_Antarctica_5km.nc'
 
   ! GIA equilibrium geometry
   choice_refgeo_GIAeq_NAM_config              = 'realistic'                      ! Choice of GIA equilibrium geometry for North America; can be "idealised", "realistic", or "restart"
@@ -113,7 +113,7 @@
   filename_refgeo_GIAeq_NAM_config            = 'Datasets/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_GIAeq_EAS_config            = 'Datasets/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_GIAeq_GRL_config            = 'Datasets/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
-  filename_refgeo_GIAeq_ANT_config            = 'Datasets/Bedmachine_Antarctica/Bedmachine_v2_Antarctica_5km.nc'
+  filename_refgeo_GIAeq_ANT_config            = 'Datasets/Bedmachine_Antarctica/Bedmachine_v3_Antarctica_5km.nc'
 
   remove_Lake_Vostok_config                   = .TRUE.
 
@@ -219,7 +219,7 @@
   relax_thick_t_start_config                  = -9.9e99                          ! Start time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
   relax_thick_t_end_config                    = 100.0                            ! End   time of ice thickness relaxation: no fixiness/MB; refgeo_PD set to relaxed geometry
 
-  do_target_dhdt_config                       = .TRUE.                           ! Whether or not to perform spinup using a target dHi_dt field
+  do_target_dhdt_config                       = .FALSE.                           ! Whether or not to perform spinup using a target dHi_dt field
   target_dhdt_filename_config                 = 'Datasets/dHdt_Antarctica/dHdt_antarctica_4km.nc' ! NetCDF file containing target dHi_dt for model spinup
   target_dhdt_t_end_config                    = 20000.0                          ! Time at which the target dHi_dt field is released into the wild
 
@@ -354,7 +354,7 @@
   ocean_extrap_hires_geo_filename_NAM_config  = ''                               ! Path to a NetCDF file containing (present-day) geometry at high resolution, used for ocean data extrapolation
   ocean_extrap_hires_geo_filename_EAS_config  = ''
   ocean_extrap_hires_geo_filename_GRL_config  = 'Datasets/Bedmachine_Greenland/BedMachine_Greenland_v4_5km.nc'
-  ocean_extrap_hires_geo_filename_ANT_config  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v2_Antarctica_5km.nc'
+  ocean_extrap_hires_geo_filename_ANT_config  = 'Datasets/Bedmachine_Antarctica/Bedmachine_v3_Antarctica_5km.nc'
 
   ! Delta ocean temperature inversion
   do_ocean_temperature_inversion_config       = .TRUE.                           ! Whether or not to apply the inversion
@@ -370,7 +370,7 @@
   ! Surface mass balance
   ! ====================
 
-  choice_SMB_model_config                     = 'snapshot'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional", "snapshot"
+  choice_SMB_model_config                     = 'IMAU-ITM'                       ! Choice of SMB model: "uniform", "idealised", "IMAU-ITM", "direct_global", "direct_regional", "snapshot"
   choice_idealised_SMB_config                 = ''
   SMB_uniform_config                          = 0.0                              ! Uniform SMB, applied when choice_SMB_model = "uniform" [mie/yr]
 
