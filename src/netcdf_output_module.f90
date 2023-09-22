@@ -100,6 +100,12 @@ CONTAINS
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
 
+    ! Climate matrix
+    IF (C%choice_climate_model == 'matrix') THEN
+       CALL write_to_field_dp_0D( filename, 'w_EXT',   region%climate%matrix%w_EXT)
+       CALL write_to_field_dp_0D( filename, 'w_tot_P', region%climate%matrix%w_tot_P)
+    END IF
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
@@ -163,7 +169,6 @@ CONTAINS
     CALL write_to_field_dp_0D( filename, 'tcomp_thermo',  global_data%tcomp_thermo)
     CALL write_to_field_dp_0D( filename, 'tcomp_climate', global_data%tcomp_climate)
     CALL write_to_field_dp_0D( filename, 'tcomp_GIA',     global_data%tcomp_GIA)
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -275,6 +280,12 @@ CONTAINS
        CALL add_field_dp_0D( filename, 'runoff',     long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
+    END IF
+
+    ! Climate matrix
+    IF (C%choice_climate_model == 'matrix') THEN
+       CALL add_field_dp_0D( filename, 'w_EXT',   long_name='Weight factor from external forcing (CO2 + QTOA)', units='N/A')
+       CALL add_field_dp_0D( filename, 'w_tot_P', long_name='Weigth factor for precipitation from total topography change', units='N/A')
     END IF
 
     ! Finalise routine path
@@ -690,6 +701,18 @@ CONTAINS
     ELSEIF (field_name == 'GCM_PI_Precip') THEN
       CALL add_field_grid_dp_2D_monthly( filename, 'PI_Precip', long_name = 'Ref PI monthly total precipitation', units='mm')
 
+    ! Climate matrix
+    ELSEIF (field_name == 'w_ice_T') THEN
+      CALL add_field_grid_dp_2D( filename, 'w_ice_T', long_name = 'Temperature weight factor based on regional albedo and insolation', units='N/A')
+    ELSEIF (field_name == 'w_ins_T') THEN
+      CALL add_field_grid_dp_2D( filename, 'w_ins_T', long_name = 'Temperature weight factor based on local absorbed insolation', units='N/A')
+    ELSEIF (field_name == 'w_tot_T') THEN
+      CALL add_field_grid_dp_2D( filename, 'w_tot_T', long_name = 'Temperature weight factor based on local absorbed insolation', units='N/A')
+    ELSEIF (field_name == 'w_warm_P') THEN
+      CALL add_field_grid_dp_2D( filename, 'w_warm_P', long_name = 'Precipitation weight factor contribution from GCM_warm snapshot', units='N/A')
+    ELSEIF (field_name == 'w_cold_P') THEN
+      CALL add_field_grid_dp_2D( filename, 'w_cold_P', long_name = 'Precipitation weight factor contribution from GCM_cold snapshot', units='N/A')
+
     ! Forcing oceans
     ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
       CALL add_field_grid_dp_3D_notime( filename, 'Warm_T_ocean_3D',    long_name='Warm 3-D ocean temperature', units='K')
@@ -959,16 +982,16 @@ CONTAINS
     ! ================
 
     ! Geometry
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_Hi , region%ice%Hi_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_Hb , region%ice%Hb_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_Hs , region%ice%Hs_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hi)  , region%ice%Hi_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hb)  , region%ice%Hb_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hs)  , region%ice%Hs_a )
 
     ! Thermodynamics
-    CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, field_name_options_Ti , region%ice%Ti_a )
+    CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, get_first_option_from_list(field_name_options_Ti)  , region%ice%Ti_a )
 
     ! GIA
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_SL , region%ice%SL_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, field_name_options_dHb, region%ice%dHb_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_SL)  , region%ice%SL_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_a )
 
     ! Velocities
     IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
@@ -1163,6 +1186,18 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_T2m', region%climate%matrix%GCM_PI%T2m)
     ELSEIF (field_name == 'GCM_PI_Precip') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_Precip', region%climate%matrix%GCM_PI%Precip)
+      
+    ! Climate matrix
+    ELSEIF (field_name == 'w_ice_T') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_ice_T', region%climate%matrix%w_ice_T)
+    ELSEIF (field_name == 'w_ins_T') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_ins_T', region%climate%matrix%w_ins_T)
+    ELSEIF (field_name == 'w_tot_T') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_tot_T', region%climate%matrix%w_tot_T)
+    ELSEIF (field_name == 'w_warm_P') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_warm_P', region%climate%matrix%w_warm_P)
+    ELSEIF (field_name == 'w_cold_P') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_cold_P', region%climate%matrix%w_cold_P)
 
     ! Forcing oceans
     ELSEIF (field_name == 'GCM_Warm_T_ocean_3D') THEN
