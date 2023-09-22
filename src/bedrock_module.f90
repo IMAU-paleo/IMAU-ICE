@@ -269,7 +269,7 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny, grid%nx, ice%dHb_external, ice%wdHb_external)
 
     IF (par%master) THEN
-        open (91, file = '/home/caroline/HetGroteKoppelScript_IMAUICE/IMAU-ICE/Datasets/GIA_V1/dHb_external.dat', status = 'old')
+        open (91, file = C%filename_dHb_externalGIA, status = 'old')
         do i = 1,grid%NX
           read(91,*) (ice%dHb_external(j,i),j=1,grid%NY)
         enddo
