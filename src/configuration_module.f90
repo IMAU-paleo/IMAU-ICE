@@ -767,6 +767,7 @@ MODULE configuration_module
   REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config       = 1.0E+25_dp                       ! Lithospheric flexural rigidity [kg m^2 s^-2]
   REAL(dp)            :: ELRA_bedrock_relaxation_time_config         = 3000.0_dp                        ! Relaxation time for bedrock adjustment [yr]
   REAL(dp)            :: ELRA_mantle_density_config                  = 3300.0_dp                        ! Mantle density [kg m^-3]
+  LOGICAL             :: do_write_relative_ice_load_config           = .FALSE.                           ! Can be "none", "ELRA", or "SELEN"
 
   ! SELEN
   ! =====
@@ -1543,6 +1544,7 @@ MODULE configuration_module
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
     REAL(dp)                            :: ELRA_bedrock_relaxation_time
     REAL(dp)                            :: ELRA_mantle_density
+    LOGICAL                             :: do_write_relative_ice_load
 
     ! SELEN
     ! =====
@@ -2354,6 +2356,7 @@ CONTAINS
                      ELRA_lithosphere_flex_rigidity_config,           &
                      ELRA_bedrock_relaxation_time_config,             &
                      ELRA_mantle_density_config,                      &
+                     do_write_relative_ice_load_config,               &
                      SELEN_run_at_t_start_config,                     &
                      SELEN_n_TDOF_iterations_config,                  &
                      SELEN_n_recursion_iterations_config,             &
@@ -3284,6 +3287,7 @@ CONTAINS
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config
     C%ELRA_bedrock_relaxation_time             = ELRA_bedrock_relaxation_time_config
     C%ELRA_mantle_density                      = ELRA_mantle_density_config
+    C%do_write_relative_ice_load               = do_write_relative_ice_load_config
 
     ! SELEN
     ! =====

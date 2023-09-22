@@ -87,6 +87,9 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_b
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_topo              ! Ice thickness above flotation at initial [m]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_sheet              ! Ice thickness above flotation at initial [m]
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: TAF_rel               ! Ice thickness above flotation relative to present day, only where there is ice [m]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_a                  ! Englacial temperature [K]
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_cx
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Ti_cy
@@ -95,7 +98,7 @@ MODULE data_types_module
     INTEGER :: wHb_a,  wHb_cx,  wHb_cy,  wHb_b
     INTEGER :: wHs_a,  wHs_cx,  wHs_cy,  wHs_b
     INTEGER :: wSL_a,  wSL_cx,  wSL_cy,  wSL_b
-    INTEGER :: wTAF_a, wTAF_cx, wTAF_cy, wTAF_b
+    INTEGER :: wTAF_a, wTAF_cx, wTAF_cy, wTAF_b, wTAF_topo, wTAF_sheet, wTAF_rel
     INTEGER :: wTi_a,  wTi_cx,  wTi_cy,  wTi_b
 
     ! Ice velocities
@@ -322,8 +325,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_grid_GIA
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_3D
-    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_grid_GIA, wsurface_load_rel_ext, wdHb_eq, wdHb_3D
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_external
+    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_grid_GIA, wsurface_load_rel_ext, wdHb_eq, wdHb_external
 
     ! Useful stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
