@@ -222,7 +222,11 @@ CONTAINS
 
       ! Write scalar output
       CALL calculate_icesheet_volume_and_area(region)
-      CALL write_regional_scalar_data( region, region%time)
+
+      IF (C%do_write_regional_scalar_every_timestep) THEN
+        ! Save regional scalar every model time-step
+        CALL write_regional_scalar_data( region, region%time)
+      END IF
 
       ! Update ice geometry
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
@@ -264,6 +268,9 @@ CONTAINS
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
     ! used for writing to text output and in the inverse routine
     CALL calculate_icesheet_volume_and_area(region)
+
+    ! Keep track of the GMSL contribution
+    IF (par%master) WRITE(0,'(A,A3,A,F9.3,A)') '  - ',TRIM( region%name), ' GMSL contribution:', region%GMSL_contribution, ' m' 
 
     ! Write to text output
     CALL write_regional_scalar_data( region, region%time)

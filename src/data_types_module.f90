@@ -378,13 +378,16 @@ MODULE data_types_module
 
     ! Climate data
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hs                            ! Orography (m w.r.t. PD sea level)
+    INTEGER, DIMENSION(:,:  ), POINTER     :: mask_ice                      ! Climate snapshot ice (1) no_ice (1) mask
+    INTEGER, DIMENSION(:,:  ), POINTER     :: mask_ocean                    ! Climate snapshot ocean (1) land (0) mask
+    INTEGER, DIMENSION(:,:  ), POINTER     :: mask_shelf                    ! Climate snapshot shelf (1) no shelf (0) mask
     REAL(dp), DIMENSION(:,:,:), POINTER     :: T2m                           ! Monthly mean 2m air temperature (K)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Precip                        ! Monthly mean precipitation (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_WE                       ! Monthly mean west-east   wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_SN                       ! Monthly mean south-north wind speed (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_LR                       ! Monthly mean wind speed in the x-direction (m/s)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Wind_DU                       ! Monthly mean wind speed in the y-direction (m/s)
-    INTEGER :: wHs, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU
+    INTEGER :: wHs, wmask_ice, wmask_ocean, wmask_shelf, wT2m, wPrecip, wHs_ref, wWind_WE, wWind_SN, wWind_LR, wWind_DU
 
     ! Spatially variable lapse rate for GCM snapshots (see Berends et al., 2018)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: lambda
@@ -495,7 +498,22 @@ MODULE data_types_module
     ! GCM bias
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_T2m
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Precip
-    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: GCM_bias_Hs
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_LR
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_DU
+    INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
+
+    ! Climate matrix interpolation 
+    REAL(dp), DIMENSION(:,:), POINTER     :: w_ins_T
+    REAL(dp), DIMENSION(:,:), POINTER     :: w_ice_T
+    REAL(dp), DIMENSION(:,:), POINTER     :: w_tot_T
+    REAL(dp), DIMENSION(:,:), POINTER     :: w_warm_P
+    REAL(dp), DIMENSION(:,:), POINTER     :: w_cold_P
+    REAL(dp),                 POINTER     :: w_tot_P
+    INTEGER :: ww_tot_T, ww_ins_T, ww_ice_T, ww_warm_P, ww_cold_P, ww_tot_P
+
+    REAL(dp), POINTER                     :: w_EXT
+    INTEGER :: ww_EXT
 
     ! Total yearly absorbed insolation, used in the climate matrix for interpolation
     REAL(dp), DIMENSION(:,:  ), POINTER     :: I_abs
@@ -912,8 +930,9 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:    ), POINTER     :: ins_lat
     REAL(dp),                   POINTER     :: ins_t0, ins_t1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ins_Q_TOA0, ins_Q_TOA1
-    INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1
-
+    REAL(dp),                   POINTER     :: Q_TOA_JJA_65N, Q_TOA_DJF_80S
+    INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1, wQ_TOA_JJA_65N, wQ_TOA_DJF_80S
+    
     ! External forcing: sea level record
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_time
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_record
