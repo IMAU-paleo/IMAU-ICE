@@ -492,6 +492,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
       CALL flip_1D_dp( grid%x)
+      CALL flip_2D_x1_dp( grid%lon)
+      CALL flip_2D_x1_dp( grid%lat)
+
       CALL flip_3D_x1_dp( d_z_ocean)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
@@ -502,6 +505,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
       CALL flip_1D_dp( grid%y)
+      CALL flip_2D_x2_dp( grid%lon)
+      CALL flip_2D_x2_dp( grid%lat)
+     
       CALL flip_3D_x2_dp( d_z_ocean)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
@@ -509,6 +515,8 @@ CONTAINS
 
     ! Transpose the input data
     CALL transpose_dp_3D( d_z_ocean, wd_z_ocean)
+    CALL transpose_dp_2D( grid%lon, grid%wlon)
+    CALL transpose_dp_2D( grid%lat, grid%wlat)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -621,6 +629,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
       CALL flip_1D_dp( grid%x)
+      CALL flip_2D_x1_dp( grid%lon)
+      CALL flip_2D_x1_dp( grid%lat)
+
       CALL flip_2D_x1_dp( d)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
@@ -631,6 +642,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
       CALL flip_1D_dp( grid%y)
+      CALL flip_2D_x2_dp( grid%lon)
+      CALL flip_2D_x2_dp( grid%lat)
+
       CALL flip_2D_x2_dp( d)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
@@ -748,6 +762,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
       CALL flip_1D_dp( grid%x)
+      CALL flip_2D_x1_dp( grid%lon)
+      CALL flip_2D_x1_dp( grid%lat)
+
       CALL flip_3D_x1_dp( d)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
@@ -758,6 +775,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
       CALL flip_1D_dp( grid%y)
+      CALL flip_2D_x2_dp( grid%lon)
+      CALL flip_2D_x2_dp( grid%lat)
+
       CALL flip_3D_x2_dp( d)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
@@ -883,6 +903,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (xdir == 'reverse') THEN
       CALL flip_1D_dp( grid%x)
+      CALL flip_2D_x1_dp( grid%lon)
+      CALL flip_2D_x1_dp( grid%lat)
+
       CALL flip_3D_x1_dp( d_zeta_from_file)
     ELSE
       CALL crash('unknown xdir = "' // TRIM( xdir) // '"!')
@@ -893,6 +916,9 @@ CONTAINS
       ! No need to do anything
     ELSEIF (ydir == 'reverse') THEN
       CALL flip_1D_dp( grid%y)
+      CALL flip_2D_x2_dp( grid%lon)
+      CALL flip_2D_x2_dp( grid%lat)
+
       CALL flip_3D_x2_dp( d_zeta_from_file)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')

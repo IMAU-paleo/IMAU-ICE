@@ -56,7 +56,7 @@ MODULE netcdf_basic_module
   CHARACTER(LEN=256), PARAMETER :: field_name_options_lat            = 'lat||Lat||latitude||Latitude'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_time           = 'time||Time||t||nt'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_month          = 'month||Month'
-
+  
   ! Variables
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hi             = 'Hi||thickness||lithk'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_Hb             = 'Hb||bed||topg'
@@ -69,6 +69,10 @@ MODULE netcdf_basic_module
   CHARACTER(LEN=256), PARAMETER :: field_name_options_T_ocean        = 'T_ocean||t_an'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_S_ocean        = 'S_ocean||s_an'
   CHARACTER(LEN=256), PARAMETER :: field_name_options_melt           = 'melt'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_wind_WE        = 'Wind_WE||uas'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_wind_SN        = 'Wind_SN||vas'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_mask_ice       = 'sftgif'
+  CHARACTER(LEN=256), PARAMETER :: field_name_options_mask_ocean     = 'sftlf'
 
 
 CONTAINS
@@ -2209,6 +2213,15 @@ CONTAINS
         field_name_options_parsed = field_name_options_S_ocean
       ELSEIF (field_name_options == 'default_options_melt') THEN
         field_name_options_parsed = field_name_options_melt
+      ELSEIF (field_name_options == 'default_options_mask_ice') THEN
+        field_name_options_parsed = field_name_options_mask_ice
+      ELSEIF (field_name_options == 'default_options_mask_ocean') THEN
+        field_name_options_parsed = field_name_options_mask_ocean
+      ELSEIF (field_name_options == 'field_name_options_wind_WE') THEN
+        field_name_options_parsed = field_name_options_wind_WE
+      ELSEIF (field_name_options == 'field_name_options_wind_SN') THEN
+        field_name_options_parsed = field_name_options_wind_SN
+
       ! Unrecognised default options
       ELSE
         CALL crash('unregocnised default field name option "' // TRIM( field_name_options) // '"')

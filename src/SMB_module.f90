@@ -383,11 +383,12 @@ CONTAINS
         ! Determine accumulation with snow/rain fraction from Ohmura et al. (1999),
         ! liquid water content (rain and melt water) and snowdepth
 
-        ! NOTE: commented version is the old ANICE version, supposedly based on "physics" (which we cant check), but
-        !       the new version was tuned to RACMO output and produced significantly better snow fractions...
-
-        ! snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m(vi,m) - T0) / 3.5_dp)  / 1.25664_dp)))
-        snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( m,j,i) - T0) / 5.95_dp) / 1.8566_dp)))
+        ! NOTE: The old ANICE version is supposedly based on "physics" (which we cant check, but
+        ! there is no snowfall when temperatures are well above the freezing point)
+        ! The new version was tuned to RACMO output and produced significantly better Greenland snow fractions...
+        ! However there is still snowfall even if temperatures are at 300 K, which does not seem realistic.
+        snowfrac = MAX(0._dp, MIN(1._dp, 0.5_dp   * (1 - ATAN((climate%T2m( m,j,i) - T0) / 3.5_dp)  / 1.25664_dp)))  ! Old ANICE "realistic" snow fractions
+        ! snowfrac = MAX(0._dp, MIN(1._dp, 0.725_dp * (1 - ATAN((climate%T2m( m,j,i) - T0) / 5.95_dp) / 1.8566_dp))) ! IMAU-ICE "tuned" snow fractions
 
         SMB%Snowfall( m,j,i) = climate%Precip( m,j,i) *          snowfrac
         SMB%Rainfall( m,j,i) = climate%Precip( m,j,i) * (1._dp - snowfrac)

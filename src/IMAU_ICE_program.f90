@@ -26,7 +26,7 @@ PROGRAM IMAU_ICE_program
                                              type_global_scalar_data, type_netcdf_resource_tracker
   USE petsc_module,                    ONLY: initialise_petsc, finalise_petsc
   USE forcing_module,                  ONLY: forcing, initialise_global_forcing, update_global_forcing, &
-                                             update_global_mean_temperature_change_history, &
+                                             update_global_mean_temperature_change_history, update_d18O_at_model_time, &
                                              calculate_modelled_d18O, inverse_routine_global_temperature_offset, &
                                              inverse_routine_CO2, update_sealevel_record_at_model_time
   USE ocean_module,                    ONLY: initialise_ocean_model_global, initialise_ocean_vertical_grid
@@ -283,6 +283,7 @@ PROGRAM IMAU_ICE_program
     IF     (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
       CALL inverse_routine_global_temperature_offset
     ELSEIF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+      CALL update_d18O_at_model_time( t_coupling)
       CALL inverse_routine_CO2
     ELSEIF (C%choice_forcing_method == 'CO2_direct' .OR. C%choice_forcing_method == 'none') THEN
       ! No inverse routine is used in these forcing methods

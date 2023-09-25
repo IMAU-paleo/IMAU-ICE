@@ -98,11 +98,12 @@ MODULE configuration_module
   ! This works fine locally, on LISA its better to use a fixed folder name.
   ! =======================================================================
 
-  LOGICAL             :: create_procedural_output_dir_config         = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  CHARACTER(LEN=256)  :: fixed_output_dir_config                     = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
-  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config              = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
-  LOGICAL             :: do_write_regional_scalar_output_config      = .TRUE.
-  LOGICAL             :: do_write_global_scalar_output_config        = .TRUE.
+  LOGICAL             :: create_procedural_output_dir_config            = .TRUE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
+  CHARACTER(LEN=256)  :: fixed_output_dir_config                        = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
+  LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
+  LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
+  LOGICAL             :: do_write_regional_scalar_every_timestep_config = .FALSE.
 
   ! Debugging
   ! =========
@@ -247,6 +248,20 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_d18O_record_config                 = '/Users/berends/Documents/Datasets/d18O/Ahn2017_d18O.dat'
   INTEGER             :: d18O_record_length_config                   = 2051
 
+  ! Parameters for combining insolation and CO2 in the matrix method
+  LOGICAL             :: do_combine_CO2_and_insolation_config        = .FALSE.                          ! Combine the effect of insolation and CO2 to calculate the external forcing in the matrix method
+  REAL(dp)            :: insolation_weigth_mean_NAM_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_NAM_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_EAS_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_EAS_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_GRL_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_GRL_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+  REAL(dp)            :: insolation_weigth_mean_ANT_config           = 440                              ! (W/m2) insolation at which insolation does not alter the external forcing (w_INS = 0)
+  REAL(dp)            :: insolation_weigth_amplitude_ANT_config      = 70                               ! (W/m2) the amplitude at which insolation affects the interpolation weight.
+
+  ! Determine if the GCM wind is used in the climate matrix method
+  LOGICAL             :: do_climate_matrix_wind_config               = .TRUE.                            ! If TRUE, use the wind from the climate forcing. If FALSE, use the wind from the reference climate.
+
   ! Geothermal heat flux
   CHARACTER(LEN=256)  :: choice_geothermal_heat_flux_config          = 'spatial'                        ! Choice of geothermal heat flux; can be 'constant' or 'spatial'
   REAL(dp)            :: constant_geothermal_heat_flux_config        = 1.72E06_dp                       ! Geothermal Heat flux [J m^-2 yr^-1] Sclater et al. (1980)
@@ -372,11 +387,14 @@ MODULE configuration_module
   REAL(dp)            :: slid_Coulomb_reg_u_threshold_config         = 100._dp                          ! Threshold velocity in regularised Coulomb sliding law
   REAL(dp)            :: slid_ZI_ut_config                           = 200._dp                          ! (uniform) transition velocity used in the Zoet-Iverson sliding law [m/yr]
   REAL(dp)            :: slid_ZI_p_config                            = 5._dp                            ! Velocity exponent             used in the Zoet-Iverson sliding law
+  LOGICAL             :: do_slid_ZI_no_angle_config                  = .FALSE.                          ! If .TRUE., use phi_fric as a fraction (i.e./e.g. [0 1]) instead of an angle. Adjust its limits accordingly elsewhere.
   LOGICAL             :: include_basal_freezing_config               = .TRUE.                           ! If .TRUE., no basal sliding is allowed when the basal temperature is more than [deltaT_basal_freezing] below the pressure melting point
   REAL(dp)            :: deltaT_basal_freezing_config                = 2._dp                            ! See above.
+  REAL(dp)            :: subgrid_friction_exponent_config            = 2._dp                            ! Exponent to which f_grnd should be raised before being used to scale beta
 
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
+  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
@@ -482,6 +500,15 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_climate_snapshot_warm_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_PI_Control.nc'
   CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
 
+  ! Ice and ocean mask from GCM snapshots
+  CHARACTER(LEN=256)  :: reference_mask_method_config                = 'estimate'                        ! 'estimate' (based on GCM topography and temperature) or 'file' from a selected file
+  
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_PD_obs_config        = ''   
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_PI_config        = ''
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_warm_config      = ''
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_cold_config      = ''
+  
+  ! Lapse rate
   REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
 
   ! Scaling factor for CO2 vs ice weights
@@ -498,7 +525,7 @@ MODULE configuration_module
 
   ! Whether or not to apply a bias correction to the GCM snapshots
   LOGICAL             :: climate_matrix_biascorrect_warm_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "warm" GCM snapshot
-  LOGICAL             :: climate_matrix_biascorrect_cold_config      = .TRUE.                           ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
+  LOGICAL             :: climate_matrix_biascorrect_cold_config      = .FALSE.                          ! Whether or not to apply a bias correction (modelled vs observed PI climate) to the "cold" GCM snapshot
 
   LOGICAL             :: switch_glacial_index_precip_config          = .FALSE.                          ! If a glacial index is used for the precipitation forcing, it will only depend on CO2
 
@@ -920,6 +947,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
     LOGICAL                             :: do_write_global_scalar_output
+    LOGICAL                             :: do_write_regional_scalar_every_timestep
 
     ! Debugging
     ! =========
@@ -1045,6 +1073,19 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_d18O_record
     INTEGER                             :: d18O_record_length
 
+    LOGICAL                             :: do_combine_CO2_and_insolation
+    REAL(dp)                            :: insolation_weigth_mean_NAM         
+    REAL(dp)                            :: insolation_weigth_amplitude_NAM    
+    REAL(dp)                            :: insolation_weigth_mean_EAS         
+    REAL(dp)                            :: insolation_weigth_amplitude_EAS    
+    REAL(dp)                            :: insolation_weigth_mean_GRL         
+    REAL(dp)                            :: insolation_weigth_amplitude_GRL    
+    REAL(dp)                            :: insolation_weigth_mean_ANT         
+    REAL(dp)                            :: insolation_weigth_amplitude_ANT
+
+    ! Climate matrix wind
+    LOGICAL                             :: do_climate_matrix_wind
+
     ! Geothermal heat flux
     CHARACTER(LEN=256)                  :: choice_geothermal_heat_flux
     REAL(dp)                            :: constant_geothermal_heat_flux
@@ -1064,15 +1105,15 @@ MODULE configuration_module
     REAL(dp)                            :: inverse_d18O_to_CO2_initial_CO2
 
     ! Files and choices for initializing the inverse d18O routines
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_NAM       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_EAS       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_GRL       
-    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_ANT       
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_NAM
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_EAS
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_GRL
+    CHARACTER(LEN=256)                  :: choice_d18O_inverse_init_ANT
 
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_NAM     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_EAS     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_GRL     
-    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_ANT      
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_NAM
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_EAS
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_GRL
+    CHARACTER(LEN=256)                  :: filename_d18O_inverse_init_ANT
 
     ! Ice dynamics - velocity
     ! =======================
@@ -1169,11 +1210,14 @@ MODULE configuration_module
     REAL(dp)                            :: slid_Coulomb_reg_u_threshold
     REAL(dp)                            :: slid_ZI_ut
     REAL(dp)                            :: slid_ZI_p
+    LOGICAL                             :: do_slid_ZI_no_angle
     LOGICAL                             :: include_basal_freezing
     REAL(dp)                            :: deltaT_basal_freezing
+    REAL(dp)                            :: subgrid_friction_exponent
 
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
+    REAL(dp)                            :: Martin2011_hydro_N_lim
     REAL(dp)                            :: Martin2011_hydro_Hb_min
     REAL(dp)                            :: Martin2011_hydro_Hb_max
 
@@ -1279,6 +1323,15 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_warm
     CHARACTER(LEN=256)                  :: filename_climate_snapshot_cold
 
+    ! Ice and ocean mask from GCM snapshots
+    CHARACTER(LEN=256)                  :: reference_mask_method
+    
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_PD_obs 
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_PI
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_warm
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_cold  
+  
+    ! Lapse rate
     REAL(dp)                            :: constant_lapserate
 
     ! Scaling factor for CO2 vs ice weights
@@ -1902,6 +1955,7 @@ CONTAINS
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
                      do_write_global_scalar_output_config,            &
+                     do_write_regional_scalar_every_timestep_config,  &
                      do_check_for_NaN_config,                         &
                      do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
@@ -1983,6 +2037,16 @@ CONTAINS
                      CO2_record_length_config,                        &
                      filename_d18O_record_config,                     &
                      d18O_record_length_config,                       &
+                     do_combine_CO2_and_insolation_config,            &
+                     insolation_weigth_mean_NAM_config,               &
+                     insolation_weigth_amplitude_NAM_config,          &
+                     insolation_weigth_mean_EAS_config,               &
+                     insolation_weigth_amplitude_EAS_config,          &
+                     insolation_weigth_mean_GRL_config ,              &
+                     insolation_weigth_amplitude_GRL_config,          &
+                     insolation_weigth_mean_ANT_config,               &
+                     insolation_weigth_amplitude_ANT_config,          &
+                     do_climate_matrix_wind_config,                   &
                      choice_geothermal_heat_flux_config,              &
                      constant_geothermal_heat_flux_config,            &
                      filename_geothermal_heat_flux_config,            &
@@ -2077,9 +2141,12 @@ CONTAINS
                      slid_Coulomb_reg_u_threshold_config,             &
                      slid_ZI_ut_config,                               &
                      slid_ZI_p_config,                                &
+                     do_slid_ZI_no_angle_config,                      &
                      include_basal_freezing_config,                   &
                      deltaT_basal_freezing_config,                    &
+                     subgrid_friction_exponent_config,                &
                      choice_basal_hydrology_config,                   &
+                     Martin2011_hydro_N_lim_config,                   &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
                      choice_basal_roughness_config,                   &
@@ -2159,6 +2226,11 @@ CONTAINS
                      filename_climate_snapshot_PI_config,             &
                      filename_climate_snapshot_warm_config,           &
                      filename_climate_snapshot_cold_config,           &
+                     reference_mask_method_config,                    &      
+                     filename_snapshot_mask_PD_obs_config,            &
+                     filename_snapshot_mask_GCM_PI_config,            &
+                     filename_snapshot_mask_GCM_warm_config,          &
+                     filename_snapshot_mask_GCM_cold_config,          &
                      constant_lapserate_config,                       &
                      climate_matrix_CO2vsice_NAM_config,              &
                      climate_matrix_CO2vsice_EAS_config,              &
@@ -2655,7 +2727,7 @@ CONTAINS
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
-
+    C%do_write_regional_scalar_every_timestep  = do_write_regional_scalar_every_timestep_config
     ! Debugging
     ! =========
 
@@ -2780,6 +2852,21 @@ CONTAINS
     ! d18O record (ASCII text file, so the number of rows needs to be specified)
     C%filename_d18O_record                     = filename_d18O_record_config
     C%d18O_record_length                       = d18O_record_length_config
+
+    ! Parameters for combining insolation and CO2 in the matrix method
+    C%do_combine_CO2_and_insolation            = do_combine_CO2_and_insolation_config
+    
+    C%insolation_weigth_mean_NAM               = insolation_weigth_mean_NAM_config
+    C%insolation_weigth_amplitude_NAM          = insolation_weigth_amplitude_NAM_config
+    C%insolation_weigth_mean_EAS               = insolation_weigth_mean_EAS_config
+    C%insolation_weigth_amplitude_EAS          = insolation_weigth_amplitude_EAS_config
+    C%insolation_weigth_mean_GRL               = insolation_weigth_mean_GRL_config
+    C%insolation_weigth_amplitude_GRL          = insolation_weigth_amplitude_GRL_config
+    C%insolation_weigth_mean_ANT               = insolation_weigth_mean_ANT_config
+    C%insolation_weigth_amplitude_ANT          = insolation_weigth_amplitude_ANT_config
+
+    ! Climate matrix wind
+    C%do_climate_matrix_wind                   = do_climate_matrix_wind_config
 
     ! Geothermal heat flux
     C%choice_geothermal_heat_flux              = choice_geothermal_heat_flux_config
@@ -2906,11 +2993,14 @@ CONTAINS
     C%slid_Coulomb_reg_u_threshold             = slid_Coulomb_reg_u_threshold_config
     C%slid_ZI_ut                               = slid_ZI_ut_config
     C%slid_ZI_p                                = slid_ZI_p_config
+    C%do_slid_ZI_no_angle                      = do_slid_ZI_no_angle_config
     C%include_basal_freezing                   = include_basal_freezing_config
     C%deltaT_basal_freezing                    = deltaT_basal_freezing_config
+    C%subgrid_friction_exponent                = subgrid_friction_exponent_config
 
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
+    C%Martin2011_hydro_N_lim                   = Martin2011_hydro_N_lim_config
     C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
 
@@ -3015,7 +3105,16 @@ CONTAINS
     C%filename_climate_snapshot_PI             = filename_climate_snapshot_PI_config
     C%filename_climate_snapshot_warm           = filename_climate_snapshot_warm_config
     C%filename_climate_snapshot_cold           = filename_climate_snapshot_cold_config
+    
+    ! GCM snapshots in the matrix_warm_cold option
+    C%reference_mask_method                    = reference_mask_method_config 
+    
+    C%filename_snapshot_mask_PD_obs            = filename_snapshot_mask_PD_obs_config
+    C%filename_snapshot_mask_GCM_PI            = filename_snapshot_mask_GCM_PI_config
+    C%filename_snapshot_mask_GCM_warm          = filename_snapshot_mask_GCM_warm_config
+    C%filename_snapshot_mask_GCM_cold          = filename_snapshot_mask_GCM_cold_config
 
+    ! Constant lapse rate
     C%constant_lapserate                       = constant_lapserate_config
 
     ! Scaling factor for CO2 vs ice weights
