@@ -244,9 +244,11 @@ CONTAINS
     ! Create a new scalar file if none exists and, to prevent loss of data,
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(filename))
-    IF (file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" already exists!')
-    END IF
+    IF (par%master) THEN 
+      IF (file_exists) THEN
+        CALL crash('file "' // TRIM( filename) // '" already exists!')
+      END IF
+    END IF 
 
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
@@ -312,10 +314,12 @@ CONTAINS
     ! stop with an error message if one already exists (not when differences are considered):
     filename = TRIM(C%output_dir) // '/scalar_output_global.nc'
     INQUIRE(EXIST=file_exists, FILE = TRIM(filename))
-    IF (file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" already exists!')
-    END IF
-
+    IF (par%master) THEN
+      IF (file_exists) THEN
+        CALL crash('file "' // TRIM( filename) // '" already exists!')
+      END IF
+    END IF 
+    
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
 
@@ -1495,8 +1499,10 @@ CONTAINS
     ! stop with an error message if one already exists (not when differences are considered):
     filename = TRIM(C%output_dir) // TRIM(C%BIVgeo_filename_output)
     INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
-    IF (file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" already exists!')
+    IF (par%master) THEN
+      IF (file_exists) THEN
+        CALL crash('file "' // TRIM( filename) // '" already exists!')
+      END IF
     END IF
 
     IF (par%master) WRITE(0,*) ''
@@ -1610,9 +1616,11 @@ CONTAINS
     ! stop with an error message if one already exists (not when differences are considered):
     filename = TRIM(C%output_dir) // TRIM(C%inverted_ocean_filename_output)
     INQUIRE(EXIST=file_exists, FILE = TRIM( filename))
-    IF (file_exists) THEN
-      CALL crash('file "' // TRIM( filename) // '" already exists!')
-    END IF
+    IF (par%master) THEN
+      IF (file_exists) THEN
+        CALL crash('file "' // TRIM( filename) // '" already exists!')
+      END IF
+    END IF 
 
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Writing inverted ocean to file "', TRIM( filename), '"...'
