@@ -1769,10 +1769,6 @@ CONTAINS
     END DO
     CALL sync
 
-    ! Half wind to see if that works
-    snapshot%wind_LR( :,:,grid%i1:grid%i2) = snapshot%wind_LR( :,:,grid%i1:grid%i2) / 2._dp
-    snapshot%wind_DU( :,:,grid%i1:grid%i2) = snapshot%wind_DU( :,:,grid%i1:grid%i2) / 2._dp
-
     ! Safety checks
     CALL check_safety_temperature(   snapshot%T2m   )
     CALL check_safety_precipitation( snapshot%Precip)
