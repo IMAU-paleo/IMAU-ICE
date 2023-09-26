@@ -1859,10 +1859,12 @@ CONTAINS
       C%output_dir = TRIM(C%fixed_output_dir) // TRIM(C%fixed_output_dir_suffix) // '/'
 
       INQUIRE( FILE = TRIM(C%output_dir)//'/.', EXIST=ex)
-      IF (ex) THEN
-        CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
+      IF (master) THEN
+        IF (ex) THEN
+          CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
+        END IF
       END IF
-
+      
     END IF
 
     ! Create the directory

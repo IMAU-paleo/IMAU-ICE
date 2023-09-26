@@ -236,6 +236,11 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
+      ! Run the BMB model again to get updated BMB for next 'run_ice_model'
+      IF (region%do_BMB) THEN
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
+      END IF
+
       ! DENK DROM
       ! region%time = t_end
 
