@@ -232,7 +232,7 @@ CONTAINS
     END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
 
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    CALL determine_timesteps_and_actions( region, t_end)
+    ! CALL determine_timesteps_and_actions( region, t_end) !CvC commented this
 
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_SIA = ', dt_crit_SIA, ', dt_crit_SSA = ', dt_crit_SSA, ', dt = ', region%dt
 
@@ -1004,7 +1004,6 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_output)
 
-      region%do_output_restart = .FALSE.
       IF (region%time == region%t_next_output_restart) THEN
         region%do_output_restart      = .TRUE.
         region%t_last_output_restart  = region%time

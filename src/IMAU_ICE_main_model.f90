@@ -25,7 +25,7 @@ MODULE IMAU_ICE_main_model
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
-  USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness
+  USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness, determine_timesteps_and_actions
   USE thermodynamics_module,               ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
   USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model, ocean_temperature_inversion, write_inverted_ocean_temperature_to_file
   USE climate_module,                      ONLY: initialise_climate_model,          run_climate_model
@@ -89,6 +89,11 @@ CONTAINS
     DO WHILE (region%time < t_end)
       it = it + 1
 
+    ! Update ice geometry
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+
+      CALL determine_timesteps_and_actions( region, t_end) !CvC Not sure where this should go
+
     ! GIA
     ! ===
 
@@ -108,16 +113,6 @@ CONTAINS
       END IF
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_GIA = region%tcomp_GIA + t2 - t1
-
-    ! Ice dynamics
-    ! ============
-
-      ! Calculate ice velocities and the resulting change in ice geometry
-      ! NOTE: geometry is not updated yet; this happens at the end of the time loop
-      t1 = MPI_WTIME()
-      CALL run_ice_model( region, t_end)
-      t2 = MPI_WTIME()
-      IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
     ! == Time display
     ! ===============
@@ -208,6 +203,15 @@ CONTAINS
         END IF
       END IF
 
+    ! Ice dynamics
+    ! ============
+
+      ! Calculate ice velocities and the resulting change in ice geometry
+      ! t1 = MPI_WTIME()
+      ! CALL run_ice_model( region, t_end)
+      ! t2 = MPI_WTIME()
+      ! IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
+
     ! Time step and output
     ! ====================
       ! Write main output
@@ -228,18 +232,10 @@ CONTAINS
         CALL write_regional_scalar_data( region, region%time)
       END IF
 
-      ! Update ice geometry
-      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
-
       ! Advance region time
       IF (par%master) region%time = region%time + region%dt
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
-
-      ! Run the BMB model again to get updated BMB for next 'run_ice_model'
-      IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
-      END IF
 
       ! DENK DROM
       ! region%time = t_end
@@ -252,12 +248,11 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-
       IF (C%do_write_relative_ice_load) THEN
         CALL calculate_relative_ice_load(region%grid, region%ice)
       END IF
-      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
-      CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
+      ! CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
+      ! CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
       ! Write inverted bed roughness field to file
       IF (C%do_BIVgeo) THEN
@@ -272,13 +267,13 @@ CONTAINS
 
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
     ! used for writing to text output and in the inverse routine
-    CALL calculate_icesheet_volume_and_area(region)
+    ! CALL calculate_icesheet_volume_and_area(region)
 
     ! Keep track of the GMSL contribution
-    IF (par%master) WRITE(0,'(A,A3,A,F9.3,A)') '  - ',TRIM( region%name), ' GMSL contribution:', region%GMSL_contribution, ' m' 
+    IF (par%master) WRITE(0,'(A,A3,A,F9.3,A)') '  - ',TRIM( region%name), ' GMSL contribution:', region%GMSL_contribution, ' m'
 
     ! Write to text output
-    CALL write_regional_scalar_data( region, region%time)
+    ! CALL write_regional_scalar_data( region, region%time)
 
     tstop = MPI_WTIME()
     region%tcomp_total = tstop - tstart
@@ -469,6 +464,16 @@ CONTAINS
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
 
+    ! Run thermodynamics
+    CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
+
+    ! Run isotopes
+    CALL run_isotopes_model( region)
+
+    ! Run the ice model
+    CALL run_ice_model( region, C%end_time_of_run) !CvC: end_time_of_run not being used by this subroutine now.
+
+
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
 
@@ -480,6 +485,10 @@ CONTAINS
     CALL calculate_icesheet_volume_and_area(region)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
+    ! Write the first entry to the help fields and restart files
+    CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
+    CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
+
     ! ===
     ! === If we're running with choice_ice_dynamics == "none", calculate a velocity field
     ! === once during initialisation (so that the thermodynamics are solved correctly)
@@ -490,6 +499,9 @@ CONTAINS
       CALL solve_DIVA( region%grid, region%ice)
       C%choice_ice_dynamics = 'none'
     END IF
+
+    ! Advance region time
+    IF (par%master) region%time = region%time + region%dt !CvC Added this!
 
     IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
 
