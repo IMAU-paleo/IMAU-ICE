@@ -760,6 +760,10 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Ice thickness rate of change', units = 'm/yr')
     ELSEIF (field_name == 'dHi_dt_target') THEN
       CALL add_field_grid_dp_2D( filename, 'dHi_dt_target', long_name = 'Target ice thickness rate of change', units = 'm/yr')
+    ELSEIF (field_name == 'TAF') THEN
+      CALL add_field_grid_dp_2D( filename, 'TAF', long_name = 'Ice thickness above floatation', units = 'm')
+    ELSEIF (field_name == 'TAF_rel') THEN
+      CALL add_field_grid_dp_2D( filename, 'TAF_rel', long_name = 'Ice thickness above floatation relative to present day', units = 'm')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -946,7 +950,8 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'dSL_dt', long_name = 'Geoid deformation rate', units = 'm yr^-1')
     ELSEIF (field_name == 'dHb') THEN
       CALL add_field_grid_dp_2D( filename, 'dHb', long_name='Change in bedrock elevation w.r.t. PD', units='m')
-
+    ELSEIF (field_name == 'surface_load_rel') THEN
+      CALL add_field_grid_dp_2D( filename, 'surface_load_rel', long_name='surface_load_rel w.r.t. PD', units='m')
     ! Safety
     ELSE
       CALL crash('unknown help field name "' // TRIM( field_name) // '"!')
@@ -1245,6 +1250,10 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt', region%ice%dHi_dt_a)
     ELSEIF (field_name == 'dHi_dt_target') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_target', region%ice%dHi_dt_target)
+    ELSEIF (field_name == 'TAF') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'TAF', region%ice%TAF_a)
+    ELSEIF (field_name == 'TAF_rel') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'TAF_rel', region%ice%TAF_rel)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1423,7 +1432,8 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dSL_dt', region%ice%dSL_dt_a)
     ELSEIF (field_name == 'dHb') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHb', region%ice%dHb_a)
-
+    ELSEIF (field_name == 'surface_load_rel') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'surface_load_rel', region%ice%surface_load_rel)
     ! Safety
     ELSE
       CALL crash('unknown help field name "' // TRIM( field_name) // '"!')

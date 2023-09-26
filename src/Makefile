@@ -63,7 +63,7 @@ IMAU_ICE_program_objects = \
         ocean_module.o \
         climate_module.o \
         isotopes_module.o \
-        bedrock_ELRA_module.o \
+        bedrock_module.o \
         SELEN_mapping_module.o \
         SELEN_harmonics_module.o \
         SELEN_fmvals_module.o \
@@ -108,7 +108,7 @@ IMAU_ICE_program_objects = \
         ocean_module.o \
         climate_module.o \
         isotopes_module.o \
-        bedrock_ELRA_module.o \
+        bedrock_module.o \
         scalar_data_output_module.o \
         IMAU_ICE_main_model.o \
         IMAU_ICE_program.o

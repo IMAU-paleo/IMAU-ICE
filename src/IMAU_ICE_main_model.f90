@@ -17,7 +17,7 @@ MODULE IMAU_ICE_main_model
                                                  type_ocean_matrix_global
   USE utilities_module,                    ONLY: check_for_NaN_dp_1D,  check_for_NaN_dp_2D,  check_for_NaN_dp_3D, &
                                                  check_for_NaN_int_1D, check_for_NaN_int_2D, check_for_NaN_int_3D, &
-                                                 inverse_oblique_sg_projection, surface_elevation
+                                                 inverse_oblique_sg_projection, surface_elevation, is_floating
   USE parameters_module
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
@@ -32,7 +32,7 @@ MODULE IMAU_ICE_main_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
-  USE bedrock_ELRA_module,                 ONLY: initialise_ELRA_model,             run_ELRA_model
+  USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   calculate_initial_relative_ice_load, update_Hb_with_external_GIA_model_output, read_external_GIA_file, calculate_relative_ice_load
 # if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
 # endif
@@ -101,6 +101,8 @@ CONTAINS
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
 # endif
+      ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
+        CALL update_Hb_with_external_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
@@ -208,7 +210,6 @@ CONTAINS
 
     ! Time step and output
     ! ====================
-
       ! Write main output
       IF (region%do_output) THEN
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
@@ -227,8 +228,10 @@ CONTAINS
         CALL write_regional_scalar_data( region, region%time)
       END IF
 
-      ! Update ice geometry and advance region time
+      ! Update ice geometry
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+
+      ! Advance region time
       IF (par%master) region%time = region%time + region%dt
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
@@ -249,6 +252,10 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
+
+      IF (C%do_write_relative_ice_load) THEN
+        CALL calculate_relative_ice_load(region%grid, region%ice)
+      END IF
       CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
@@ -260,6 +267,7 @@ CONTAINS
       IF (C%do_ocean_temperature_inversion) THEN
         CALL write_inverted_ocean_temperature_to_file( region%grid, region%ocean_matrix%applied)
       END IF
+
     END IF
 
     ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -423,8 +431,15 @@ CONTAINS
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
 # endif
+    ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
+      CALL read_external_GIA_file(region%grid, region%ice)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
+    END IF
+
+    ! Write relative ice load
+    IF (C%do_write_relative_ice_load) THEN
+      CALL calculate_initial_relative_ice_load( region%grid, region%ice, region%refgeo_GIAeq)
     END IF
 
     ! ===== The isotopes model =====
@@ -444,9 +459,9 @@ CONTAINS
     CALL run_climate_model( region, C%start_time_of_run)
     CALL run_SMB_model( region%grid, region%ice, region%climate, C%start_time_of_run, region%SMB, region%mask_noice)
 
-    ! Run the ocean and BMB models once, to get the correct BMB field for the first run_ice_model time step
-    CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, region%time, region%refgeo_PD)
-    CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
+    ! Run ocean and BMB models once so that Hi can be computed at the beginning of the main model loop
+    CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
+    CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD)
 
     ! Initialise the temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)

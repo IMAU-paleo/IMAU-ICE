@@ -502,12 +502,12 @@ MODULE configuration_module
 
   ! Ice and ocean mask from GCM snapshots
   CHARACTER(LEN=256)  :: reference_mask_method_config                = 'estimate'                        ! 'estimate' (based on GCM topography and temperature) or 'file' from a selected file
-  
-  CHARACTER(LEN=256)  :: filename_snapshot_mask_PD_obs_config        = ''   
+
+  CHARACTER(LEN=256)  :: filename_snapshot_mask_PD_obs_config        = ''
   CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_PI_config        = ''
   CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_warm_config      = ''
   CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_cold_config      = ''
-  
+
   ! Lapse rate
   REAL(dp)            :: constant_lapserate_config                   = 0.008_dp                         ! Constant atmospheric lapse rate [K m^-1]
 
@@ -791,6 +791,8 @@ MODULE configuration_module
   REAL(dp)            :: ELRA_lithosphere_flex_rigidity_config       = 1.0E+25_dp                       ! Lithospheric flexural rigidity [kg m^2 s^-2]
   REAL(dp)            :: ELRA_bedrock_relaxation_time_config         = 3000.0_dp                        ! Relaxation time for bedrock adjustment [yr]
   REAL(dp)            :: ELRA_mantle_density_config                  = 3300.0_dp                        ! Mantle density [kg m^-3]
+  LOGICAL             :: do_write_relative_ice_load_config           = .FALSE.                          ! Can be "none", "ELRA", or "SELEN"
+  CHARACTER(LEN=256)  :: filename_dHb_externalGIA_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
 
   ! SELEN
   ! =====
@@ -1074,13 +1076,13 @@ MODULE configuration_module
     INTEGER                             :: d18O_record_length
 
     LOGICAL                             :: do_combine_CO2_and_insolation
-    REAL(dp)                            :: insolation_weigth_mean_NAM         
-    REAL(dp)                            :: insolation_weigth_amplitude_NAM    
-    REAL(dp)                            :: insolation_weigth_mean_EAS         
-    REAL(dp)                            :: insolation_weigth_amplitude_EAS    
-    REAL(dp)                            :: insolation_weigth_mean_GRL         
-    REAL(dp)                            :: insolation_weigth_amplitude_GRL    
-    REAL(dp)                            :: insolation_weigth_mean_ANT         
+    REAL(dp)                            :: insolation_weigth_mean_NAM
+    REAL(dp)                            :: insolation_weigth_amplitude_NAM
+    REAL(dp)                            :: insolation_weigth_mean_EAS
+    REAL(dp)                            :: insolation_weigth_amplitude_EAS
+    REAL(dp)                            :: insolation_weigth_mean_GRL
+    REAL(dp)                            :: insolation_weigth_amplitude_GRL
+    REAL(dp)                            :: insolation_weigth_mean_ANT
     REAL(dp)                            :: insolation_weigth_amplitude_ANT
 
     ! Climate matrix wind
@@ -1325,12 +1327,12 @@ MODULE configuration_module
 
     ! Ice and ocean mask from GCM snapshots
     CHARACTER(LEN=256)                  :: reference_mask_method
-    
-    CHARACTER(LEN=256)                  :: filename_snapshot_mask_PD_obs 
+
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_PD_obs
     CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_PI
     CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_warm
-    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_cold  
-  
+    CHARACTER(LEN=256)                  :: filename_snapshot_mask_GCM_cold
+
     ! Lapse rate
     REAL(dp)                            :: constant_lapserate
 
@@ -1590,7 +1592,8 @@ MODULE configuration_module
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
     REAL(dp)                            :: ELRA_bedrock_relaxation_time
     REAL(dp)                            :: ELRA_mantle_density
-
+    LOGICAL                             :: do_write_relative_ice_load
+    CHARACTER(LEN=256)                  :: filename_dHb_externalGIA
     ! SELEN
     ! =====
 
@@ -2226,7 +2229,7 @@ CONTAINS
                      filename_climate_snapshot_PI_config,             &
                      filename_climate_snapshot_warm_config,           &
                      filename_climate_snapshot_cold_config,           &
-                     reference_mask_method_config,                    &      
+                     reference_mask_method_config,                    &
                      filename_snapshot_mask_PD_obs_config,            &
                      filename_snapshot_mask_GCM_PI_config,            &
                      filename_snapshot_mask_GCM_warm_config,          &
@@ -2419,6 +2422,8 @@ CONTAINS
                      ELRA_lithosphere_flex_rigidity_config,           &
                      ELRA_bedrock_relaxation_time_config,             &
                      ELRA_mantle_density_config,                      &
+                     do_write_relative_ice_load_config,               &
+                     filename_dHb_externalGIA_config,                 &
                      SELEN_run_at_t_start_config,                     &
                      SELEN_n_TDOF_iterations_config,                  &
                      SELEN_n_recursion_iterations_config,             &
@@ -2855,7 +2860,7 @@ CONTAINS
 
     ! Parameters for combining insolation and CO2 in the matrix method
     C%do_combine_CO2_and_insolation            = do_combine_CO2_and_insolation_config
-    
+
     C%insolation_weigth_mean_NAM               = insolation_weigth_mean_NAM_config
     C%insolation_weigth_amplitude_NAM          = insolation_weigth_amplitude_NAM_config
     C%insolation_weigth_mean_EAS               = insolation_weigth_mean_EAS_config
@@ -3105,10 +3110,10 @@ CONTAINS
     C%filename_climate_snapshot_PI             = filename_climate_snapshot_PI_config
     C%filename_climate_snapshot_warm           = filename_climate_snapshot_warm_config
     C%filename_climate_snapshot_cold           = filename_climate_snapshot_cold_config
-    
+
     ! GCM snapshots in the matrix_warm_cold option
-    C%reference_mask_method                    = reference_mask_method_config 
-    
+    C%reference_mask_method                    = reference_mask_method_config
+
     C%filename_snapshot_mask_PD_obs            = filename_snapshot_mask_PD_obs_config
     C%filename_snapshot_mask_GCM_PI            = filename_snapshot_mask_GCM_PI_config
     C%filename_snapshot_mask_GCM_warm          = filename_snapshot_mask_GCM_warm_config
@@ -3373,6 +3378,8 @@ CONTAINS
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config
     C%ELRA_bedrock_relaxation_time             = ELRA_bedrock_relaxation_time_config
     C%ELRA_mantle_density                      = ELRA_mantle_density_config
+    C%do_write_relative_ice_load               = do_write_relative_ice_load_config
+    C%filename_dHb_externalGIA                 = filename_dHb_externalGIA_config
 
     ! SELEN
     ! =====
