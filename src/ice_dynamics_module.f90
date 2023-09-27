@@ -1004,6 +1004,7 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_output)
 
+      region%do_output_restart  = .FALSE.
       IF (region%time == region%t_next_output_restart) THEN
         region%do_output_restart      = .TRUE.
         region%t_last_output_restart  = region%time

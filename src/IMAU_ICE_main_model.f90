@@ -89,10 +89,16 @@ CONTAINS
     DO WHILE (region%time < t_end)
       it = it + 1
 
-    ! Update ice geometry
-      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+      ! Advance region time
+      CALL sync
+      IF (par%master) region%time = region%time + region%dt
+      IF (par%master) dt_ave = dt_ave + region%dt
+      CALL sync
 
       CALL determine_timesteps_and_actions( region, t_end) !CvC Not sure where this should go
+
+    ! Update ice geometry
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
 
     ! GIA
     ! ===
@@ -207,10 +213,10 @@ CONTAINS
     ! ============
 
       ! Calculate ice velocities and the resulting change in ice geometry
-      ! t1 = MPI_WTIME()
-      ! CALL run_ice_model( region, t_end)
-      ! t2 = MPI_WTIME()
-      ! IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
+      t1 = MPI_WTIME()
+      CALL run_ice_model( region, t_end)
+      t2 = MPI_WTIME()
+      IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
     ! Time step and output
     ! ====================
@@ -232,10 +238,7 @@ CONTAINS
         CALL write_regional_scalar_data( region, region%time)
       END IF
 
-      ! Advance region time
-      IF (par%master) region%time = region%time + region%dt
-      IF (par%master) dt_ave = dt_ave + region%dt
-      CALL sync
+
 
       ! DENK DROM
       ! region%time = t_end
@@ -501,7 +504,7 @@ CONTAINS
     END IF
 
     ! Advance region time
-    IF (par%master) region%time = region%time + region%dt !CvC Added this!
+    ! IF (par%master) region%time = region%time + region%dt !CvC Added this!
 
     IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
 
@@ -635,12 +638,12 @@ CONTAINS
       region%do_BIV                = .FALSE.
 
       region%t_last_output         = C%start_time_of_run
-      region%t_next_output         = C%start_time_of_run
-      region%do_output             = .TRUE.
+      region%t_next_output         = C%start_time_of_run + C%dt_output
+      region%do_output             = .FALSE.
 
       region%t_last_output_restart = C%start_time_of_run
-      region%t_next_output_restart = C%start_time_of_run
-      region%do_output_restart     = .TRUE.
+      region%t_next_output_restart = C%start_time_of_run + C%dt_output_restart
+      region%do_output_restart     = .FALSE.
     END IF
 
     ! ===== Scalars =====
