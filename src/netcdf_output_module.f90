@@ -244,11 +244,11 @@ CONTAINS
     ! Create a new scalar file if none exists and, to prevent loss of data,
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(filename))
-    IF (par%master) THEN 
+    IF (par%master) THEN
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
+    END IF
 
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
@@ -318,8 +318,8 @@ CONTAINS
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
-    
+    END IF
+
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
 
@@ -981,7 +981,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
+      WRITE(0,'(A,F11.5,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
@@ -1075,7 +1075,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
+      WRITE(0,'(A,F11.5,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
@@ -1195,7 +1195,7 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_T2m', region%climate%matrix%GCM_PI%T2m)
     ELSEIF (field_name == 'GCM_PI_Precip') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_Precip', region%climate%matrix%GCM_PI%Precip)
-      
+
     ! Climate matrix
     ELSEIF (field_name == 'w_ice_T') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_ice_T', region%climate%matrix%w_ice_T)
@@ -1630,7 +1630,7 @@ CONTAINS
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
+    END IF
 
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Writing inverted ocean to file "', TRIM( filename), '"...'

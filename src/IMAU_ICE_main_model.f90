@@ -25,7 +25,7 @@ MODULE IMAU_ICE_main_model
   USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
-  USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness, determine_timesteps_and_actions
+  USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness, determine_timesteps, determine_actions
   USE thermodynamics_module,               ONLY: initialise_ice_temperature,        run_thermo_model, calc_ice_rheology
   USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model, ocean_temperature_inversion, write_inverted_ocean_temperature_to_file
   USE climate_module,                      ONLY: initialise_climate_model,          run_climate_model
@@ -89,13 +89,15 @@ CONTAINS
     DO WHILE (region%time < t_end)
       it = it + 1
 
+      CALL determine_timesteps( region, t_end) !CvC Not sure where this should go
+
       ! Advance region time
       CALL sync
       IF (par%master) region%time = region%time + region%dt
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
-      CALL determine_timesteps_and_actions( region, t_end) !CvC Not sure where this should go
+      CALL determine_actions( region) !CvC Not sure where this should go
 
     ! Update ice geometry
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
@@ -237,8 +239,6 @@ CONTAINS
         ! Save regional scalar every model time-step
         CALL write_regional_scalar_data( region, region%time)
       END IF
-
-
 
       ! DENK DROM
       ! region%time = t_end
@@ -503,9 +503,6 @@ CONTAINS
       C%choice_ice_dynamics = 'none'
     END IF
 
-    ! Advance region time
-    ! IF (par%master) region%time = region%time + region%dt !CvC Added this!
-
     IF (par%master) WRITE (0,*) ' Finished initialising model region ', region%name, '.'
 
     ! Finalise routine path
@@ -614,23 +611,23 @@ CONTAINS
       region%do_thermo             = .FALSE.
 
       region%t_last_climate        = C%start_time_of_run
-      region%t_next_climate        = C%start_time_of_run
+      region%t_next_climate        = C%start_time_of_run + C%dt_climate
       region%do_climate            = .TRUE.
 
       region%t_last_ocean          = C%start_time_of_run
-      region%t_next_ocean          = C%start_time_of_run
+      region%t_next_ocean          = C%start_time_of_run + C%dt_ocean
       region%do_ocean              = .TRUE.
 
       region%t_last_SMB            = C%start_time_of_run
-      region%t_next_SMB            = C%start_time_of_run
+      region%t_next_SMB            = C%start_time_of_run + C%dt_SMB
       region%do_SMB                = .TRUE.
 
       region%t_last_BMB            = C%start_time_of_run
-      region%t_next_BMB            = C%start_time_of_run
+      region%t_next_BMB            = C%start_time_of_run + C%dt_BMB
       region%do_BMB                = .TRUE.
 
       region%t_last_ELRA           = C%start_time_of_run
-      region%t_next_ELRA           = C%start_time_of_run
+      region%t_next_ELRA           = C%start_time_of_run + C%dt_bedrock_ELRA
       region%do_ELRA               = .TRUE.
 
       region%t_last_BIV            = C%start_time_of_run
@@ -643,7 +640,7 @@ CONTAINS
 
       region%t_last_output_restart = C%start_time_of_run
       region%t_next_output_restart = C%start_time_of_run + C%dt_output_restart
-      region%do_output_restart     = .FALSE.
+      region%do_output_restart     = .TRUE.
     END IF
 
     ! ===== Scalars =====

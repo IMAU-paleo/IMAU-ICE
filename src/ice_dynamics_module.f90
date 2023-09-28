@@ -444,7 +444,7 @@ CONTAINS
     END IF ! IF (do_update_ice_velocity) THEN
 
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    CALL determine_timesteps_and_actions( region, t_end)
+    ! CALL determine_timesteps_and_actions( region, t_end)
 
     ! Calculate ice thickness at the end of the model time loop
     region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))
@@ -889,7 +889,7 @@ CONTAINS
 
   END SUBROUTINE calc_pc_truncation_error
 
-  SUBROUTINE determine_timesteps_and_actions( region, t_end)
+  SUBROUTINE determine_timesteps( region, t_end)
     ! Determine how long we can run just ice dynamics before another "action" (thermodynamics,
     ! GIA, output writing, inverse routine, etc.) has to be performed, and adjust the time step accordingly.
 
@@ -900,7 +900,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: t_end
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_timesteps_and_actions'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_timesteps'
     REAL(dp)                                           :: t_next
 
     ! Add routine to path
@@ -933,80 +933,57 @@ CONTAINS
       ! Then the other model components
       ! ===============================
 
-      region%do_thermo  = .FALSE.
       IF (region%time == region%t_next_thermo) THEN
-        region%do_thermo      = .TRUE.
         region%t_last_thermo  = region%time
         region%t_next_thermo  = region%t_last_thermo + C%dt_thermo
       END IF
       t_next = MIN( t_next, region%t_next_thermo)
 
-      region%do_climate = .FALSE.
       IF (region%time == region%t_next_climate) THEN
-        region%do_climate     = .TRUE.
         region%t_last_climate = region%time
         region%t_next_climate = region%t_last_climate + C%dt_climate
       END IF
       t_next = MIN( t_next, region%t_next_climate)
 
-      region%do_ocean   = .FALSE.
       IF (region%time == region%t_next_ocean) THEN
-        region%do_ocean       = .TRUE.
         region%t_last_ocean   = region%time
         region%t_next_ocean   = region%t_last_ocean + C%dt_ocean
       END IF
       t_next = MIN( t_next, region%t_next_ocean)
 
-      region%do_SMB     = .FALSE.
       IF (region%time == region%t_next_SMB) THEN
-        region%do_SMB         = .TRUE.
         region%t_last_SMB     = region%time
         region%t_next_SMB     = region%t_last_SMB + C%dt_SMB
       END IF
       t_next = MIN( t_next, region%t_next_SMB)
 
-      region%do_BMB     = .FALSE.
-      IF (C%do_asynchronous_BMB) THEN
-        IF (region%time == region%t_next_BMB) THEN
-          region%do_BMB         = .TRUE.
-          region%t_last_BMB     = region%time
-          region%t_next_BMB     = region%t_last_BMB + C%dt_BMB
-        END IF
-        t_next = MIN( t_next, region%t_next_BMB)
-      ELSE
-        ! Don't use separate timestepping for the BMB; just run it in every ice dynamics time step
-        region%do_BMB = .TRUE.
+      IF (region%time == region%t_next_BMB) THEN
+        region%t_last_BMB     = region%time
+        region%t_next_BMB     = region%t_last_BMB + C%dt_BMB
       END IF
+      t_next = MIN( t_next, region%t_next_BMB)
 
-      region%do_ELRA    = .FALSE.
       IF (region%time == region%t_next_ELRA) THEN
-        region%do_ELRA        = .TRUE.
         region%t_last_ELRA    = region%time
         region%t_next_ELRA    = region%t_last_ELRA + C%dt_bedrock_ELRA
       END IF
       t_next = MIN( t_next, region%t_next_ELRA)
 
-      region%do_BIV     = .FALSE.
       IF (C%do_BIVgeo) THEN
         IF (region%time == region%t_next_BIV) THEN
-          region%do_BIV         = .TRUE.
           region%t_last_BIV     = region%time
           region%t_next_BIV     = region%t_last_BIV + C%BIVgeo_dt
         END IF
         t_next = MIN( t_next, region%t_next_BIV)
       END IF ! IF (C%do_BIVgeo) THEN
 
-      region%do_output  = .FALSE.
       IF (region%time == region%t_next_output) THEN
-        region%do_output      = .TRUE.
         region%t_last_output  = region%time
         region%t_next_output  = region%t_last_output + C%dt_output
       END IF
       t_next = MIN( t_next, region%t_next_output)
 
-      region%do_output_restart  = .FALSE.
       IF (region%time == region%t_next_output_restart) THEN
-        region%do_output_restart      = .TRUE.
         region%t_last_output_restart  = region%time
         region%t_next_output_restart  = region%t_last_output_restart + C%dt_output_restart
       END IF
@@ -1021,7 +998,83 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE determine_timesteps_and_actions
+  END SUBROUTINE determine_timesteps
+
+  SUBROUTINE determine_actions( region)
+    ! Determine how long we can run just ice dynamics before another "action" (thermodynamics,
+    ! GIA, output writing, inverse routine, etc.) has to be performed, and adjust the time step accordingly.
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'determine_actions'
+    REAL(dp)                                           :: t_next
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) THEN
+
+      ! Determine when each model components should be updated
+
+      region%do_thermo  = .FALSE.
+      IF (region%time == region%t_next_thermo) THEN
+        region%do_thermo      = .TRUE.
+      END IF
+
+      region%do_climate = .FALSE.
+      IF (region%time == region%t_next_climate) THEN
+        region%do_climate     = .TRUE.
+      END IF
+
+      region%do_ocean   = .FALSE.
+      IF (region%time == region%t_next_ocean) THEN
+        region%do_ocean       = .TRUE.
+      END IF
+
+      region%do_SMB     = .FALSE.
+      IF (region%time == region%t_next_SMB) THEN
+        region%do_SMB         = .TRUE.
+      END IF
+
+      region%do_BMB     = .FALSE.
+      IF (region%time == region%t_next_BMB) THEN
+        region%do_BMB         = .TRUE.
+      END IF
+
+
+      region%do_ELRA    = .FALSE.
+      IF (region%time == region%t_next_ELRA) THEN
+        region%do_ELRA        = .TRUE.
+      END IF
+
+      region%do_BIV     = .FALSE.
+      IF (C%do_BIVgeo) THEN
+        IF (region%time == region%t_next_BIV) THEN
+          region%do_BIV         = .TRUE.
+        END IF
+      END IF
+
+      region%do_output  = .FALSE.
+      IF (region%time == region%t_next_output) THEN
+        region%do_output      = .TRUE.
+      END IF
+
+      region%do_output_restart  = .FALSE.
+      IF (region%time == region%t_next_output_restart) THEN
+        region%do_output_restart      = .TRUE.
+      END IF
+
+    END IF ! IF (par%master) THEN
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE determine_actions
 
 ! ===== Administration: allocation and initialisation =====
 ! =========================================================
