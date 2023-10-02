@@ -233,6 +233,7 @@ CONTAINS
 
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
     ! CALL determine_timesteps_and_actions( region, t_end) !CvC commented this
+    CALL determine_timesteps( region, t_end)
 
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_SIA = ', dt_crit_SIA, ', dt_crit_SSA = ', dt_crit_SSA, ', dt = ', region%dt
 
@@ -249,6 +250,18 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
+    print*, 'dt at end of direct loop'
+    print*, region%dt ! CvC
+    print*, 'Hi_a at end of direct loop'
+    print*, SUM(SUM(region%ice%Hi_a, DIM=2),DIM=1) ! CvC
+    print*, 'u_3D_SSA_a at end of direct loop'
+    print*, SUM(SUM(region%ice%u_SSA_cx, DIM=2),DIM=1) ! CvC
+    print*, 'u_3D_SIA_a at end of direct loop'
+    print*, SUM(SUM(SUM(region%ice%u_3D_SIA_cx, DIM=3), DIM=2),DIM=1) ! CvC
+    print*, 'dHi_dt_a at end of direct loop'
+    print*, SUM(SUM(region%ice%dHi_dt_a, DIM=2),DIM=1) ! CvC
+    print*, 'Hi_tplusdt_a at end of direct loop'
+    print*, SUM(SUM(region%ice%Hi_tplusdt_a, DIM=2),DIM=1) ! CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

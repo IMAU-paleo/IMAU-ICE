@@ -89,7 +89,7 @@ CONTAINS
     DO WHILE (region%time < t_end)
       it = it + 1
 
-      CALL determine_timesteps( region, t_end)
+      ! CALL determine_timesteps( region, t_end)
 
       ! Advance region time
       CALL sync
@@ -180,6 +180,7 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
+      ! print*, SUM(SUM(SUM(region%ice%Ti_a, DIM=3), DIM=2),DIM=1) ! CvC
 
     ! Isotopes
     ! ========
@@ -219,6 +220,8 @@ CONTAINS
       CALL run_ice_model( region, t_end)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
+      ! print*, SUM(SUM(SUM(region%ice%u_3D_a, DIM=3), DIM=2),DIM=1) ! CvC
+      ! print*, SUM(SUM(SUM(region%ice%v_3D_a, DIM=3), DIM=2),DIM=1) ! CvC
 
     ! Time step and output
     ! ====================
@@ -460,23 +463,19 @@ CONTAINS
     ! Run ocean and BMB models once so that Hi can be computed at the beginning of the main model loop
     CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
     CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD)
-    CALL save_variable_as_netcdf_dp_3D(region%ice%Ti_a,'ice%Ti_before')
 
     ! Initialise the temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
-    CALL save_variable_as_netcdf_dp_3D(region%ice%Ti_a,'ice%Ti_after')
 
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
 
     IF     (C%choice_initial_ice_temperature == 'restart') THEN
       ! Do nothing
-      print*, 'Im not running the thermo model'
     ELSE
       ! Run thermodynamics
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
     END IF
-
 
     ! Run isotopes
     CALL run_isotopes_model( region)
@@ -484,6 +483,10 @@ CONTAINS
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
     C%do_read_velocities_from_restart = .FAlSE.
+    print*, 'Hi_tplusdt_a after init'
+    print*, SUM(SUM(region%ice%Hi_tplusdt_a, DIM=2),DIM=1) ! CvC
+    print*, 'Hi_a after init'
+    print*, SUM(SUM(region%ice%Hi_a, DIM=2),DIM=1) ! CvC
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
