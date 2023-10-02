@@ -181,10 +181,11 @@ CONTAINS
     ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
       ! Hybrid SIA/SSA (Bueler and Brown, 2009)
 
-      IF (region%time == region%t_next_SIA) THEN
+      ! IF (region%time == region%t_next_SIA) THEN !CvC commented
 
         ! Calculate new ice velocities
         CALL solve_SIA( region%grid, region%ice)
+
 
         ! Calculate critical time step
         CALL calc_critical_timestep_SIA( region%grid, region%ice, dt_crit_SIA)
@@ -202,10 +203,9 @@ CONTAINS
         END IF
         CALL sync
 
-      END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
+      ! END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
 
-      IF (region%time == region%t_next_SSA) THEN
-
+      ! IF (region%time == region%t_next_SSA) THEN !CvC commented
         ! Calculate new ice velocities
         CALL solve_SSA( region%grid, region%ice)
 
@@ -225,7 +225,7 @@ CONTAINS
         END IF
         CALL sync
 
-      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+      ! END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
 
     ELSE ! IF     (C%choice_ice_dynamics == 'SIA') THEN
       CALL crash('"direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!')

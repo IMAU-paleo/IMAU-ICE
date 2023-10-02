@@ -89,7 +89,7 @@ CONTAINS
     DO WHILE (region%time < t_end)
       it = it + 1
 
-      CALL determine_timesteps( region, t_end) !CvC Not sure where this should go
+      CALL determine_timesteps( region, t_end)
 
       ! Advance region time
       CALL sync
@@ -97,7 +97,7 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
 
-      CALL determine_actions( region) !CvC Not sure where this should go
+      CALL determine_actions( region)
 
     ! Update ice geometry
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
@@ -460,22 +460,30 @@ CONTAINS
     ! Run ocean and BMB models once so that Hi can be computed at the beginning of the main model loop
     CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
     CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD)
+    CALL save_variable_as_netcdf_dp_3D(region%ice%Ti_a,'ice%Ti_before')
 
     ! Initialise the temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
+    CALL save_variable_as_netcdf_dp_3D(region%ice%Ti_a,'ice%Ti_after')
 
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
 
-    ! Run thermodynamics
-    CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
+    IF     (C%choice_initial_ice_temperature == 'restart') THEN
+      ! Do nothing
+      print*, 'Im not running the thermo model'
+    ELSE
+      ! Run thermodynamics
+      CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
+    END IF
+
 
     ! Run isotopes
     CALL run_isotopes_model( region)
 
     ! Run the ice model
-    CALL run_ice_model( region, C%end_time_of_run) !CvC: end_time_of_run not being used by this subroutine now.
-
+    CALL run_ice_model( region, C%end_time_of_run)
+    C%do_read_velocities_from_restart = .FAlSE.
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
