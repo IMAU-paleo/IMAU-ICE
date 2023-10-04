@@ -3301,6 +3301,7 @@ CONTAINS
       END IF
     END DO
     END DO
+    CALL sync
 
     ! Initialise the stack with all empty-next-to-filled grid cells
     DO i = 1, grid%nx
@@ -3332,6 +3333,7 @@ CONTAINS
 
     END DO
     END DO
+    CALL sync
 
     ! Perform the flood-fill
     it = 0
@@ -3417,6 +3419,7 @@ CONTAINS
       END IF
 
     END DO ! DO WHILE (stackN2 > 0)
+    CALL sync
 
     ! Mark grid cells that could not be filled
     DO i = 1, grid%nx
@@ -3426,6 +3429,7 @@ CONTAINS
       END IF
     END DO
     END DO
+    CALL sync
 
     ! Clean up after yourself
     DEALLOCATE( map   )

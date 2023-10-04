@@ -414,6 +414,7 @@ CONTAINS
 
     END DO
     END DO
+    CALL sync
 
     ! Clean up after yourself
     CALL deallocate_shared( wf_grnd_a_NW)

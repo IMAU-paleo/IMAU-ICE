@@ -155,7 +155,7 @@ CONTAINS
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
       ! Shallow shelf approximation
 
-      IF (region%time == region%t_next_SSA) THEN
+      ! IF (region%time == region%t_next_SSA) THEN !CvC commented
 
         ! Calculate new ice velocities
         CALL solve_SSA( region%grid, region%ice)
@@ -176,7 +176,7 @@ CONTAINS
         END IF
         CALL sync
 
-      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+      ! END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN !CvC commented
 
     ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
       ! Hybrid SIA/SSA (Bueler and Brown, 2009)

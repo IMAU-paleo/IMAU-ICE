@@ -595,6 +595,7 @@ CONTAINS
 
     END DO
     END DO
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

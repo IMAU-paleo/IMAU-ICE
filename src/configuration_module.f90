@@ -1864,7 +1864,7 @@ CONTAINS
           CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
         END IF
       END IF
-      
+
     END IF
 
     ! Create the directory
