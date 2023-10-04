@@ -98,6 +98,7 @@ CONTAINS
 
     ! Update ice geometry
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+      print*, SUM(SUM(region%ice%Hi_a, DIM=2), DIM=1)
 
     ! GIA
     ! ===
@@ -151,21 +152,26 @@ CONTAINS
       IF (region%do_climate) THEN
         CALL run_climate_model( region, region%time)
       END IF
+      print*, SUM(SUM(region%climate%T2m, DIM=2), DIM=1)
+      print*, SUM(SUM(region%climate%precip, DIM=2), DIM=1)
 
       ! Run the ocean model
       IF (region%do_ocean) THEN
         CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, region%time, region%refgeo_PD)
       END IF
+      print*, SUM(SUM(SUM(region%ocean_matrix%applied%T_ocean, DIM=3), DIM=2), DIM=1)
 
       ! Run the SMB model
       IF (region%do_SMB) THEN
         CALL run_SMB_model( region%grid, region%ice, region%climate, region%time, region%SMB, region%mask_noice)
       END IF
+      print*, SUM(SUM(region%SMB%SMB_year, DIM=2), DIM=1)
 
       ! Run the BMB model
       IF (region%do_BMB) THEN
         CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
       END IF
+      print*, SUM(SUM(region%BMB%BMB, DIM=2), DIM=1)
 
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_climate = region%tcomp_climate + t2 - t1
@@ -177,6 +183,7 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
+      print*, SUM(SUM(SUM(region%ice%Ti_a, DIM=3), DIM=2), DIM=1)
 
     ! Isotopes
     ! ========
@@ -216,6 +223,9 @@ CONTAINS
       CALL run_ice_model( region, t_end)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
+      print*, SUM(SUM(region%ice%Hi_tplusdt_a, DIM=2), DIM=1)
+      ! print*, SUM(SUM(SUM(region%ice%u_SIA_cx, DIM=3), DIM=2), DIM=1)
+      print*, SUM(SUM(region%ice%u_SSA_cx, DIM=2), DIM=1)
 
     ! Time step and output
     ! ====================
