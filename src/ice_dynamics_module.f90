@@ -250,18 +250,6 @@ CONTAINS
       region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2)
       CALL sync
     END IF
-    print*, 'dt at end of direct loop'
-    print*, region%dt ! CvC
-    print*, 'Hi_a at end of direct loop'
-    print*, SUM(SUM(region%ice%Hi_a, DIM=2),DIM=1) ! CvC
-    print*, 'u_3D_SSA_a at end of direct loop'
-    print*, SUM(SUM(region%ice%u_SSA_cx, DIM=2),DIM=1) ! CvC
-    print*, 'u_3D_SIA_a at end of direct loop'
-    print*, SUM(SUM(SUM(region%ice%u_3D_SIA_cx, DIM=3), DIM=2),DIM=1) ! CvC
-    print*, 'dHi_dt_a at end of direct loop'
-    print*, SUM(SUM(region%ice%dHi_dt_a, DIM=2),DIM=1) ! CvC
-    print*, 'Hi_tplusdt_a at end of direct loop'
-    print*, SUM(SUM(region%ice%Hi_tplusdt_a, DIM=2),DIM=1) ! CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -577,6 +565,7 @@ CONTAINS
       END DO
       CALL sync
     END IF ! IF (C%continental_shelf_calving) THEN
+
 
     ! Update the masks, slopes, etc.
     CALL update_general_ice_model_data( grid, ice)
@@ -924,7 +913,6 @@ CONTAINS
       ! Determine when each model components should be updated
 
       t_next = MIN(t_end, region%time + C%dt_max)
-
       ! First the ice dynamics
       ! ======================
 
@@ -1004,7 +992,6 @@ CONTAINS
 
       ! Set time step so that we move forward to the next action
       region%dt = t_next - region%time
-
     END IF ! IF (par%master) THEN
     CALL sync
 

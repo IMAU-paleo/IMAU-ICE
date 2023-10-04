@@ -62,7 +62,6 @@ CONTAINS
     INTEGER                                            :: it
     CHARACTER(LEN=9)                                   :: r_time, r_step, r_adv
 
-
     ! Add routine to path
     routine_name = 'run_model('  //  region%name  //  ')'
     CALL init_routine( routine_name)
@@ -88,8 +87,6 @@ CONTAINS
     dt_ave = 0._dp
     DO WHILE (region%time < t_end)
       it = it + 1
-
-      ! CALL determine_timesteps( region, t_end)
 
       ! Advance region time
       CALL sync
@@ -180,7 +177,6 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
-      ! print*, SUM(SUM(SUM(region%ice%Ti_a, DIM=3), DIM=2),DIM=1) ! CvC
 
     ! Isotopes
     ! ========
@@ -220,8 +216,6 @@ CONTAINS
       CALL run_ice_model( region, t_end)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
-      ! print*, SUM(SUM(SUM(region%ice%u_3D_a, DIM=3), DIM=2),DIM=1) ! CvC
-      ! print*, SUM(SUM(SUM(region%ice%v_3D_a, DIM=3), DIM=2),DIM=1) ! CvC
 
     ! Time step and output
     ! ====================
@@ -483,10 +477,6 @@ CONTAINS
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
     C%do_read_velocities_from_restart = .FAlSE.
-    print*, 'Hi_tplusdt_a after init'
-    print*, SUM(SUM(region%ice%Hi_tplusdt_a, DIM=2),DIM=1) ! CvC
-    print*, 'Hi_a after init'
-    print*, SUM(SUM(region%ice%Hi_a, DIM=2),DIM=1) ! CvC
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
