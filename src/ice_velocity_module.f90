@@ -320,63 +320,63 @@ CONTAINS
     IF (C%do_read_velocities_from_restart) THEN
       ! do nothing
     ELSE
-		! The viscosity iteration
-		viscosity_iteration_i = 0
-		has_converged         = .FALSE.
-		viscosity_iteration: DO WHILE (.NOT. has_converged)
-		  viscosity_iteration_i = viscosity_iteration_i + 1
+      ! The viscosity iteration
+      viscosity_iteration_i = 0
+      has_converged         = .FALSE.
+		  viscosity_iteration: DO WHILE (.NOT. has_converged)
+        viscosity_iteration_i = viscosity_iteration_i + 1
 
-		  ! Calculate the vertical shear strain rates
-		  CALL calc_vertical_shear_strain_rates( grid, ice)
+        ! Calculate the vertical shear strain rates
+        CALL calc_vertical_shear_strain_rates( grid, ice)
 
-		  ! Calculate the effective viscosity and the product term N = eta * H
-		  CALL calc_effective_viscosity( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+        ! Calculate the effective viscosity and the product term N = eta * H
+        CALL calc_effective_viscosity( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
 
-		  ! Calculate the sliding term beta (on both the A and Cx/Cy grids)
-		  CALL calc_sliding_term_beta( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+        ! Calculate the sliding term beta (on both the A and Cx/Cy grids)
+        CALL calc_sliding_term_beta( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
 
-		  ! Calculate the F-integral F2
-		  CALL calc_F_integral( grid, ice, n = 2._dp)
+        ! Calculate the F-integral F2
+        CALL calc_F_integral( grid, ice, n = 2._dp)
 
-		  ! Calculate beta_eff
-		  CALL calc_beta_eff( grid, ice)
+        ! Calculate beta_eff
+        CALL calc_beta_eff( grid, ice)
 
-		  ! Store the previous solution so we can check for convergence later
-		  ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
-		  ice%v_cy_prev( :,grid%i1:              grid%i2 ) = ice%v_vav_cy( :,grid%i1:              grid%i2 )
-		  CALL sync
+        ! Store the previous solution so we can check for convergence later
+        ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
+        ice%v_cy_prev( :,grid%i1:              grid%i2 ) = ice%v_vav_cy( :,grid%i1:              grid%i2 )
+        CALL sync
 
-		  ! Solve the linearised DIVA with the SICOPOLIS solver
-		  CALL solve_DIVA_stag_linearised( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+        ! Solve the linearised DIVA with the SICOPOLIS solver
+        CALL solve_DIVA_stag_linearised( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
 
-		  ! Apply velocity limits (both overflow and underflow) for improved stability
-		  CALL apply_velocity_limits( grid, ice%u_vav_cx, ice%v_vav_cy)
+        ! Apply velocity limits (both overflow and underflow) for improved stability
+        CALL apply_velocity_limits( grid, ice%u_vav_cx, ice%v_vav_cy)
 
-		  ! "relax" subsequent viscosity iterations for improved stability
-		  CALL relax_DIVA_visc_iterations( grid, ice, ice%u_vav_cx, ice%v_vav_cy, C%DIVA_visc_it_relax)
+        ! "relax" subsequent viscosity iterations for improved stability
+        CALL relax_DIVA_visc_iterations( grid, ice, ice%u_vav_cx, ice%v_vav_cy, C%DIVA_visc_it_relax)
 
-		  ! Check if the viscosity iteration has converged
-		  CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
-		  !IF (par%master) WRITE(0,*) '   DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_vav_cx), ' - ', MAXVAL(ice%u_vav_cx), ']'
+        ! Check if the viscosity iteration has converged
+        CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
+        !IF (par%master) WRITE(0,*) '   DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_vav_cx), ' - ', MAXVAL(ice%u_vav_cx), ']'
 
-		  has_converged = .FALSE.
-		  IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
-			has_converged = .TRUE.
-		  ELSEIF (viscosity_iteration_i >= C%DIVA_visc_it_nit) THEN
-			has_converged = .TRUE.
-		  END IF
+        has_converged = .FALSE.
+		    IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
+          has_converged = .TRUE.
+		    ELSEIF (viscosity_iteration_i >= C%DIVA_visc_it_nit) THEN
+          has_converged = .TRUE.
+		    END IF
 
-		  ! If needed, estimate the error in the velocity fields so we can
-		  ! update the SICOPOLIS-style DIVA solving masks (for better efficiency)
-		  IF (.NOT. has_converged) CALL estimate_visc_iter_UV_errors( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+        ! If needed, estimate the error in the velocity fields so we can
+        ! update the SICOPOLIS-style DIVA solving masks (for better efficiency)
+		    IF (.NOT. has_converged) CALL estimate_visc_iter_UV_errors( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
 
-		  ! Calculate basal stress
-		  CALL calc_basal_stress( grid, ice)
+        ! Calculate basal stress
+        CALL calc_basal_stress( grid, ice)
 
-		  ! Calculate basal velocity from depth-averaged solution and basal stress
-		  CALL calc_basal_velocities( grid, ice)
+        ! Calculate basal velocity from depth-averaged solution and basal stress
+        CALL calc_basal_velocities( grid, ice)
 
-		END DO viscosity_iteration
+		  END DO viscosity_iteration
     END IF! (C%do_read_velocities_from_restart) THEN
 
     ! Calculate full 3D velocities
