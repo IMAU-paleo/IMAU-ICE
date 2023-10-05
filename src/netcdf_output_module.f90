@@ -518,7 +518,7 @@ CONTAINS
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_dHB), long_name = 'Bedrock deformation' , units = 'm')
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+    IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
       CALL add_field_grid_dp_2D( filename, 'u_SSA_cx_a', long_name = 'SSA velocities in u direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'v_SSA_cy_a', long_name = 'SSA velocities in v direction' , units = 'm/yr')
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
@@ -1003,7 +1003,7 @@ CONTAINS
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_a )
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+    IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
       u_SSA_cx_a            = 0._dp
       v_SSA_cy_a            = 0._dp
       u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
