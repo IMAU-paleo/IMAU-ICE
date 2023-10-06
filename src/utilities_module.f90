@@ -659,12 +659,15 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_matrix_equation_CSR_SOR'
     INTEGER                                            :: i,j,k,it,i1,i2
     REAL(dp)                                           :: lhs, res, cij, res_max, omega_dyn
+    REAL(dp), DIMENSION(:), ALLOCATABLE :: x_new
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Partition equations over the processors
     CALL partition_list( CSR%m, par%i, par%n, i1, i2)
+
+    ALLOCATE( x_new( i1:i2))
 
     omega_dyn = omega
 
@@ -688,10 +691,14 @@ CONTAINS
         res = (lhs - CSR%b( i)) / cij
         res_max = MAX( res_max, ABS(res))
 
-        CSR%x( i) = CSR%x( i) - omega_dyn * res
+       ! CSR%x( i) = CSR%x( i) - omega_dyn * res
+       x_new( i) = CSR%x( i) - omega_dyn * res
 
       END DO ! DO i = i1, i2
       CALL sync
+
+      ! Replace solution
+      CSR%x( i1:i2) = x_new
 
       ! Check if we've reached a stable solution
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, res_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
@@ -713,6 +720,8 @@ CONTAINS
       END IF
 
     END DO SOR_iterate
+
+    DEALLOCATE( x_new)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
