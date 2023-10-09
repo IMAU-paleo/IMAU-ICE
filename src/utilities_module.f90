@@ -699,6 +699,7 @@ CONTAINS
 
       ! Replace solution
       CSR%x( i1:i2) = x_new
+      CALL sync
 
       ! Check if we've reached a stable solution
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, res_max, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
