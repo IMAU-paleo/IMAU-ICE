@@ -32,7 +32,9 @@ MODULE IMAU_ICE_main_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
   USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
-  USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   calculate_initial_relative_ice_load, update_Hb_with_external_GIA_model_output, read_external_GIA_file, calculate_relative_ice_load
+  USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   calculate_initial_relative_ice_load, &
+                                                 update_Hb_with_external_GIA_model_output, read_external_GIA_file, calculate_relative_ice_load, &
+                                                 calculate_elra_bedrock_deformation_rate
 # if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
 # endif
@@ -96,12 +98,8 @@ CONTAINS
 
       CALL determine_actions( region)
 
-    ! Update ice geometry
-      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
-
     ! GIA
     ! ===
-
       t1 = MPI_WTIME()
       IF     (C%choice_GIA_model == 'none') THEN
         ! Nothing to be done
@@ -118,6 +116,10 @@ CONTAINS
       END IF
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_GIA = region%tcomp_GIA + t2 - t1
+
+    ! Update ice geometry
+      CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
+      ! print*, SUM(SUM(region%ice%Hi_a,DIM=2),DIM=1)
 
     ! == Time display
     ! ===============
@@ -161,11 +163,13 @@ CONTAINS
       IF (region%do_SMB) THEN
         CALL run_SMB_model( region%grid, region%ice, region%climate, region%time, region%SMB, region%mask_noice)
       END IF
+      ! print*, SUM(SUM(region%SMB%SMB_year,DIM=2),DIM=1)
 
       ! Run the BMB model
       IF (region%do_BMB) THEN
         CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
       END IF
+      ! print*, SUM(SUM(region%BMB%BMB,DIM=2),DIM=1)
 
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_climate = region%tcomp_climate + t2 - t1
@@ -177,6 +181,7 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
+      ! print*, SUM(SUM(SUM(region%ice%Ti_a,DIM=3),DIM=2),DIM=1)
 
     ! Isotopes
     ! ========
@@ -216,6 +221,10 @@ CONTAINS
       CALL run_ice_model( region, t_end)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
+      ! print*, '1'
+      ! print*, SUM(SUM(SUM(region%ice%u_3D_SIA_cx,DIM=3),DIM=2),DIM=1)
+      ! print*, '1'
+      ! print*, SUM(SUM(region%ice%u_SSA_cx,DIM=2),DIM=1)
 
     ! Time step and output
     ! ====================
@@ -476,6 +485,23 @@ CONTAINS
 
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
+
+    ! GIA
+    ! ===
+    IF     (C%choice_GIA_model == 'none') THEN
+      ! Nothing to be done
+    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
+      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+# if (defined(DO_SELEN))
+    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
+      CALL apply_SELEN_bed_geoid_deformation_rates( region) !CvC this might not work proparly
+# endif
+    ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
+      CALL update_Hb_with_external_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
+    ELSE
+      CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
+    END IF
+
     C%do_read_velocities_from_restart = .FAlSE.
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)

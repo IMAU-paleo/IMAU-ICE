@@ -40,6 +40,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -75,6 +76,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -110,6 +112,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -145,6 +148,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -180,6 +184,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -219,6 +224,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -256,6 +262,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -293,6 +300,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -330,6 +338,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -367,6 +376,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -409,6 +419,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Upwind one-sided differencing
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -450,6 +461,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Upwind one-sided differencing
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
@@ -494,6 +506,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
       dx_cx( j,i) = (d_a( j,i+1) - d_a( j,i)) / grid%dx
@@ -523,6 +536,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
       dy_cy( j,i) = (d_a( j+1,i) - d_a( j,i)) / grid%dx
@@ -552,6 +566,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -589,6 +604,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -627,6 +643,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
     DO k = 1, C%nZ
@@ -658,6 +675,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
     DO k = 1, C%nZ
@@ -689,6 +707,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -728,6 +747,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -771,6 +791,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
       dx_a( j,i) = (d_cx( j,i) - d_cx( j,i-1)) / grid%dx
@@ -804,6 +825,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
       dy_a( j,i) = (d_cy( j,i) - d_cy( j-1,i)) / grid%dx
@@ -837,6 +859,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -896,6 +919,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -956,6 +980,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
     DO k = 1, C%nZ
@@ -987,6 +1012,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
     DO k = 1, C%nZ
@@ -1020,6 +1046,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = 2, grid%nx-2
     DO j = 1, grid%ny
@@ -1055,6 +1082,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -1090,6 +1118,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1125,6 +1154,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Central differencing in the interior
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-2
@@ -1160,6 +1190,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1199,6 +1230,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1240,6 +1272,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -1281,6 +1314,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -1324,6 +1358,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-2,grid%i2)
     DO j = 1, grid%ny-1
@@ -1363,6 +1398,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-2,grid%i2)
     DO j = 2, grid%ny-2
@@ -1402,6 +1438,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1470,6 +1507,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
       d_cx( j,i) = (d_a( j,i) + d_a( j,i+1)) / 2._dp
@@ -1499,6 +1537,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
       d_cy( j,i) = (d_a( j,i) + d_a( j+1,i)) / 2._dp
@@ -1529,6 +1568,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
     DO k = 1, C%nZ
@@ -1560,6 +1600,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
     DO k = 1, C%nZ
@@ -1595,6 +1636,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
       d_a( j,i) = (d_cx( j,i-1) + d_cx( j,i)) / 2._dp
@@ -1628,6 +1670,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
       d_a( j,i) = (d_cy( j-1,i) + d_cy( j,i)) / 2._dp
@@ -1662,6 +1705,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
     DO k = 1, C%nZ
@@ -1697,6 +1741,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, grid%i2
     DO j = 2, grid%ny-1
     DO k = 1, C%nZ
@@ -1734,6 +1779,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
@@ -1773,6 +1819,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     ! Interior
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 2, grid%ny-1
@@ -1814,6 +1861,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
       d_b( j,i) = (d_a( j,i) + d_a( j,i+1) + d_a( j+1,i) + d_a( j+1,i+1)) / 4._dp
@@ -1845,6 +1893,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
       d_b( j,i) = (d_cx( j,i) + d_cx( j+1,i)) / 2._dp
@@ -1874,6 +1923,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny-1
       d_b( j,i) = (d_cy( j,i) + d_cy( j,i+1)) / 2._dp
@@ -2025,6 +2075,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     d_a( 1              ,grid%i1:grid%i2) = d_a( 2              ,grid%i1:grid%i2)
     d_a( grid%ny        ,grid%i1:grid%i2) = d_a( grid%ny-1      ,grid%i1:grid%i2)
     CALL sync
@@ -2053,6 +2104,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     d_a( :,1              ,grid%i1:grid%i2) = d_a( :,2              ,grid%i1:grid%i2)
     d_a( :,grid%ny        ,grid%i1:grid%i2) = d_a( :,grid%ny-1      ,grid%i1:grid%i2)
     CALL sync
@@ -2081,6 +2133,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     d_cx( 1              ,grid%i1:MIN(grid%nx-1,grid%i2)) = d_cx( 2              ,grid%i1:MIN(grid%nx-1,grid%i2))
     d_cx( grid%ny        ,grid%i1:MIN(grid%nx-1,grid%i2)) = d_cx( grid%ny-1      ,grid%i1:MIN(grid%nx-1,grid%i2))
     CALL sync
@@ -2109,6 +2162,7 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
+    CALL sync
     d_cy( 1              ,grid%i1:grid%i2) = d_cy( 2              ,grid%i1:grid%i2)
     d_cy( grid%ny        ,grid%i1:grid%i2) = d_cy( grid%ny-1      ,grid%i1:grid%i2)
     CALL sync

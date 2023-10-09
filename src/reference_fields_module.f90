@@ -125,8 +125,8 @@ CONTAINS
       CALL crash('unknown choice_refgeo_GIAeq "' // TRIM( choice_refgeo_GIAeq) // '"!')
     END IF
 
-    ! When doing a restart, adapt initial ice geometry to make sure everything still fits
-    IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
+    ! When doing a restart, adapt initial ice geometry to make sure everything still fits ! CvC and FJFJ commented this because with the shuffle, its not needed anymore and messes things up.
+    ! IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
 
     ! Smooth input geometry (bed and ice)
     IF (C%do_smooth_geometry) THEN

@@ -166,12 +166,20 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    ! print*, '2'
+    ! print*, SUM(SUM(ice%Hi_cx,DIM=2),DIM=1)
+    ! print*, '3'
+    ! print*, SUM(SUM(ice%taudx_cx,DIM=2),DIM=1)
 
     ! Calculate the basal yield stress tau_c
     CALL calc_basal_conditions( grid, ice)
+    ! print*, '4'
+    ! print*, SUM(SUM(ice%Neff_a,DIM=2),DIM=1)
 
     ! Determine sub-grid grounded fractions for scaling the basal friction
     CALL determine_grounded_fractions( grid, ice)
+    ! print*, '5'
+    ! print*, SUM(SUM(ice%f_grnd_a,DIM=2),DIM=1)
 
     ! Find analytical solution for the SSA icestream experiment (used only to print numerical error to screen)
     CALL SSA_Schoof2006_analytical_solution( C%SSA_icestream_tantheta, C%SSA_icestream_H, ice%A_flow_vav_a( 1,1), 0._dp, umax_analytical, tauc_analytical)
@@ -198,6 +206,8 @@ CONTAINS
 
         ! Set beta_eff equal to beta; this turns the DIVA into the SSA
         ice%beta_eff_a( :,grid%i1:grid%i2) = ice%beta_a( :,grid%i1:grid%i2)
+        ! print*, '6'
+        ! print*, SUM(ice%beta_a9)
 
         ! Map beta_eff from the a-grid to the cx/cy-grids
         CALL map_a_to_cx_2D( grid, ice%beta_eff_a, ice%beta_eff_cx)
@@ -212,7 +222,8 @@ CONTAINS
         END DO
         END DO
         CALL sync
-
+        ! print*, '7'
+        ! print*, SUM(SUM(ice%beta_eff_a,DIM=2),DIM=1)
         ! Store the previous solution so we can check for convergence later
         ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
         ice%v_cy_prev( :,grid%i1:              grid%i2 ) = ice%v_SSA_cy( :,grid%i1:              grid%i2 )
@@ -316,7 +327,7 @@ CONTAINS
     ice%DIVA_err_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 1E5_dp
     ice%DIVA_err_cy( :,grid%i1:              grid%i2 ) = 1E5_dp
     CALL sync
-    
+
     IF (C%do_read_velocities_from_restart) THEN
       ! do nothing
     ELSE

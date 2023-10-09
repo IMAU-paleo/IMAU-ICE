@@ -93,7 +93,7 @@ CONTAINS
       IF (ice%mask_ocean_a( j,i) == 1) THEN
         surface_load_icemodel_grid( j,i) = (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density * grid%dx**2
       ELSE
-        surface_load_icemodel_grid( j,i) = ice%Hi_a( j,i) * ice_density * grid%dx**2
+        surface_load_icemodel_grid( j,i) = ice%Hi_tplusdt_a( j,i) * ice_density * grid%dx**2
       END IF
 
     END DO
