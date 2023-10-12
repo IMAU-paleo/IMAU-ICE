@@ -356,6 +356,10 @@ CONTAINS
       CALL crash('should only be called when choice_SMB_model == "IMAU-ITM"!')
     END IF
 
+    IF (par%master) SMB%FirnDepthforrestart = SMB%FirnDepth !cVc
+    IF (par%master) SMB%MeltPreviousYearforrestart = SMB%MeltPreviousYear !cVc
+    CALL sync
+
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
@@ -595,6 +599,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%AlbedoSurf      , SMB%wAlbedoSurf      )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%MeltPreviousYear, SMB%wMeltPreviousYear)
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%FirnDepth       , SMB%wFirnDepth       )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB%MeltPreviousYearforrestart, SMB%wMeltPreviousYearforrestart)
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%FirnDepthforrestart       , SMB%wFirnDepthforrestart       )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Rainfall        , SMB%wRainfall        )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%Snowfall        , SMB%wSnowfall        )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB%AddedFirn       , SMB%wAddedFirn       )

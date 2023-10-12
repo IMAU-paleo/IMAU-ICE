@@ -503,7 +503,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_DU
     INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
 
-    ! Climate matrix interpolation 
+    ! Climate matrix interpolation
     REAL(dp), DIMENSION(:,:), POINTER     :: w_ins_T
     REAL(dp), DIMENSION(:,:), POINTER     :: w_ice_T
     REAL(dp), DIMENSION(:,:), POINTER     :: w_tot_T
@@ -690,7 +690,9 @@ MODULE data_types_module
     ! Data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: AlbedoSurf                    ! Surface albedo underneath the snow layer (water, rock or ice)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear              ! Total melt that occurred during the previous year (m)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYearforrestart    ! Total melt that occurred during the previous year before the previous year (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth                     ! Depth of the firn layer (m)
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepthforrestart           ! Depth of the firn layer of the previous year (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Rainfall                      ! Monthly rainfall (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Snowfall                      ! Monthly snowfall (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: AddedFirn                     ! Monthly added firn (m)
@@ -702,7 +704,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Albedo_year                   ! Yearly albedo
     REAL(dp), DIMENSION(:,:,:), POINTER     :: SMB                           ! Monthly SMB (m)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB_year                      ! Yearly  SMB (m)
-    INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wRainfall, wSnowfall, wAddedFirn, wMelt
+    INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wMeltPreviousYearforrestart, wFirnDepthforrestart, wRainfall, wSnowfall, wAddedFirn, wMelt
     INTEGER :: wRefreezing, wRefreezing_year, wRunoff, wAlbedo, wAlbedo_year, wSMB, wSMB_year
 
   END TYPE type_SMB_model
@@ -834,9 +836,9 @@ MODULE data_types_module
     INTEGER :: wSL, wdHb
 
     ! SMB
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear
-    INTEGER :: wFirnDepth, wMeltPreviousYear
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepthforrestart
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYearforrestart
+    INTEGER :: wFirnDepthforrestart, wMeltPreviousYearforrestart
 
     ! Isotopes
     REAL(dp), DIMENSION(:,:  ), POINTER     :: IsoIce
@@ -932,7 +934,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ins_Q_TOA0, ins_Q_TOA1
     REAL(dp),                   POINTER     :: Q_TOA_JJA_65N, Q_TOA_DJF_80S
     INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1, wQ_TOA_JJA_65N, wQ_TOA_DJF_80S
-    
+
     ! External forcing: sea level record
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_time
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_record

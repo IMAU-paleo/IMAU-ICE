@@ -1023,8 +1023,8 @@ CONTAINS
     IF     (C%choice_SMB_model == 'uniform') THEN
     ELSEIF (C%choice_SMB_model == 'idealised') THEN
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'FirnDepth',  region%SMB%FirnDepth)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'MeltPreviousYear'  , region%SMB%MeltPreviousYear )
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'FirnDepth',  region%SMB%FirnDepthforrestart )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'MeltPreviousYear'  , region%SMB%MeltPreviousYearforrestart )
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
     ELSEIF (C%choice_SMB_model == 'snapshot') THEN
