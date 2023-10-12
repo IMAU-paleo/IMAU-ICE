@@ -105,12 +105,17 @@ CONTAINS
         ! Nothing to be done
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
         CALL run_ELRA_model( region)
+        ! print*, '2'
+        ! print*, SUM(region%ice%dHb_dt_a) !cvc
+        ! print*, '3'
+        ! print*, SUM(region%ice%Hb_a) !cvc
+
 # if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region)
 # endif
       ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
-        CALL update_Hb_with_external_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
+        CALL update_Hb_with_external_GIA_model_output(region)
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
@@ -430,12 +435,13 @@ CONTAINS
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
       CALL initialise_GIA_model_grid( region)
-      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+      CALL initialise_ELRA_model( region, region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
 # endif
     ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
+      CALL initialise_GIA_model_grid( region)
       CALL read_external_GIA_file(region%grid, region%ice)
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
@@ -491,13 +497,19 @@ CONTAINS
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+      IF (C%do_read_velocities_from_restart) THEN
+      ! Do nothing
+      ELSE
+        CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+      END IF
+      ! print*, '1'
+      ! print*, SUM(region%ice%dHb_dt_a) !cvc
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL apply_SELEN_bed_geoid_deformation_rates( region) !CvC this might not work proparly
 # endif
     ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
-      CALL update_Hb_with_external_GIA_model_output(region%grid, region%ice, region%time, region%refgeo_init)
+       ! Nothing to be done
     ELSE
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF

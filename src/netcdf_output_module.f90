@@ -1000,7 +1000,7 @@ CONTAINS
 
     ! GIA
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_SL)  , region%ice%SL_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_dt_a )
 
     ! Velocities
     IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
