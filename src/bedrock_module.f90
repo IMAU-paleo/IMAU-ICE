@@ -101,8 +101,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    print*, 'ice'
-    print*, SUM(surface_load_icemodel_grid) !cvc
 
     ! Calculate the relative surface load on the ice model grid
     DO i = grid_GIA%i1, grid_GIA%i2
