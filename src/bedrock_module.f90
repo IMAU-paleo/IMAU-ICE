@@ -406,7 +406,7 @@ CONTAINS
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%TAF_sheet(    j,i) = thickness_above_floatation( ice%Hi_tplusdt_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
+      ice%TAF_sheet(    j,i) = thickness_above_floatation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
     END DO
     END DO
     CALL sync
@@ -428,6 +428,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

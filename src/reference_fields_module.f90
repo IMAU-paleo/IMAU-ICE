@@ -125,9 +125,6 @@ CONTAINS
       CALL crash('unknown choice_refgeo_GIAeq "' // TRIM( choice_refgeo_GIAeq) // '"!')
     END IF
 
-    ! When doing a restart, adapt initial ice geometry to make sure everything still fits ! CvC and FJFJ commented this because with the shuffle, its not needed anymore and messes things up.
-    ! IF (choice_refgeo_init == 'restart') CALL adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
-
     ! Smooth input geometry (bed and ice)
     IF (C%do_smooth_geometry) THEN
       CALL smooth_model_geometry( grid, refgeo_PD%Hi,    refgeo_PD%Hb,    refgeo_PD%Hs   )
@@ -231,6 +228,8 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_from_restart_file
   SUBROUTINE adapt_initial_geometry_from_restart_file( grid, refgeo_PD, refgeo_init, filename_refgeo_init, region_name, time_to_restart_from)
+    ! This subroutine that is not being used anymore.
+
     ! Restarting a run can mean the initial bedrock is deformed, which should be accounted for.
     ! Also, the current model resolution might be higher than that which was used to generate
     ! the restart file. Both fo these problems are solved by adding the restart dHb to the PD Hb.

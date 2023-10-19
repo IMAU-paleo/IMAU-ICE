@@ -356,8 +356,8 @@ CONTAINS
       CALL crash('should only be called when choice_SMB_model == "IMAU-ITM"!')
     END IF
 
-    IF (par%master) SMB%FirnDepthforrestart = SMB%FirnDepth !cVc
-    IF (par%master) SMB%MeltPreviousYearforrestart = SMB%MeltPreviousYear !cVc
+    IF (par%master) SMB%FirnDepthforrestart = SMB%FirnDepth
+    IF (par%master) SMB%MeltPreviousYearforrestart = SMB%MeltPreviousYear
     CALL sync
 
     DO i = grid%i1, grid%i2

@@ -100,19 +100,15 @@ CONTAINS
 
     ! GIA
     ! ===
+
       t1 = MPI_WTIME()
       IF     (C%choice_GIA_model == 'none') THEN
         ! Nothing to be done
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
         CALL run_ELRA_model( region)
-        ! print*, '2'
-        ! print*, SUM(region%ice%dHb_dt_a) !cvc
-        ! print*, '3'
-        ! print*, SUM(region%ice%Hb_a) !cvc
-
 # if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-        CALL apply_SELEN_bed_geoid_deformation_rates( region)
+        CALL apply_SELEN_bed_geoid_deformation_rates( region) ! Be aware although SELEN is chosen to be the GIA model, it is never run.
 # endif
       ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
         CALL update_Hb_with_external_GIA_model_output(region)
@@ -123,8 +119,9 @@ CONTAINS
       IF (par%master) region%tcomp_GIA = region%tcomp_GIA + t2 - t1
 
     ! Update ice geometry
+    ! ===================
+
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
-      ! print*, SUM(SUM(region%ice%Hi_a,DIM=2),DIM=1)
 
     ! == Time display
     ! ===============
@@ -149,7 +146,7 @@ CONTAINS
         end if
       end if
 
-    ! Climate , SMB and BMB
+    ! Climate, ocean, SMB and BMB
     ! =====================
 
       t1 = MPI_WTIME()
@@ -168,13 +165,11 @@ CONTAINS
       IF (region%do_SMB) THEN
         CALL run_SMB_model( region%grid, region%ice, region%climate, region%time, region%SMB, region%mask_noice)
       END IF
-      ! print*, SUM(SUM(region%SMB%SMB_year,DIM=2),DIM=1)
 
       ! Run the BMB model
       IF (region%do_BMB) THEN
         CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
       END IF
-      ! print*, SUM(SUM(region%BMB%BMB,DIM=2),DIM=1)
 
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_climate = region%tcomp_climate + t2 - t1
@@ -186,37 +181,11 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%time, do_solve_heat_equation = region%do_thermo)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
-      ! print*, SUM(SUM(SUM(region%ice%Ti_a,DIM=3),DIM=2),DIM=1)
 
     ! Isotopes
     ! ========
 
       CALL run_isotopes_model( region)
-
-    ! Geometry-based basal inversion
-    ! ==============================
-
-      IF (region%do_BIV) THEN
-        IF (region%time > C%BIVgeo_t_start .AND. region%time < C%BIVgeo_t_end) THEN
-          CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt, region%time)
-        END IF
-      END IF
-
-    ! Ocean temperature inversion
-    ! ===========================
-
-      IF (C%do_ocean_temperature_inversion .AND. region%do_BMB) THEN
-        IF (region%time > C%ocean_temperature_inv_t_start .AND. region%time < C%ocean_temperature_inv_t_end) THEN
-          ! Adjust ocean temperatures
-          IF (C%do_asynchronous_BMB) THEN
-            ! Use custom BMB time step
-            CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, C%dt_BMB)
-          ELSE
-            ! Use main model time step
-            CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%dt)
-          END IF
-        END IF
-      END IF
 
     ! Ice dynamics
     ! ============
@@ -226,13 +195,34 @@ CONTAINS
       CALL run_ice_model( region, t_end)
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
-      ! print*, '1'
-      ! print*, SUM(SUM(SUM(region%ice%u_3D_SIA_cx,DIM=3),DIM=2),DIM=1)
-      ! print*, '1'
-      ! print*, SUM(SUM(region%ice%u_SSA_cx,DIM=2),DIM=1)
+
+    ! Perform inversions
+    ! ===========================
+
+      ! Ocean temperature inversion
+      IF (C%do_ocean_temperature_inversion .AND. region%do_BMB) THEN
+        IF (region%time > C%ocean_temperature_inv_t_start .AND. region%time < C%ocean_temperature_inv_t_end) THEN
+            CALL ocean_temperature_inversion( region%grid, region%ice, region%ocean_matrix%applied, region%refgeo_PD, region%dt)
+        END IF
+      END IF
+
+      ! Geometry-based basal inversion
+      IF (region%do_BIV) THEN
+        IF (region%time > C%BIVgeo_t_start .AND. region%time < C%BIVgeo_t_end) THEN
+          CALL basal_inversion_geo( region%grid, region%ice, region%refgeo_PD, C%BIVgeo_dt, region%time)
+        END IF
+      END IF
 
     ! Time step and output
     ! ====================
+
+        ! Write to NetCDF output one last time at the end of the simulation
+      IF (region%time == C%end_time_of_run) THEN
+        IF (C%do_write_relative_ice_load) THEN
+          CALL calculate_relative_ice_load(region%grid, region%ice)
+        END IF
+      END IF
+
       ! Write main output
       IF (region%do_output) THEN
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
@@ -262,9 +252,6 @@ CONTAINS
 
     ! Write to NetCDF output one last time at the end of the simulation
     IF (region%time == C%end_time_of_run) THEN
-      IF (C%do_write_relative_ice_load) THEN
-        CALL calculate_relative_ice_load(region%grid, region%ice)
-      END IF
       ! CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       ! CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
 
@@ -497,16 +484,14 @@ CONTAINS
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      IF (C%do_read_velocities_from_restart) THEN
-      ! Do nothing
-      ELSE
+      ! IF (C%do_read_velocities_from_restart) THEN
+      ! ! Do nothing
+      ! ELSE
         CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
-      END IF
-      ! print*, '1'
-      ! print*, SUM(region%ice%dHb_dt_a) !cvc
+      ! END IF
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL apply_SELEN_bed_geoid_deformation_rates( region) !CvC this might not work proparly
+      CALL apply_SELEN_bed_geoid_deformation_rates( region) ! It should be checked wheter SELEN initialises correctly according to the current structure of IMAU-ICE
 # endif
     ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
        ! Nothing to be done

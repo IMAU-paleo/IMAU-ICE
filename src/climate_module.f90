@@ -581,7 +581,7 @@ CONTAINS
 
     ! Read timeframes from files
     CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds, region_name)
-    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0)) !CvC
+    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0))
     CALL read_climate_snapshot( filename1, grid, climate%direct%timeframe1, found_winds, region_name)
     ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename1))
 

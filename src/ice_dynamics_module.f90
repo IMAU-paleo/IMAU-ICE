@@ -155,7 +155,7 @@ CONTAINS
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
       ! Shallow shelf approximation
 
-      ! IF (region%time == region%t_next_SSA) THEN !CvC commented
+      IF (region%time == region%t_next_SSA) THEN
 
         ! Calculate new ice velocities
         CALL solve_SSA( region%grid, region%ice)
@@ -176,12 +176,12 @@ CONTAINS
         END IF
         CALL sync
 
-      ! END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN !CvC commented
+      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
 
     ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
       ! Hybrid SIA/SSA (Bueler and Brown, 2009)
 
-      ! IF (region%time == region%t_next_SIA) THEN !CvC commented
+      IF (region%time == region%t_next_SIA) THEN
 
         ! Calculate new ice velocities
         CALL solve_SIA( region%grid, region%ice)
@@ -203,9 +203,9 @@ CONTAINS
         END IF
         CALL sync
 
-      ! END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
+      END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
 
-      ! IF (region%time == region%t_next_SSA) THEN !CvC commented
+      IF (region%time == region%t_next_SSA) THEN
         ! Calculate new ice velocities
         CALL solve_SSA( region%grid, region%ice)
 
@@ -225,14 +225,13 @@ CONTAINS
         END IF
         CALL sync
 
-      ! END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
 
     ELSE ! IF     (C%choice_ice_dynamics == 'SIA') THEN
       CALL crash('"direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!')
     END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
 
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    ! CALL determine_timesteps_and_actions( region, t_end) !CvC commented this
     CALL determine_timesteps( region, t_end)
 
     !IF (par%master) WRITE(0,'(A,F7.4,A,F7.4,A,F7.4)') 'dt_crit_SIA = ', dt_crit_SIA, ', dt_crit_SSA = ', dt_crit_SSA, ', dt = ', region%dt
@@ -443,9 +442,6 @@ CONTAINS
       CALL calc_pc_truncation_error( region%grid, region%ice, region%dt_crit_ice)
 
     END IF ! IF (do_update_ice_velocity) THEN
-
-    ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
-    ! CALL determine_timesteps_and_actions( region, t_end)
 
     ! Calculate ice thickness at the end of the model time loop
     region%ice%Hi_tplusdt_a( :,i1:i2) = MAX( 0._dp, region%ice%Hi_a( :,i1:i2) + region%dt * region%ice%dHi_dt_a( :,i1:i2))

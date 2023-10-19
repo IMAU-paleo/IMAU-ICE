@@ -2840,7 +2840,6 @@ CONTAINS
 
     ! Perform the extrapolation
     IF (par%master) CALL extrapolate_Gaussian_floodfill( grid, mask, dT_ocean, sigma, mask_filled)
-    CALL sync
 
     ! Clean up after yourself
     CALL deallocate_shared( wmask_filled)
