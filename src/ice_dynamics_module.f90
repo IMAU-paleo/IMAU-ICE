@@ -908,7 +908,8 @@ CONTAINS
 
       ! Determine when each model components should be updated
 
-      t_next = MIN(t_end, region%time + C%dt_max)
+      t_next = region%time + C%dt_max
+
       ! First the ice dynamics
       ! ======================
 
