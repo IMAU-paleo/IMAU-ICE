@@ -89,7 +89,6 @@ CONTAINS
     ! Extrapolate melt field from the regular (FCMP) mask to the (extended) PMP mask
     IF (C%choice_BMB_subgrid == 'PMP') CALL extrapolate_melt_from_FCMP_to_PMP( grid, ice, BMB)
 
-
     ! If desired, the BMB can be tuned locally by changing the amplification factor
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1367,7 +1366,6 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
-
     ! Calculate ocean temperature and freezing point at the base of the shelf
     CALL calc_ocean_temperature_at_shelf_base(    grid, ice, ocean, BMB)
     CALL calc_ocean_freezing_point_at_shelf_base( grid, ice, ocean, BMB)

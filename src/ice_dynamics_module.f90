@@ -273,6 +273,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    print*, 'enter run ice dynamics pc' ! CvC
 
     ! Abbreviations for cleaner code
     i1 = region%grid%i1
@@ -337,14 +338,18 @@ CONTAINS
       ! Calculate time step based on the truncation error in ice thickness (Robinson et al., 2020, Eq. 33)
       CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_adv)
       IF (par%master) THEN
-
+        print*, dt_crit_adv ! CvC
         ! Calculate critical time step
         region%dt_crit_ice_prev = region%dt_crit_ice
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
+        print*, region%dt ! CvC
+        print*, dt_from_pc ! CvC
         region%dt_crit_ice      = MAX( C%dt_min, MAX( 0.5_dp * region%dt_crit_ice_prev, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc])))
+        print*, region%dt_crit_ice ! CvC
 
         ! Apply conditions to the time step
         region%dt_crit_ice = MAX( C%dt_min, MIN( dt_max, region%dt_crit_ice))
+        print*, region%dt_crit_ice ! CvC
 
         ! Calculate zeta
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
