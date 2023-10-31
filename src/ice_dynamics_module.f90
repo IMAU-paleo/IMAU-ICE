@@ -1068,6 +1068,10 @@ CONTAINS
         region%do_output_restart      = .TRUE.
       END IF
 
+      region%do_output_regional_scalar  = .FALSE.
+      IF (region%time == region%t_next_output_regional_scalar) THEN
+        region%do_output_regional_scalar      = .TRUE.
+      END IF
     END IF ! IF (par%master) THEN
     CALL sync
 

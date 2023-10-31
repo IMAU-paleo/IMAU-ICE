@@ -62,6 +62,7 @@ MODULE configuration_module
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
   REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing help output
   REAL(dp)            :: dt_output_restart_config                    = 10000.0_dp                       ! Time step (in years) for writing restart output
+  REAL(dp)            :: dt_output_regional_scalar_config            = 5000.0_dp                       ! Time step (in years) for writing restart output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -103,7 +104,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
   LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
-  LOGICAL             :: do_write_regional_scalar_every_timestep_config = .FALSE.
+  LOGICAL             :: do_write_resource_tracking_output_config       = .TRUE.
 
   ! Debugging
   ! =========
@@ -908,6 +909,7 @@ MODULE configuration_module
     REAL(dp)                            :: dt_SELEN
     REAL(dp)                            :: dt_output
     REAL(dp)                            :: dt_output_restart
+    REAL(dp)                            :: dt_output_regional_scalar
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -949,7 +951,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
     LOGICAL                             :: do_write_global_scalar_output
-    LOGICAL                             :: do_write_regional_scalar_every_timestep
+    LOGICAL                             :: do_write_resource_tracking_output
 
     ! Debugging
     ! =========
@@ -1937,6 +1939,7 @@ CONTAINS
                      dt_SELEN_config,                                 &
                      dt_output_config,                                &
                      dt_output_restart_config,                        &
+                     dt_output_regional_scalar_config,                &
                      do_NAM_config,                                   &
                      do_EAS_config,                                   &
                      do_GRL_config,                                   &
@@ -1958,7 +1961,7 @@ CONTAINS
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
                      do_write_global_scalar_output_config,            &
-                     do_write_regional_scalar_every_timestep_config,  &
+                     do_write_resource_tracking_output_config,        &
                      do_check_for_NaN_config,                         &
                      do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
@@ -2692,6 +2695,7 @@ CONTAINS
     C%dt_SELEN                                 = dt_SELEN_config
     C%dt_output                                = dt_output_config
     C%dt_output_restart                        = dt_output_restart_config
+    C%dt_output_regional_scalar                = dt_output_regional_scalar_config
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -2732,7 +2736,7 @@ CONTAINS
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
-    C%do_write_regional_scalar_every_timestep  = do_write_regional_scalar_every_timestep_config
+    C%do_write_resource_tracking_output        = do_write_resource_tracking_output_config
     ! Debugging
     ! =========
 

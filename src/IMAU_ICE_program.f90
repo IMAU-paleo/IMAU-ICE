@@ -124,7 +124,7 @@ PROGRAM IMAU_ICE_program
   ! ===== Create the resource tracking output file =====
   ! ====================================================
 
-  CALL create_resource_tracking_file( resources)
+  IF (C%do_write_resource_tracking_output) CALL create_resource_tracking_file( resources)
 
   ! ===== Initialise the ocean matrix =====
   ! =======================================
@@ -305,7 +305,7 @@ PROGRAM IMAU_ICE_program
     END IF
 
     ! Write resource use to the resource tracking file
-    CALL write_to_resource_tracking_file( resources, t_coupling)
+    IF (C%do_write_resource_tracking_output) CALL write_to_resource_tracking_file( resources, t_coupling)
     CALL reset_computation_times
 
   END DO ! DO WHILE (t_coupling < C%end_time_of_run)

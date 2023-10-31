@@ -89,14 +89,12 @@ CONTAINS
     dt_ave = 0._dp
     DO WHILE (region%time < t_end)
       it = it + 1
-      print*, region%time !CvC
 
-      ! Advance region time
+      ! Advance region time and determine which actions should be done this timestep
       CALL sync
       IF (par%master) region%time = region%time + region%dt
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
-
       CALL determine_actions( region)
 
     ! GIA
@@ -119,7 +117,7 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_GIA = region%tcomp_GIA + t2 - t1
 
-    ! Update ice geometry
+    ! Update geometry
     ! ===================
 
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
@@ -188,8 +186,8 @@ CONTAINS
 
       CALL run_isotopes_model( region)
 
-    ! Ice dynamics
-    ! ============
+    ! Ice dynamics and determination of timestep
+    ! ==========================================
 
       ! Calculate ice velocities and the resulting change in ice geometry
       t1 = MPI_WTIME()
@@ -198,7 +196,7 @@ CONTAINS
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
     ! Perform inversions
-    ! ===========================
+    ! ==================
 
       ! Ocean temperature inversion
       IF (C%do_ocean_temperature_inversion .AND. region%do_BMB) THEN
@@ -237,7 +235,7 @@ CONTAINS
       ! Write scalar output
       CALL calculate_icesheet_volume_and_area(region)
 
-      IF (C%do_write_regional_scalar_every_timestep) THEN
+      IF (region%do_output_regional_scalar) THEN
         ! Save regional scalar every model time-step
         CALL write_regional_scalar_data( region, region%time)
       END IF
@@ -450,7 +448,7 @@ CONTAINS
 
     CALL initialise_geothermal_heat_flux_regional( region%grid, region%ice, region%name)
 
-    ! ===== Initialise the ice temperature profile =====
+    ! ===== Run all the modules once =====
     ! ==================================================
 
     ! Run the climate and SMB models once, to get the correct surface temperature+SMB fields for the ice temperature initialisation
@@ -461,13 +459,13 @@ CONTAINS
     CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
     CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD)
 
-    ! Initialise the temperature field
+    ! Initialise the ice temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
 
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
 
-    IF     (C%choice_initial_ice_temperature == 'restart') THEN
+    IF (C%choice_initial_ice_temperature == 'restart') THEN
       ! Do nothing
     ELSE
       ! Run thermodynamics
@@ -481,15 +479,10 @@ CONTAINS
     CALL run_ice_model( region, C%end_time_of_run)
 
     ! GIA
-    ! ===
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-      ! IF (C%do_read_velocities_from_restart) THEN
-      ! ! Do nothing
-      ! ELSE
         CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
-      ! END IF
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL apply_SELEN_bed_geoid_deformation_rates( region) ! It should be checked wheter SELEN initialises correctly according to the current structure of IMAU-ICE
@@ -500,6 +493,7 @@ CONTAINS
       CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
     END IF
 
+    ! Set do_read_velocities_from_restart to false so that velocities will be computed after initialisation of the restart
     C%do_read_velocities_from_restart = .FAlSE.
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
@@ -590,6 +584,10 @@ CONTAINS
     CALL allocate_shared_dp_0D(   region%t_next_output_restart, region%wt_next_output_restart)
     CALL allocate_shared_bool_0D( region%do_output_restart,     region%wdo_output_restart    )
 
+    CALL allocate_shared_dp_0D(   region%t_last_output_regional_scalar, region%wt_last_output_regional_scalar)
+    CALL allocate_shared_dp_0D(   region%t_next_output_regional_scalar, region%wt_next_output_regional_scalar)
+    CALL allocate_shared_bool_0D( region%do_output_regional_scalar,     region%wdo_output_regional_scalar    )
+
     CALL allocate_shared_dp_0D(   region%t_last_climate,        region%wt_last_climate       )
     CALL allocate_shared_dp_0D(   region%t_next_climate,        region%wt_next_climate       )
     CALL allocate_shared_bool_0D( region%do_climate,            region%wdo_climate           )
@@ -666,6 +664,11 @@ CONTAINS
       region%t_last_output_restart = C%start_time_of_run
       region%t_next_output_restart = C%start_time_of_run + C%dt_output_restart
       region%do_output_restart     = .TRUE.
+
+      region%t_last_output_regional_scalar = C%start_time_of_run
+      region%t_next_output_regional_scalar = C%start_time_of_run + C%dt_output_regional_scalar
+      region%do_output_regional_scalar     = .TRUE.
+
     END IF
 
     ! ===== Scalars =====
