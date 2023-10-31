@@ -1015,8 +1015,8 @@ CONTAINS
       v_vav_cy_a            = 0._dp
       u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
       v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , region%ice%u_vav_cx )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , region%ice%v_vav_cy )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
     END IF
 
     ! SMB
