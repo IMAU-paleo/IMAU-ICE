@@ -3126,7 +3126,7 @@ CONTAINS
         WRITE(0,*) '  Initialising velocities from restart file...'
       END IF
       CALL sync
-    ! END IF
+    END IF
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')

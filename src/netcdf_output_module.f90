@@ -527,10 +527,10 @@ CONTAINS
     ! ENDIF
 
     ! Predictor corrector method
-    IF     (C%choice_timestepping == 'pc') THEN
-      CALL add_field_grid_dp_2D( filename, 'dHi_dt_a', long_name = 'applied ice thickness rate of change' , units = 'm/yr')
+    ! IF     (C%choice_timestepping == 'pc') THEN !CvC
+    CALL add_field_grid_dp_2D( filename, 'dHi_dt_a', long_name = 'applied ice thickness rate of change' , units = 'm/yr')
       ! CALL add_field_grid_dp_2D( filename, 'dt_crit_ice', long_name = 'critical time step' , units = 'yr')
-    ENDIF
+    ! ENDIF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -1025,6 +1025,10 @@ CONTAINS
       v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
+    END IF
+
+    IF (C%choice_timestepping == 'direct') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
     END IF
 
     ! Predictor corrector method
