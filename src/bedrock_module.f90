@@ -18,8 +18,6 @@ MODULE bedrock_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
-  USE netcdf_input_module,             ONLY: read_field_from_file_2D
-
 
   IMPLICIT NONE
 
@@ -179,13 +177,12 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calculate_ELRA_bedrock_deformation_rate
-  SUBROUTINE initialise_ELRA_model( region, grid, grid_GIA, ice, refgeo_GIAeq)
+  SUBROUTINE initialise_ELRA_model( grid, grid_GIA, ice, refgeo_GIAeq)
     ! Allocate and initialise the ELRA GIA model
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_model_region),             INTENT(IN)    :: region
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
@@ -197,8 +194,6 @@ CONTAINS
     ! INTEGER                                            :: wHi_topo_grid_GIA, wHb_topo_grid_GIA
     INTEGER                                            :: i,j,n,k,l
     REAL(dp)                                           :: Lr, r
-    CHARACTER(LEN=256)                                 :: filename_restart
-    REAL(dp)                                           :: time_to_restart_from
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -249,26 +244,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-
-    IF (C%do_read_velocities_from_restart) THEN
-      ! Select filename and time to restart from
-      IF     (region%name == 'NAM') THEN
-        filename_restart     = C%filename_refgeo_init_NAM
-        time_to_restart_from = C%time_to_restart_from_NAM
-      ELSEIF (region%name == 'EAS') THEN
-        filename_restart     = C%filename_refgeo_init_EAS
-        time_to_restart_from = C%time_to_restart_from_EAS
-      ELSEIF (region%name == 'GRL') THEN
-        filename_restart     = C%filename_refgeo_init_GRL
-        time_to_restart_from = C%time_to_restart_from_GRL
-      ELSEIF (region%name == 'ANT') THEN
-        filename_restart     = C%filename_refgeo_init_ANT
-        time_to_restart_from = C%time_to_restart_from_ANT
-      END IF
-
-      CALL read_field_from_file_2D(   filename_restart, 'dHb', grid,  ice%dHb_dt_a,  region%name, time_to_restart_from)
-
-    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

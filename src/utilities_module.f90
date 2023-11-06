@@ -709,7 +709,7 @@ CONTAINS
       IF (it > 100 .AND. res_max > 1E3_dp ) THEN
 
         ! Divergence detected - decrease omega, reset solution to zero, restart SOR.
-        IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - divergence detected; decrease omega, reset solution to zero, restart SOR'
+        ! IF (par%master) WRITE(0,*) '  solve_matrix_equation_CSR_SOR - divergence detected; decrease omega, reset solution to zero, restart SOR' !cvc
         omega_dyn = omega_dyn - 0.1_dp
         it = 0
         CSR%x( i1:i2) = 0._dp

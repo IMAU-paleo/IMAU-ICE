@@ -27,8 +27,10 @@ MODULE ice_dynamics_module
   USE basal_conditions_and_sliding_module, ONLY: initialise_basal_conditions
   USE calving_module,                      ONLY: apply_calving_law
 
-  USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
-                                             save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+  USE netcdf_debug_module,                 ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
+                                                 save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
+  USE netcdf_input_module,                 ONLY: read_field_from_file_2D
+
   IMPLICIT NONE
 
 CONTAINS
@@ -278,6 +280,11 @@ CONTAINS
     i1 = region%grid%i1
     i2 = region%grid%i2
 
+    ! Save variable for restart run
+    region%ice%dHidt_Hn_un_forrestart( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
+    region%ice%u_vav_cx_forrestart = region%ice%u_vav_cx
+    region%ice%v_vav_cy_forrestart = region%ice%v_vav_cy
+
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
     IF     (C%choice_ice_dynamics == 'none') THEN
@@ -340,11 +347,18 @@ CONTAINS
 
         ! Calculate critical time step
         region%dt_crit_ice_prev = region%dt_crit_ice
+        ! print*, 'region%dt = ',region%dt !CvC
+        ! print*, 'pc_eta = ',region%ice%pc_eta !CvC
+        ! print*, 'pc_eta_prev = ',region%ice%pc_eta_prev !CvC
+
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
+        ! print*, 'dt_from_pc = ',dt_from_pc !CvC
         region%dt_crit_ice      = MAX( C%dt_min, MAX( 0.5_dp * region%dt_crit_ice_prev, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc])))
 
         ! Apply conditions to the time step
         region%dt_crit_ice = MAX( C%dt_min, MIN( dt_max, region%dt_crit_ice))
+        ! print*, 'dt_crit_ice = ',region%dt_crit_ice !CvC
+        ! print*, 'dt_crit_ice_prev = ',region%dt_crit_ice_prev !CvC
 
         ! Calculate zeta
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
@@ -354,11 +368,15 @@ CONTAINS
 
       ! Predictor step
       ! ==============
+      IF (par%master) print*, 'start dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
+
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
+      IF (par%master) print*, 'final dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
+
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
         ((1._dp + region%ice%pc_zeta / 2._dp) * region%ice%dHidt_Hn_un( :,i1:i2) - (region%ice%pc_zeta / 2._dp) * region%ice%dHidt_Hnm1_unm1( :,i1:i2)))
@@ -404,6 +422,8 @@ CONTAINS
         IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
         IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
         CALL sync
+        IF (par%master) print*, 'after solving: u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
+        IF (par%master) print*, 'after solving: uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
 
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
 
@@ -1102,6 +1122,8 @@ CONTAINS
     INTEGER                                            :: i,j
     REAL(dp)                                           :: tauc_analytical
     LOGICAL                                            :: is_ISMIP_HOM
+    CHARACTER(LEN=256)                                 :: filename_restart
+    REAL(dp)                                           :: time_to_restart_from
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1130,6 +1152,11 @@ CONTAINS
     END DO
     CALL sync
 
+    ! if restart, intialise dHi_dt and dHb_dt from restart file.
+    IF (C%do_read_velocities_from_restart) THEN
+      CALL initialise_changing_geometry_from_restart_file( grid, ice, region_name)
+    END IF
+
     ! Make sure we already start with correct boundary conditions
     CALL apply_ice_thickness_BC(        grid, ice, C%dt_min)
     CALL update_general_ice_model_data( grid, ice)
@@ -1147,7 +1174,7 @@ CONTAINS
     IF (par%master) THEN
       ice%pc_zeta        = 1._dp
       ice%pc_eta         = C%pc_epsilon
-      ice%pc_eta_prev    = C%pc_epsilon
+      ice%pc_eta_prev    = C%pc_epsilon !CvC pc_eta_prev is initialised here
     END IF
     CALL sync
 
@@ -1179,6 +1206,10 @@ CONTAINS
     ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( grid, ice, region_name)
+      ! IF (C%choice_timestepping == 'pc') THEN
+        ! CALL solve_SIA( grid, ice)
+        ! CALL solve_SSA( grid, ice)
+      ! END IF
     END IF
 
     ! Read target dHi_dt from external file
@@ -1190,7 +1221,52 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ice_model
+  SUBROUTINE initialise_changing_geometry_from_restart_file( grid, ice, region_name)
+    ! Initialise dHi_dt and dHb_dt with data from a previous simulation's restart file
 
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_ice_model),           INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_changing_geometry_from_restart_file'
+    CHARACTER(LEN=256)                            :: filename_restart
+    REAL(dp)                                      :: time_to_restart_from
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Select filename and time to restart from
+    IF     (region_name == 'NAM') THEN
+      filename_restart     = C%filename_refgeo_init_NAM
+      time_to_restart_from = C%time_to_restart_from_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename_restart     = C%filename_refgeo_init_EAS
+      time_to_restart_from = C%time_to_restart_from_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename_restart     = C%filename_refgeo_init_GRL
+      time_to_restart_from = C%time_to_restart_from_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename_restart     = C%filename_refgeo_init_ANT
+      time_to_restart_from = C%time_to_restart_from_ANT
+    END IF
+
+    CALL read_field_from_file_2D(   filename_restart, 'dHi_dt_a', grid,  ice%dHi_dt_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'dHb', grid,  ice%dHb_dt_a,  region_name, time_to_restart_from)
+    ice%dHidt_Hn_un = ice%dHi_dt_a
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a')
+    CALL check_for_NaN_dp_2D( ice%dHb_dt_a, 'ice%dHb_dt_a')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_changing_geometry_from_restart_file
   SUBROUTINE allocate_ice_model( grid, ice)
 
     IMPLICIT NONE
@@ -1245,6 +1321,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%v_vav_a              , ice%wv_vav_a              )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%u_vav_cx             , ice%wu_vav_cx             )
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%v_vav_cy             , ice%wv_vav_cy             )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx-1, ice%u_vav_cx_forrestart  , ice%wu_vav_cx_forrestart  )
+    CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx  , ice%v_vav_cy_forrestart  , ice%wv_vav_cy_forrestart  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%uabs_vav_a           , ice%wuabs_vav_a           )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%u_surf_a             , ice%wu_surf_a             )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%v_surf_a             , ice%wv_surf_a             )
@@ -1379,6 +1457,7 @@ CONTAINS
     CALL allocate_shared_dp_0D(                              ice%pc_eta_prev          , ice%wpc_eta_prev          )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hnm1_unm1      , ice%wdHidt_Hnm1_unm1      )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hn_un          , ice%wdHidt_Hn_un          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hn_un_forrestart, ice%wdHidt_Hn_un_forrestart)
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHidt_Hstarnp1_unp1  , ice%wdHidt_Hstarnp1_unp1  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_old               , ice%wHi_old               )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_pred              , ice%wHi_pred              )

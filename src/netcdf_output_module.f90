@@ -518,12 +518,18 @@ CONTAINS
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_dHB), long_name = 'Bedrock deformation' , units = 'm')
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+    ! IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN !CvC commented
       CALL add_field_grid_dp_2D( filename, 'u_SSA_cx_a', long_name = 'SSA velocities in u direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'v_SSA_cy_a', long_name = 'SSA velocities in v direction' , units = 'm/yr')
-    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+    ! ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
+    ! ENDIF
+
+    ! Predictor corrector method
+    IF     (C%choice_timestepping == 'pc') THEN
+      CALL add_field_grid_dp_2D( filename, 'dHi_dt_a', long_name = 'applied ice thickness rate of change' , units = 'm/yr')
+      ! CALL add_field_grid_dp_2D( filename, 'dt_crit_ice', long_name = 'critical time step' , units = 'yr')
     ENDIF
 
     ! SMB
@@ -1010,13 +1016,29 @@ CONTAINS
       v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx_a' , u_SSA_cx_a )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy_a' , v_SSA_cy_a )
-    ELSEIF     (C%choice_ice_dynamics == 'DIVA') THEN
+    END IF
+
+    IF (C%choice_timestepping == 'direct' .AND. C%choice_ice_dynamics == 'DIVA') THEN
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
       u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
       v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , region%ice%u_vav_cx )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , region%ice%v_vav_cy )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
+    END IF
+
+    ! Predictor corrector method
+    IF     (C%choice_timestepping == 'pc') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHidt_Hn_un_forrestart )
+      u_vav_cx_a            = 0._dp
+      v_vav_cy_a            = 0._dp
+      u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx_forrestart
+      v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy_forrestart
+      print*, 'safe vav for restart'
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
+      ! CALL write_to_field_multiple_options_grid_dp_1D( filename, region%grid, 'dt_crit_ice' , region%dt_crit_ice ) !CvC
+      ! CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_history,     'dt_crit_ice',      region%dt_crit_ice)
     END IF
 
     ! SMB

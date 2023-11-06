@@ -167,6 +167,8 @@ CONTAINS
     END DO
     CALL sync
 
+    IF (par%master) print*, 'taudx_cx = ',SUM(ice%taudx_cx) !CvC
+
     ! Calculate the basal yield stress tau_c
     CALL calc_basal_conditions( grid, ice)
 
@@ -212,6 +214,7 @@ CONTAINS
         END DO
         END DO
         CALL sync
+        IF (par%master) print*, 'beta_eff_a = ',SUM(ice%beta_eff_a) !CvC
 
         ! Store the previous solution so we can check for convergence later
         ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
@@ -463,6 +466,7 @@ CONTAINS
         ice%v_3D_cy( k,:,grid%i1:              grid%i2 ) = ice%v_3D_SIA_cy( k,:,grid%i1:              grid%i2 ) + ice%v_SSA_cy( :,grid%i1:              grid%i2 )
       END DO
       CALL sync
+      print*, "u_3D_cx = ", SUM(ice%u_3D_cx) !CvC
 
       ! Set basal velocity equal to SSA answer
       ice%u_base_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
@@ -3107,7 +3111,11 @@ CONTAINS
         WRITE(0,*) '  Initialising velocities from restart file...'
       END IF
       CALL sync
-    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+    END IF
+
+    IF (C%choice_timestepping == 'pc' .OR. C%choice_ice_dynamics == 'DIVA') THEN
+
+    ! ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       u_vav_cx_a = 0._dp
       v_vav_cy_a = 0._dp
       CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx_a', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
@@ -3118,7 +3126,7 @@ CONTAINS
         WRITE(0,*) '  Initialising velocities from restart file...'
       END IF
       CALL sync
-    END IF
+    ! END IF
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')

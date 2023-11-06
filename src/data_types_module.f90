@@ -111,6 +111,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_vav_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_cy
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_vav_cx_forrestart
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_cy_forrestart
     REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_vav_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf_a              ! Ice velocity at the surface [m yr^-1]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf_a
@@ -130,7 +132,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_SSA_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: R_shear               ! Shearing ratio; 1 = full shearing, 0 = full sliding
     INTEGER :: wu_3D_a, wv_3D_a, wu_3D_cx, wv_3D_cy, ww_3D_a
-    INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wuabs_vav_a
+    INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wu_vav_cx_forrestart,  wv_vav_cy_forrestart,  wuabs_vav_a
     INTEGER :: wu_surf_a, wv_surf_a, wu_surf_cx, wv_surf_cy, wuabs_surf_a, ww_surf_a
     INTEGER :: wu_base_a, wv_base_a, wu_base_cx, wv_base_cy, wuabs_base_a, ww_base_a
     INTEGER :: wu_3D_SIA_cx, wv_3D_SIA_cy, wu_SSA_cx, wv_SSA_cy
@@ -295,12 +297,13 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: pc_eta_prev
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hnm1_unm1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hn_un
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hn_un_forrestart
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hstarnp1_unp1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_old
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_pred
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_corr
     INTEGER :: wpc_zeta, wpc_tau, wpc_eta, wpc_eta_prev
-    INTEGER :: wdHidt_Hnm1_unm1, wdHidt_Hn_un, wdHidt_Hstarnp1_unp1, wHi_old, wHi_pred, wHi_corr
+    INTEGER :: wdHidt_Hnm1_unm1, wdHidt_Hn_un, wdHidt_Hn_un_forrestart, wdHidt_Hstarnp1_unp1, wHi_old, wHi_pred, wHi_corr
 
     ! Thermodynamics
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_ice_a_prev        ! Ice mask from previous time step

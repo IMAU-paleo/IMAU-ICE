@@ -227,6 +227,7 @@ CONTAINS
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
       END IF
 
+      IF (par%master) print*, 'final dHidt = ',SUM(region%ice%dHi_dt_a) !CvC
       ! Write to restart file
       IF (region%do_output_restart) THEN
         CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
@@ -421,7 +422,7 @@ CONTAINS
       ! Nothing to be done
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
       CALL initialise_GIA_model_grid( region)
-      CALL initialise_ELRA_model( region, region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+      CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
@@ -507,6 +508,8 @@ CONTAINS
     CALL calculate_icesheet_volume_and_area(region)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
+    IF (par%master) print*, 'final init u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
+    IF (par%master) print*, 'final init uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
     ! Write the first entry to the help fields and restart files
     CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
     CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
