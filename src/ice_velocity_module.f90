@@ -985,7 +985,7 @@ CONTAINS
     CALL check_for_NaN_dp_2D( ice%beta_a, 'ice%beta_a')
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+      CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_sliding_term_beta
   SUBROUTINE calc_F_integral( grid, ice, n)
@@ -1133,7 +1133,7 @@ CONTAINS
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-
+      ! Lipscomp et al., 2019, just above Eq. 33
       IF (i < grid%nx) ice%taub_cx( j,i) = ice%beta_eff_cx( j,i) * ice%u_vav_cx( j,i)
       IF (j < grid%ny) ice%taub_cy( j,i) = ice%beta_eff_cy( j,i) * ice%v_vav_cy( j,i)
 
@@ -1150,8 +1150,8 @@ CONTAINS
 
   END SUBROUTINE calc_basal_stress
   SUBROUTINE calc_basal_velocities( grid, ice)
-    ! Calculate basal sliding following Goldberg (2011), Eq. 34
-    ! (or it can also be obtained from L19, Eq. 32 given ub*beta=taub)
+    ! Calculate basal sliding following Lipscomp et al., 2019, Eq. 32 
+    ! (or it can also be obtained from Goldberg (2011), Eq. 34)
 
     IMPLICIT NONE
 
@@ -1168,14 +1168,18 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (C%choice_sliding_law == 'no_sliding') THEN
-      ! Set basal velocities to zero
+      ! Exception for the case of no sliding: set basal velocities to zero
       ! (this comes out naturally more or less with beta_eff set as above,
       !  but ensuring basal velocity is zero adds stability)
       ice%u_base_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
       ice%v_base_cy( :,grid%i1:              grid%i2 ) = 0._dp
       CALL sync
+
+      ! Finalise routine path and RETURN
+      CALL finalise_routine( routine_name)
       RETURN
-    END IF
+
+    END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1186,8 +1190,8 @@ CONTAINS
         ! Stagger the F2 integral to the cx-grid
         F2_stag = calc_staggered_margin( ice%F2_a( j,i), ice%F2_a( j,i+1), ice%Hi_a( j,i), ice%Hi_a( j,i+1))
 
-        ! Calculate basal velocity component
-        ice%u_base_cx( j,i) = ice%u_vav_cx( j,i) - ice%taub_cx( j,i) * F2_stag
+        ! Calculate basal velocity component (Lipscomb et al., 2019, Eq. 32)
+        ice%u_base_cx( j,i) = ice%u_vav_cx( j,i) / (1._dp + ice%beta_a( j,i) * F2_stag)
 
         ! Exception for basal freezing
         IF (C%include_basal_freezing) THEN
@@ -1196,7 +1200,7 @@ CONTAINS
           END IF
         END IF
 
-      END IF
+      END IF ! IF (i < grid%nx) THEN
 
       ! y-direction
       IF (j < grid%ny) THEN
@@ -1204,8 +1208,8 @@ CONTAINS
         ! Stagger the F2 integral to the cy-grid
         F2_stag = calc_staggered_margin( ice%F2_a( j,i), ice%F2_a( j+1,i), ice%Hi_a( j,i), ice%Hi_a( j+1,i))
 
-        ! Calculate basal velocity component
-        ice%v_base_cy( j,i) = ice%v_vav_cy( j,i) - ice%taub_cy( j,i) * F2_stag
+        ! Calculate basal velocity component (Lipscomb et al., 2019, Eq. 32)
+        ice%v_base_cy( j,i) = ice%v_vav_cy( j,i) / (1._dp + ice%beta_a( j,i) * F2_stag)
 
         ! Exception for basal freezing
         IF (C%include_basal_freezing) THEN
@@ -1214,7 +1218,7 @@ CONTAINS
           END IF
         END IF
 
-      END IF
+      END IF ! IF (j < grid%ny) THEN
 
     END DO
     END DO
@@ -1283,8 +1287,19 @@ CONTAINS
           CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
+        IF (C%choice_sliding_law == 'no_sliding') THEN
+        ! Exception for the case of no sliding
+        
+          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
+          ice%u_3D_cx( :,j,i) = ice%taub_cx( j,i) * F1_stag
+
+        ELSE
         ! Calculate velocity column
-        ice%u_3D_cx( :,j,i) = ice%u_base_cx( j,i) + ice%taub_cx( j,i) * F1_stag
+        
+          ! Lipscomb et al., 2019, Eq. 29
+          ice%u_3D_cx( :,j,i) = ice%u_base_cx( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
+        
+        END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
 
@@ -1310,8 +1325,19 @@ CONTAINS
           CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
+        IF (C%choice_sliding_law == 'no_sliding') THEN
+        ! Exception for the case of no sliding
+
+          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34 
+          ice%v_3D_cy( :,j,i) = ice%taub_cy( j,i) * F1_stag
+
+        ELSE
         ! Calculate velocity column
-        ice%v_3D_cy( :,j,i) = ice%v_base_cy( j,i) + ice%taub_cy( j,i) * F1_stag
+
+          ! Lipscomb et al., 2019, Eq. 29
+          ice%v_3D_cy( :,j,i) = ice%v_base_cy( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
+        
+        END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
 
