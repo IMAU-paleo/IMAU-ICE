@@ -30,7 +30,7 @@ MODULE ice_velocity_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D
+  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D, read_field_from_file_3D
 
   IMPLICIT NONE
 
@@ -167,7 +167,7 @@ CONTAINS
     END DO
     CALL sync
 
-    IF (par%master) print*, 'taudx_cx = ',SUM(ice%taudx_cx) !CvC
+    ! IF (par%master) print*, 'taudx_cx = ',SUM(ice%taudx_cx) !CvC
 
     ! Calculate the basal yield stress tau_c
     CALL calc_basal_conditions( grid, ice)
@@ -214,7 +214,7 @@ CONTAINS
         END DO
         END DO
         CALL sync
-        IF (par%master) print*, 'beta_eff_a = ',SUM(ice%beta_eff_a) !CvC
+        ! IF (par%master) print*, 'beta_eff_a = ',SUM(ice%beta_eff_a) !CvC
 
         ! Store the previous solution so we can check for convergence later
         ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
@@ -278,6 +278,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    ! IF (par%master) print*, 'begin diva: du_dz_3D_cx = ',SUM(ice%du_dz_3D_cx) !CvC
 
     ! Check that this routine is called correctly
     IF (.NOT. C%choice_ice_dynamics == 'DIVA') THEN
@@ -295,6 +296,7 @@ CONTAINS
       CALL finalise_routine( routine_name)
       RETURN
     END IF
+    ! IF (par%master) print*, '1. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
 
     ! Calculate the driving stresses taudx, taudy
     DO i = grid%i1, grid%i2
@@ -316,8 +318,64 @@ CONTAINS
     ice%DIVA_err_cy( :,grid%i1:              grid%i2 ) = 1E5_dp
     CALL sync
 
-    IF (C%do_read_velocities_from_restart) THEN
-      ! do nothing
+    IF (C%do_read_velocities_from_restart) THEN !CvC commented the if statement
+
+      ! ! Calculate the effective viscosity and the product term N = eta * H
+      ! CALL calc_effective_viscosity( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+      ! ! IF (par%master) print*, 'visc_eff_3D_a at end of its own subroutine= ',SUM(ice%visc_eff_3D_a) !CvC
+      ! IF (par%master) print*, '2. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! Calculate the sliding term beta (on both the A and Cx/Cy grids)
+      ! CALL calc_sliding_term_beta( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+
+      ! ! Calculate the F-integral F2
+      ! CALL calc_F_integral( grid, ice, n = 2._dp)
+      ! IF (par%master) print*, '3. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! Calculate beta_eff
+      ! CALL calc_beta_eff( grid, ice)
+
+      ! ! Store the previous solution so we can check for convergence later
+      ! ice%u_cx_prev( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_vav_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
+      ! ice%v_cy_prev( :,grid%i1:              grid%i2 ) = ice%v_vav_cy( :,grid%i1:              grid%i2 )
+      ! CALL sync
+      ! IF (par%master) print*, '4. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! Solve the linearised DIVA with the SICOPOLIS solver
+      ! CALL solve_DIVA_stag_linearised( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+      ! IF (par%master) print*, '5. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! Apply velocity limits (both overflow and underflow) for improved stability
+      ! CALL apply_velocity_limits( grid, ice%u_vav_cx, ice%v_vav_cy)
+      ! IF (par%master) print*, '6. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! "relax" subsequent viscosity iterations for improved stability
+      ! CALL relax_DIVA_visc_iterations( grid, ice, ice%u_vav_cx, ice%v_vav_cy, C%DIVA_visc_it_relax)
+      ! IF (par%master) print*, '7. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! ! Check if the viscosity iteration has converged
+      ! CALL calc_visc_iter_UV_resid( grid, ice, ice%u_vav_cx, ice%v_vav_cy, resid_UV)
+      ! !IF (par%master) WRITE(0,*) '   DIVA - viscosity iteration ', viscosity_iteration_i, ': resid_UV = ', resid_UV, ', u = [', MINVAL(ice%u_vav_cx), ' - ', MAXVAL(ice%u_vav_cx), ']'
+      ! IF (par%master) print*, '8. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
+      ! has_converged = .FALSE.
+      ! IF     (resid_UV < C%DIVA_visc_it_norm_dUV_tol) THEN
+        ! has_converged = .TRUE.
+      ! ELSEIF (viscosity_iteration_i >= C%DIVA_visc_it_nit) THEN
+        ! has_converged = .TRUE.
+      ! END IF
+
+      ! ! If needed, estimate the error in the velocity fields so we can
+      ! ! update the SICOPOLIS-style DIVA solving masks (for better efficiency)
+      ! IF (.NOT. has_converged) CALL estimate_visc_iter_UV_errors( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+
+      ! ! Calculate basal stress
+      ! CALL calc_basal_stress( grid, ice)
+
+      ! ! Calculate basal velocity from depth-averaged solution and basal stress
+      ! CALL calc_basal_velocities( grid, ice)
+      ! IF (par%master) print*, '9. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+
     ELSE
       ! The viscosity iteration
       viscosity_iteration_i = 0
@@ -327,9 +385,11 @@ CONTAINS
 
         ! Calculate the vertical shear strain rates
         CALL calc_vertical_shear_strain_rates( grid, ice)
+        ! IF (par%master) print*, 'after v strain rates: du_dz_3D_cx = ',SUM(ice%du_dz_3D_cx) !CvC
 
         ! Calculate the effective viscosity and the product term N = eta * H
         CALL calc_effective_viscosity( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
+        ! IF (par%master) print*, 'visc_eff_3D_a at end of its own subroutine= ',SUM(ice%visc_eff_3D_a) !CvC
 
         ! Calculate the sliding term beta (on both the A and Cx/Cy grids)
         CALL calc_sliding_term_beta( grid, ice, ice%u_vav_cx, ice%v_vav_cy)
@@ -380,9 +440,11 @@ CONTAINS
 
     ! Calculate full 3D velocities
     CALL calc_3D_horizontal_velocities_DIVA( grid, ice)
+      ! IF (par%master) print*, '10. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
 
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
+      ! IF (par%master) print*, '11. u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -466,7 +528,7 @@ CONTAINS
         ice%v_3D_cy( k,:,grid%i1:              grid%i2 ) = ice%v_3D_SIA_cy( k,:,grid%i1:              grid%i2 ) + ice%v_SSA_cy( :,grid%i1:              grid%i2 )
       END DO
       CALL sync
-      print*, "u_3D_cx = ", SUM(ice%u_3D_cx) !CvC
+      ! print*, "u_3D_cx = ", SUM(ice%u_3D_cx) !CvC
 
       ! Set basal velocity equal to SSA answer
       ice%u_base_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = ice%u_SSA_cx( :,grid%i1:MIN(grid%nx-1,grid%i2))
@@ -694,6 +756,8 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    ! IF (par%master) print*, "ice%taub_cx = ", SUM(ice%taub_cx) !cvc
+    ! CALL sync !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -706,7 +770,7 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ
             visc_eff_cx  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j,i+1), ice%Hi_a( j,i), ice%Hi_a( j,i+1))
-            ice%du_dz_3D_cx( k,j,i) = (ice%taub_cx( j,i) / visc_eff_cx) * C%zeta( k)
+            ice%du_dz_3D_cx( k,j,i) = (ice%taub_cx( j,i) / MAX(C%DIVA_visc_eff_min, visc_eff_cx)) * C%zeta( k)
           END DO
         END IF
       END IF
@@ -719,7 +783,7 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ
             visc_eff_cy  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j+1,i), ice%Hi_a( j,i), ice%Hi_a( j+1,i))
-            ice%dv_dz_3D_cy( k,j,i) = (ice%taub_cy( j,i) / visc_eff_cy) * C%zeta( k)
+            ice%dv_dz_3D_cy( k,j,i) = (ice%taub_cy( j,i) / MAX(C%DIVA_visc_eff_min, visc_eff_cy)) * C%zeta( k)
           END DO
         END IF
       END IF
@@ -769,6 +833,10 @@ CONTAINS
     CALL ddy_cx_to_a_2D( grid, u_cx, du_dy_a)
     CALL ddx_cy_to_a_2D( grid, v_cy, dv_dx_a)
     CALL ddy_cy_to_a_2D( grid, v_cy, dv_dy_a)
+
+    ! IF (par%master) print*, 'ice%du_dz_3D_cx = ',SUM(ice%du_dz_3D_cx) !CvC
+    ! IF (par%master) print*, 'ice%Hi_a = ',SUM(ice%Hi_a) !CvC
+    ! IF (par%master) print*, 'ice%A_flow_3D_a = ',SUM(ice%A_flow_3D_a) !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1150,7 +1218,7 @@ CONTAINS
 
   END SUBROUTINE calc_basal_stress
   SUBROUTINE calc_basal_velocities( grid, ice)
-    ! Calculate basal sliding following Lipscomp et al., 2019, Eq. 32 
+    ! Calculate basal sliding following Lipscomp et al., 2019, Eq. 32
     ! (or it can also be obtained from Goldberg (2011), Eq. 34)
 
     IMPLICIT NONE
@@ -1289,16 +1357,16 @@ CONTAINS
 
         IF (C%choice_sliding_law == 'no_sliding') THEN
         ! Exception for the case of no sliding
-        
+
           ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
           ice%u_3D_cx( :,j,i) = ice%taub_cx( j,i) * F1_stag
 
         ELSE
         ! Calculate velocity column
-        
+
           ! Lipscomb et al., 2019, Eq. 29
           ice%u_3D_cx( :,j,i) = ice%u_base_cx( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
-        
+
         END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
@@ -1328,7 +1396,7 @@ CONTAINS
         IF (C%choice_sliding_law == 'no_sliding') THEN
         ! Exception for the case of no sliding
 
-          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34 
+          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
           ice%v_3D_cy( :,j,i) = ice%taub_cy( j,i) * F1_stag
 
         ELSE
@@ -1336,7 +1404,7 @@ CONTAINS
 
           ! Lipscomb et al., 2019, Eq. 29
           ice%v_3D_cy( :,j,i) = ice%v_base_cy( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
-        
+
         END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
@@ -1511,6 +1579,7 @@ CONTAINS
 
     CALL map_cx_to_cy_2D( grid, u_cx, u_cy)
     CALL map_cy_to_cx_2D( grid, v_cy, v_cx)
+    ! IF (par%master) print*, '5.1 u_cx = ',SUM(u_cx) !CvC
 
     DO i = grid%i1, MIN(grid%nx-1, grid%i2)
     DO j = 1, grid%ny
@@ -1518,6 +1587,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    ! IF (par%master) print*, '5.2 u_cx = ',SUM(u_cx) !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -1534,6 +1604,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    ! IF (par%master) print*, '5.3 u_cx = ',SUM(u_cx) !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
@@ -1571,6 +1642,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    ! IF (par%master) print*, '6.1 u_cx = ',SUM(u_cx) !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1579,6 +1651,8 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    ! IF (par%master) print*, '6.2 u_cx = ',SUM(u_cx) !CvC
+    ! IF (par%master) print*, '6.2 u_cx_prev = ',SUM(ice%u_cx_prev) !CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1729,6 +1803,7 @@ CONTAINS
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    ! IF (par%master) print*, '4.1 u = ',SUM(u) !CvC
 
     ! Fill in the old SICOPOLIS masks (used to determine
     ! where to apply ice margin boundary conditions)
@@ -1783,6 +1858,17 @@ CONTAINS
 
     END IF ! IF (par%master) THEN
     CALL sync
+    ! IF (par%master) print*, '4.2 u = ',SUM(u) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%A_ptr = ',SUM(ice%DIVA_m%A_ptr) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%A_index = ',SUM(ice%DIVA_m%A_index) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%A_val = ',SUM(ice%DIVA_m%A_val) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%b = ',SUM(ice%DIVA_m%b) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%x = ',SUM(ice%DIVA_m%x) !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%DIVA_SOR_nit = ',ice%DIVA_SOR_nit !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%DIVA_SOR_tol = ',ice%DIVA_SOR_tol !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%DIVA_SOR_omega = ',ice%DIVA_SOR_omega !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%DIVA_PETSc_rtol = ',ice%DIVA_PETSc_rtol !CvC
+    ! IF (par%master) print*, '4.2 ice%DIVA_m%DIVA_PETSc_abstol = ',ice%DIVA_PETSc_abstol !CvC
 
     ! Solve the matrix equation using SOR
     ! ===================================
@@ -1790,6 +1876,7 @@ CONTAINS
     CALL solve_matrix_equation_CSR( ice%DIVA_m, C%DIVA_choice_matrix_solver, &
       SOR_nit = ice%DIVA_SOR_nit, SOR_tol = ice%DIVA_SOR_tol, SOR_omega = ice%DIVA_SOR_omega, &
       PETSc_rtol = ice%DIVA_PETSc_rtol, PETSc_abstol = ice%DIVA_PETSc_abstol)
+    ! IF (par%master) print*, '4.3 u = ',SUM(u) !CvC
 
     ! Map the solution back from vector format to the model grids
     ! ===========================================================
@@ -1807,6 +1894,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+    ! IF (par%master) print*, '4.4 u = ',SUM(u) !CvC
 
     ! Safety
     CALL check_for_NaN_dp_2D( u, 'u')
@@ -3098,8 +3186,9 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_velocities_from_restart_file'
     CHARACTER(LEN=256)                            :: filename_restart
     REAL(dp)                                      :: time_to_restart_from
-    REAL(dp), DIMENSION( :,:), POINTER            :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a
-    INTEGER                                       :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a
+    REAL(dp), DIMENSION( :,:), POINTER            :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a, taub_cx_a, u_base_cx_a, v_base_cy_a
+    REAL(dp), DIMENSION( :,:,:), POINTER          :: du_dz_3D_cx_a, dv_dz_3D_cy_a
+    INTEGER                                       :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a, wu_base_cx_a, wv_base_cy_a, wtaub_cx_a, wdu_dz_3D_cx_a, wdv_dz_3D_cy_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -3109,6 +3198,12 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_SSA_cy_a, wv_SSA_cy_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_vav_cx_a, wu_vav_cx_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_vav_cy_a, wv_vav_cy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_base_cx_a, wu_base_cx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_base_cy_a, wv_base_cy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cx_a, wtaub_cx_a)
+
+    CALL allocate_shared_dp_3D( C%nz, grid%ny, grid%nx, du_dz_3D_cx_a, wdu_dz_3D_cx_a)
+    CALL allocate_shared_dp_3D( C%nz, grid%ny, grid%nx, dv_dz_3D_cy_a, wdv_dz_3D_cy_a)
 
     ! Select filename and time to restart from
     IF     (region_name == 'NAM') THEN
@@ -3137,11 +3232,9 @@ CONTAINS
         WRITE(0,*) '  Initialising velocities from restart file...'
       END IF
       CALL sync
-    END IF
+    END IF ! IF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
 
-    IF (C%choice_timestepping == 'pc' .OR. C%choice_ice_dynamics == 'DIVA') THEN
-
-    ! ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+    IF (C%choice_timestepping == 'pc') THEN
       u_vav_cx_a = 0._dp
       v_vav_cy_a = 0._dp
       CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx_a', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
@@ -3149,21 +3242,63 @@ CONTAINS
       IF (par%master) THEN
         ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
         ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
-        WRITE(0,*) '  Initialising velocities from restart file...'
+        WRITE(0,*) '  Initialising vertically averaged velocities from restart file...'
       END IF
       CALL sync
-    END IF
+    END IF ! (C%choice_timestepping == 'pc') THEN
+
+    IF (C%choice_ice_dynamics == 'DIVA') THEN
+
+      ! du_dz_3D_cx_a = 0._dp
+      ! dv_dz_3D_cy_a = 0._dp
+      ! CALL read_field_from_file_3D(   filename_restart, 'du_dz_3D_cx_a', grid,  du_dz_3D_cx_a,  region_name, time_to_restart_from)
+      ! CALL read_field_from_file_3D(   filename_restart, 'dv_dz_3D_cy_a', grid,  dv_dz_3D_cy_a,  region_name, time_to_restart_from)
+
+      ! IF (par%master) THEN
+        ! ice%du_dz_3D_cx = du_dz_3D_cx_a(:,:, 1:grid%nx-1)
+        ! ice%dv_dz_3D_cy = dv_dz_3D_cy_a(:,1:grid%ny-1, :)
+        ! WRITE(0,*) '  Initialising 3D velocities from restart file...'
+      ! END IF
+      ! CALL sync
+
+      taub_cx_a = 0._dp
+      u_base_cx_a = 0._dp
+      v_base_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'u_base_cx_a', grid,  u_base_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_base_cy_a', grid,  v_base_cy_a,  region_name, time_to_restart_from)
+
+      CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D_a', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'beta_a', grid,  ice%beta_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'taub_cx_a', grid,  taub_cx_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%taub_cx = taub_cx_a(:, 1:grid%nx-1)
+        ice%u_base_cx = u_base_cx_a(:, 1:grid%nx-1)
+        ice%v_base_cy = v_base_cy_a(1:grid%ny-1, :)
+
+        WRITE(0,*) '  Initialising vertically averaged velocities from restart file...'
+      END IF
+      CALL sync
+
+
+    END IF ! (C%choice_ice_dynamics == 'DIVA') THEN
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')
     CALL check_for_NaN_dp_2D( ice%v_SSA_cy, 'ice%wv_SSA_cy')
     CALL check_for_NaN_dp_2D( ice%u_vav_cx, 'ice%wu_vav_cx')
     CALL check_for_NaN_dp_2D( ice%v_vav_cy, 'ice%wv_vav_cy')
+    CALL check_for_NaN_dp_3D( ice%du_dz_3D_cx, 'ice%du_dz_3D_cx')
+    CALL check_for_NaN_dp_3D( ice%dv_dz_3D_cy, 'ice%dv_dz_3D_cy')
 
     CALL deallocate_shared( wu_SSA_cx_a)
     CALL deallocate_shared( wv_SSA_cy_a)
     CALL deallocate_shared( wu_vav_cx_a)
     CALL deallocate_shared( wv_vav_cy_a)
+    CALL deallocate_shared( wu_base_cx_a)
+    CALL deallocate_shared( wv_base_cy_a)
+    CALL deallocate_shared( wtaub_cx_a)
+    CALL deallocate_shared( wdu_dz_3D_cx_a)
+    CALL deallocate_shared( wdv_dz_3D_cy_a)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

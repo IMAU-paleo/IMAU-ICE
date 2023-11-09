@@ -284,6 +284,8 @@ CONTAINS
     region%ice%dHidt_Hn_un_forrestart( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
     region%ice%u_vav_cx_forrestart = region%ice%u_vav_cx
     region%ice%v_vav_cy_forrestart = region%ice%v_vav_cy
+    region%ice%du_dz_3D_cx_forrestart = region%ice%du_dz_3D_cx
+    region%ice%dv_dz_3D_cy_forrestart = region%ice%dv_dz_3D_cy
 
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
@@ -368,14 +370,14 @@ CONTAINS
 
       ! Predictor step
       ! ==============
-      IF (par%master) print*, 'start dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
+      ! IF (par%master) print*, 'start dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
 
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      IF (par%master) print*, 'final dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
+      ! IF (par%master) print*, 'final dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
 
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -422,8 +424,8 @@ CONTAINS
         IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
         IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
         CALL sync
-        IF (par%master) print*, 'after solving: u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
-        IF (par%master) print*, 'after solving: uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
+        ! IF (par%master) print*, 'after solving: u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
+        ! IF (par%master) print*, 'after solving: uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
 
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
 
@@ -1010,6 +1012,12 @@ CONTAINS
       END IF
       t_next = MIN( t_next, region%t_next_output_restart)
 
+      IF (region%time == region%t_next_output_regional_scalar) THEN
+        region%t_last_output_regional_scalar  = region%time
+        region%t_next_output_regional_scalar  = region%t_last_output_regional_scalar + C%dt_output_regional_scalar
+      END IF
+      t_next = MIN( t_next, region%t_next_output_regional_scalar)
+
       ! Set time step so that we move forward to the next action
       region%dt = t_next - region%time
     END IF ! IF (par%master) THEN
@@ -1174,7 +1182,7 @@ CONTAINS
     IF (par%master) THEN
       ice%pc_zeta        = 1._dp
       ice%pc_eta         = C%pc_epsilon
-      ice%pc_eta_prev    = C%pc_epsilon !CvC pc_eta_prev is initialised here
+      ! ice%pc_eta_prev    = C%pc_epsilon !CvC pc_eta_prev is initialised here
     END IF
     CALL sync
 
@@ -1408,6 +1416,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny-1, grid%nx-1, ice%dv_dy_b              , ice%wdv_dy_b              )
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx-1, ice%du_dz_3D_cx          , ice%wdu_dz_3D_cx          )
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx  , ice%dv_dz_3D_cy          , ice%wdv_dz_3D_cy          )
+    CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx-1, ice%du_dz_3D_cx_forrestart, ice%wdu_dz_3D_cx_forrestart)
+    CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx  , ice%dv_dz_3D_cy_forrestart, ice%wdv_dz_3D_cy_forrestart)
     CALL allocate_shared_dp_3D(  C%nz, grid%ny  , grid%nx  , ice%visc_eff_3D_a        , ice%wvisc_eff_3D_a        )
     CALL allocate_shared_dp_3D(  C%nz, grid%ny-1, grid%nx-1, ice%visc_eff_3D_b        , ice%wvisc_eff_3D_b        )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%visc_eff_int_a       , ice%wvisc_eff_int_a       )

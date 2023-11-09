@@ -92,7 +92,7 @@ CONTAINS
     ! Calculate ice fluxes on the Ac grids, with ice thickness
     ! defined on the Aa grid in the upwind direction
     ! ========================================================
-    IF (par%master) print*, 'u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
+    ! IF (par%master) print*, 'u_vav_cx = ',SUM(ice%u_vav_cx) !CvC
 
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
@@ -209,10 +209,10 @@ CONTAINS
     ! =================================================================
 
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, dVi_MB, wdVi_MB)
-    IF (par%master) print*, 'Hi in calc_dHi_dt = ',SUM(ice%Hi_a) !CvC
-    IF (par%master) print*, 'SMB_year in calc_dHi_dt = ',SUM(SMB%SMB_year) !CvC
-    IF (par%master) print*, 'BMB in calc_dHi_dt = ',SUM(BMB%BMB) !CvC
-    IF (par%master) print*, 'float_margin_frac_a in calc_dHi_dt = ',SUM(ice%float_margin_frac_a) !CvC
+    ! IF (par%master) print*, 'Hi in calc_dHi_dt = ',SUM(ice%Hi_a) !CvC
+    ! IF (par%master) print*, 'SMB_year in calc_dHi_dt = ',SUM(SMB%SMB_year) !CvC
+    ! IF (par%master) print*, 'BMB in calc_dHi_dt = ',SUM(BMB%BMB) !CvC
+    ! IF (par%master) print*, 'float_margin_frac_a in calc_dHi_dt = ',SUM(ice%float_margin_frac_a) !CvC
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -305,8 +305,8 @@ CONTAINS
 
     ! Calculate change in ice thickness over time at every vertex
     ! ===========================================================
-    IF (par%master) print*, 'dVi_MB = ',SUM(dVi_MB) !CvC
-    IF (par%master) print*, 'dt to determine dHi_dt_a = ',dt !CvC
+    ! IF (par%master) print*, 'dVi_MB = ',SUM(dVi_MB) !CvC
+    ! IF (par%master) print*, 'dt to determine dHi_dt_a = ',dt !CvC
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 

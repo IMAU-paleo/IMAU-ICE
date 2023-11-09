@@ -237,6 +237,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dv_dy_b
     REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx
     REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx_forrestart
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy_forrestart
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx_a
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy_a
     REAL(dp), DIMENSION(:,:,:), POINTER     :: visc_eff_3D_a
     REAL(dp), DIMENSION(:,:,:), POINTER     :: visc_eff_3D_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: visc_eff_int_a
@@ -253,7 +257,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: F1_3D_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cy
-    INTEGER :: wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy
+    INTEGER :: wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy, wdu_dz_3D_cx_forrestart, wdv_dz_3D_cy_forrestart, wdu_dz_3D_cx_a, wdv_dz_3D_cy_a
     INTEGER :: wvisc_eff_3D_a, wvisc_eff_3D_b, wvisc_eff_int_a, wvisc_eff_int_b, wN_a, wN_cx, wN_cy, wN_b
     INTEGER :: wbeta_a, wF2_a, wbeta_eff_a, wbeta_eff_cx, wbeta_eff_cy, wF1_3D_a, wtaub_cx, wtaub_cy
 
