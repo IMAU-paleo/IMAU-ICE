@@ -56,7 +56,7 @@ CONTAINS
     IF (C%choice_timestepping == 'direct') THEN
       CALL run_ice_dynamics_direct( region, t_end)
     ELSEIF (C%choice_timestepping == 'pc') THEN
-      CALL run_ice_dynamics_pc( region, t_end)
+        CALL run_ice_dynamics_pc( region, t_end)
     ELSE
       CALL crash('unknown choice_timestepping "' // TRIM(C%choice_timestepping) // '"!')
     END IF
@@ -280,30 +280,48 @@ CONTAINS
     i1 = region%grid%i1
     i2 = region%grid%i2
 
-    ! Save variable for restart run
-    region%ice%dHidt_Hn_un_forrestart( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
-    region%ice%u_vav_cx_forrestart = region%ice%u_vav_cx
-    region%ice%v_vav_cy_forrestart = region%ice%v_vav_cy
-    region%ice%du_dz_3D_cx_forrestart = region%ice%du_dz_3D_cx
-    region%ice%dv_dz_3D_cy_forrestart = region%ice%dv_dz_3D_cy
-
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
-    IF     (C%choice_ice_dynamics == 'none') THEN
-      region%ice%dHi_dt_a(     :,i1:i2) = 0._dp
-      region%ice%Hi_corr(      :,i1:i2) = region%ice%Hi_a( :,i1:i2)
-      region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
-      CALL sync
-    ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
-      IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
-    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
-      IF (region%time == region%t_next_SSA ) do_update_ice_velocity = .TRUE.
-    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
-      IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
-    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
-      IF (region%time == region%t_next_DIVA) do_update_ice_velocity = .TRUE.
+    IF (C%do_read_velocities_from_restart) THEN
+      ! If restart, do not update ice_velocity but only the timers. Velocities are read from the restart file.
+        IF     (C%choice_ice_dynamics == 'SIA') THEN
+        IF (par%master) region%t_last_SIA = region%time
+        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        CALL sync
+      ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+        IF (par%master) region%t_last_SSA = region%time
+        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        CALL sync
+      ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+        IF (par%master) region%t_last_SIA = region%time
+        IF (par%master) region%t_last_SSA = region%time
+        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        CALL sync
+      ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+        IF (par%master) region%t_last_DIVA = region%time
+        IF (par%master) region%t_next_DIVA = region%time + region%dt_crit_ice
+        CALL sync
+      ELSE
+        CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
+      END IF
     ELSE
-      CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
+      IF     (C%choice_ice_dynamics == 'none') THEN
+        region%ice%dHi_dt_a(     :,i1:i2) = 0._dp
+        region%ice%Hi_corr(      :,i1:i2) = region%ice%Hi_a( :,i1:i2)
+        region%ice%Hi_tplusdt_a( :,i1:i2) = region%ice%Hi_a( :,i1:i2)
+        CALL sync
+      ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
+        IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
+      ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+        IF (region%time == region%t_next_SSA ) do_update_ice_velocity = .TRUE.
+      ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+        IF (region%time == region%t_next_SIA ) do_update_ice_velocity = .TRUE.
+      ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+        IF (region%time == region%t_next_DIVA) do_update_ice_velocity = .TRUE.
+      ELSE
+        CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
+      END IF
     END IF
 
     ! Start-up phase
@@ -349,18 +367,11 @@ CONTAINS
 
         ! Calculate critical time step
         region%dt_crit_ice_prev = region%dt_crit_ice
-        ! print*, 'region%dt = ',region%dt !CvC
-        ! print*, 'pc_eta = ',region%ice%pc_eta !CvC
-        ! print*, 'pc_eta_prev = ',region%ice%pc_eta_prev !CvC
-
         dt_from_pc              = (C%pc_epsilon / region%ice%pc_eta)**(C%pc_k_I + C%pc_k_p) * (C%pc_epsilon / region%ice%pc_eta_prev)**(-C%pc_k_p) * region%dt
-        ! print*, 'dt_from_pc = ',dt_from_pc !CvC
         region%dt_crit_ice      = MAX( C%dt_min, MAX( 0.5_dp * region%dt_crit_ice_prev, MINVAL([ C%dt_max, 2._dp * region%dt_crit_ice_prev, dt_crit_adv, dt_from_pc])))
 
         ! Apply conditions to the time step
         region%dt_crit_ice = MAX( C%dt_min, MIN( dt_max, region%dt_crit_ice))
-        ! print*, 'dt_crit_ice = ',region%dt_crit_ice !CvC
-        ! print*, 'dt_crit_ice_prev = ',region%dt_crit_ice_prev !CvC
 
         ! Calculate zeta
         region%ice%pc_zeta      = region%dt_crit_ice / region%dt_crit_ice_prev
@@ -370,14 +381,12 @@ CONTAINS
 
       ! Predictor step
       ! ==============
-      ! IF (par%master) print*, 'start dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
 
       ! Calculate new ice geometry
       region%ice%dHidt_Hnm1_unm1( :,i1:i2) = region%ice%dHidt_Hn_un( :,i1:i2)
 
       CALL calc_dHi_dt( region%grid, region%ice, region%SMB, region%BMB, region%dt_crit_ice, region%time)
       region%ice%dHidt_Hn_un( :,i1:i2) = region%ice%dHi_dt_a( :,i1:i2)
-      ! IF (par%master) print*, 'final dHidt_Hn_un = ',SUM(region%ice%dHidt_Hn_un) !CvC
 
       ! Robinson et al. (2020), Eq. 30)
       region%ice%Hi_pred( :,i1:i2) = MAX(0._dp, region%ice%Hi_a( :,i1:i2) + region%dt_crit_ice * &
@@ -424,8 +433,6 @@ CONTAINS
         IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
         IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
         CALL sync
-        ! IF (par%master) print*, 'after solving: u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
-        ! IF (par%master) print*, 'after solving: uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
 
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
 
@@ -1182,7 +1189,7 @@ CONTAINS
     IF (par%master) THEN
       ice%pc_zeta        = 1._dp
       ice%pc_eta         = C%pc_epsilon
-      ! ice%pc_eta_prev    = C%pc_epsilon !CvC pc_eta_prev is initialised here
+      ! ice%pc_eta_prev    = C%pc_epsilon
     END IF
     CALL sync
 
@@ -1214,10 +1221,6 @@ CONTAINS
     ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( grid, ice, region_name)
-      ! IF (C%choice_timestepping == 'pc') THEN
-        ! CALL solve_SIA( grid, ice)
-        ! CALL solve_SSA( grid, ice)
-      ! END IF
     END IF
 
     ! Read target dHi_dt from external file
@@ -1264,7 +1267,6 @@ CONTAINS
 
     CALL read_field_from_file_2D(   filename_restart, 'dHi_dt_a', grid,  ice%dHi_dt_a,  region_name, time_to_restart_from)
     CALL read_field_from_file_2D(   filename_restart, 'dHb', grid,  ice%dHb_dt_a,  region_name, time_to_restart_from)
-    ice%dHidt_Hn_un = ice%dHi_dt_a
     CALL sync
 
     ! Safety

@@ -119,7 +119,6 @@ CONTAINS
 
     ! Update geometry
     ! ===================
-
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
 
     ! == Time display
@@ -227,7 +226,6 @@ CONTAINS
         CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
       END IF
 
-      ! IF (par%master) print*, 'final dHidt = ',SUM(region%ice%dHi_dt_a) !CvC
       ! Write to restart file
       IF (region%do_output_restart) THEN
         CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
@@ -367,9 +365,7 @@ CONTAINS
 
     ! ===== The ice dynamics model
     ! ============================
-
     CALL initialise_ice_model( region%grid, region%ice, region%refgeo_init, region%refgeo_PD, region%name)
-    ! IF (par%master) print*, 'after init: du_dz_3D_cx = ',SUM(region%ice%du_dz_3D_cx) !CvC
 
     ! ===== Set sea level if prescribed externally =====
     ! ==================================================
@@ -477,7 +473,6 @@ CONTAINS
     ! Run isotopes
     CALL run_isotopes_model( region)
 
-    ! IF (par%master) print*, 'before run: du_dz_3D_cx = ',SUM(region%ice%du_dz_3D_cx) !CvC
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
 
@@ -510,8 +505,6 @@ CONTAINS
     CALL calculate_icesheet_volume_and_area(region)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
-    ! IF (par%master) print*, 'final init u_SSA_cx = ',SUM(region%ice%u_SSA_cx) !CvC
-    ! IF (par%master) print*, 'final init uabs_surf_a = ',SUM(region%ice%uabs_surf_a) !CvC
     ! Write the first entry to the help fields and restart files
     CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
     CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
