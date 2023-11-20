@@ -178,9 +178,9 @@ CONTAINS
     ! Write data to a grid output file
   SUBROUTINE write_to_field_dp_0D( filename, field_name_options, d)
     ! Write output data to a scalar field (e.g., the global_scalar_data)
-    ! It is named "0D" as one value is added to the time-series at a time.
-    ! This is consistent with the naming of other 2D and 3D fields.
-    
+    ! This should be used to write data to create time-series. Therefore, one
+    ! data point is added at a time, hence the name "0D".
+        
     IMPLICIT NONE
 
     ! In/output variables:
@@ -413,8 +413,11 @@ CONTAINS
   END SUBROUTINE add_field_dp_0D
 
   SUBROUTINE add_field_history_dp_1D( filename, var_name, ntime_history, long_name, units)
-    ! Add a 1-D variable to an existing NetCDF file
-
+    ! Add a 1-D variable to an existing NetCDF file that has a separate time axis. This is 
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
+    !
+    ! To add 1D fields with only a time dimension (e.g., time-series) use add_field_dp_0D instead.
+        
     IMPLICIT NONE
 
     ! In/output variables:
@@ -1035,7 +1038,7 @@ CONTAINS
 
     ! Predictor corrector method
     IF     (C%choice_timestepping == 'pc') THEN
-      PRINT*,('Going into the pc timestep thingy')
+
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
       
@@ -1046,7 +1049,7 @@ CONTAINS
       ! geen deel van het data-stuctuur. Als dat ik opgelost kunnen deze ! weg.
       ! CALL write_to_field_dp_0D( filename, 'pc_eta' ,      region%pc_eta )
       ! CALL write_to_field_dp_0D( filename, 'pc_eta_prev' , region%pc_eta_prev )
-      PRINT*,('Finished writing to 0D fields!')
+
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
       u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
@@ -1776,10 +1779,11 @@ CONTAINS
 
   ! Write data to a grid output file
   SUBROUTINE write_to_field_history_dp_1D( filename, ntime_history, field_name_options, d)
-    ! Write a 1-D data field to a NetCDF file variable on a time_history array
+    ! Write a 1-D variable to an existing NetCDF file that has a separate time axis. This is 
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
     !
-    ! Write to the last time frame of the variable
-
+    ! To write 1D fields with only a time dimension (e.g., time-series) use write_to_field_dp_0D instead.
+    
     IMPLICIT NONE
 
     ! In/output variables:
