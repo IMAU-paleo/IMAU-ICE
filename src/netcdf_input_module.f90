@@ -54,6 +54,67 @@ CONTAINS
 
   ! ===== Top-level functions =====
   ! ===============================
+  
+  ! Read data
+  SUBROUTINE read_field_from_file_0D(         filename, field_name_options, d, time_to_read)
+    ! Read a single data point from a NetCDF file. This single data point can also be read from the restart. 
+    ! In the restart, the field that is loaded is technically 1D (it contains a time dimension), but only
+    ! one point in time will be read using time_to_read
+    IMPLICIT NONE
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp),                            INTENT(OUT)   :: d
+    REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_file_0D'
+    LOGICAL                                            :: file_exists
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: id_var
+    TYPE(type_grid)                                    :: grid_from_file
+    REAL(dp), DIMENSION(:), POINTER                  :: d_with_time
+    INTEGER                                            :: wd_with_time
+    INTEGER                                            :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+    ! Look for the specified variable in the file
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+    
+    ! Read data from file
+    IF (.NOT. PRESENT( time_to_read)) THEN
+      CALL read_var_dp_0D( filename, id_var, d)
+      
+    ELSE
+      ! Read data from a specific timeframe
+    
+      ! Allocate memory for the grid size
+      ! We need it to have the dimension with the data, and the dimension with time (2D)
+      CALL allocate_shared_dp_1D( 1, d_with_time, wd_with_time)
+
+      ! Find out which timeframe to read
+      CALL find_timeframe( filename, time_to_read, ti)
+
+      ! Read data
+      CALL read_var_dp_1D( filename, id_var, d_with_time, start = (/ ti /), count = (/ 1 /) )
+
+      ! Copy to output memory
+      d = d_with_time( 1)
+      
+      ! Clean up after yourself
+      CALL deallocate_shared( wd_with_time)
+   END IF
+      
+   ! Finalise routine path
+   CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_0D
 
   ! Read data
   SUBROUTINE read_field_from_file_2D(         filename, field_name_options, grid, d, region_name, time_to_read)

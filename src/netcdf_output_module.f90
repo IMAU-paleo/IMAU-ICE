@@ -177,8 +177,10 @@ CONTAINS
 
     ! Write data to a grid output file
   SUBROUTINE write_to_field_dp_0D( filename, field_name_options, d)
-    ! Write output data to a scalar field
-
+    ! Write output data to a scalar field (e.g., the global_scalar_data)
+    ! It is named "0D" as one value is added to the time-series at a time.
+    ! This is consistent with the naming of other 2D and 3D fields.
+    
     IMPLICIT NONE
 
     ! In/output variables:
@@ -525,10 +527,10 @@ CONTAINS
     END IF
 
     IF (C%choice_timestepping == 'pc') THEN
-      ! CALL add_field_grid_dp_1D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
 
       CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
@@ -1033,17 +1035,23 @@ CONTAINS
 
     ! Predictor corrector method
     IF     (C%choice_timestepping == 'pc') THEN
+      PRINT*,('Going into the pc timestep thingy')
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'dt_crit_ice' , region%dt_crit_ice )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'dt' , region%dt )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'pc_eta' , region%pc_eta )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'pc_eta_prev' , region%pc_eta_prev )
-
+      
+      CALL write_to_field_dp_0D( filename, 'dt_crit_ice' , region%dt_crit_ice )
+      CALL write_to_field_dp_0D( filename, 'dt' ,          region%dt )
+      
+      ! :: MS WIP: Caroline, dit probleem laat ik aan jouw over. De code hier zou moeten kloppen, maar deze variabelen zijn
+      ! geen deel van het data-stuctuur. Als dat ik opgelost kunnen deze ! weg.
+      ! CALL write_to_field_dp_0D( filename, 'pc_eta' ,      region%pc_eta )
+      ! CALL write_to_field_dp_0D( filename, 'pc_eta_prev' , region%pc_eta_prev )
+      PRINT*,('Finished writing to 0D fields!')
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
       u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
       v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
+      
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
 

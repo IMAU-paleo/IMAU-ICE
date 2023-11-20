@@ -1118,7 +1118,7 @@ CONTAINS
 ! ===== Administration: allocation and initialisation =====
 ! =========================================================
 
-  SUBROUTINE initialise_ice_model( grid, ice, refgeo_init, refgeo_PD, region_name)
+  SUBROUTINE initialise_ice_model( grid, ice, region, refgeo_init, refgeo_PD, region_name)
     ! Allocate shared memory for all the data fields of the ice dynamical module, and
     ! initialise some of them
 
@@ -1127,6 +1127,7 @@ CONTAINS
     ! In/output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
@@ -1220,7 +1221,7 @@ CONTAINS
 
     ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
-      CALL initialise_velocities_from_restart_file( grid, ice, region_name)
+      CALL initialise_velocities_from_restart_file( grid, ice, region, region_name)
     END IF
 
     ! Read target dHi_dt from external file
