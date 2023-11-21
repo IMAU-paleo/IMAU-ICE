@@ -180,11 +180,6 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
 
-    ! Isotopes
-    ! ========
-
-      CALL run_isotopes_model( region)
-
     ! Ice dynamics and determination of timestep
     ! ==========================================
 
@@ -194,6 +189,11 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
+    ! Isotopes
+    ! ========
+
+    CALL run_isotopes_model( region)
+      
     ! Perform inversions
     ! ==================
 

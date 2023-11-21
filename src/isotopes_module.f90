@@ -112,7 +112,7 @@ CONTAINS
 
         region%ice%IsoSurf( j,i) = region%ice%IsoRef( j,i)                &
                                  + 0.35_dp              * (Ts - Ts_ref    &
-                                 - C%constant_lapserate * (Hs - Hs_ref))  &
+                                 + C%constant_lapserate * (Hs - Hs_ref))  &
                                  - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
 
         IsoMax = MAX( IsoMax, region%ice%IsoSurf( j,i))
@@ -146,7 +146,7 @@ CONTAINS
       region%ice%MB_iso(   j,i) = region%ice%MB_iso( j,i) + region%BMB%BMB( j,i) * region%ice%float_margin_frac_a( j,i) * region%ice%IsoIce(  j,i) * region%grid%dx * region%grid%dx
 
       ! In case more ice is removed by melt than physically possible, set IsoIce to 0 and Mb to 0 just to be sure.
-      !  Therefore, all Iso is removed. All ice has melted, but some may have been transported from neighbouring cells.
+      ! Therefore, all Iso is removed. All ice has melted, but some may have been transported from neighbouring cells.
       ! To reflect this, set IsoIce to 0.
       IF (((region%BMB%BMB(     j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
          ((region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
@@ -203,8 +203,8 @@ CONTAINS
 
         IsoIce_new( j,i) = MIN( IsoMax, MAX( IsoMin, VIso / (region%grid%dx * region%grid%dx * region%ice%Hi_tplusdt_a( j,i)) ))
 
-        ! Fail save: No isotopes if the ice thickness is very small (and perhaps newly formed). We are dealing with 
-        ! concentrations and this becomes a big number / small number problem. 
+        ! Fail save: If the ice will be extremely thin after the next time-step, IsoIce should be 0. This is to prevent
+        ! VIso from being divided by a small number, creating a strongly negative IsoIce at the margin.
         IF (region%ice%Hi_tplusdt_a( j,i) < 0.1_dp) IsoIce_new( j,i) = 0._dp
 
       END IF ! IF (ice%mask_ice_a( j,i) == 1) THEN
@@ -410,7 +410,7 @@ CONTAINS
 
         region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                 + 0.35_dp              * (Ts - Ts_ref    &
-                                - C%constant_lapserate * (Hs - Hs_ref))  &
+                                + C%constant_lapserate * (Hs - Hs_ref))  &
                                 - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
 
       ELSE
@@ -441,8 +441,9 @@ CONTAINS
 
           region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                   + 0.35_dp              * (Ts - Ts_ref    &
-                                  - C%constant_lapserate * (Hs - Hs_ref))  &
+                                  + C%constant_lapserate * (Hs - Hs_ref))  &
                                   - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
+                                  
 
         ELSE
           region%ice%IsoIce( j,i) = 0._dp ! = No ice
