@@ -470,12 +470,12 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
     END IF
 
-    ! Run isotopes
-    CALL run_isotopes_model( region)
-
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
 
+    ! Run isotopes
+    CALL run_isotopes_model( region)
+    
     ! GIA
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done
