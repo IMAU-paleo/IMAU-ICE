@@ -177,7 +177,9 @@ CONTAINS
 
     ! Write data to a grid output file
   SUBROUTINE write_to_field_dp_0D( filename, field_name_options, d)
-    ! Write output data to a scalar field
+    ! Write output data to a scalar field (e.g., the global_scalar_data)
+    ! This should be used to write data to create time-series. Therefore, one
+    ! data point is added at a time, hence the name "0D".
 
     IMPLICIT NONE
 
@@ -410,7 +412,10 @@ CONTAINS
   END SUBROUTINE add_field_dp_0D
 
   SUBROUTINE add_field_history_dp_1D( filename, var_name, ntime_history, long_name, units)
-    ! Add a 1-D variable to an existing NetCDF file
+    ! Add a 1-D variable to an existing NetCDF file that has a separate time axis. This is
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
+    !
+    ! To add 1D fields with only a time dimension (e.g., time-series) use add_field_dp_0D instead.
 
     IMPLICIT NONE
 
@@ -526,6 +531,7 @@ CONTAINS
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
 
@@ -1032,16 +1038,25 @@ CONTAINS
 
     ! Predictor corrector method
     IF     (C%choice_timestepping == 'pc') THEN
+
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
       CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
       CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
       CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_ice' , region%dt_crit_ice )
+      CALL write_to_field_dp_0D( filename, 'dt' ,          region%dt )
+
+      ! :: MS WIP: Caroline, dit probleem laat ik aan jouw over. De code hier zou moeten kloppen, maar deze variabelen zijn !cvc
+      ! geen deel van het data-stuctuur. Als dat ik opgelost kunnen deze ! weg.
+      ! CALL write_to_field_dp_0D( filename, 'pc_eta' ,      region%pc_eta )
+      ! CALL write_to_field_dp_0D( filename, 'pc_eta_prev' , region%pc_eta_prev )
 
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
       u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
       v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
+
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
 
@@ -1766,9 +1781,10 @@ CONTAINS
 
   ! Write data to a grid output file
   SUBROUTINE write_to_field_history_dp_1D( filename, ntime_history, field_name_options, d)
-    ! Write a 1-D data field to a NetCDF file variable on a time_history array
+    ! Write a 1-D variable to an existing NetCDF file that has a separate time axis. This is
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
     !
-    ! Write to the last time frame of the variable
+    ! To write 1D fields with only a time dimension (e.g., time-series) use write_to_field_dp_0D instead.
 
     IMPLICIT NONE
 

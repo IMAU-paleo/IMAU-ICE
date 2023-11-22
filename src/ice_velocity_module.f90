@@ -30,8 +30,7 @@ MODULE ice_velocity_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D, read_field_from_file_3D
-  USE netcdf_basic_module,             ONLY: read_var_dp_1D, inquire_var_multiple_options, read_var_dp_0D
+  USE netcdf_input_module,             ONLY: read_field_from_file_0D, read_field_from_xy_file_2D, read_field_from_file_2D, read_field_from_file_3D
 
   IMPLICIT NONE
 
@@ -3090,6 +3089,7 @@ CONTAINS
     TYPE(type_model_region),        INTENT(INOUT) :: region
     TYPE(type_grid),                INTENT(IN)    :: grid
     TYPE(type_ice_model),           INTENT(INOUT) :: ice
+    TYPE(type_model_region),        INTENT(INOUT) :: region
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -3143,9 +3143,11 @@ CONTAINS
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
-      ! CALL read_var_dp_1D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
-      ! CALL read_var_dp_1D(   filename_restart, 'pc_eta',  ice%pc_eta, time_to_restart_from)
-      ! CALL read_var_dp_1D(   filename_restart, 'pc_eta_prev',  ice%pc_eta_prev, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
+      ! MS: WIP: Caroline, dit mag jij fixen! (Probleem zit in data types, maar code zou het moeten doen als dat is opgelost.) !cvc
+      ! CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
+      ! CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
 
       u_vav_cx_a = 0._dp
       v_vav_cy_a = 0._dp

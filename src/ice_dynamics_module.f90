@@ -1128,6 +1128,7 @@ CONTAINS
     TYPE(type_model_region),        INTENT(INOUT) :: region
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
@@ -1220,6 +1221,7 @@ CONTAINS
     ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( region, grid, ice, region_name)
+
     END IF
 
     ! Read target dHi_dt from external file
