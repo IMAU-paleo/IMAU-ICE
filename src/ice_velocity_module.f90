@@ -31,6 +31,7 @@ MODULE ice_velocity_module
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
   USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D, read_field_from_file_3D
+  USE netcdf_basic_module,             ONLY: read_var_dp_1D, inquire_var_multiple_options, read_var_dp_0D
 
   IMPLICIT NONE
 
@@ -3080,12 +3081,13 @@ CONTAINS
 
   END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
 
-  SUBROUTINE initialise_velocities_from_restart_file( grid, ice, region_name)
+  SUBROUTINE initialise_velocities_from_restart_file( region, grid, ice, region_name)
     ! Initialise velocities with data from a previous simulation's restart file
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_model_region),        INTENT(INOUT) :: region
     TYPE(type_grid),                INTENT(IN)    :: grid
     TYPE(type_ice_model),           INTENT(INOUT) :: ice
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
@@ -3108,6 +3110,7 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cx_a, wtaub_cx_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cy_a, wtaub_cy_a)
 
+
     ! Select filename and time to restart from
     IF     (region_name == 'NAM') THEN
       filename_restart     = C%filename_refgeo_init_NAM
@@ -3122,6 +3125,8 @@ CONTAINS
       filename_restart     = C%filename_refgeo_init_ANT
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
+
+    ! CALL read_var_dp_1D(   filename_restart, 'dt', region%dt, time_to_restart_from)
 
     IF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
       u_SSA_cx_a = 0._dp
@@ -3138,10 +3143,9 @@ CONTAINS
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
-      ! CALL read_field_from_file_history_1D(   filename_restart, 'dt_crit_ice', 'time_dT_glob_history',  region%dt_crit_ice,region%wdt_crit_ice, time_to_restart_from)
-      ! CALL read_field_from_file_history_1D(   filename_restart, 'dt', 'time_dT_glob_history',  region%dt, region%wdt, time_to_restart_from)
-      ! CALL read_field_from_file_history_1D(   filename_restart, 'pc_eta', 'time_dT_glob_history',  region%pc_eta,region%wdt_crit_ice, time_to_restart_from)
-      ! CALL read_field_from_file_history_1D(   filename_restart, 'pc_eta_prev', 'time_dT_glob_history',  region%pc_eta_prev,region%wdt_crit_ice, time_to_restart_from)
+      ! CALL read_var_dp_1D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
+      ! CALL read_var_dp_1D(   filename_restart, 'pc_eta',  ice%pc_eta, time_to_restart_from)
+      ! CALL read_var_dp_1D(   filename_restart, 'pc_eta_prev',  ice%pc_eta_prev, time_to_restart_from)
 
       u_vav_cx_a = 0._dp
       v_vav_cy_a = 0._dp
@@ -3157,11 +3161,9 @@ CONTAINS
       CALL read_field_from_file_2D(   filename_restart, 'uabs_surf_a', grid,  ice%uabs_surf_a,  region_name, time_to_restart_from)
       CALL read_field_from_file_2D(   filename_restart, 'uabs_base_a', grid,  ice%uabs_base_a,  region_name, time_to_restart_from)
       CALL read_field_from_file_2D(   filename_restart, 'uabs_vav_a', grid,  ice%uabs_vav_a,  region_name, time_to_restart_from)
-
     END IF ! (C%choice_timestepping == 'pc') THEN
 
     IF (C%choice_ice_dynamics == 'DIVA') THEN
-
       CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D_a', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
       taub_cx_a = 0._dp
       taub_cy_a = 0._dp
@@ -3173,7 +3175,6 @@ CONTAINS
         ice%taub_cy = taub_cy_a(1:grid%ny-1, :)
       END IF
       CALL sync
-
     END IF ! (C%choice_ice_dynamics == 'DIVA') THEN
 
     ! Safety

@@ -247,7 +247,6 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'adapt_initial_geometry_from_restart_file'
     INTEGER                                       :: i,j
-    TYPE(type_restart_data)                       :: restart
     REAL(dp), DIMENSION(:,:  ), POINTER           ::  dHb,  SL
     INTEGER                                       :: wdHb, wSL
     REAL(dp)                                      :: Hs, Hs_max_float

@@ -190,7 +190,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_dp_0D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    TYPE(type_grid)                                    :: grid
     REAL(dp), DIMENSION(:    ), POINTER                ::  d_grid_with_time
     INTEGER                                            :: wd_grid_with_time
 
@@ -504,6 +503,7 @@ CONTAINS
 
     ! Create variables
     ! ================
+    CALL add_field_dp_0D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
 
     ! Geometry
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hi ), long_name = 'Ice thickness'      , units = 'm')
@@ -525,10 +525,9 @@ CONTAINS
     END IF
 
     IF (C%choice_timestepping == 'pc') THEN
-      ! CALL add_field_grid_dp_1D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
-      ! CALL add_field_grid_dp_1D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
 
       CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
@@ -993,8 +992,7 @@ CONTAINS
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                              :: routine_name = 'write_to_restart_file_grid'
-    REAL(dp), DIMENSION( region%grid%ny, region%grid%nx)       :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a, u_base_cx_a, v_base_cy_a, taub_cx_a, taub_cy_a
-    REAL(dp), DIMENSION( C%nz, region%grid%ny, region%grid%nx) :: du_dz_3D_cx_a, dv_dz_3D_cy_a
+    REAL(dp), DIMENSION( region%grid%ny, region%grid%nx)       :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a, taub_cx_a, taub_cy_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1005,6 +1003,7 @@ CONTAINS
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
     CALL write_time_to_file( filename, region%time)
+    CALL write_to_field_dp_0D( filename, 'dt', region%dt )
 
     ! Write model data
     ! ================
@@ -1035,10 +1034,9 @@ CONTAINS
     IF     (C%choice_timestepping == 'pc') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'dt_crit_ice' , region%dt_crit_ice )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'dt' , region%dt )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'pc_eta' , region%pc_eta )
-      ! CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'pc_eta_prev' , region%pc_eta_prev )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
+      CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
+      CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
 
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
@@ -2771,8 +2769,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_time_history_dimension_to_file'
     INTEGER                                            :: id_dim_time_history
     INTEGER                                            :: id_var_time_history
-
-    INTEGER                                            :: i
     INTEGER                                            :: ntime_history
 
     ! Number of time history

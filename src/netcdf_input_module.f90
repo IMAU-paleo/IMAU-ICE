@@ -507,7 +507,7 @@ CONTAINS
       CALL flip_1D_dp( grid%y)
       CALL flip_2D_x2_dp( grid%lon)
       CALL flip_2D_x2_dp( grid%lat)
-     
+
       CALL flip_3D_x2_dp( d_z_ocean)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
@@ -1584,7 +1584,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: tol = 1E-9_dp
     INTEGER                                            :: id_dim_x, id_dim_y
     INTEGER                                            :: id_var_x, id_var_y
-    INTEGER                                            :: i,j,n
+    INTEGER                                            :: i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
