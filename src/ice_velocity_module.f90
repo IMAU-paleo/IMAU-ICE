@@ -3089,7 +3089,6 @@ CONTAINS
     TYPE(type_model_region),        INTENT(INOUT) :: region
     TYPE(type_grid),                INTENT(IN)    :: grid
     TYPE(type_ice_model),           INTENT(INOUT) :: ice
-    TYPE(type_model_region),        INTENT(INOUT) :: region
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -3126,7 +3125,7 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    ! CALL read_var_dp_1D(   filename_restart, 'dt', region%dt, time_to_restart_from)
+    CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
 
     IF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
       u_SSA_cx_a = 0._dp
@@ -3144,10 +3143,8 @@ CONTAINS
     IF (C%choice_timestepping == 'pc') THEN
       CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
       CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
-      ! MS: WIP: Caroline, dit mag jij fixen! (Probleem zit in data types, maar code zou het moeten doen als dat is opgelost.) !cvc
-      ! CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
-      ! CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
 
       u_vav_cx_a = 0._dp
       v_vav_cy_a = 0._dp

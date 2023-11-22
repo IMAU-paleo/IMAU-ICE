@@ -531,7 +531,6 @@ CONTAINS
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
-      CALL add_field_dp_0D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
 
@@ -1038,19 +1037,11 @@ CONTAINS
 
     ! Predictor corrector method
     IF     (C%choice_timestepping == 'pc') THEN
-
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
       CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
       CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
       CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
-      CALL write_to_field_dp_0D( filename, 'dt_crit_ice' , region%dt_crit_ice )
-      CALL write_to_field_dp_0D( filename, 'dt' ,          region%dt )
-
-      ! :: MS WIP: Caroline, dit probleem laat ik aan jouw over. De code hier zou moeten kloppen, maar deze variabelen zijn !cvc
-      ! geen deel van het data-stuctuur. Als dat ik opgelost kunnen deze ! weg.
-      ! CALL write_to_field_dp_0D( filename, 'pc_eta' ,      region%pc_eta )
-      ! CALL write_to_field_dp_0D( filename, 'pc_eta_prev' , region%pc_eta_prev )
 
       u_vav_cx_a            = 0._dp
       v_vav_cy_a            = 0._dp
