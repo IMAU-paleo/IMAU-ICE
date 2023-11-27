@@ -514,39 +514,55 @@ CONTAINS
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hi ), long_name = 'Ice thickness'      , units = 'm')
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hb ), long_name = 'Bedrock elevation'  , units = 'm w.r.t. PD sea level')
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hs ), long_name = 'Surface elevation'  , units = 'm w.r.t. PD sea level')
-    CALL add_field_grid_dp_2D( filename, 'dHi_dt_a', long_name = 'applied ice thickness rate of change' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Applied ice thickness rate of change' , units = 'm/yr')
 
     ! Thermodynamics
     CALL add_field_grid_dp_3D( filename, get_first_option_from_list( field_name_options_Ti ), long_name = 'Englacial temperature'    , units = 'K')
 
     ! GIA
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_SL ), long_name = 'Sea surface change' , units = 'm')
-    CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_dHB), long_name = 'Bedrock deformation' , units = 'm')
+    CALL add_field_grid_dp_2D( filename, 'dHb_dt', long_name = 'Bedrock deformation rate of change' , units = 'm')
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
-      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx_a', long_name = 'SSA velocities in u direction' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy_a', long_name = 'SSA velocities in v direction' , units = 'm/yr')
-    END IF
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL add_field_dp_0D( filename, 't_next_SIA', long_name = 'Time of next SIA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SIA', long_name = 'Critical time step SIA' , units = 'yr')
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx', long_name = 'SSA velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+      CALL add_field_dp_0D( filename, 't_next_SSA', long_name = 'Time of next SSA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SSA', long_name = 'Critical time step SSA' , units = 'yr')
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx', long_name = 'SSA velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+      CALL add_field_dp_0D( filename, 't_next_SIA', long_name = 'Time of next SIA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 't_next_SSA', long_name = 'Time of next SSA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SIA', long_name = 'Critical time step SIA' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SSA', long_name = 'Critical time step SSA' , units = 'yr')
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      CALL add_field_grid_dp_2D( filename, 'taub_cx', long_name = 'Basal stress in x direction' , units = 'Pa')
+      CALL add_field_grid_dp_2D( filename, 'taub_cy', long_name = 'Basal stress in y direction' , units = 'Pa')
+      CALL add_field_grid_dp_3D( filename, 'visc_eff_3D', long_name = '3D effective viscosity' , units = 'Pa s')
+      CALL add_field_dp_0D( filename, 't_next_DIVA', long_name = 'Time of next DIVA computation' , units = 'yr')
+    ENDIF
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
       CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
-
-      CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
       CALL add_field_grid_dp_2D( filename, 'dHidt_Hn_un', long_name = 'dHidt_Hn_un' , units = 'yr')
-      CALL add_field_grid_dp_2D( filename, 'uabs_surf_a', long_name = 'Horizontal velocities at the surface' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'uabs_base_a', long_name = 'Horizontal velocities at the base' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'uabs_vav_a', long_name = 'Vertically averaged horizontal velocities ' , units = 'm/yr')
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_base', long_name = 'Horizontal velocities in u direction at the base' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_base', long_name = 'Horizontal velocities in v direction at the base' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'beta', long_name = 'Bed roughness' , units = 'm')
     ENDIF
 
-    IF     (C%choice_ice_dynamics == 'DIVA') THEN
-      CALL add_field_grid_dp_2D( filename, 'taub_cx_a', long_name = 'Basal stress in x direction' , units = 'Pa')
-      CALL add_field_grid_dp_2D( filename, 'taub_cy_a', long_name = 'Basal stress in y direction' , units = 'Pa')
-      CALL add_field_grid_dp_3D( filename, 'visc_eff_3D_a', long_name = '3D effective viscosity' , units = 'Pa s')
-    ENDIF
+    CALL add_field_grid_dp_2D( filename, 'u_vav_cx', long_name = 'Vertically averaged velocities in u direction' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'v_vav_cy', long_name = 'Vertically averaged velocities in v direction' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_surf', long_name = 'Horizontal velocities at the surface' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_base', long_name = 'Horizontal velocities at the base' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_vav', long_name = 'Vertically averaged horizontal velocities ' , units = 'm/yr')
+    ! ENDIF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -1017,55 +1033,72 @@ CONTAINS
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hi)  , region%ice%Hi_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hb)  , region%ice%Hb_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hs)  , region%ice%Hs_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt' , region%ice%dHi_dt_a )
 
     ! Thermodynamics
     CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, get_first_option_from_list(field_name_options_Ti)  , region%ice%Ti_a )
 
     ! GIA
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_SL)  , region%ice%SL_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_dt_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHb_dt' , region%ice%dHb_dt_a )
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL write_to_field_dp_0D( filename, 't_next_SIA', region%t_next_SIA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SIA', region%dt_crit_SIA )
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
       u_SSA_cx_a            = 0._dp
       v_SSA_cy_a            = 0._dp
       u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
       v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx_a' , u_SSA_cx_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy_a' , v_SSA_cy_a )
-    END IF
-
-    ! Predictor corrector method
-    IF     (C%choice_timestepping == 'pc') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt_a' , region%ice%dHi_dt_a )
-      CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
-      CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
-      CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
-
-      u_vav_cx_a            = 0._dp
-      v_vav_cy_a            = 0._dp
-      u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
-      v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
-
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , u_vav_cx_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , v_vav_cy_a )
-
-      ! Write these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_surf_a' , region%ice%uabs_surf_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_base_a' , region%ice%uabs_base_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_vav_a' , region%ice%uabs_vav_a )
-    END IF
-
-    IF (C%choice_ice_dynamics == 'DIVA') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx' , u_SSA_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy' , v_SSA_cy_a )
+      CALL write_to_field_dp_0D( filename, 't_next_SSA', region%t_next_SSA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SSA', region%dt_crit_SSA )
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+      u_SSA_cx_a            = 0._dp
+      v_SSA_cy_a            = 0._dp
+      u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
+      v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx' , u_SSA_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy' , v_SSA_cy_a )
+      CALL write_to_field_dp_0D( filename, 't_next_SIA', region%t_next_SIA )
+      CALL write_to_field_dp_0D( filename, 't_next_SSA', region%t_next_SSA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SIA', region%dt_crit_SIA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SSA', region%dt_crit_SSA )
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       taub_cx_a            = 0._dp
       taub_cx_a(:, 1:region%grid%nx-1) = region%ice%taub_cx
       taub_cy_a            = 0._dp
       taub_cy_a(1:region%grid%ny-1, :) = region%ice%taub_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cx_a' , taub_cx_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cy_a' , taub_cy_a )
-      CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'visc_eff_3D_a' , region%ice%visc_eff_3D_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cx' , taub_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cy' , taub_cy_a )
+      CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'visc_eff_3D' , region%ice%visc_eff_3D_a )
+      CALL write_to_field_dp_0D( filename, 't_next_DIVA', region%t_next_DIVA )
     END IF
+
+    ! Timestepping method
+    IF     (C%choice_timestepping == 'pc') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
+      CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
+      CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta' , region%ice%beta_a )
+    END IF
+
+    u_vav_cx_a            = 0._dp
+    v_vav_cy_a            = 0._dp
+    u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
+    v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx' , u_vav_cx_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy' , v_vav_cy_a )
+
+    ! Write these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_surf' , region%ice%uabs_surf_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_base' , region%ice%uabs_base_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_vav' , region%ice%uabs_vav_a )
+    ! END IF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN

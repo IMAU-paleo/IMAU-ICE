@@ -181,9 +181,6 @@ CONTAINS
     ice%DIVA_err_cy( :,grid%i1:              grid%i2 ) = 1E5_dp
     CALL sync
 
-    IF (C%do_read_velocities_from_restart) THEN
-      ! do nothing
-    ELSE
       ! The viscosity iteration
       viscosity_iteration_i = 0
       has_converged         = .FALSE.
@@ -246,7 +243,6 @@ CONTAINS
         IF (.NOT. has_converged) CALL estimate_visc_iter_UV_errors( grid, ice, ice%u_SSA_cx, ice%v_SSA_cy)
 
       END DO viscosity_iteration
-    END IF! (C%do_read_velocities_from_restart) THEN
 
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
@@ -3109,7 +3105,6 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cx_a, wtaub_cx_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cy_a, wtaub_cy_a)
 
-
     ! Select filename and time to restart from
     IF     (region_name == 'NAM') THEN
       filename_restart     = C%filename_refgeo_init_NAM
@@ -3127,54 +3122,77 @@ CONTAINS
 
     CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
 
-    IF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
       u_SSA_cx_a = 0._dp
       v_SSA_cy_a = 0._dp
-      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx_a', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy_a', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
       IF (par%master) THEN
         ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
         ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
       END IF
       CALL sync
-
-    END IF ! IF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      u_SSA_cx_a = 0._dp
+      v_SSA_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
+        ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
+      END IF
+      CALL sync
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
+      taub_cx_a = 0._dp
+      taub_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'taub_cx', grid,  taub_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'taub_cy', grid,  taub_cy_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%taub_cx = taub_cx_a(:, 1:grid%nx-1)
+        ice%taub_cy = taub_cy_a(1:grid%ny-1, :)
+      END IF
+      CALL sync
+      CALL read_field_from_file_0D(   filename_restart, 't_next_DIVA',          region%t_next_DIVA,          time_to_restart_from)
+    END IF ! IF (C%choice_ice_dynamics == 'SIA') THEN
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
       CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
       CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
       CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      ! CALL read_field_from_file_2D(   filename_restart, 'u_base', grid,  ice%U_base_a,  region_name, time_to_restart_from)
+      ! CALL read_field_from_file_2D(   filename_restart, 'v_base', grid,  ice%V_base_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'beta', grid,  ice%beta_a,  region_name, time_to_restart_from)
 
-      u_vav_cx_a = 0._dp
-      v_vav_cy_a = 0._dp
-      CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx_a', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'v_vav_cy_a', grid,  v_vav_cy_a,  region_name, time_to_restart_from)
-      IF (par%master) THEN
-        ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
-        ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
-      END IF
-      CALL sync
-
-      ! Read these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
-      CALL read_field_from_file_2D(   filename_restart, 'uabs_surf_a', grid,  ice%uabs_surf_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'uabs_base_a', grid,  ice%uabs_base_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'uabs_vav_a', grid,  ice%uabs_vav_a,  region_name, time_to_restart_from)
     END IF ! (C%choice_timestepping == 'pc') THEN
 
-    IF (C%choice_ice_dynamics == 'DIVA') THEN
-      CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D_a', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
-      taub_cx_a = 0._dp
-      taub_cy_a = 0._dp
-      CALL read_field_from_file_2D(   filename_restart, 'taub_cx_a', grid,  taub_cx_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'taub_cy_a', grid,  taub_cy_a,  region_name, time_to_restart_from)
+    u_vav_cx_a = 0._dp
+    v_vav_cy_a = 0._dp
+    CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'v_vav_cy', grid,  v_vav_cy_a,  region_name, time_to_restart_from)
+    IF (par%master) THEN
+      ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
+      ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
+    END IF
+    CALL sync
 
-      IF (par%master) THEN
-        ice%taub_cx = taub_cx_a(:, 1:grid%nx-1)
-        ice%taub_cy = taub_cy_a(1:grid%ny-1, :)
-      END IF
-      CALL sync
-    END IF ! (C%choice_ice_dynamics == 'DIVA') THEN
+    ! Read these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_surf', grid,  ice%uabs_surf_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_base', grid,  ice%uabs_base_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_vav', grid,  ice%uabs_vav_a,  region_name, time_to_restart_from)
+
+    ! END IF ! (C%choice_timestepping == 'pc') THEN
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')

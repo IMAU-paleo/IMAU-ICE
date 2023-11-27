@@ -124,114 +124,118 @@ CONTAINS
 
     ! Calculate ice velocities with the selected ice-dynamical approximation
     ! ======================================================================
+    IF (C%do_read_velocities_from_restart) THEN
+    ! Do nothing, velocities are read from the restart file
+    ELSE
+      IF     (C%choice_ice_dynamics == 'none') THEN
+        ! Fixed ice geometry
 
-    IF     (C%choice_ice_dynamics == 'none') THEN
-      ! Fixed ice geometry
+      ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
+        ! Shallow ice approximation
 
-    ELSEIF (C%choice_ice_dynamics == 'SIA') THEN
-      ! Shallow ice approximation
+        IF (region%time == region%t_next_SIA) THEN
 
-      IF (region%time == region%t_next_SIA) THEN
+          ! Calculate new ice velocities
+          CALL solve_SIA( region%grid, region%ice)
 
-        ! Calculate new ice velocities
-        CALL solve_SIA( region%grid, region%ice)
+          ! Calculate critical time step
+          CALL calc_critical_timestep_SIA( region%grid, region%ice, dt_crit_SIA)
 
-        ! Calculate critical time step
-        CALL calc_critical_timestep_SIA( region%grid, region%ice, dt_crit_SIA)
+          IF (par%master) THEN
 
-        IF (par%master) THEN
+            ! Apply conditions to the time step
+            dt_crit_SIA = MAX( C%dt_min, MIN( dt_max, dt_crit_SIA))
 
-          ! Apply conditions to the time step
-          dt_crit_SIA = MAX( C%dt_min, MIN( dt_max, dt_crit_SIA))
+            ! Update timer
+            region%dt_crit_SIA = dt_crit_SIA
+            region%t_last_SIA  = region%time
+            region%t_next_SIA  = region%time + region%dt_crit_SIA
 
-          ! Update timer
-          region%dt_crit_SIA = dt_crit_SIA
-          region%t_last_SIA  = region%time
-          region%t_next_SIA  = region%time + region%dt_crit_SIA
+          END IF
+          CALL sync
 
-        END IF
-        CALL sync
+        END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
 
-      END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
+      ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+        ! Shallow shelf approximation
 
-    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
-      ! Shallow shelf approximation
+        IF (region%time == region%t_next_SSA) THEN
 
-      IF (region%time == region%t_next_SSA) THEN
+          ! Calculate new ice velocities
+          CALL solve_SSA( region%grid, region%ice)
 
-        ! Calculate new ice velocities
-        CALL solve_SSA( region%grid, region%ice)
+          ! Calculate critical time step
+          CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
 
-        ! Calculate critical time step
-        CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
+          IF (par%master) THEN
 
-        IF (par%master) THEN
+            ! Apply conditions to the time step
+            dt_crit_SSA = MAX( C%dt_min, MIN( dt_max, dt_crit_SSA))
 
-          ! Apply conditions to the time step
-          dt_crit_SSA = MAX( C%dt_min, MIN( dt_max, dt_crit_SSA))
+            ! Update timer
+            region%dt_crit_SSA = dt_crit_SSA
+            region%t_last_SSA  = region%time
+            region%t_next_SSA  = region%time + region%dt_crit_SSA
 
-          ! Update timer
-          region%dt_crit_SSA = dt_crit_SSA
-          region%t_last_SSA  = region%time
-          region%t_next_SSA  = region%time + region%dt_crit_SSA
+          END IF
+          CALL sync
 
-        END IF
-        CALL sync
+        END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
 
-      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+      ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+        ! Hybrid SIA/SSA (Bueler and Brown, 2009)
 
-    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
-      ! Hybrid SIA/SSA (Bueler and Brown, 2009)
+        IF (region%time == region%t_next_SIA) THEN
 
-      IF (region%time == region%t_next_SIA) THEN
-
-        ! Calculate new ice velocities
-        CALL solve_SIA( region%grid, region%ice)
+          ! Calculate new ice velocities
+          CALL solve_SIA( region%grid, region%ice)
 
 
-        ! Calculate critical time step
-        CALL calc_critical_timestep_SIA( region%grid, region%ice, dt_crit_SIA)
+          ! Calculate critical time step
+          CALL calc_critical_timestep_SIA( region%grid, region%ice, dt_crit_SIA)
 
-        IF (par%master) THEN
+          IF (par%master) THEN
 
-          ! Apply conditions to the time step
-          dt_crit_SIA = MAX( C%dt_min, MIN( dt_max, dt_crit_SIA))
+            ! Apply conditions to the time step
+            dt_crit_SIA = MAX( C%dt_min, MIN( dt_max, dt_crit_SIA))
 
-          ! Update timer
-          region%dt_crit_SIA = dt_crit_SIA
-          region%t_last_SIA  = region%time
-          region%t_next_SIA  = region%time + region%dt_crit_SIA
+            ! Update timer
+            region%dt_crit_SIA = dt_crit_SIA
+            region%t_last_SIA  = region%time
+            region%t_next_SIA  = region%time + region%dt_crit_SIA
 
-        END IF
-        CALL sync
+          END IF
+          CALL sync
 
-      END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
+        END IF ! IF (ABS(region%time - region%t_next_SIA) < dt_tol) THEN
 
-      IF (region%time == region%t_next_SSA) THEN
-        ! Calculate new ice velocities
-        CALL solve_SSA( region%grid, region%ice)
+        IF (region%time == region%t_next_SSA) THEN
+          ! Calculate new ice velocities
 
-        ! Calculate critical time step
-        CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
+          CALL solve_SSA( region%grid, region%ice)
 
-        IF (par%master) THEN
+          ! Calculate critical time step
+          CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
 
-          ! Apply conditions to the time step
-          dt_crit_SSA = MAX( C%dt_min, MIN( dt_max, dt_crit_SSA))
+          IF (par%master) THEN
 
-          ! Update timer
-          region%dt_crit_SSA = dt_crit_SSA
-          region%t_last_SSA  = region%time
-          region%t_next_SSA  = region%time + region%dt_crit_SSA
+            ! Apply conditions to the time step
+            dt_crit_SSA = MAX( C%dt_min, MIN( dt_max, dt_crit_SSA))
 
-        END IF
-        CALL sync
+            ! Update timer
+            region%dt_crit_SSA = dt_crit_SSA
+            region%t_last_SSA  = region%time
+            region%t_next_SSA  = region%time + region%dt_crit_SSA
 
-      END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+          END IF
+          CALL sync
 
-    ELSE ! IF     (C%choice_ice_dynamics == 'SIA') THEN
-      CALL crash('"direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!')
-    END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
+        END IF ! IF (ABS(region%time - region%t_next_SSA) < dt_tol) THEN
+
+      ELSE ! IF     (C%choice_ice_dynamics == 'SIA') THEN
+        CALL crash('"direct" time stepping works only with SIA, SSA, or SIA/SSA ice dynamics, not with DIVA!')
+      END IF ! IF     (C%choice_ice_dynamics == 'SIA') THEN
+    END IF !(do_update_ice_velocity) THEN
 
     ! Adjust the time step to prevent overshooting other model components (thermodynamics, SMB, output, etc.)
     CALL determine_timesteps( region, t_end)
@@ -282,26 +286,27 @@ CONTAINS
 
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
+
     IF (C%do_read_velocities_from_restart) THEN
       ! If restart, do not update ice_velocity but only the timers. Velocities are read from the restart file.
-        IF     (C%choice_ice_dynamics == 'SIA') THEN
+      IF     (C%choice_ice_dynamics == 'SIA') THEN
         IF (par%master) region%t_last_SIA = region%time
-        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
-        CALL sync
+        ! IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        ! CALL sync
       ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
         IF (par%master) region%t_last_SSA = region%time
-        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
-        CALL sync
+        ! IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        ! CALL sync
       ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
         IF (par%master) region%t_last_SIA = region%time
         IF (par%master) region%t_last_SSA = region%time
-        IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
-        IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
-        CALL sync
+        ! IF (par%master) region%t_next_SIA = region%time + region%dt_crit_ice
+        ! IF (par%master) region%t_next_SSA = region%time + region%dt_crit_ice
+        ! CALL sync
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
         IF (par%master) region%t_last_DIVA = region%time
-        IF (par%master) region%t_next_DIVA = region%time + region%dt_crit_ice
-        CALL sync
+        ! IF (par%master) region%t_next_DIVA = region%time + region%dt_crit_ice
+        ! CALL sync
       ELSE
         CALL crash('unknown choice_ice_dynamics "' // TRIM(C%choice_ice_dynamics) // '"!')
       END IF
@@ -1026,7 +1031,11 @@ CONTAINS
       t_next = MIN( t_next, region%t_next_output_regional_scalar)
 
       ! Set time step so that we move forward to the next action
-      region%dt = t_next - region%time
+      IF (C%do_read_velocities_from_restart) THEN
+        ! do nothing, dt is read from restart file
+      ELSE
+        region%dt = t_next - region%time
+      END IF
     END IF ! IF (par%master) THEN
     CALL sync
 
@@ -1220,7 +1229,6 @@ CONTAINS
     ! Read velocity fields from restart data
     IF (C%do_read_velocities_from_restart) THEN
       CALL initialise_velocities_from_restart_file( region, grid, ice, region_name)
-
     END IF
 
     ! Read target dHi_dt from external file
@@ -1265,13 +1273,13 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    CALL read_field_from_file_2D(   filename_restart, 'dHi_dt_a', grid,  ice%dHi_dt_a,  region_name, time_to_restart_from)
-    CALL read_field_from_file_2D(   filename_restart, 'dHb', grid,  ice%dHb_dt_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'dHi_dt', grid,  ice%dHi_dt_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'dHb_dt', grid,  ice%dHb_dt_a,  region_name, time_to_restart_from)
     CALL sync
 
     ! Safety
-    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt_a')
-    CALL check_for_NaN_dp_2D( ice%dHb_dt_a, 'ice%dHb_dt_a')
+    CALL check_for_NaN_dp_2D( ice%dHi_dt_a, 'ice%dHi_dt')
+    CALL check_for_NaN_dp_2D( ice%dHb_dt_a, 'ice%dHb_dt')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
