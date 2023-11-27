@@ -588,15 +588,17 @@ CONTAINS
     END IF
 
     ! Inverse routine data
-    IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+    IF (C%choice_forcing_method == 'd18O_inverse_CO2')  THEN
         CALL add_field_history_dp_1D( filename, 'CO2_inverse_history' ,  CEILING( C%CO2_inverse_averaging_window     / C%dt_coupling), long_name='inverse history of CO2' ,                    units='ppm')
+    END IF
+
+    IF (C%do_calculate_benthic_d18O) THEN
         CALL add_field_history_dp_1D( filename, 'dT_glob_history' ,       CEILING( C%dT_deepwater_averaging_window / C%dt_coupling),   long_name= 'history of deep water temperature' , units='K')
     END IF
 
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
         CALL add_field_history_dp_1D( filename, 'dT_glob_inverse_history' , CEILING( C%dT_glob_inverse_averaging_window / C%dt_coupling), long_name='inverse history of deep water temperature' , units='K')
     END IF
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -1127,6 +1129,10 @@ CONTAINS
     IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
       CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'CO2_inverse_history',  forcing%CO2_inverse_history)
+    END IF
+
+    IF (C%do_calculate_benthic_d18O) THEN
+      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
       CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_history,     'dT_glob_history',      forcing%dT_glob_history)
     END IF
 

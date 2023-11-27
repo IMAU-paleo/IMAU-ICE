@@ -180,11 +180,6 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_thermo = region%tcomp_thermo + t2 - t1
 
-    ! Isotopes
-    ! ========
-
-      CALL run_isotopes_model( region)
-
     ! Ice dynamics and determination of timestep
     ! ==========================================
 
@@ -194,6 +189,11 @@ CONTAINS
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_ice = region%tcomp_ice + t2 - t1
 
+    ! Isotopes
+    ! ========
+
+    CALL run_isotopes_model( region)
+      
     ! Perform inversions
     ! ==================
 
@@ -470,12 +470,12 @@ CONTAINS
       CALL run_thermo_model( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, C%start_time_of_run, do_solve_heat_equation = region%do_thermo)
     END IF
 
-    ! Run isotopes
-    CALL run_isotopes_model( region)
-
     ! Run the ice model
     CALL run_ice_model( region, C%end_time_of_run)
 
+    ! Run isotopes
+    CALL run_isotopes_model( region)
+    
     ! GIA
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done

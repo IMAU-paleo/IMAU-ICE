@@ -1560,7 +1560,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: var_name
     REAL(dp), DIMENSION(:,:), POINTER                  :: d_with_time
     REAL(dp), DIMENSION(:  ), POINTER                  :: time_history
-    INTEGER, POINTER                                   :: ntime_history
+    INTEGER                                            :: ntime_history
     INTEGER                                            :: id_dim_time_history
     INTEGER                                            :: id_var_time_history
     INTEGER                                            :: wntime_history, wtime_history,wd_with_time
@@ -1570,21 +1570,22 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate memory for the grid size
-    CALL allocate_shared_int_0D( ntime_history, wntime_history)
-
     ! Inquire x and y dimensions
     CALL inquire_dim_multiple_options( filename, var_name_time_history, id_dim_time_history, dim_length = ntime_history)
+   
+    IF (ntime_history == -1) THEN
+       CALL crash('Variable: "'//TRIM(var_name_time_history)//'" not found')
+    END IF
 
     ! Allocate memory for time_history
     CALL allocate_shared_dp_1D( ntime_history, time_history, wtime_history)
-
+    
     ! Inquire time_history variable
     CALL inquire_var_multiple_options( filename, var_name_time_history, id_var_time_history)
 
     ! Read time_history
     CALL read_var_dp_1D(  filename, id_var_time_history, time_history )
-
+    
     ! Look for the specified variable in the file
     CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
     IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
