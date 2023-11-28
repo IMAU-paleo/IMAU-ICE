@@ -107,7 +107,8 @@ CONTAINS
         CALL run_ELRA_model( region)
 # if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-        CALL apply_SELEN_bed_geoid_deformation_rates( region) ! Be aware although SELEN is chosen to be the GIA model, it is never run.
+        CALL crash('SELEN is your chosen GIA model but the current code never calls to run SELEN, this should be fixed!')
+        CALL apply_SELEN_bed_geoid_deformation_rates( region)
 # endif
       ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
         CALL update_Hb_with_external_GIA_model_output(region)
@@ -193,7 +194,7 @@ CONTAINS
     ! ========
 
     CALL run_isotopes_model( region)
-      
+
     ! Perform inversions
     ! ==================
 
@@ -231,7 +232,8 @@ CONTAINS
         CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       END IF
 
-      ! Write scalar output
+      ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
+      ! used for writing to text output and in the inverse routine
       CALL calculate_icesheet_volume_and_area(region)
 
       IF (region%do_output_regional_scalar) THEN
@@ -249,30 +251,24 @@ CONTAINS
   ! ===========================================
 
     ! Write to NetCDF output one last time at the end of the simulation
-    ! IF (region%time == C%end_time_of_run) THEN
-      ! CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
-      ! CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
+    IF (region%time == C%end_time_of_run) THEN
+      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
+      CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
+      CALL write_regional_scalar_data( region, region%time)
+    END IF
 
     ! Write inverted bed roughness field to file
     IF (C%do_BIVgeo) THEN
       CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
     END IF
+
     ! Write inverted ocean temperature field to file
     IF (C%do_ocean_temperature_inversion) THEN
       CALL write_inverted_ocean_temperature_to_file( region%grid, region%ocean_matrix%applied)
     END IF
 
-    ! END IF
-
-    ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
-    ! used for writing to text output and in the inverse routine
-    ! CALL calculate_icesheet_volume_and_area(region)
-
     ! Keep track of the GMSL contribution
     IF (par%master) WRITE(0,'(A,A3,A,F9.3,A)') '  - ',TRIM( region%name), ' GMSL contribution:', region%GMSL_contribution, ' m'
-
-    ! Write to text output
-    ! CALL write_regional_scalar_data( region, region%time)
 
     tstop = MPI_WTIME()
     region%tcomp_total = tstop - tstart
@@ -475,7 +471,7 @@ CONTAINS
 
     ! Run isotopes
     CALL run_isotopes_model( region)
-    
+
     ! GIA
     IF     (C%choice_GIA_model == 'none') THEN
       ! Nothing to be done

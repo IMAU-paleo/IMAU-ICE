@@ -356,6 +356,10 @@ CONTAINS
       CALL crash('should only be called when choice_SMB_model == "IMAU-ITM"!')
     END IF
 
+    IF (.NOT. C%dt_SMB == 1.0) THEN
+      CALL crash('dt_SMB_config should be set to 1.0!')
+    END IF
+
     IF (par%master) SMB%FirnDepthforrestart = SMB%FirnDepth
     IF (par%master) SMB%MeltPreviousYearforrestart = SMB%MeltPreviousYear
     CALL sync
