@@ -177,7 +177,9 @@ CONTAINS
 
     ! Write data to a grid output file
   SUBROUTINE write_to_field_dp_0D( filename, field_name_options, d)
-    ! Write output data to a scalar field
+    ! Write output data to a scalar field (e.g., the global_scalar_data)
+    ! This should be used to write data to create time-series. Therefore, one
+    ! data point is added at a time, hence the name "0D".
 
     IMPLICIT NONE
 
@@ -190,7 +192,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_field_dp_0D'
     INTEGER                                            :: id_var, id_dim_time, ti
     CHARACTER(LEN=256)                                 :: var_name
-    TYPE(type_grid)                                    :: grid
     REAL(dp), DIMENSION(:    ), POINTER                ::  d_grid_with_time
     INTEGER                                            :: wd_grid_with_time
 
@@ -244,11 +245,11 @@ CONTAINS
     ! Create a new scalar file if none exists and, to prevent loss of data,
     ! stop with an error message if one already exists (not when differences are considered):
     INQUIRE(EXIST=file_exists, FILE = TRIM(filename))
-    IF (par%master) THEN 
+    IF (par%master) THEN
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
+    END IF
 
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
@@ -318,8 +319,8 @@ CONTAINS
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
-    
+    END IF
+
     ! Create a new NetCDF file
     CALL create_new_netcdf_file_for_writing( filename)
 
@@ -411,7 +412,10 @@ CONTAINS
   END SUBROUTINE add_field_dp_0D
 
   SUBROUTINE add_field_history_dp_1D( filename, var_name, ntime_history, long_name, units)
-    ! Add a 1-D variable to an existing NetCDF file
+    ! Add a 1-D variable to an existing NetCDF file that has a separate time axis. This is
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
+    !
+    ! To add 1D fields with only a time dimension (e.g., time-series) use add_field_dp_0D instead.
 
     IMPLICIT NONE
 
@@ -504,27 +508,61 @@ CONTAINS
 
     ! Create variables
     ! ================
+    CALL add_field_dp_0D( filename, 'dt', long_name = 'Model time step' , units = 'yr')
 
     ! Geometry
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hi ), long_name = 'Ice thickness'      , units = 'm')
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hb ), long_name = 'Bedrock elevation'  , units = 'm w.r.t. PD sea level')
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_Hs ), long_name = 'Surface elevation'  , units = 'm w.r.t. PD sea level')
+    CALL add_field_grid_dp_2D( filename, 'dHi_dt', long_name = 'Applied ice thickness rate of change' , units = 'm/yr')
 
     ! Thermodynamics
     CALL add_field_grid_dp_3D( filename, get_first_option_from_list( field_name_options_Ti ), long_name = 'Englacial temperature'    , units = 'K')
 
     ! GIA
     CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_SL ), long_name = 'Sea surface change' , units = 'm')
-    CALL add_field_grid_dp_2D( filename, get_first_option_from_list( field_name_options_dHB), long_name = 'Bedrock deformation' , units = 'm')
+    CALL add_field_grid_dp_2D( filename, 'dHb_dt', long_name = 'Bedrock deformation rate of change' , units = 'm')
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
-      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx_a', long_name = 'SSA velocities in u direction' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy_a', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL add_field_dp_0D( filename, 't_next_SIA', long_name = 'Time of next SIA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SIA', long_name = 'Critical time step SIA' , units = 'yr')
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx', long_name = 'SSA velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+      CALL add_field_dp_0D( filename, 't_next_SSA', long_name = 'Time of next SSA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SSA', long_name = 'Critical time step SSA' , units = 'yr')
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_SSA_cx', long_name = 'SSA velocities in u direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_SSA_cy', long_name = 'SSA velocities in v direction' , units = 'm/yr')
+      CALL add_field_dp_0D( filename, 't_next_SIA', long_name = 'Time of next SIA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 't_next_SSA', long_name = 'Time of next SSA computation' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SIA', long_name = 'Critical time step SIA' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'dt_crit_SSA', long_name = 'Critical time step SSA' , units = 'yr')
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
-      CALL add_field_grid_dp_2D( filename, 'u_vav_cx_a', long_name = 'vav velocities in u direction' , units = 'm/yr')
-      CALL add_field_grid_dp_2D( filename, 'v_vav_cy_a', long_name = 'vav velocities in v direction' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'taub_cx', long_name = 'Basal stress in x direction' , units = 'Pa')
+      CALL add_field_grid_dp_2D( filename, 'taub_cy', long_name = 'Basal stress in y direction' , units = 'Pa')
+      CALL add_field_grid_dp_3D( filename, 'visc_eff_3D', long_name = '3D effective viscosity' , units = 'Pa s')
+      CALL add_field_dp_0D( filename, 't_next_DIVA', long_name = 'Time of next DIVA computation' , units = 'yr')
     ENDIF
+
+    IF (C%choice_timestepping == 'pc') THEN
+      CALL add_field_dp_0D( filename, 'dt_crit_ice', long_name = 'Critical time step' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta', long_name = 'pc_eta' , units = 'yr')
+      CALL add_field_dp_0D( filename, 'pc_eta_prev', long_name = 'pc_eta_prev' , units = 'yr')
+      CALL add_field_grid_dp_2D( filename, 'dHidt_Hn_un', long_name = 'dHidt_Hn_un' , units = 'yr')
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      CALL add_field_grid_dp_2D( filename, 'u_base', long_name = 'Horizontal velocities in u direction at the base' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'v_base', long_name = 'Horizontal velocities in v direction at the base' , units = 'm/yr')
+      CALL add_field_grid_dp_2D( filename, 'beta', long_name = 'Bed roughness' , units = 'm')
+    ENDIF
+
+    CALL add_field_grid_dp_2D( filename, 'u_vav_cx', long_name = 'Vertically averaged velocities in u direction' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'v_vav_cy', long_name = 'Vertically averaged velocities in v direction' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_surf', long_name = 'Horizontal velocities at the surface' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_base', long_name = 'Horizontal velocities at the base' , units = 'm/yr')
+    CALL add_field_grid_dp_2D( filename, 'uabs_vav', long_name = 'Vertically averaged horizontal velocities ' , units = 'm/yr')
+    ! ENDIF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
@@ -550,15 +588,17 @@ CONTAINS
     END IF
 
     ! Inverse routine data
-    IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
+    IF (C%choice_forcing_method == 'd18O_inverse_CO2')  THEN
         CALL add_field_history_dp_1D( filename, 'CO2_inverse_history' ,  CEILING( C%CO2_inverse_averaging_window     / C%dt_coupling), long_name='inverse history of CO2' ,                    units='ppm')
+    END IF
+
+    IF (C%do_calculate_benthic_d18O) THEN
         CALL add_field_history_dp_1D( filename, 'dT_glob_history' ,       CEILING( C%dT_deepwater_averaging_window / C%dt_coupling),   long_name= 'history of deep water temperature' , units='K')
     END IF
 
     IF (C%choice_forcing_method == 'd18O_inverse_dT_glob') THEN
         CALL add_field_history_dp_1D( filename, 'dT_glob_inverse_history' , CEILING( C%dT_glob_inverse_averaging_window / C%dt_coupling), long_name='inverse history of deep water temperature' , units='K')
     END IF
-
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -974,18 +1014,19 @@ CONTAINS
     TYPE(type_forcing_data), OPTIONAL,   INTENT(IN)    :: forcing
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_to_restart_file_grid'
-    REAL(dp), DIMENSION( region%grid%ny, region%grid%nx) :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a
+    CHARACTER(LEN=256), PARAMETER                              :: routine_name = 'write_to_restart_file_grid'
+    REAL(dp), DIMENSION( region%grid%ny, region%grid%nx)       :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a, taub_cx_a, taub_cy_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
+      WRITE(0,'(A,F11.5,A)') '   t = ', region%time/1E3, ' kyr - writing to restart file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
     CALL write_time_to_file( filename, region%time)
+    CALL write_to_field_dp_0D( filename, 'dt', region%dt )
 
     ! Write model data
     ! ================
@@ -994,37 +1035,79 @@ CONTAINS
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hi)  , region%ice%Hi_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hb)  , region%ice%Hb_a )
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_Hs)  , region%ice%Hs_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHi_dt' , region%ice%dHi_dt_a )
 
     ! Thermodynamics
     CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, get_first_option_from_list(field_name_options_Ti)  , region%ice%Ti_a )
 
     ! GIA
     CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_SL)  , region%ice%SL_a )
-    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, get_first_option_from_list(field_name_options_dHb) , region%ice%dHb_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHb_dt' , region%ice%dHb_dt_a )
 
     ! Velocities
-    IF     (C%choice_ice_dynamics == 'SIA/SSA') THEN
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL write_to_field_dp_0D( filename, 't_next_SIA', region%t_next_SIA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SIA', region%dt_crit_SIA )
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
       u_SSA_cx_a            = 0._dp
       v_SSA_cy_a            = 0._dp
       u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
       v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx_a' , u_SSA_cx_a )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy_a' , v_SSA_cy_a )
-    ELSEIF     (C%choice_ice_dynamics == 'DIVA') THEN
-      u_vav_cx_a            = 0._dp
-      v_vav_cy_a            = 0._dp
-      u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
-      v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx_a' , region%ice%u_vav_cx )
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy_a' , region%ice%v_vav_cy )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx' , u_SSA_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy' , v_SSA_cy_a )
+      CALL write_to_field_dp_0D( filename, 't_next_SSA', region%t_next_SSA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SSA', region%dt_crit_SSA )
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA' .OR. C%choice_ice_dynamics == 'SSA') THEN
+      u_SSA_cx_a            = 0._dp
+      v_SSA_cy_a            = 0._dp
+      u_SSA_cx_a(:, 1:region%grid%nx-1) = region%ice%u_SSA_cx
+      v_SSA_cy_a(1:region%grid%ny-1, :) = region%ice%v_SSA_cy
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_SSA_cx' , u_SSA_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_SSA_cy' , v_SSA_cy_a )
+      CALL write_to_field_dp_0D( filename, 't_next_SIA', region%t_next_SIA )
+      CALL write_to_field_dp_0D( filename, 't_next_SSA', region%t_next_SSA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SIA', region%dt_crit_SIA )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_SSA', region%dt_crit_SSA )
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      taub_cx_a            = 0._dp
+      taub_cx_a(:, 1:region%grid%nx-1) = region%ice%taub_cx
+      taub_cy_a            = 0._dp
+      taub_cy_a(1:region%grid%ny-1, :) = region%ice%taub_cy
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cx' , taub_cx_a )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'taub_cy' , taub_cy_a )
+      CALL write_to_field_multiple_options_grid_dp_3D( filename, region%grid, 'visc_eff_3D' , region%ice%visc_eff_3D_a )
+      CALL write_to_field_dp_0D( filename, 't_next_DIVA', region%t_next_DIVA )
     END IF
+
+    ! Timestepping method
+    IF     (C%choice_timestepping == 'pc') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'dHidt_Hn_un' , region%ice%dHidt_Hn_un )
+      CALL write_to_field_dp_0D( filename, 'dt_crit_ice', region%dt_crit_ice )
+      CALL write_to_field_dp_0D( filename, 'pc_eta', region%ice%pc_eta )
+      CALL write_to_field_dp_0D( filename, 'pc_eta_prev', region%ice%pc_eta_prev )
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'beta' , region%ice%beta_a )
+    END IF
+
+    u_vav_cx_a            = 0._dp
+    v_vav_cy_a            = 0._dp
+    u_vav_cx_a(:, 1:region%grid%nx-1) = region%ice%u_vav_cx
+    v_vav_cy_a(1:region%grid%ny-1, :) = region%ice%v_vav_cy
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'u_vav_cx' , u_vav_cx_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'v_vav_cy' , v_vav_cy_a )
+
+    ! Write these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_surf' , region%ice%uabs_surf_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_base' , region%ice%uabs_base_a )
+    CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'uabs_vav' , region%ice%uabs_vav_a )
+    ! END IF
 
     ! SMB
     IF     (C%choice_SMB_model == 'uniform') THEN
     ELSEIF (C%choice_SMB_model == 'idealised') THEN
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM') THEN
-      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'FirnDepth',  region%SMB%FirnDepth)
-      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'MeltPreviousYear'  , region%SMB%MeltPreviousYear )
+      CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'FirnDepth',  region%SMB%FirnDepthforrestart )
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'MeltPreviousYear'  , region%SMB%MeltPreviousYearforrestart )
     ELSEIF (C%choice_SMB_model == 'direct_global') THEN
     ELSEIF (C%choice_SMB_model == 'direct_regional') THEN
     ELSEIF (C%choice_SMB_model == 'snapshot') THEN
@@ -1046,6 +1129,10 @@ CONTAINS
     IF (C%choice_forcing_method == 'd18O_inverse_CO2') THEN
       IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
       CALL write_to_field_history_dp_1D( filename, forcing%nCO2_inverse_history, 'CO2_inverse_history',  forcing%CO2_inverse_history)
+    END IF
+
+    IF (C%do_calculate_benthic_d18O) THEN
+      IF (.NOT.(PRESENT( forcing))) CALL crash('write_to_restart_file_grid needs forcing field if d18O_inverse_CO2 is used')
       CALL write_to_field_history_dp_1D( filename, forcing%ndT_glob_history,     'dT_glob_history',      forcing%dT_glob_history)
     END IF
 
@@ -1075,7 +1162,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (par%master) THEN
-      WRITE(0,'(A,F9.3,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
+      WRITE(0,'(A,F11.5,A)') '   t = ', region%time/1E3, ' kyr - writing to help_fields file...'
     END IF
 
     ! Write new time to file (thus extending the time dimension by one frame, making room for the new model data)
@@ -1195,7 +1282,7 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_T2m', region%climate%matrix%GCM_PI%T2m)
     ELSEIF (field_name == 'GCM_PI_Precip') THEN
       CALL write_to_field_multiple_options_grid_dp_2D_monthly( filename, region%grid, 'PI_Precip', region%climate%matrix%GCM_PI%Precip)
-      
+
     ! Climate matrix
     ELSEIF (field_name == 'w_ice_T') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'w_ice_T', region%climate%matrix%w_ice_T)
@@ -1630,7 +1717,7 @@ CONTAINS
       IF (file_exists) THEN
         CALL crash('file "' // TRIM( filename) // '" already exists!')
       END IF
-    END IF 
+    END IF
 
     IF (par%master) WRITE(0,*) ''
     IF (par%master) WRITE(0,*) ' Writing inverted ocean to file "', TRIM( filename), '"...'
@@ -1724,9 +1811,10 @@ CONTAINS
 
   ! Write data to a grid output file
   SUBROUTINE write_to_field_history_dp_1D( filename, ntime_history, field_name_options, d)
-    ! Write a 1-D data field to a NetCDF file variable on a time_history array
+    ! Write a 1-D variable to an existing NetCDF file that has a separate time axis. This is
+    ! used for the forcing history. E.g., CO2 concentration during the last 2000 years.
     !
-    ! Write to the last time frame of the variable
+    ! To write 1D fields with only a time dimension (e.g., time-series) use write_to_field_dp_0D instead.
 
     IMPLICIT NONE
 
@@ -2727,8 +2815,6 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'add_time_history_dimension_to_file'
     INTEGER                                            :: id_dim_time_history
     INTEGER                                            :: id_var_time_history
-
-    INTEGER                                            :: i
     INTEGER                                            :: ntime_history
 
     ! Number of time history

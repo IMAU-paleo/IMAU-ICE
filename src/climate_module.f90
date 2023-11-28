@@ -581,7 +581,7 @@ CONTAINS
 
     ! Read timeframes from files
     CALL read_climate_snapshot( filename0, grid, climate%direct%timeframe0, found_winds, region_name)
-    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0)) !CvC
+    ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename0))
     CALL read_climate_snapshot( filename1, grid, climate%direct%timeframe1, found_winds, region_name)
     ! IF (.NOT. found_winds) CALL crash('couldnt find wind fields for direct prescribed climate in file ' // TRIM( filename1))
 
@@ -1541,6 +1541,8 @@ CONTAINS
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%AlbedoSurf      , SMB_dummy%wAlbedoSurf      )
     CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%MeltPreviousYear, SMB_dummy%wMeltPreviousYear)
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%FirnDepth       , SMB_dummy%wFirnDepth       )
+    CALL allocate_shared_dp_2D(     grid%ny, grid%nx, SMB_dummy%MeltPreviousYearforrestart, SMB_dummy%wMeltPreviousYearforrestart)
+    CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%FirnDepthforrestart       , SMB_dummy%wFirnDepthforrestart       ) 
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Rainfall        , SMB_dummy%wRainfall        )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%Snowfall        , SMB_dummy%wSnowfall        )
     CALL allocate_shared_dp_3D( 12, grid%ny, grid%nx, SMB_dummy%AddedFirn       , SMB_dummy%wAddedFirn       )
@@ -1611,6 +1613,8 @@ CONTAINS
     CALL deallocate_shared( SMB_dummy%wAlbedoSurf)
     CALL deallocate_shared( SMB_dummy%wMeltPreviousYear)
     CALL deallocate_shared( SMB_dummy%wFirnDepth)
+    CALL deallocate_shared( SMB_dummy%wMeltPreviousYearforrestart)
+    CALL deallocate_shared( SMB_dummy%wFirnDepthforrestart)
     CALL deallocate_shared( SMB_dummy%wRainfall)
     CALL deallocate_shared( SMB_dummy%wSnowfall)
     CALL deallocate_shared( SMB_dummy%wAddedFirn)
@@ -1768,10 +1772,6 @@ CONTAINS
     END DO
     END DO
     CALL sync
-
-    ! Half wind to see if that works
-    snapshot%wind_LR( :,:,grid%i1:grid%i2) = snapshot%wind_LR( :,:,grid%i1:grid%i2) / 2._dp
-    snapshot%wind_DU( :,:,grid%i1:grid%i2) = snapshot%wind_DU( :,:,grid%i1:grid%i2) / 2._dp
 
     ! Safety checks
     CALL check_safety_temperature(   snapshot%T2m   )

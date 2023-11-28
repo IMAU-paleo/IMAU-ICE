@@ -486,6 +486,7 @@ CONTAINS
     filename = C%basal_roughness_filename
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
+    CALL sync
 
     ! Read grid & bed roughness data from file
     CALL read_BIV_bed_roughness_file( filename, ice, grid, region_name)
@@ -907,7 +908,7 @@ CONTAINS
         ice%tauc_a( j,i) = TAN((pi / 180._dp) * ice%phi_fric_a( j,i)) * ice%Neff_a( j,i)
       END DO
       END DO
-
+      CALL sync
     END IF
 
     ! Calculate the basal friction coefficient

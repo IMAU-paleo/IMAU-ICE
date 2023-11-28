@@ -111,6 +111,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_vav_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_cy
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: u_vav_cx_forrestart
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: v_vav_cy_forrestart
     REAL(dp), DIMENSION(:,:  ), POINTER     :: uabs_vav_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: u_surf_a              ! Ice velocity at the surface [m yr^-1]
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_surf_a
@@ -130,7 +132,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: v_SSA_cy
     REAL(dp), DIMENSION(:,:  ), POINTER     :: R_shear               ! Shearing ratio; 1 = full shearing, 0 = full sliding
     INTEGER :: wu_3D_a, wv_3D_a, wu_3D_cx, wv_3D_cy, ww_3D_a
-    INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wuabs_vav_a
+    INTEGER :: wu_vav_a,  wv_vav_a,  wu_vav_cx,  wv_vav_cy,  wu_vav_cx_forrestart,  wv_vav_cy_forrestart,  wuabs_vav_a
     INTEGER :: wu_surf_a, wv_surf_a, wu_surf_cx, wv_surf_cy, wuabs_surf_a, ww_surf_a
     INTEGER :: wu_base_a, wv_base_a, wu_base_cx, wv_base_cy, wuabs_base_a, ww_base_a
     INTEGER :: wu_3D_SIA_cx, wv_3D_SIA_cy, wu_SSA_cx, wv_SSA_cy
@@ -235,6 +237,10 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dv_dy_b
     REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx
     REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx_forrestart
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy_forrestart
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: du_dz_3D_cx_a
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: dv_dz_3D_cy_a
     REAL(dp), DIMENSION(:,:,:), POINTER     :: visc_eff_3D_a
     REAL(dp), DIMENSION(:,:,:), POINTER     :: visc_eff_3D_b
     REAL(dp), DIMENSION(:,:  ), POINTER     :: visc_eff_int_a
@@ -251,7 +257,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: F1_3D_a
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cx
     REAL(dp), DIMENSION(:,:  ), POINTER     :: taub_cy
-    INTEGER :: wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy
+    INTEGER :: wdu_dx_b, wdu_dy_b, wdv_dx_b, wdv_dy_b, wdu_dz_3D_cx, wdv_dz_3D_cy, wdu_dz_3D_cx_forrestart, wdv_dz_3D_cy_forrestart, wdu_dz_3D_cx_a, wdv_dz_3D_cy_a
     INTEGER :: wvisc_eff_3D_a, wvisc_eff_3D_b, wvisc_eff_int_a, wvisc_eff_int_b, wN_a, wN_cx, wN_cy, wN_b
     INTEGER :: wbeta_a, wF2_a, wbeta_eff_a, wbeta_eff_cx, wbeta_eff_cy, wF1_3D_a, wtaub_cx, wtaub_cy
 
@@ -295,12 +301,13 @@ MODULE data_types_module
     REAL(dp),                   POINTER     :: pc_eta_prev
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hnm1_unm1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hn_un
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hn_un_forrestart
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHidt_Hstarnp1_unp1
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_old
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_pred
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_corr
     INTEGER :: wpc_zeta, wpc_tau, wpc_eta, wpc_eta_prev
-    INTEGER :: wdHidt_Hnm1_unm1, wdHidt_Hn_un, wdHidt_Hstarnp1_unp1, wHi_old, wHi_pred, wHi_corr
+    INTEGER :: wdHidt_Hnm1_unm1, wdHidt_Hn_un, wdHidt_Hn_un_forrestart, wdHidt_Hstarnp1_unp1, wHi_old, wHi_pred, wHi_corr
 
     ! Thermodynamics
     INTEGER,  DIMENSION(:,:  ), POINTER     :: mask_ice_a_prev        ! Ice mask from previous time step
@@ -503,7 +510,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:,:), POINTER     :: GCM_bias_Wind_DU
     INTEGER :: wGCM_bias_T2m, wGCM_bias_Precip, wGCM_bias_Hs, wGCM_bias_Wind_LR, wGCM_bias_Wind_DU
 
-    ! Climate matrix interpolation 
+    ! Climate matrix interpolation
     REAL(dp), DIMENSION(:,:), POINTER     :: w_ins_T
     REAL(dp), DIMENSION(:,:), POINTER     :: w_ice_T
     REAL(dp), DIMENSION(:,:), POINTER     :: w_tot_T
@@ -690,7 +697,9 @@ MODULE data_types_module
     ! Data fields
     REAL(dp), DIMENSION(:,:  ), POINTER     :: AlbedoSurf                    ! Surface albedo underneath the snow layer (water, rock or ice)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear              ! Total melt that occurred during the previous year (m)
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYearforrestart    ! Total melt that occurred during the previous year before the previous year (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth                     ! Depth of the firn layer (m)
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepthforrestart           ! Depth of the firn layer of the previous year (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Rainfall                      ! Monthly rainfall (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: Snowfall                      ! Monthly snowfall (m)
     REAL(dp), DIMENSION(:,:,:), POINTER     :: AddedFirn                     ! Monthly added firn (m)
@@ -702,7 +711,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Albedo_year                   ! Yearly albedo
     REAL(dp), DIMENSION(:,:,:), POINTER     :: SMB                           ! Monthly SMB (m)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB_year                      ! Yearly  SMB (m)
-    INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wRainfall, wSnowfall, wAddedFirn, wMelt
+    INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wMeltPreviousYearforrestart, wFirnDepthforrestart, wRainfall, wSnowfall, wAddedFirn, wMelt
     INTEGER :: wRefreezing, wRefreezing_year, wRunoff, wAlbedo, wAlbedo_year, wSMB, wSMB_year
 
   END TYPE type_SMB_model
@@ -834,9 +843,9 @@ MODULE data_types_module
     INTEGER :: wSL, wdHb
 
     ! SMB
-    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepth
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYear
-    INTEGER :: wFirnDepth, wMeltPreviousYear
+    REAL(dp), DIMENSION(:,:,:), POINTER     :: FirnDepthforrestart
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MeltPreviousYearforrestart
+    INTEGER :: wFirnDepthforrestart, wMeltPreviousYearforrestart
 
     ! Isotopes
     REAL(dp), DIMENSION(:,:  ), POINTER     :: IsoIce
@@ -932,7 +941,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: ins_Q_TOA0, ins_Q_TOA1
     REAL(dp),                   POINTER     :: Q_TOA_JJA_65N, Q_TOA_DJF_80S
     INTEGER :: wins_nyears, wins_nlat, wins_time, wins_lat, wins_t0, wins_t1, wins_Q_TOA0, wins_Q_TOA1, wQ_TOA_JJA_65N, wQ_TOA_DJF_80S
-    
+
     ! External forcing: sea level record
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_time
     REAL(dp), DIMENSION(:    ), POINTER     :: sealevel_record
@@ -1159,6 +1168,7 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: t_last_thermo,  t_next_thermo
     REAL(dp), POINTER                       :: t_last_output,  t_next_output
     REAL(dp), POINTER                       :: t_last_output_restart,  t_next_output_restart
+    REAL(dp), POINTER                       :: t_last_output_regional_scalar,  t_next_output_regional_scalar
     REAL(dp), POINTER                       :: t_last_climate, t_next_climate
     REAL(dp), POINTER                       :: t_last_ocean,   t_next_ocean
     REAL(dp), POINTER                       :: t_last_SMB,     t_next_SMB
@@ -1175,12 +1185,13 @@ MODULE data_types_module
     LOGICAL,  POINTER                       :: do_BMB
     LOGICAL,  POINTER                       :: do_output
     LOGICAL,  POINTER                       :: do_output_restart
+    LOGICAL,  POINTER                       :: do_output_regional_scalar
     LOGICAL,  POINTER                       :: do_ELRA
     LOGICAL,  POINTER                       :: do_BIV
     INTEGER :: wdt_crit_SIA, wdt_crit_SSA, wdt_crit_ice, wdt_crit_ice_prev
-    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_output_restart, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
-    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_output_restart, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
-    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_output_restart,     wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
+    INTEGER :: wt_last_SIA, wt_last_SSA, wt_last_DIVA, wt_last_thermo, wt_last_output, wt_last_output_restart, wt_last_output_regional_scalar, wt_last_climate, wt_last_ocean, wt_last_SMB, wt_last_BMB, wt_last_ELRA, wt_last_BIV
+    INTEGER :: wt_next_SIA, wt_next_SSA, wt_next_DIVA, wt_next_thermo, wt_next_output, wt_next_output_restart, wt_next_output_regional_scalar, wt_next_climate, wt_next_ocean, wt_next_SMB, wt_next_BMB, wt_next_ELRA, wt_next_BIV
+    INTEGER ::     wdo_SIA,     wdo_SSA,     wdo_DIVA,     wdo_thermo,     wdo_output,     wdo_output_restart,     wdo_output_regional_scalar,    wdo_climate,     wdo_ocean,     wdo_SMB,     wdo_BMB,     wdo_ELRA,     wdo_BIV
 
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area

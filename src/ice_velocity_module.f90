@@ -30,7 +30,7 @@ MODULE ice_velocity_module
 
   USE netcdf_debug_module,             ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                              save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
-  USE netcdf_input_module,             ONLY: read_field_from_xy_file_2D, read_field_from_file_2D
+  USE netcdf_input_module,             ONLY: read_field_from_file_0D, read_field_from_xy_file_2D, read_field_from_file_2D, read_field_from_file_3D
 
   IMPLICIT NONE
 
@@ -694,7 +694,7 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ
             visc_eff_cx  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j,i+1), ice%Hi_a( j,i), ice%Hi_a( j,i+1))
-            ice%du_dz_3D_cx( k,j,i) = (ice%taub_cx( j,i) / visc_eff_cx) * C%zeta( k)
+            ice%du_dz_3D_cx( k,j,i) = (ice%taub_cx( j,i) / MAX(C%DIVA_visc_eff_min, visc_eff_cx)) * C%zeta( k)
           END DO
         END IF
       END IF
@@ -707,7 +707,7 @@ CONTAINS
         ELSE
           DO k = 1, C%nZ
             visc_eff_cy  = calc_staggered_margin( ice%visc_eff_3D_a( k,j,i), ice%visc_eff_3D_a( k,j+1,i), ice%Hi_a( j,i), ice%Hi_a( j+1,i))
-            ice%dv_dz_3D_cy( k,j,i) = (ice%taub_cy( j,i) / visc_eff_cy) * C%zeta( k)
+            ice%dv_dz_3D_cy( k,j,i) = (ice%taub_cy( j,i) / MAX(C%DIVA_visc_eff_min, visc_eff_cy)) * C%zeta( k)
           END DO
         END IF
       END IF
@@ -973,7 +973,7 @@ CONTAINS
     CALL check_for_NaN_dp_2D( ice%beta_a, 'ice%beta_a')
 
     ! Finalise routine path
-    CALL finalise_routine( routine_name)
+      CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_sliding_term_beta
   SUBROUTINE calc_F_integral( grid, ice, n)
@@ -1121,7 +1121,7 @@ CONTAINS
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-
+      ! Lipscomp et al., 2019, just above Eq. 33
       IF (i < grid%nx) ice%taub_cx( j,i) = ice%beta_eff_cx( j,i) * ice%u_vav_cx( j,i)
       IF (j < grid%ny) ice%taub_cy( j,i) = ice%beta_eff_cy( j,i) * ice%v_vav_cy( j,i)
 
@@ -1138,8 +1138,8 @@ CONTAINS
 
   END SUBROUTINE calc_basal_stress
   SUBROUTINE calc_basal_velocities( grid, ice)
-    ! Calculate basal sliding following Goldberg (2011), Eq. 34
-    ! (or it can also be obtained from L19, Eq. 32 given ub*beta=taub)
+    ! Calculate basal sliding following Lipscomp et al., 2019, Eq. 32
+    ! (or it can also be obtained from Goldberg (2011), Eq. 34)
 
     IMPLICIT NONE
 
@@ -1156,14 +1156,18 @@ CONTAINS
     CALL init_routine( routine_name)
 
     IF (C%choice_sliding_law == 'no_sliding') THEN
-      ! Set basal velocities to zero
+      ! Exception for the case of no sliding: set basal velocities to zero
       ! (this comes out naturally more or less with beta_eff set as above,
       !  but ensuring basal velocity is zero adds stability)
       ice%u_base_cx( :,grid%i1:MIN(grid%nx-1,grid%i2)) = 0._dp
       ice%v_base_cy( :,grid%i1:              grid%i2 ) = 0._dp
       CALL sync
+
+      ! Finalise routine path and RETURN
+      CALL finalise_routine( routine_name)
       RETURN
-    END IF
+
+    END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -1174,8 +1178,8 @@ CONTAINS
         ! Stagger the F2 integral to the cx-grid
         F2_stag = calc_staggered_margin( ice%F2_a( j,i), ice%F2_a( j,i+1), ice%Hi_a( j,i), ice%Hi_a( j,i+1))
 
-        ! Calculate basal velocity component
-        ice%u_base_cx( j,i) = ice%u_vav_cx( j,i) - ice%taub_cx( j,i) * F2_stag
+        ! Calculate basal velocity component (Lipscomb et al., 2019, Eq. 32)
+        ice%u_base_cx( j,i) = ice%u_vav_cx( j,i) / (1._dp + ice%beta_a( j,i) * F2_stag)
 
         ! Exception for basal freezing
         IF (C%include_basal_freezing) THEN
@@ -1184,7 +1188,7 @@ CONTAINS
           END IF
         END IF
 
-      END IF
+      END IF ! IF (i < grid%nx) THEN
 
       ! y-direction
       IF (j < grid%ny) THEN
@@ -1192,8 +1196,8 @@ CONTAINS
         ! Stagger the F2 integral to the cy-grid
         F2_stag = calc_staggered_margin( ice%F2_a( j,i), ice%F2_a( j+1,i), ice%Hi_a( j,i), ice%Hi_a( j+1,i))
 
-        ! Calculate basal velocity component
-        ice%v_base_cy( j,i) = ice%v_vav_cy( j,i) - ice%taub_cy( j,i) * F2_stag
+        ! Calculate basal velocity component (Lipscomb et al., 2019, Eq. 32)
+        ice%v_base_cy( j,i) = ice%v_vav_cy( j,i) / (1._dp + ice%beta_a( j,i) * F2_stag)
 
         ! Exception for basal freezing
         IF (C%include_basal_freezing) THEN
@@ -1202,7 +1206,7 @@ CONTAINS
           END IF
         END IF
 
-      END IF
+      END IF ! IF (j < grid%ny) THEN
 
     END DO
     END DO
@@ -1271,8 +1275,19 @@ CONTAINS
           CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
+        IF (C%choice_sliding_law == 'no_sliding') THEN
+        ! Exception for the case of no sliding
+
+          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
+          ice%u_3D_cx( :,j,i) = ice%taub_cx( j,i) * F1_stag
+
+        ELSE
         ! Calculate velocity column
-        ice%u_3D_cx( :,j,i) = ice%u_base_cx( j,i) + ice%taub_cx( j,i) * F1_stag
+
+          ! Lipscomb et al., 2019, Eq. 29
+          ice%u_3D_cx( :,j,i) = ice%u_base_cx( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
+
+        END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
 
@@ -1298,8 +1313,19 @@ CONTAINS
           CALL crash('unknown choice_ice_margin "' // TRIM(C%choice_ice_margin) // '"!')
         END IF
 
+        IF (C%choice_sliding_law == 'no_sliding') THEN
+        ! Exception for the case of no sliding
+
+          ! Lipscomb et al., 2019, Eq. 29, and text between Eqs. 33 and 34
+          ice%v_3D_cy( :,j,i) = ice%taub_cy( j,i) * F1_stag
+
+        ELSE
         ! Calculate velocity column
-        ice%v_3D_cy( :,j,i) = ice%v_base_cy( j,i) + ice%taub_cy( j,i) * F1_stag
+
+          ! Lipscomb et al., 2019, Eq. 29
+          ice%v_3D_cy( :,j,i) = ice%v_base_cy( j,i) * (1._dp + ice%beta_a( j,i) * F1_stag)
+
+        END IF ! IF (C%choice_sliding_law == 'no_sliding') THEN
 
       END IF
 
@@ -3046,12 +3072,13 @@ CONTAINS
 
   END SUBROUTINE initialise_ice_velocity_ISMIP_HOM
 
-  SUBROUTINE initialise_velocities_from_restart_file( grid, ice, region_name)
+  SUBROUTINE initialise_velocities_from_restart_file( region, grid, ice, region_name)
     ! Initialise velocities with data from a previous simulation's restart file
 
     IMPLICIT NONE
 
     ! In/output variables:
+    TYPE(type_model_region),        INTENT(INOUT) :: region
     TYPE(type_grid),                INTENT(IN)    :: grid
     TYPE(type_ice_model),           INTENT(INOUT) :: ice
     CHARACTER(LEN=3),               INTENT(IN)    :: region_name
@@ -3060,8 +3087,8 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_velocities_from_restart_file'
     CHARACTER(LEN=256)                            :: filename_restart
     REAL(dp)                                      :: time_to_restart_from
-    REAL(dp), DIMENSION( :,:), POINTER            :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a
-    INTEGER                                       :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a
+    REAL(dp), DIMENSION( :,:), POINTER            :: u_SSA_cx_a, v_SSA_cy_a, u_vav_cx_a, v_vav_cy_a, taub_cx_a, taub_cy_a
+    INTEGER                                       :: wu_SSA_cx_a, wv_SSA_cy_a, wu_vav_cx_a, wv_vav_cy_a, wtaub_cx_a, wtaub_cy_a
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -3071,6 +3098,8 @@ CONTAINS
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_SSA_cy_a, wv_SSA_cy_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, u_vav_cx_a, wu_vav_cx_a)
     CALL allocate_shared_dp_2D( grid%ny, grid%nx, v_vav_cy_a, wv_vav_cy_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cx_a, wtaub_cx_a)
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, taub_cy_a, wtaub_cy_a)
 
     ! Select filename and time to restart from
     IF     (region_name == 'NAM') THEN
@@ -3087,41 +3116,95 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    ! Check whether SIA/SSA or DIVA is used
-    IF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+    CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
+
+    IF (C%choice_ice_dynamics == 'SIA') THEN
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+    ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
       u_SSA_cx_a = 0._dp
       v_SSA_cy_a = 0._dp
-      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx_a', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy_a', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
       IF (par%master) THEN
         ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
         ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
-        WRITE(0,*) '  Initialising velocities from restart file...'
       END IF
       CALL sync
-    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
-      u_vav_cx_a = 0._dp
-      v_vav_cy_a = 0._dp
-      CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx_a', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
-      CALL read_field_from_file_2D(   filename_restart, 'v_vav_cy_a', grid,  v_vav_cy_a,  region_name, time_to_restart_from)
+    ELSEIF (C%choice_ice_dynamics == 'SIA/SSA') THEN
+      u_SSA_cx_a = 0._dp
+      v_SSA_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'v_SSA_cy', grid,  v_SSA_cy_a,  region_name, time_to_restart_from)
       IF (par%master) THEN
-        ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
-        ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
-        WRITE(0,*) '  Initialising velocities from restart file...'
+        ice%u_SSA_cx = u_SSA_cx_a(:, 1:grid%nx-1)
+        ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
       END IF
       CALL sync
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
+    ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
+      CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
+      taub_cx_a = 0._dp
+      taub_cy_a = 0._dp
+      CALL read_field_from_file_2D(   filename_restart, 'taub_cx', grid,  taub_cx_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'taub_cy', grid,  taub_cy_a,  region_name, time_to_restart_from)
+      IF (par%master) THEN
+        ice%taub_cx = taub_cx_a(:, 1:grid%nx-1)
+        ice%taub_cy = taub_cy_a(1:grid%ny-1, :)
+      END IF
+      CALL sync
+      CALL read_field_from_file_0D(   filename_restart, 't_next_DIVA',          region%t_next_DIVA,          time_to_restart_from)
+    END IF ! IF (C%choice_ice_dynamics == 'SIA') THEN
+
+    IF (C%choice_timestepping == 'pc') THEN
+      CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
+      CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
+    ELSEIF (C%choice_timestepping == 'direct') THEN
+      ! CALL read_field_from_file_2D(   filename_restart, 'u_base', grid,  ice%U_base_a,  region_name, time_to_restart_from)
+      ! CALL read_field_from_file_2D(   filename_restart, 'v_base', grid,  ice%V_base_a,  region_name, time_to_restart_from)
+      CALL read_field_from_file_2D(   filename_restart, 'beta', grid,  ice%beta_a,  region_name, time_to_restart_from)
+
+    END IF ! (C%choice_timestepping == 'pc') THEN
+
+    u_vav_cx_a = 0._dp
+    v_vav_cy_a = 0._dp
+    CALL read_field_from_file_2D(   filename_restart, 'u_vav_cx', grid,  u_vav_cx_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'v_vav_cy', grid,  v_vav_cy_a,  region_name, time_to_restart_from)
+    IF (par%master) THEN
+      ice%u_vav_cx = u_vav_cx_a(:, 1:grid%nx-1)
+      ice%v_vav_cy = v_vav_cy_a(1:grid%ny-1, :)
     END IF
+    CALL sync
+
+    ! Read these fields just to be able to output them to the help field file at the starting time. Not needed for correct restart.
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_surf', grid,  ice%uabs_surf_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_base', grid,  ice%uabs_base_a,  region_name, time_to_restart_from)
+    CALL read_field_from_file_2D(   filename_restart, 'uabs_vav', grid,  ice%uabs_vav_a,  region_name, time_to_restart_from)
+
+    ! END IF ! (C%choice_timestepping == 'pc') THEN
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%u_SSA_cx, 'ice%wu_SSA_cx')
     CALL check_for_NaN_dp_2D( ice%v_SSA_cy, 'ice%wv_SSA_cy')
     CALL check_for_NaN_dp_2D( ice%u_vav_cx, 'ice%wu_vav_cx')
     CALL check_for_NaN_dp_2D( ice%v_vav_cy, 'ice%wv_vav_cy')
+    CALL check_for_NaN_dp_2D( ice%taub_cx, 'ice%wtaub_cx')
+    CALL check_for_NaN_dp_2D( ice%taub_cy, 'ice%wtaub_cy')
 
+    ! Deallocate velocity variables
     CALL deallocate_shared( wu_SSA_cx_a)
     CALL deallocate_shared( wv_SSA_cy_a)
     CALL deallocate_shared( wu_vav_cx_a)
     CALL deallocate_shared( wv_vav_cy_a)
+    CALL deallocate_shared( wtaub_cx_a)
+    CALL deallocate_shared( wtaub_cy_a)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

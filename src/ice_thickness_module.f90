@@ -300,7 +300,6 @@ CONTAINS
 
     ! Calculate change in ice thickness over time at every vertex
     ! ===========================================================
-
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 

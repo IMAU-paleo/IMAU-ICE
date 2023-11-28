@@ -513,6 +513,8 @@ CONTAINS
       d_ext( j+n,i+n) = d( j,i)
     END DO
     END DO
+    CALL sync
+
     IF (par%master) THEN
       ! West
       d_ext( n+1:n+grid%ny, 1            ) = d( :      ,1      )
@@ -558,6 +560,7 @@ CONTAINS
       d( j,i) = d_ext_smooth( j+n, i+n)
     END DO
     END DO
+    CALL sync
 
     ! Clean up after yourself
     CALL deallocate_shared( wd_ext)
@@ -780,7 +783,7 @@ CONTAINS
       END DO
 
     END DO
-
+    CALL sync
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 

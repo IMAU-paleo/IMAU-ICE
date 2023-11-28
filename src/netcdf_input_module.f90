@@ -54,6 +54,67 @@ CONTAINS
 
   ! ===== Top-level functions =====
   ! ===============================
+  
+  ! Read data
+  SUBROUTINE read_field_from_file_0D(         filename, field_name_options, d, time_to_read)
+    ! Read a single data point from a NetCDF file. This single data point can also be read from the restart. 
+    ! In the restart, the field that is loaded is technically 1D (it contains a time dimension), but only
+    ! one point in time will be read using time_to_read
+    IMPLICIT NONE
+    ! In/output variables:
+    CHARACTER(LEN=*),                    INTENT(IN)    :: filename
+    CHARACTER(LEN=*),                    INTENT(IN)    :: field_name_options
+    REAL(dp),                            INTENT(OUT)   :: d
+    REAL(dp), OPTIONAL,                  INTENT(IN)    :: time_to_read
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'read_field_from_file_0D'
+    LOGICAL                                            :: file_exists
+    CHARACTER(LEN=256)                                 :: var_name
+    INTEGER                                            :: id_var
+    TYPE(type_grid)                                    :: grid_from_file
+    REAL(dp), DIMENSION(:), POINTER                  :: d_with_time
+    INTEGER                                            :: wd_with_time
+    INTEGER                                            :: ti
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+    ! Check if this file actually exists
+    INQUIRE( EXIST = file_exists, FILE = TRIM( filename))
+    IF (.NOT. file_exists) THEN
+      CALL crash('file "' // TRIM( filename) // '" not found!')
+    END IF
+    ! Look for the specified variable in the file
+    CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
+    IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
+    
+    ! Read data from file
+    IF (.NOT. PRESENT( time_to_read)) THEN
+      CALL read_var_dp_0D( filename, id_var, d)
+      
+    ELSE
+      ! Read data from a specific timeframe
+    
+      ! Allocate memory for the grid size
+      ! We need it to have the dimension with the data, and the dimension with time (2D)
+      CALL allocate_shared_dp_1D( 1, d_with_time, wd_with_time)
+
+      ! Find out which timeframe to read
+      CALL find_timeframe( filename, time_to_read, ti)
+
+      ! Read data
+      CALL read_var_dp_1D( filename, id_var, d_with_time, start = (/ ti /), count = (/ 1 /) )
+
+      ! Copy to output memory
+      d = d_with_time( 1)
+      
+      ! Clean up after yourself
+      CALL deallocate_shared( wd_with_time)
+   END IF
+      
+   ! Finalise routine path
+   CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_field_from_file_0D
 
   ! Read data
   SUBROUTINE read_field_from_file_2D(         filename, field_name_options, grid, d, region_name, time_to_read)
@@ -507,7 +568,7 @@ CONTAINS
       CALL flip_1D_dp( grid%y)
       CALL flip_2D_x2_dp( grid%lon)
       CALL flip_2D_x2_dp( grid%lat)
-     
+
       CALL flip_3D_x2_dp( d_z_ocean)
     ELSE
       CALL crash('unknown ydir = "' // TRIM( ydir) // '"!')
@@ -1499,7 +1560,7 @@ CONTAINS
     CHARACTER(LEN=256)                                 :: var_name
     REAL(dp), DIMENSION(:,:), POINTER                  :: d_with_time
     REAL(dp), DIMENSION(:  ), POINTER                  :: time_history
-    INTEGER, POINTER                                   :: ntime_history
+    INTEGER                                            :: ntime_history
     INTEGER                                            :: id_dim_time_history
     INTEGER                                            :: id_var_time_history
     INTEGER                                            :: wntime_history, wtime_history,wd_with_time
@@ -1509,21 +1570,22 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate memory for the grid size
-    CALL allocate_shared_int_0D( ntime_history, wntime_history)
-
     ! Inquire x and y dimensions
     CALL inquire_dim_multiple_options( filename, var_name_time_history, id_dim_time_history, dim_length = ntime_history)
+   
+    IF (ntime_history == -1) THEN
+       CALL crash('Variable: "'//TRIM(var_name_time_history)//'" not found')
+    END IF
 
     ! Allocate memory for time_history
     CALL allocate_shared_dp_1D( ntime_history, time_history, wtime_history)
-
+    
     ! Inquire time_history variable
     CALL inquire_var_multiple_options( filename, var_name_time_history, id_var_time_history)
 
     ! Read time_history
     CALL read_var_dp_1D(  filename, id_var_time_history, time_history )
-
+    
     ! Look for the specified variable in the file
     CALL inquire_var_multiple_options( filename, field_name_options, id_var, var_name = var_name)
     IF (id_var == -1) CALL crash('couldnt find any of the options "' // TRIM( field_name_options) // '" in file "' // TRIM( filename)  // '"!')
@@ -1584,7 +1646,7 @@ CONTAINS
     REAL(dp), PARAMETER                                :: tol = 1E-9_dp
     INTEGER                                            :: id_dim_x, id_dim_y
     INTEGER                                            :: id_var_x, id_var_y
-    INTEGER                                            :: i,j,n
+    INTEGER                                            :: i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)

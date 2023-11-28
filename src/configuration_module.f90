@@ -46,6 +46,7 @@ MODULE configuration_module
 
   ! Time steps and range
   ! ====================
+  ! All timesteps should always be a binary number from the power of 2, for example 0.125, 0.25 or any integer.
 
   REAL(dp)            :: start_time_of_run_config                    = 0.0_dp                           ! Start time (in years) of the simulations
   REAL(dp)            :: end_time_of_run_config                      = 50000.0_dp                       ! End   time (in years) of the simulations
@@ -56,12 +57,13 @@ MODULE configuration_module
   REAL(dp)            :: dt_thermo_config                            = 10.0_dp                          ! Time step (in years) for updating thermodynamics
   REAL(dp)            :: dt_climate_config                           = 10._dp                           ! Time step (in years) for updating the climate
   REAL(dp)            :: dt_ocean_config                             = 10._dp                           ! Time step (in years) for updating the ocean
-  REAL(dp)            :: dt_SMB_config                               = 10._dp                           ! Time step (in years) for updating the SMB
+  REAL(dp)            :: dt_SMB_config                               = 10._dp                           ! Time step (in years) for updating the SMB. When IMAU-ITM is used, time step should be 1.0
   REAL(dp)            :: dt_BMB_config                               = 10._dp                           ! Time step (in years) for updating the BMB
   REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
   REAL(dp)            :: dt_output_config                            = 5000.0_dp                        ! Time step (in years) for writing help output
   REAL(dp)            :: dt_output_restart_config                    = 10000.0_dp                       ! Time step (in years) for writing restart output
+  REAL(dp)            :: dt_output_regional_scalar_config            = 5000.0_dp                       ! Time step (in years) for writing restart output
 
   ! Which ice sheets do we simulate?
   ! ================================
@@ -103,7 +105,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
   LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
-  LOGICAL             :: do_write_regional_scalar_every_timestep_config = .FALSE.
+  LOGICAL             :: do_write_resource_tracking_output_config       = .TRUE.
 
   ! Debugging
   ! =========
@@ -908,6 +910,7 @@ MODULE configuration_module
     REAL(dp)                            :: dt_SELEN
     REAL(dp)                            :: dt_output
     REAL(dp)                            :: dt_output_restart
+    REAL(dp)                            :: dt_output_regional_scalar
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -949,7 +952,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
     LOGICAL                             :: do_write_global_scalar_output
-    LOGICAL                             :: do_write_regional_scalar_every_timestep
+    LOGICAL                             :: do_write_resource_tracking_output
 
     ! Debugging
     ! =========
@@ -1864,7 +1867,7 @@ CONTAINS
           CALL crash(' fixed_output_dir_config "' // TRIM( C%output_dir) // '" already exists!')
         END IF
       END IF
-      
+
     END IF
 
     ! Create the directory
@@ -1937,6 +1940,7 @@ CONTAINS
                      dt_SELEN_config,                                 &
                      dt_output_config,                                &
                      dt_output_restart_config,                        &
+                     dt_output_regional_scalar_config,                &
                      do_NAM_config,                                   &
                      do_EAS_config,                                   &
                      do_GRL_config,                                   &
@@ -1958,7 +1962,7 @@ CONTAINS
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
                      do_write_global_scalar_output_config,            &
-                     do_write_regional_scalar_every_timestep_config,  &
+                     do_write_resource_tracking_output_config,        &
                      do_check_for_NaN_config,                         &
                      do_time_display_config,                          &
                      do_write_ISMIP_output_config,                    &
@@ -2692,6 +2696,7 @@ CONTAINS
     C%dt_SELEN                                 = dt_SELEN_config
     C%dt_output                                = dt_output_config
     C%dt_output_restart                        = dt_output_restart_config
+    C%dt_output_regional_scalar                = dt_output_regional_scalar_config
 
     ! Which ice sheets do we simulate?
     ! ================================
@@ -2732,7 +2737,7 @@ CONTAINS
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
-    C%do_write_regional_scalar_every_timestep  = do_write_regional_scalar_every_timestep_config
+    C%do_write_resource_tracking_output        = do_write_resource_tracking_output_config
     ! Debugging
     ! =========
 

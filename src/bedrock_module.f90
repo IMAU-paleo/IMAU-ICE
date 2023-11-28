@@ -93,7 +93,7 @@ CONTAINS
       IF (ice%mask_ocean_a( j,i) == 1) THEN
         surface_load_icemodel_grid( j,i) = (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density * grid%dx**2
       ELSE
-        surface_load_icemodel_grid( j,i) = ice%Hi_a( j,i) * ice_density * grid%dx**2
+        surface_load_icemodel_grid( j,i) = ice%Hi_tplusdt_a( j,i) * ice_density * grid%dx**2
       END IF
 
     END DO
@@ -277,20 +277,28 @@ CONTAINS
     END IF
     CALL SYNC
 
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dHb_dt_a(j,i) = ice%dHb_external(j,i) / (C%end_time_of_run - C%start_time_of_run)
+    END DO
+    END DO
+    CALL SYNC
+
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE read_external_GIA_file
-  SUBROUTINE update_Hb_with_external_GIA_model_output( grid, ice, time, refgeo_init)
+  SUBROUTINE update_Hb_with_external_GIA_model_output( region)
     ! Caroline van Calcar 08/2022
 
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_grid),                  INTENT(IN)        :: grid
-    TYPE(type_ice_model),             INTENT(INOUT)     :: ice
-    TYPE(type_reference_geometry),    INTENT(IN)        :: refgeo_init
-    REAL(dp),                         INTENT(IN)        :: time
+    TYPE(type_model_region),         INTENT(INOUT)     :: region
 
+    ! TYPE(type_grid),                  INTENT(IN)        :: grid
+    ! TYPE(type_ice_model),             INTENT(INOUT)     :: ice
+    ! TYPE(type_reference_geometry),    INTENT(IN)        :: refgeo_init
+    ! REAL(dp),                         INTENT(IN)        :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'update_Hb_with_external_GIA_model_output'
@@ -299,14 +307,16 @@ CONTAINS
     CALL init_routine( routine_name)
 
 
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      ice%dHb_dt_a(j,i) = ice%dHb_external(j,i) / (C%end_time_of_run - C%start_time_of_run) * C%dt_coupling
-      ice%Hb_a(j,i) = refgeo_init%Hb(j,i) + ice%dHb_external(j,i) * (time - C%start_time_of_run)/ (C%end_time_of_run - C%start_time_of_run)
-      ice%dHb_a(j,i) = ice%Hb_a(j,i) - refgeo_init%Hb(j,i)
-    END DO
-    END DO
+    DO i = region%grid%i1, region%grid%i2
+    DO j = 1, region%grid%ny
+      ! ice%dHb_dt_a(j,i) = ice%dHb_external(j,i) / (C%end_time_of_run - C%start_time_of_run) * C%dt_coupling
+      ! ice%Hb_a(j,i) = refgeo_init%Hb(j,i) + ice%dHb_external(j,i) * (time - C%start_time_of_run)/ (C%end_time_of_run - C%start_time_of_run)
+      ! ice%dHb_a(j,i) = ice%Hb_a(j,i) - refgeo_init%Hb(j,i)
 
+      region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_GIAeq%Hb( j,i)
+    END DO
+    END DO
     CALL SYNC
 
   ! Finalise routine path
@@ -393,6 +403,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
+
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
