@@ -73,6 +73,11 @@ CONTAINS
 
       CALL run_ocean_model_PD_obs( grid, ocean_matrix)
 
+    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+      ! Keep the ocean fixed to prescribed ocean temperature and present-day observed salinity
+
+      CALL run_ocean_model_prescribed( grid, ocean_matrix)
+
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Run the warm/cold ocean matrix
 
@@ -127,6 +132,12 @@ CONTAINS
 
       CALL initialise_ocean_model_PD_obs_regional( region, ocean_matrix_global)
 
+    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+      ! Allocate both the "PD_obs" and "applied" snapshots, and initialise the present-day observations
+
+      CALL initialise_ocean_model_PD_obs_regional( region, ocean_matrix_global)
+      CALL initialise_ocean_model_prescribed_regional( region)
+
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Allocate all the snapshots used in the warm/cold ocean matrix
 
@@ -174,6 +185,11 @@ CONTAINS
 
       CALL initialise_ocean_PD_obs_global( ocean_matrix%PD_obs, name = 'WOA18')
 
+    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+      ! Initialise the "PD_obs" global snapshot so that salinity can be used. Temperature will be overwritten later.
+
+      CALL initialise_ocean_PD_obs_global( ocean_matrix%PD_obs, name = 'WOA18')
+
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Allocate all the global snapshots used in the warm/cold ocean matrix
 
@@ -181,7 +197,6 @@ CONTAINS
 
     ELSEIF (C%choice_ocean_model == 'anomalies') THEN
       ! No global ocean data is used at all
-
     ELSE
       CALL crash('unknown choice_ocean_model "' // TRIM( C%choice_ocean_model) // '"!')
     END IF
@@ -1005,6 +1020,73 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE initialise_ocean_model_PD_obs_regional
+
+! == Static prescribed ocean temperature with present-day observed salinity
+! ====================================
+
+  SUBROUTINE run_ocean_model_prescribed( grid, ocean_matrix)
+    ! Run the regional ocean model
+    !
+    ! Just use the present-day observed ocean data
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_prescribed'
+    INTEGER                                            :: i,j,k
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    DO k = 1, C%nz_ocean
+      ocean_matrix%applied%T_ocean(          k,j,i) = ocean_matrix%baseline%T_ocean(          k,j,i)
+      ocean_matrix%applied%T_ocean_ext(      k,j,i) = ocean_matrix%baseline%T_ocean_ext(      k,j,i)
+      ocean_matrix%applied%T_ocean_corr_ext( k,j,i) = ocean_matrix%baseline%T_ocean_corr_ext( k,j,i)
+      ocean_matrix%applied%S_ocean(          k,j,i) = ocean_matrix%PD_obs%S_ocean(          k,j,i)
+      ocean_matrix%applied%S_ocean_ext(      k,j,i) = ocean_matrix%PD_obs%S_ocean_ext(      k,j,i)
+      ocean_matrix%applied%S_ocean_corr_ext( k,j,i) = ocean_matrix%PD_obs%S_ocean_corr_ext( k,j,i)
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_ocean_model_prescribed
+  SUBROUTINE initialise_ocean_model_prescribed_regional(region)
+    ! Initialise the regional ocean temperature from a file.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_prescribed_regional'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    CALL allocate_ocean_snapshot_regional( region%grid, region%ocean_matrix%baseline, name = 'baseline')
+
+    ! Read baseline ocean temperatures and salinity
+
+    IF (par%master) WRITE(0,*) '    Reading and mapping baseline ocean data from file "', TRIM( C%filename_prescribed_oceanT), '"...'
+    CALL read_field_from_file_ocean_3D( C%filename_prescribed_oceanT, 'T_ocean', region%grid, region%ocean_matrix%baseline%T_ocean_corr_ext, 'N/A')
+
+    ! Copy baseline temperature and salinity to applied
+    region%ocean_matrix%applied%T_ocean_corr_ext = region%ocean_matrix%baseline%T_ocean_corr_ext
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+  END SUBROUTINE initialise_ocean_model_prescribed_regional
 
 ! == Ocean matrix with warm and cold snapshots
 ! ============================================
