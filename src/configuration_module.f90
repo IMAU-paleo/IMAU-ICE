@@ -46,6 +46,7 @@ MODULE configuration_module
 
   ! Time steps and range
   ! ====================
+  ! All timesteps should always be a binary number from the power of 2, for example 0.125, 0.25 or any integer.
 
   REAL(dp)            :: start_time_of_run_config                    = 0.0_dp                           ! Start time (in years) of the simulations
   REAL(dp)            :: end_time_of_run_config                      = 50000.0_dp                       ! End   time (in years) of the simulations
@@ -56,7 +57,7 @@ MODULE configuration_module
   REAL(dp)            :: dt_thermo_config                            = 10.0_dp                          ! Time step (in years) for updating thermodynamics
   REAL(dp)            :: dt_climate_config                           = 10._dp                           ! Time step (in years) for updating the climate
   REAL(dp)            :: dt_ocean_config                             = 10._dp                           ! Time step (in years) for updating the ocean
-  REAL(dp)            :: dt_SMB_config                               = 10._dp                           ! Time step (in years) for updating the SMB
+  REAL(dp)            :: dt_SMB_config                               = 10._dp                           ! Time step (in years) for updating the SMB. When IMAU-ITM is used, time step should be 1.0
   REAL(dp)            :: dt_BMB_config                               = 10._dp                           ! Time step (in years) for updating the BMB
   REAL(dp)            :: dt_bedrock_ELRA_config                      = 100._dp                          ! Time step (in years) for updating the bedrock deformation rate with the ELRA model
   REAL(dp)            :: dt_SELEN_config                             = 1000._dp                         ! Time step (in years) for calling SELEN
