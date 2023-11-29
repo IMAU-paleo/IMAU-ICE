@@ -477,7 +477,7 @@ MODULE configuration_module
   ! Climate
   ! =======
 
-  CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional"
+  CHARACTER(LEN=256)  :: choice_climate_model_config                 = 'matrix_warm_cold'               ! Choice of climate model: "none", "idealised", "PD_obs", "PD_dTglob", "matrix_warm_cold", "direct_global", "direct_regional", "direct"
   CHARACTER(LEN=256)  :: choice_idealised_climate_config             = 'EISMINT1_A'
 
   ! Folder with NetCDF files containing direct climate forcing
@@ -534,7 +534,7 @@ MODULE configuration_module
   ! Ocean
   ! =====
 
-  CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold"
+  CHARACTER(LEN=256)  :: choice_ocean_model_config                   = 'matrix_warm_cold'               ! Choice of ocean model: "none", "idealised", "uniform_warm_cold", "PD_obs", "matrix_warm_cold", "prescribed_oceanT", "anomalies"
   CHARACTER(LEN=256)  :: choice_idealised_ocean_config               = 'MISMIP+_warm'                   ! Choice of idealised ocean: 'MISMIP+_warm', 'MISMIP+_cold', 'MISOMIP1', 'Reese2018_ANT'
 
   ! Delta ocean temperature inversion

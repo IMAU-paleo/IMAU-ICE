@@ -73,10 +73,10 @@ CONTAINS
 
       CALL run_ocean_model_PD_obs( grid, ocean_matrix)
 
-    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+    ELSEIF (C%choice_ocean_model == 'prescribed_oceanT') THEN
       ! Keep the ocean fixed to prescribed ocean temperature and present-day observed salinity
 
-      CALL run_ocean_model_prescribed( grid, ocean_matrix)
+      CALL run_ocean_model_prescribed_oceanT( grid, ocean_matrix)
 
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Run the warm/cold ocean matrix
@@ -132,11 +132,11 @@ CONTAINS
 
       CALL initialise_ocean_model_PD_obs_regional( region, ocean_matrix_global)
 
-    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+    ELSEIF (C%choice_ocean_model == 'prescribed_oceanT') THEN
       ! Allocate both the "PD_obs" and "applied" snapshots, and initialise the present-day observations
 
       CALL initialise_ocean_model_PD_obs_regional( region, ocean_matrix_global)
-      CALL initialise_ocean_model_prescribed_regional( region)
+      CALL initialise_ocean_model_prescribed_oceanT_regional( region)
 
     ELSEIF (C%choice_ocean_model == 'matrix_warm_cold') THEN
       ! Allocate all the snapshots used in the warm/cold ocean matrix
@@ -185,7 +185,7 @@ CONTAINS
 
       CALL initialise_ocean_PD_obs_global( ocean_matrix%PD_obs, name = 'WOA18')
 
-    ELSEIF (C%choice_ocean_model == 'prescribed') THEN
+    ELSEIF (C%choice_ocean_model == 'prescribed_oceanT') THEN
       ! Initialise the "PD_obs" global snapshot so that salinity can be used. Temperature will be overwritten later.
 
       CALL initialise_ocean_PD_obs_global( ocean_matrix%PD_obs, name = 'WOA18')
@@ -1024,7 +1024,7 @@ CONTAINS
 ! == Static prescribed ocean temperature with present-day observed salinity
 ! ====================================
 
-  SUBROUTINE run_ocean_model_prescribed( grid, ocean_matrix)
+  SUBROUTINE run_ocean_model_prescribed_oceanT( grid, ocean_matrix)
     ! Run the regional ocean model
     !
     ! Just use the present-day observed ocean data
@@ -1036,7 +1036,7 @@ CONTAINS
     TYPE(type_ocean_matrix_regional),    INTENT(INOUT) :: ocean_matrix
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_prescribed'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_prescribed_oceanT'
     INTEGER                                            :: i,j,k
 
     ! Add routine to path
@@ -1059,8 +1059,8 @@ CONTAINS
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
-  END SUBROUTINE run_ocean_model_prescribed
-  SUBROUTINE initialise_ocean_model_prescribed_regional(region)
+  END SUBROUTINE run_ocean_model_prescribed_oceanT
+  SUBROUTINE initialise_ocean_model_prescribed_oceanT_regional(region)
     ! Initialise the regional ocean temperature from a file.
 
     IMPLICIT NONE
@@ -1069,7 +1069,7 @@ CONTAINS
     TYPE(type_model_region),             INTENT(INOUT) :: region
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_prescribed_regional'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ocean_model_prescribed_oceanT_regional'
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -1086,7 +1086,7 @@ CONTAINS
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
-  END SUBROUTINE initialise_ocean_model_prescribed_regional
+  END SUBROUTINE initialise_ocean_model_prescribed_oceanT_regional
 
 ! == Ocean matrix with warm and cold snapshots
 ! ============================================
