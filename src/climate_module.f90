@@ -756,14 +756,24 @@ CONTAINS
       w_QTOA = 0._dp
 
       ! Select the correct insolation for the Hemisphere
-      IF (region_name == 'NAM' .OR. region_name == 'EAS' .OR. region_name == 'GRL') THEN
-        w_QTOA = (forcing%Q_TOA_JJA_65N - w_ins_mean) / w_ins_amplitude
-      ELSEIF (region_name == 'ANT') THEN
-        w_QTOA = (forcing%Q_TOA_DJF_80S - w_ins_mean) / w_ins_amplitude
-      ELSE
-        CALL crash('region_name "'//TRIM(region_name)//'" not found!')
-      END IF
-      CALL sync
+      
+      ! NOTE: MS (11/2023) WIP
+      ! While I have coded it that there can be a difference in insolation for the Southern and 
+      ! Northern Hemisphere, I have commented it for now. This is because 1) I am still testing
+      ! it, and 2) have not yet found a proper way to tune the Southern and Northern Hemisphere
+      ! separately. For now, I think it is best to use the same insolation method for all ice-sheets
+      ! but that is up to change in the near future.
+      
+      ! IF (region_name == 'NAM' .OR. region_name == 'EAS' .OR. region_name == 'GRL') THEN
+      !   w_QTOA = (forcing%Q_TOA_JJA_65N - w_ins_mean) / w_ins_amplitude
+      ! ELSEIF (region_name == 'ANT') THEN
+      !   w_QTOA = (forcing%Q_TOA_DJF_80S - w_ins_mean) / w_ins_amplitude
+      ! ELSE
+      !   CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+      ! END IF
+      ! CALL sync
+      
+      w_QTOA = (forcing%Q_TOA_JJA_65N - w_ins_mean) / w_ins_amplitude ! Remove line if lines above are uncommented.
 
       ! Combine CO2 and insolation
       climate%matrix%w_EXT = w_CO2 + w_QTOA
@@ -1251,9 +1261,26 @@ CONTAINS
   SUBROUTINE initialise_matrix_calc_GCM_bias( grid, GCM_PI, PD_obs, GCM_bias_T2m, GCM_bias_Precip, GCM_bias_Hs, GCM_bias_Wind_LR, GCM_bias_Wind_DU, region_name)
     ! Calculate the GCM bias in temperature and precipitation
     !
-    ! Account for the fact that the GCM PI snapshot has a lower resolution, and therefore
-    ! a different surface elevation than the PD observed climatology!
-
+    ! NOTE ON THE BIAS CORRECTION:
+    ! When using very different spatial resolutions for the observed PD climate and 
+    ! modelled PI climates (e.g., ERA5 vs CESM), the bias cannot be applied on a modelled 
+    ! cold climate.
+    ! 
+    ! This is because large differences in temperature, precipitation and topography gradients
+    ! follow directly from the difference in resolution. Applying these large differences on the cold
+    ! snapshots create 1) extreme precipitation in mountain ranges and 2) unrealistic temperature patterns
+    ! on the cold snapshot.
+    !
+    ! Trying to solve these issues so a bias correction can be applied to a cold snapshot is not trivial, 
+    ! especially the issue with topographic gradients and the resulting precipitation. 
+    !
+    ! The issues with the bias correction will be less pronounced when the resolution between
+    ! observed and modelled climate are similar.
+    ! 
+    ! For now, a bias correction can only be used for PI temperatures. When trying to apply
+    ! the bias correction on the cold snapshot, the model will crash. We have not made this 
+    ! optional.
+       
     IMPLICIT NONE
 
     ! In/output variables:
@@ -1289,12 +1316,9 @@ CONTAINS
     DO m = 1, 12
 
       ! === Temperature ===
-      ! Scale modelled and observed temperature to sea level using a constant lapse rate
-      T2m_SL_GCM = GCM_PI%T2m( m,j,i) + GCM_PI%Hs( j,i) * C%constant_lapserate
-      T2m_SL_obs = PD_obs%T2m( m,j,i) + PD_obs%Hs( j,i) * C%constant_lapserate
 
       ! Calculate bias
-      GCM_bias_T2m(    m,j,i) = T2m_SL_GCM            - T2m_SL_obs
+      GCM_bias_T2m(    m,j,i) =  GCM_PI%T2m( m,j,i)            - PD_obs%T2m( m,j,i) 
 
       ! === Precipitation ===
       ! Apply bias correction
