@@ -77,7 +77,7 @@ CONTAINS
     ELSEIF (C%choice_climate_model == 'matrix') THEN
       ! Use the warm/cold climate matrix (Berends et al., 2018)
 
-      CALL run_climate_model_matrix( region%grid, region%ice, region%SMB, region%climate, region%refgeo_PD, region%name, region%time)
+      CALL run_climate_model_matrix( region%grid, region%ice, region%SMB, region%climate, region%refgeo_PD, region%mask_noice, region%name, region%time)
 
     ELSE
       CALL crash('unknown choice_climate_model"' // TRIM(C%choice_climate_model) // '"!')
@@ -630,7 +630,7 @@ CONTAINS
 
   ! Climate matrix with warm + cold snapshots, forced with CO2 (from record or from inverse routine) from Berends et al., 2018
   ! Generalised for different timeframes, L.B. Stap (2021)
-  SUBROUTINE run_climate_model_matrix( grid, ice, SMB, climate, refgeo_PD, region_name, time)
+  SUBROUTINE run_climate_model_matrix( grid, ice, SMB, climate, refgeo_PD, mask_noice, region_name, time)
     ! Use CO2 (either prescribed or inversely modelled) to force the 2-snapshot (PI-LGM) climate matrix (Berends et al., 2018)
 
     IMPLICIT NONE
@@ -641,6 +641,7 @@ CONTAINS
     TYPE(type_SMB_model),                INTENT(IN)    :: SMB
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
+    INTEGER, DIMENSION(:,: ),           INTENT(IN)    :: mask_noice
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
 
@@ -667,7 +668,7 @@ CONTAINS
     CALL run_climate_model_matrix_temperature( grid, ice, SMB, climate, region_name)
 
     ! Use the (CO2 + ice-sheet geometry)-based interpolation scheme for precipitation
-    CALL run_climate_model_matrix_precipitation( grid, ice, climate, refgeo_PD, region_name)
+    CALL run_climate_model_matrix_precipitation( grid, ice, climate, refgeo_PD, mask_noice, region_name)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -899,7 +900,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_climate_model_matrix_temperature
-  SUBROUTINE run_climate_model_matrix_precipitation( grid, ice, climate, refgeo_PD, region_name)
+  SUBROUTINE run_climate_model_matrix_precipitation( grid, ice, climate, refgeo_PD, mask_noice, region_name)
     ! The (CO2 + ice geometry)-based matrix interpolation for precipitation, from Berends et al. (2018)
     ! For NAM and EAS, this is based on local ice geometry and uses the Roe&Lindzen precipitation model for downscaling.
     ! For GRL and ANT, this is based on total ice volume,  and uses the simple CC   precipitation model for downscaling.
@@ -913,6 +914,7 @@ CONTAINS
     TYPE(type_ice_model),                INTENT(IN)    :: ice
     TYPE(type_climate_model),            INTENT(INOUT) :: climate
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
+    INTEGER, DIMENSION(:,: ),            INTENT(IN)    :: mask_noice
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
@@ -963,22 +965,28 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
 
-      ! Topography change between the cold and/or warm periods
-      IF ((climate%matrix%GCM_warm%mask_ice( j,i) == 1) .OR. (climate%matrix%GCM_cold%mask_ice( j,i) == 1)) THEN
-        ! Check if the GCM_cold topography is higher than GCM_warm
-        IF ((climate%matrix%GCM_cold%Hs( j,i) + 10._dp) > climate%matrix%GCM_warm%Hs( j,i)) THEN
-          ! Calculate the difference between the modelled Hs and snapshot Hs
-          dHs_snapshots( j,i) = climate%matrix%GCM_cold%Hs( j,i) - climate%matrix%GCM_warm%Hs( j,i)
+      ! Make sure to only calculate topography differences when ice is allowed in this region
+      IF (mask_noice( j,i) == 0) THEN
+
+        ! -- Climate forcing topography --
+        ! Topography change between the cold and/or warm periods
+        IF ((climate%matrix%GCM_warm%mask_ice( j,i) == 1) .OR. (climate%matrix%GCM_cold%mask_ice( j,i) == 1)) THEN
+          ! Check if the GCM_cold topography is higher than GCM_warm
+          IF ((climate%matrix%GCM_cold%Hs( j,i) + 10._dp) > climate%matrix%GCM_warm%Hs( j,i)) THEN
+            ! Calculate the difference between the modelled Hs and snapshot Hs
+            dHs_snapshots( j,i) = climate%matrix%GCM_cold%Hs( j,i) - climate%matrix%GCM_warm%Hs( j,i)
+          END IF
         END IF
-      END IF
 
-      ! Ice sheet model topography change
-      IF (ice%mask_ice_a( j,i) == 1) THEN
-        dHs_ice(       j,i) = ice%Hs_a( j,i)  - refgeo_PD%Hs( j,i)
-      END IF
+        ! -- Ice sheet model topography change --
+        IF (ice%mask_ice_a( j,i) == 1) THEN
+          dHs_ice(       j,i) = ice%Hs_a( j,i)  - refgeo_PD%Hs( j,i)
+        END IF ! ice%mask_ice_a( j,i) == 1
 
-    END DO
-    END DO
+      END IF ! mask_noice( j,i) == 0
+
+    END DO ! i = grid%i1, grid%i2
+    END DO ! j = 1, grid%ny
     CALL sync
 
     ! Calculate w_tot (the domain-wide temperature difference)
@@ -1946,6 +1954,15 @@ CONTAINS
         CALL crash('The ocean mask file may not contain percentages or fractions')
       END IF
 
+      ! If the mask is ice, it cannot be ocean
+      DO i = grid%i1, grid%i2
+      DO j = 1, grid%ny
+             IF (snapshot%mask_ice( j,i) == 1) THEN
+               snapshot%mask_ocean( j,i) = 0
+             END IF
+      END DO
+      END DO
+
       ! Snapshots and ice can be seen as the same thing for albedo and precipitation topography.
       snapshot%mask_shelf( :, grid%i1:grid%i2) = 0
 
@@ -1957,6 +1974,7 @@ CONTAINS
       ! A method was given that does not exist; crash
       CALL crash('reference_mask_method "'//TRIM( C%reference_mask_method)//'" not found!')
     END IF
+
 
     ! Remove ice where there should be none
     ! =====================================
