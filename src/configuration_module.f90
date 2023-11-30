@@ -503,7 +503,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_climate_snapshot_cold_config       = '/Users/berends/Documents/Datasets/GCM_snapshots/Singarayer_Valdes_2010_LGM.nc'
 
   ! Ice and ocean mask from GCM snapshots
-  CHARACTER(LEN=256)  :: reference_mask_method_config                = 'estimate'                        ! 'estimate' (based on GCM topography and temperature) or 'file' from a selected file
+  CHARACTER(LEN=256)  :: reference_mask_method_config                = 'file'                        ! 'estimate' (based on GCM topography and temperature) or 'file' from a selected file
 
   CHARACTER(LEN=256)  :: filename_snapshot_mask_PD_obs_config        = ''
   CHARACTER(LEN=256)  :: filename_snapshot_mask_GCM_PI_config        = ''

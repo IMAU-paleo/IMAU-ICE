@@ -1748,7 +1748,7 @@ CONTAINS
     CALL inquire_var_multiple_options( filename, 'Wind_LR', found_wind_LR)
     CALL inquire_var_multiple_options( filename, 'Wind_DU', found_wind_DU)
 
-	! Check if South-North / East-West winds exist
+    ! Check if South-North / East-West winds exist
     IF (found_wind_WE /= -1 .AND. found_wind_SN /= -1) THEN
          found_winds = .TRUE.
     ELSE
@@ -1851,7 +1851,9 @@ CONTAINS
 
     ! Estimate the albedo from the climate snapshots based on the topography
     IF (C%reference_mask_method == 'estimate') THEN
-
+   
+      CALL warning('reference_mask_method "estimate" likely does not work. I recommend using setting "file" or fixing it.') 
+      
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
 
