@@ -786,10 +786,12 @@ MODULE configuration_module
   ! =================
 
   LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  CHARACTER(LEN=256)  :: choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  CHARACTER(LEN=256)  :: choice_global_sealevel_model_config         = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  CHARACTER(LEN=256)  :: choice_regional_sealevel_model_config       = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic"
   REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
   CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
+  CHARACTER(LEN=256)  :: filename_geoid_baseline_config              = 'name_of_file.dat'               ! Name of a file containing a geoid
 
   CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   REAL(dp)            :: dx_GIA_config                               = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
@@ -1591,11 +1593,12 @@ MODULE configuration_module
     ! =================
 
     LOGICAL                             :: do_ocean_floodfill
-    CHARACTER(LEN=256)                  :: choice_sealevel_model
+    CHARACTER(LEN=256)                  :: choice_global_sealevel_model
+    CHARACTER(LEN=256)                  :: choice_regional_sealevel_model
     REAL(dp)                            :: fixed_sealevel
     CHARACTER(LEN=256)                  :: filename_sealevel_record
     INTEGER                             :: sealevel_record_length
-
+    CHARACTER(LEN=256)                  :: filename_geoid_baseline
     CHARACTER(LEN=256)                  :: choice_GIA_model
     REAL(dp)                            :: dx_GIA
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
@@ -2424,10 +2427,12 @@ CONTAINS
                      choice_ice_isotopes_model_config,                &
                      uniform_ice_d18O_config,                         &
                      do_ocean_floodfill_config,                       &
-                     choice_sealevel_model_config,                    &
+                     choice_global_sealevel_model_config,             &
+                     choice_regional_sealevel_model_config,                  &
                      fixed_sealevel_config,                           &
                      filename_sealevel_record_config,                 &
                      sealevel_record_length_config,                   &
+                     filename_geoid_baseline_config,                  &
                      choice_GIA_model_config,                         &
                      dx_GIA_config,                                   &
                      ELRA_lithosphere_flex_rigidity_config,           &
@@ -3383,11 +3388,12 @@ CONTAINS
     ! =================
 
     C%do_ocean_floodfill                       = do_ocean_floodfill_config
-    C%choice_sealevel_model                    = choice_sealevel_model_config
+    C%choice_global_sealevel_model             = choice_global_sealevel_model_config
+    C%choice_regional_sealevel_model           = choice_regional_sealevel_model_config
     C%fixed_sealevel                           = fixed_sealevel_config
     C%filename_sealevel_record                 = filename_sealevel_record_config
     C%sealevel_record_length                   = sealevel_record_length_config
-
+    C%filename_geoid_baseline                  = filename_geoid_baseline_config
     C%choice_GIA_model                         = choice_GIA_model_config
     C%dx_GIA                                   = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config

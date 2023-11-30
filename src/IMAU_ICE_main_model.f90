@@ -22,7 +22,7 @@ MODULE IMAU_ICE_main_model
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
                                                  create_help_fields_file_grid, create_regional_scalar_file
-  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time
+  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time, initialise_geoid
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
   USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness, determine_timesteps, determine_actions
@@ -366,15 +366,18 @@ CONTAINS
     ! ===== Set sea level if prescribed externally =====
     ! ==================================================
 
-    IF     (C%choice_sealevel_model == 'fixed') THEN
+    IF     (C%choice_regional_sealevel_model == 'fixed') THEN
       region%ice%SL_a( :,region%grid%i1:region%grid%i2) = C%fixed_sealevel
-    ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+    ELSEIF (C%choice_regional_sealevel_model == 'eustatic' .OR. C%choice_regional_sealevel_model == 'SELEN') THEN
       ! FIXME
-    ELSEIF     (C%choice_sealevel_model == 'prescribed') THEN
+    ELSEIF     (C%choice_regional_sealevel_model == 'prescribed') THEN
       CALL update_sealevel_record_at_model_time( C%start_time_of_run)
       region%ice%SL_a( :,region%grid%i1:region%grid%i2) = forcing%sealevel_obs
+    ELSEIF (C%choice_regional_sealevel_model == 'geoid') THEN
+      ! Read the geoid from a file
+      CALL initialise_geoid( region%grid, region%ice, region%name)
     ELSE
-      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
+      CALL crash('unknown choice_regional_sealevel_model "' // TRIM(C%choice_regional_sealevel_model) // '"!')
     END IF
     CALL sync
 
