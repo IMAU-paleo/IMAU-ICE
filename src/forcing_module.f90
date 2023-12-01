@@ -1395,7 +1395,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL init_routine( routine_name)
 
     ! Read geoid
-    CALL read_field_from_file_2D(   C%filename_geoid_baseline, 'geoid', grid, ice%SL_a, region_name)
+    CALL read_field_from_file_2D(   C%filename_geoid_baseline, 'Geoid', grid, ice%SL_a, region_name)
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%SL_a, 'ice%wSL_a')
