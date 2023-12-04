@@ -101,8 +101,8 @@ CONTAINS
     CALL sync
 
     ! Calculate the relative surface load on the ice model grid
-    DO i = grid_GIA%i1, grid_GIA%i2
-    DO j = 1, grid_GIA%ny
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
       ice%surface_load_rel( j,i) = surface_load_icemodel_grid( j,i) - ice%surface_load_topo( j,i)
     END DO
     END DO
