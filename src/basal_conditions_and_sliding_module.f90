@@ -2299,6 +2299,186 @@ CONTAINS
 
   END SUBROUTINE extrapolate_updated_bed_roughness
 
+  SUBROUTINE extrapolate_bed_roughness_flowline( grid, ice, mask, d)
+    ! Extrapolate basal roughness beyond the grounded ice using the 
+    ! nearest basal_friction along the flowline.
+    !
+    ! Note about the mask:
+    !    2 = data provided
+    !    1 = no data provided, fill allowed
+    !    0 = no fill allowed
+    ! (so basically this routine extrapolates data from the area
+    !  where mask == 2 into the area where mask == 1)
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice
+    INTEGER,  DIMENSION(:,:  ),          INTENT(IN)    :: mask
+    REAL(dp), DIMENSION(:,:  ),          INTENT(INOUT) :: d
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'extrapolate_bed_roughness_flowline'
+    INTEGER                                            :: wd_values_tot
+    INTEGER                                            :: j,i
+    REAL(dp)                                           :: sigma
+    LOGICAL                                            :: found_source
+    REAL(dp), DIMENSION(2)                             :: p
+    REAL(dp), DIMENSION( :,:), POINTER                 :: d_values_tot
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, d_values_tot, wd_values_tot)
+
+    d_values_tot( :, grid%i1:grid%i2) = d( :,grid%i1:grid%i2)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF ( mask( j,i) == 2) CYCLE
+
+      ! Get x and y coordinates of this non-inverted vertex
+      p = [grid%x(i), grid%y(j)]
+
+      ! Extrapolate value from the closest upstream inverted vertex
+      CALL extrapolate_flowline_upstream( grid, ice, mask, d_values_tot, p, found_source)
+
+      ! Check if an inverted value was found upstream
+      IF (found_source) THEN
+        ! If so, use that value for this vertex
+        d( j,i) = d_values_tot( j,i)
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wd_values_tot)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE extrapolate_bed_roughness_flowline
+
+  SUBROUTINE extrapolate_flowline_upstream( grid, ice, d_mask_tot, d_values_tot, p, found_source)
+    ! Extrapolate an inverted field based on its values upstream of
+    ! the point of interest based on its flowline, computed based on
+    ! the 2-D velocity field u_b,v_b.
+
+    IMPLICIT NONE
+
+    ! Input variables
+    TYPE(type_grid),                     INTENT(IN)    :: grid                ! Grid
+    TYPE(type_ice_model),                INTENT(IN)    :: ice                 ! Ice model structure
+    INTEGER, DIMENSION(:,:),             INTENT(IN)    :: d_mask_tot          ! Inversion mask: 1=inverted; 0=not-inverted
+    REAL(dp), DIMENSION(:,:),            INTENT(INOUT) :: d_values_tot        ! Inversion data: the field you want to extrapolate
+    REAL(dp), DIMENSION(2),              INTENT(IN)    :: p
+    LOGICAL,                             INTENT(OUT)   :: found_source        ! Flag: 1=successful extrapolation; 0=failed extrapolation
+
+    ! Local variables
+    REAL(dp), DIMENSION(2)                             :: pt                  ! Current location of tracer
+    REAL(dp)                                           :: dist                ! For the interpolation of velocities at point pt
+    REAL(dp)                                           :: u_pt, v_pt, uabs_pt ! Interpolated velocities at point pt
+    REAL(dp), DIMENSION(2)                             :: u_hat_pt            ! Direction of the velocity vector at point pt
+    INTEGER                                            :: ii,jj, i,j, n       ! Some indices
+    REAL(dp)                                           :: dist_prev, dist_tot ! Safety: total travelled distance of tracer
+
+    ! If the point of interest already contains a value
+    ! and therefore does not need to be interpolated
+
+    ! Find current tracer location grid indices
+    i = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( p(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
+    j = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( p(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
+
+    IF (d_mask_tot( j,i) == 2) THEN
+      PRINT*,('This should not appear (extrapolate_flowline_upstream)')
+      RETURN
+    END IF
+
+    ! Initialise
+    pt = p
+    n  = 0
+
+    ! Initialise flag for successful extrapolation
+    found_source = .FALSE.
+
+    ! Safety
+    dist_prev = 0._dp ! Current distance from origin
+    dist_tot  = 0._dp ! Total distance travelled by tracer
+
+    DO WHILE (.TRUE.)
+
+      ! Check if tracer reached its destination
+      ! =======================================
+
+      ! Find current tracer location grid indices
+      ii = MAX( 1, MIN( grid%nx-1, 1 + FLOOR(( pt(1) + grid%dx/2._dp - grid%xmin) / grid%dx)))
+      jj = MAX( 1, MIN( grid%ny-1, 1 + FLOOR(( pt(2) + grid%dx/2._dp - grid%ymin) / grid%dx)))
+
+      ! If the current vertex is an inverted point,
+      ! use it as the value for our origin vertex,
+      ! mark it as a successfully extrapolated point,
+      ! and exit
+      IF (d_mask_tot( jj,ii) == 2) THEN
+        d_values_tot( j,i) = d_values_tot(jj,ii)
+        found_source = .TRUE.
+        RETURN
+      END IF
+
+      ! If not, move the tracer upstream
+      ! ================================
+
+      ! Interpolate surface velocity to the tracer location
+      u_pt = interp_bilin_2D( ice%u_vav_cx, grid%x(1:grid%nx - 1) + 0.5_dp*grid%dx, grid%y,                                 pt(1), pt(2))
+      v_pt = interp_bilin_2D( ice%v_vav_cy, grid%x,                                 grid%y(1:grid%ny - 1) + 0.5_dp*grid%dx, pt(1), pt(2))
+
+      ! Calculate absolute velocity at the tracer's location
+      uabs_pt = SQRT( u_pt**2 + v_pt**2)
+
+      ! If we've reached the ice divide (defined as the place where
+      ! we find velocities below 0.01 m/yr), end the trace. This also
+      ! prevents the tracer from getting stuck in place when the
+      ! local velocity field is zero.
+      IF (uabs_pt < .01_dp) EXIT
+
+      ! Calculate the normalised velocity vector at the tracer's location
+      u_hat_pt = [u_pt / uabs_pt, v_pt / uabs_pt]
+
+      ! Add to counter of tracer movements
+      n = n + 1
+
+      ! Safety
+      IF (n > (grid%nx * grid%ny)) THEN
+        CALL crash('upstream flowline tracer got stuck!')
+      END IF
+
+      ! Save previous distance-to-origin
+      dist_prev = NORM2( pt - p)
+
+      ! Move the tracer upstream by a distance of 1/2 resolution
+      pt = pt - u_hat_pt * .5_dp * grid%dx
+
+      ! Add moved distance to total
+      dist_tot  = dist_tot + NORM2( pt - p)
+
+      ! If the new distance-to-origin is shorter than the previous one, end the trace
+      IF (NORM2( pt - p) < dist_prev) EXIT
+
+      ! If the total distance-to-origin is larger than a chosen limit, end the trace. Though, if this
+      ! region is ice, force the tracer to continue
+      IF (dist_tot > C%porenudge_H_dHdt_flowline_dist_max * 1e3_dp .AND. ice%mask_sheet_a( j,i) == 0) EXIT
+
+      ! If the new tracer location is outside the domain, end the trace
+      IF (pt( 1) <= MINVAL(grid%x) .OR. pt( 1) >= MAXVAL(grid%x) .OR. &
+          pt( 2) <= MINVAL(grid%y) .OR. pt( 2) >= MAXVAL(grid%y)) EXIT
+
+    END DO ! DO WHILE (.TRUE.)
+
+  END SUBROUTINE extrapolate_flowline_upstream
+
   SUBROUTINE initialise_basal_inversion( grid, ice, region_name)
     ! Fill in the initial guess for the bed roughness
 
