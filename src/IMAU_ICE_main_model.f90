@@ -22,7 +22,7 @@ MODULE IMAU_ICE_main_model
   USE reference_fields_module,             ONLY: initialise_reference_geometries
   USE netcdf_output_module,                ONLY: write_to_restart_file_grid, write_to_help_fields_file_grid, create_restart_file_grid, &
                                                  create_help_fields_file_grid, create_regional_scalar_file
-  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional, update_sealevel_record_at_model_time, initialise_geoid
+  USE forcing_module,                      ONLY: forcing, initialise_geothermal_heat_flux_regional
   USE general_ice_model_data_module,       ONLY: initialise_basins, initialise_mask_noice
   USE ice_velocity_module,                 ONLY: solve_DIVA
   USE ice_dynamics_module,                 ONLY: initialise_ice_model,              run_ice_model, update_ice_thickness, determine_timesteps, determine_actions
@@ -193,7 +193,7 @@ CONTAINS
     ! Isotopes
     ! ========
 
-    CALL run_isotopes_model( region)
+      CALL run_isotopes_model( region)
 
     ! Perform inversions
     ! ==================
@@ -249,13 +249,6 @@ CONTAINS
   ! ===========================================
   ! ===== End of the main model time loop =====
   ! ===========================================
-
-    ! Write to NetCDF output one last time at the end of the simulation
-    IF (region%time == C%end_time_of_run) THEN
-      CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
-      CALL write_to_help_fields_file_grid( region%help_fields_filename, region)
-      CALL write_regional_scalar_data( region, region%time)
-    END IF
 
     ! Write inverted bed roughness field to file
     IF (C%do_BIVgeo) THEN
@@ -363,24 +356,6 @@ CONTAINS
     ! ============================
     CALL initialise_ice_model( region, region%grid, region%ice, region%refgeo_init, region%refgeo_PD, region%name)
 
-    ! ===== Set sea level if prescribed externally =====
-    ! ==================================================
-
-    IF     (C%choice_regional_sealevel_model == 'fixed') THEN
-      region%ice%SL_a( :,region%grid%i1:region%grid%i2) = C%fixed_sealevel
-    ELSEIF (C%choice_regional_sealevel_model == 'eustatic' .OR. C%choice_regional_sealevel_model == 'SELEN') THEN
-      ! FIXME
-    ELSEIF     (C%choice_regional_sealevel_model == 'prescribed') THEN
-      CALL update_sealevel_record_at_model_time( C%start_time_of_run)
-      region%ice%SL_a( :,region%grid%i1:region%grid%i2) = forcing%sealevel_obs
-    ELSEIF (C%choice_regional_sealevel_model == 'geoid') THEN
-      ! Read the geoid from a file
-      CALL initialise_geoid( region%grid, region%ice, region%name)
-    ELSE
-      CALL crash('unknown choice_regional_sealevel_model "' // TRIM(C%choice_regional_sealevel_model) // '"!')
-    END IF
-    CALL sync
-
     ! ===== Define ice basins =====
     ! =============================
 
@@ -476,19 +451,24 @@ CONTAINS
     CALL run_isotopes_model( region)
 
     ! GIA
-    IF     (C%choice_GIA_model == 'none') THEN
-      ! Nothing to be done
-    ELSEIF (C%choice_GIA_model == 'ELRA') THEN
-        CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
-# if (defined(DO_SELEN))
-    ELSEIF (C%choice_GIA_model == 'SELEN') THEN
-      CALL apply_SELEN_bed_geoid_deformation_rates( region) ! It should be checked wheter SELEN initialises correctly according to the current structure of IMAU-ICE
-# endif
-    ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
-       ! Nothing to be done
+    IF (C%do_read_velocities_from_restart) THEN
+      ! Do nothing
     ELSE
-      CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
-    END IF
+      IF     (C%choice_GIA_model == 'none') THEN
+        ! Nothing to be done
+      ELSEIF (C%choice_GIA_model == 'ELRA') THEN
+          ! CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+          CALL run_ELRA_model( region)
+# if (defined(DO_SELEN))
+      ELSEIF (C%choice_GIA_model == 'SELEN') THEN
+        CALL apply_SELEN_bed_geoid_deformation_rates( region) ! It should be checked wheter SELEN initialises correctly according to the current structure of IMAU-ICE
+# endif
+      ELSEIF (C%choice_GIA_model == 'externalGIA') THEN
+         ! Nothing to be done
+      ELSE
+        CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
+      END IF
+    END IF ! (C%do_read_velocities_from_restart) THEN
 
     ! Set do_read_velocities_from_restart to false so that velocities will be computed after initialisation of the restart
     C%do_read_velocities_from_restart = .FAlSE.

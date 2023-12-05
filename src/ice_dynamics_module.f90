@@ -30,6 +30,7 @@ MODULE ice_dynamics_module
   USE netcdf_debug_module,                 ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
                                                  save_variable_as_netcdf_dp_1D,  save_variable_as_netcdf_dp_2D,  save_variable_as_netcdf_dp_3D
   USE netcdf_input_module,                 ONLY: read_field_from_file_2D
+  USE forcing_module,                      ONLY: forcing, update_sealevel_record_at_model_time, initialise_geoid
 
   IMPLICIT NONE
 
@@ -1134,13 +1135,13 @@ CONTAINS
     IMPLICIT NONE
 
     ! In/output variables:
-    TYPE(type_model_region),        INTENT(INOUT) :: region
+    TYPE(type_model_region),             INTENT(INOUT) :: region
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_init
     TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_PD
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
-    !TYPE(type_restart_data),             INTENT(IN)    :: restart
+
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_model'
@@ -1156,12 +1157,30 @@ CONTAINS
     ! Allocate shared memory
     CALL allocate_ice_model( grid, ice)
 
+    ! ===== Initialise regional sea level =====
+    ! ==================================================
+
+    IF     (C%choice_regional_sealevel_model == 'fixed') THEN
+      region%ice%SL_a( :,grid%i1:grid%i2) = C%fixed_sealevel
+    ELSEIF (C%choice_regional_sealevel_model == 'eustatic' .OR. C%choice_regional_sealevel_model == 'SELEN') THEN
+      ! FIXME
+    ELSEIF     (C%choice_regional_sealevel_model == 'prescribed') THEN
+      CALL update_sealevel_record_at_model_time( C%start_time_of_run)
+      ice%SL_a( :,grid%i1:grid%i2) = forcing%sealevel_obs
+    ELSEIF (C%choice_regional_sealevel_model == 'geoid') THEN
+      ! Read the geoid from a file
+      CALL initialise_geoid( grid, ice, region%name)
+    ELSE
+      CALL crash('unknown choice_regional_sealevel_model "' // TRIM(C%choice_regional_sealevel_model) // '"!')
+    END IF
+    CALL sync
+
     ! Initialise the ice-sheet geometry
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ice%Hi_a( j,i) = refgeo_init%Hi( j,i)
       ice%Hb_a( j,i) = refgeo_init%Hb( j,i)
-      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), 0._dp)
+      ice%Hs_a( j,i) = surface_elevation( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))
     END DO
     END DO
     CALL sync
@@ -1170,7 +1189,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       ice%dHi_a( j,i) = ice%Hi_a( j,i) - refgeo_PD%Hi( j,i)
-      ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), 0._dp)
+      ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), ice%SL_a( j,i))
     END DO
     END DO
     CALL sync
