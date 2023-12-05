@@ -124,14 +124,18 @@ CONTAINS
     END DO
     END DO
     CALL sync
+
     DO i = grid_GIA%i1, grid_GIA%i2
       ice%surface_load_rel_ext(               1:              n, i) = ice%surface_load_rel( 1          ,i)
       ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n, i) = ice%surface_load_rel( grid_GIA%ny,i)
     END DO
+    CALL sync
     DO j = grid_GIA%j1, grid_GIA%j2
       ice%surface_load_rel_ext( j,               1:              n) = ice%surface_load_rel( j,1          )
       ice%surface_load_rel_ext( j, grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( j,grid_GIA%nx)
     END DO
+    CALL sync
+
     IF (par%master) THEN
       ice%surface_load_rel_ext(               1:n              ,              1:n              ) = ice%surface_load_rel( 1          ,1          )
       ice%surface_load_rel_ext(               1:n              ,grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( 1          ,grid_GIA%nx)

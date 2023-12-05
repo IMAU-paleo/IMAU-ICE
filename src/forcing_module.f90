@@ -52,7 +52,7 @@ CONTAINS
     ELSEIF (C%choice_forcing_method == 'CO2_direct') THEN
       ! The global climate is calculated based on a prescribed CO2 record (e.g. from ice cores),
       ! either using a glacial-index method or a climate-matrix method, following Berends et al. (2018)
-      
+
       IF (C%do_calculate_benthic_d18O) THEN
         CALL calculate_modelled_d18O( NAM, EAS, GRL, ANT)
       END IF
@@ -96,7 +96,7 @@ CONTAINS
 
     ! Initialise benthic d18O
      IF (C%do_calculate_benthic_d18O) THEN
-       CALL initialise_modelled_benthic_d18O_data   
+       CALL initialise_modelled_benthic_d18O_data
      END IF
 
     ! Climate forcing stuff: CO2, d18O, inverse routine data
@@ -119,7 +119,7 @@ CONTAINS
       ! The global climate is calculated based on modelled CO2, which follows from the inverse routine
       ! (following Berends et al., 2019). The climate itself can then be calculated using either a
       ! glacial-index method or a climate-matrix method
-      CALL initialise_d18O_record      
+      CALL initialise_d18O_record
       CALL initialise_inverse_routine_data
 
     ELSE
@@ -130,7 +130,7 @@ CONTAINS
     CALL initialise_insolation_data
 
     ! Sea level
-    IF (C%choice_sealevel_model == 'prescribed') THEN
+    IF (C%choice_global_sealevel_model == 'prescribed') THEN
       ! The global sea level is calculated based on a prescribed sea-level record (e.g. from stacks),
       CALL initialise_sealevel_record
     END IF
@@ -299,7 +299,7 @@ CONTAINS
     n_dT = 0
 
     DO i = region%grid%i1, region%grid%i2
-    DO j = 1, region%grid%ny      
+    DO j = 1, region%grid%ny
     ! Do not calculate dT_glob over no_ice regions (assume difference is 0)
       IF (region%mask_noice( j,i) == 0) THEN
 
@@ -324,7 +324,7 @@ CONTAINS
     ! Calculate the mean temperature difference
     IF (par%master) THEN
       IF (n_dT == 0) THEN ! We don't want to divide by 0!
-        dT = 0 
+        dT = 0
       ELSE
         dT = dT / REAL(n_dT,dp)
       END IF
@@ -354,7 +354,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Safety
-    IF (.NOT. C%do_calculate_benthic_d18O) THEN  
+    IF (.NOT. C%do_calculate_benthic_d18O) THEN
        CALL crash('should only be called when do_calculate_benthic_d18O = .TRUE.!')
     END IF
 
@@ -403,22 +403,22 @@ CONTAINS
 
        ! Allocate memory for the global mean temperature change history
        CALL allocate_shared_dp_1D( forcing%ndT_glob_history, forcing%dT_glob_history, forcing%wdT_glob_history)
-        
+
        IF (par%master) forcing%dT_glob_history = 0._dp
-       
+
        CALL sync
 
     ELSEIF (choice_d18O_inverse_init == 'restart') THEN
         ! If starting from a restart file
-        
+
         ! Load from restart file
         CALL read_field_from_file_history_1D(         filename, 'dT_glob_history',    'time_dT_glob_history',     forcing%dT_glob_history     , forcing%wdT_glob_history,     time_to_restart_from )
 
-        ! Crash if the length of the inverse history does not match between restart and model 
+        ! Crash if the length of the inverse history does not match between restart and model
         IF (SIZE(forcing%dT_glob_history) /= forcing%ndT_glob_history) THEN
             CALL crash('Length of dT_glob_history is not the same between current model set-up and restart. Check dt_coupling and CO2_averaging_window')
         END IF
-        
+
         CALL sync
 
     ELSE
@@ -550,7 +550,7 @@ CONTAINS
 !      IF (C%is_restart) THEN
 !        IF (C%do_NAM) THEN
 !          filename = C%filename_init_NAM
-    ! Allocate 
+    ! Allocate
 !        ELSEIF (C%do_EAS) THEN
 !          filename = C%filename_init_EAS
 !        ELSEIF (C%do_GRL) THEN
@@ -585,7 +585,7 @@ CONTAINS
         time_to_restart_from     = C%time_to_restart_from_ANT
       END IF
 
-      ! Allocate 
+      ! Allocate
       CALL allocate_shared_dp_0D(  forcing%CO2_inverse,              forcing%wCO2_inverse)
       CALL allocate_shared_dp_0D(  forcing%CO2_mod,                  forcing%wCO2_mod)
       CALL allocate_shared_int_0D( forcing%nCO2_inverse_history,     forcing%wnCO2_inverse_history)
@@ -605,7 +605,7 @@ CONTAINS
         CALL allocate_shared_dp_1D(  forcing%ndT_glob_inverse_history, forcing%dT_glob_inverse_history, forcing%wdT_glob_inverse_history)
 
         ! Add a uniform value for the inverse history
-        IF (par%master) forcing%CO2_inverse_history = C%inverse_d18O_to_CO2_initial_CO2 
+        IF (par%master) forcing%CO2_inverse_history = C%inverse_d18O_to_CO2_initial_CO2
         IF (par%master) forcing%CO2_inverse         = C%inverse_d18O_to_CO2_initial_CO2
         IF (par%master) forcing%CO2_mod             = C%inverse_d18O_to_CO2_initial_CO2
 
@@ -615,18 +615,18 @@ CONTAINS
         ! If starting from a restart file
         ! Read dT_glob
         CALL read_field_from_file_history_1D(         filename, 'CO2_inverse_history',    'time_CO2_inverse_history',     forcing%CO2_inverse_history     , forcing%wCO2_inverse_history,     time_to_restart_from )
-       
-        ! Crash if the length of the inverse history does not match between restart and model 
+
+        ! Crash if the length of the inverse history does not match between restart and model
         IF (SIZE(forcing%CO2_inverse_history) /= forcing%nCO2_inverse_history) THEN
             CALL crash('Length of CO2_inverse_history is not the same between current model set-up and restart. Check dt_coupling and CO2_averaging_window')
-        END IF       
-    
+        END IF
+
         ! Get the current CO2_inverse and CO2_mod from the restart file
         IF (par%master) forcing%CO2_inverse = forcing%CO2_inverse_history(1)
-        IF (par%master) forcing%CO2_mod     = forcing%CO2_inverse 
-        
+        IF (par%master) forcing%CO2_mod     = forcing%CO2_inverse
+
         CALL sync
-      
+
       ELSE
           CALL crash('unknown choice_inverse_clim_init "' // TRIM(choice_d18O_inverse_init) // '"!')
       END IF
@@ -1037,51 +1037,51 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE get_insolation_at_time_month_and_lat
-  
+
   SUBROUTINE get_summer_insolation_at_time( time)
     ! Obtain the summer insolation in the Northern (65N) and Southern (80S) Hemispheres
 
     IMPLICIT NONE
 
     REAL(dp),                            INTENT(IN)    :: time
-    
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'get_summer_insolation_at_time'
     REAL(dp)                                           :: Q_TOA_JJA_65N_raw, Q_TOA_DJF_80S_raw
     INTEGER                                            :: m
-    
+
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Northern Hemisphere (June, July, August)
     forcing%Q_TOA_JJA_65N = 0._dp
-  
+
     DO m = 6,8
       CALL get_insolation_at_time_month_and_lat( time, m, 65._dp,  Q_TOA_JJA_65N_raw)
       IF (par%master) forcing%Q_TOA_JJA_65N = forcing%Q_TOA_JJA_65N + Q_TOA_JJA_65N_raw
     END DO
-  
+
     ! Southern Hemisphere (December, January, February)
     forcing%Q_TOA_DJF_80S = 0._dp
-   
+
     DO m = 1,12
       IF ((m == 1) .OR. (m == 2) .OR. (m == 12)) THEN
         CALL get_insolation_at_time_month_and_lat( time, m, -80._dp, Q_TOA_DJF_80S_raw)
         IF (par%master) forcing%Q_TOA_DJF_80S = forcing%Q_TOA_DJF_80S + Q_TOA_DJF_80S_raw
       END IF
-    END DO 
+    END DO
 
     IF (par%master) THEN
       forcing%Q_TOA_DJF_80S = forcing%Q_TOA_DJF_80S/3._dp
       forcing%Q_TOA_JJA_65N = forcing%Q_TOA_JJA_65N/3._dp
     END IF
     CALL sync
-   
+
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE
-   
+
   SUBROUTINE update_insolation_timeframes_from_file( time)
     ! Read the NetCDF file containing the insolation forcing data. Only read the time frames enveloping the current
     ! coupling timestep to save on memory usage. Only done by master.
@@ -1102,7 +1102,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     ! Allocate ti0 and ti1
     CALL allocate_shared_int_0D( ti0, wti0)
     CALL allocate_shared_int_0D( ti1, wti1)
-    
+
     IF     (C%choice_insolation_forcing == 'none') THEN
       CALL crash('insolation should not be used when choice_insolation_forcing = "none"!')
     ELSEIF (C%choice_insolation_forcing == 'static' .OR. &
@@ -1122,14 +1122,14 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
             ti1 = ti1 + 1
           END DO
           ti0 = ti1 - 1
- 
+
           forcing%ins_t0 = forcing%ins_time(ti0)
           forcing%ins_t1 = forcing%ins_time(ti1)
         ELSE
           ! Constant PD insolation for future projections
           ti0 = forcing%ins_nyears
           ti1 = forcing%ins_nyears
- 
+
           forcing%ins_t0 = forcing%ins_time(ti0) - 1._dp
           forcing%ins_t1 = forcing%ins_time(ti1)
        END IF
@@ -1144,7 +1144,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
       CALL crash('unknown choice_insolation_forcing "' // TRIM( C%choice_insolation_forcing) // '"!')
     END IF
 
-    ! Clean up after yourself 
+    ! Clean up after yourself
     CALL deallocate_shared(wti0)
     CALL deallocate_shared(wti1)
 
@@ -1248,7 +1248,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
       CALL sync
     ELSEIF (C%choice_geothermal_heat_flux == 'spatial') THEN
       IF (par%master) WRITE(0,*) '  Initialising geothermal heat flux data from ', TRIM(C%filename_geothermal_heat_flux), '...'
-      
+
       CALL read_field_from_file_2D(   C%filename_geothermal_heat_flux, 'hflux', grid, ice%GHF_a,  region_name)
       ice%GHF_a( :,grid%i1:grid%i2)  = ice%GHF_a( :,grid%i1:grid%i2)  * sec_per_year
     ELSE
@@ -1280,7 +1280,7 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_sealevel_model == 'prescribed') THEN
+    IF     (C%choice_global_sealevel_model == 'prescribed') THEN
       ! Observed sea level is needed for these methods.
     ELSE
       CALL crash('should only be called when choice_sealevel_method == "prescribed"!')
@@ -1343,10 +1343,10 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL init_routine( routine_name)
 
     ! Safety
-    IF     (C%choice_sealevel_model == 'prescribed') THEN
+    IF     (C%choice_global_sealevel_model == 'prescribed') THEN
       ! Observed sea level is needed for these forcing methods.
     ELSE
-      CALL crash('should only be called when choice_sealevel_model = "prescribed"!')
+      CALL crash('should only be called when choice_global_sealevel_model = "prescribed"!')
     END IF
 
     IF (par%master) THEN
@@ -1376,5 +1376,33 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE update_sealevel_record_at_model_time
+
+  ! Read in a geoid from a file
+  SUBROUTINE initialise_geoid( grid, ice, region_name)
+    ! Read a geoid from a file
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                INTENT(IN)    :: grid
+    TYPE(type_ice_model),           INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),               INTENT(IN)    :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_geoid'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Read geoid
+    CALL read_field_from_file_2D(   C%filename_geoid_baseline, 'Geoid', grid, ice%SL_a, region_name)
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( ice%SL_a, 'ice%wSL_a')
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_geoid
 
 END MODULE forcing_module

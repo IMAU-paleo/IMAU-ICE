@@ -416,6 +416,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
+  REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config   = 500.0_dp                          ! Maximum distance for flowline extrapolation (km)
 
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
@@ -786,10 +787,12 @@ MODULE configuration_module
   ! =================
 
   LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  CHARACTER(LEN=256)  :: choice_sealevel_model_config                = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  CHARACTER(LEN=256)  :: choice_global_sealevel_model_config         = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
+  CHARACTER(LEN=256)  :: choice_regional_sealevel_model_config       = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", "SELEN", or "geoid"
   REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
   CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
+  CHARACTER(LEN=256)  :: filename_geoid_baseline_config              = 'name_of_file.dat'               ! Name of a file containing a geoid
 
   CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   REAL(dp)            :: dx_GIA_config                               = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
@@ -1245,6 +1248,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: basal_roughness_filename
     LOGICAL                             :: do_smooth_phi_restart
     REAL(dp)                            :: r_smooth_phi_restart
+    REAL(dp)                            :: porenudge_H_dHdt_flowline_dist_max
 
     ! Basal inversion
     LOGICAL                             :: do_BIVgeo
@@ -1591,11 +1595,12 @@ MODULE configuration_module
     ! =================
 
     LOGICAL                             :: do_ocean_floodfill
-    CHARACTER(LEN=256)                  :: choice_sealevel_model
+    CHARACTER(LEN=256)                  :: choice_global_sealevel_model
+    CHARACTER(LEN=256)                  :: choice_regional_sealevel_model
     REAL(dp)                            :: fixed_sealevel
     CHARACTER(LEN=256)                  :: filename_sealevel_record
     INTEGER                             :: sealevel_record_length
-
+    CHARACTER(LEN=256)                  :: filename_geoid_baseline
     CHARACTER(LEN=256)                  :: choice_GIA_model
     REAL(dp)                            :: dx_GIA
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
@@ -2177,6 +2182,7 @@ CONTAINS
                      basal_roughness_filename_config,                 &
                      do_smooth_phi_restart_config,                    &
                      r_smooth_phi_restart_config,                     &
+                     porenudge_H_dHdt_flowline_dist_max_config,       &
                      do_BIVgeo_config,                                &
                      BIVgeo_t_start_config,                           &
                      BIVgeo_t_end_config,                             &
@@ -2424,10 +2430,12 @@ CONTAINS
                      choice_ice_isotopes_model_config,                &
                      uniform_ice_d18O_config,                         &
                      do_ocean_floodfill_config,                       &
-                     choice_sealevel_model_config,                    &
+                     choice_global_sealevel_model_config,             &
+                     choice_regional_sealevel_model_config,                  &
                      fixed_sealevel_config,                           &
                      filename_sealevel_record_config,                 &
                      sealevel_record_length_config,                   &
+                     filename_geoid_baseline_config,                  &
                      choice_GIA_model_config,                         &
                      dx_GIA_config,                                   &
                      ELRA_lithosphere_flex_rigidity_config,           &
@@ -3037,6 +3045,7 @@ CONTAINS
     C%basal_roughness_filename                 = basal_roughness_filename_config
     C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
     C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
+    C%porenudge_H_dHdt_flowline_dist_max       = porenudge_H_dHdt_flowline_dist_max_config
 
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config
@@ -3383,11 +3392,12 @@ CONTAINS
     ! =================
 
     C%do_ocean_floodfill                       = do_ocean_floodfill_config
-    C%choice_sealevel_model                    = choice_sealevel_model_config
+    C%choice_global_sealevel_model             = choice_global_sealevel_model_config
+    C%choice_regional_sealevel_model           = choice_regional_sealevel_model_config
     C%fixed_sealevel                           = fixed_sealevel_config
     C%filename_sealevel_record                 = filename_sealevel_record_config
     C%sealevel_record_length                   = sealevel_record_length_config
-
+    C%filename_geoid_baseline                  = filename_geoid_baseline_config
     C%choice_GIA_model                         = choice_GIA_model_config
     C%dx_GIA                                   = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config

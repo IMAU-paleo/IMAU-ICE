@@ -154,15 +154,15 @@ PROGRAM IMAU_ICE_program
   CALL sync
 
   ! Determine global mean sea level
-  IF     (C%choice_sealevel_model == 'fixed') THEN
+  IF     (C%choice_global_sealevel_model == 'fixed') THEN
     IF (par%master) global_data%GMSL = C%fixed_sealevel
-  ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+  ELSEIF (C%choice_global_sealevel_model == 'eustatic' .OR. C%choice_global_sealevel_model == 'SELEN') THEN
     IF (par%master) global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT
-  ELSEIF     (C%choice_sealevel_model == 'prescribed') THEN
+  ELSEIF     (C%choice_global_sealevel_model == 'prescribed') THEN
     CALL update_sealevel_record_at_model_time( C%start_time_of_run)
     IF (par%master) global_data%GMSL = forcing%sealevel_obs
   ELSE
-    CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
+    CALL crash('unknown choice_global_sealevel_model "' // TRIM(C%choice_global_sealevel_model) // '"!')
   END IF
   CALL sync
 
@@ -176,7 +176,7 @@ PROGRAM IMAU_ICE_program
   ! ============================
 
 # if (defined(DO_SELEN))
-  IF (C%choice_GIA_model == 'SELEN' .OR. C%choice_sealevel_model == 'SELEN') THEN
+  IF (C%choice_GIA_model == 'SELEN' .OR. C%choice_global_sealevel_model == 'SELEN') THEN
     CALL initialise_SELEN( SELEN, NAM, EAS, GRL, ANT, version_number)
   END IF
 # endif
@@ -208,7 +208,7 @@ PROGRAM IMAU_ICE_program
 
     ! Solve the SLE
 # if (defined(DO_SELEN))
-    IF (t_coupling >= SELEN%t1_SLE .AND. (C%choice_GIA_model == 'SELEN' .OR. C%choice_sealevel_model == 'SELEN')) THEN
+    IF (t_coupling >= SELEN%t1_SLE .AND. (C%choice_GIA_model == 'SELEN' .OR. C%choice_global_sealevel_model == 'SELEN')) THEN
       CALL run_SELEN( SELEN, NAM, EAS, GRL, ANT, t_coupling, ocean_area, ocean_depth)
       SELEN%t0_SLE = t_coupling
       SELEN%t1_SLE = t_coupling + C%dt_SELEN
@@ -216,7 +216,7 @@ PROGRAM IMAU_ICE_program
 # endif
 
     ! Update regional sea level
-    IF (C%choice_sealevel_model == 'fixed' .OR. C%choice_sealevel_model == 'eustatic') THEN
+    IF (C%choice_regional_sealevel_model == 'fixed' .OR. C%choice_regional_sealevel_model == 'eustatic') THEN
       ! Local sea level is equal to the eustatic signal
       IF (C%do_NAM) NAM%ice%SL_a( :,NAM%grid%i1:NAM%grid%i2) = global_data%GMSL
       IF (C%do_EAS) EAS%ice%SL_a( :,EAS%grid%i1:EAS%grid%i2) = global_data%GMSL
@@ -224,7 +224,7 @@ PROGRAM IMAU_ICE_program
       IF (C%do_ANT) ANT%ice%SL_a( :,ANT%grid%i1:ANT%grid%i2) = global_data%GMSL
       CALL sync
 
-    ELSEIF (C%choice_sealevel_model == 'prescribed') THEN
+    ELSEIF (C%choice_regional_sealevel_model == 'prescribed') THEN
 
       CALL update_sealevel_record_at_model_time( t_coupling)
 
@@ -233,12 +233,14 @@ PROGRAM IMAU_ICE_program
       IF (C%do_GRL) GRL%ice%SL_a( :,GRL%grid%i1:GRL%grid%i2) = forcing%sealevel_obs
       IF (C%do_ANT) ANT%ice%SL_a( :,ANT%grid%i1:ANT%grid%i2) = forcing%sealevel_obs
 
+    ELSEIF (C%choice_regional_sealevel_model == 'geoid') THEN
+       ! SL is dealt with regionally.
 # if (defined(DO_SELEN))
-    ELSEIF (C%choice_sealevel_model == 'SELEN') THEN
+    ELSEIF (C%choice_regional_sealevel_model == 'SELEN') THEN
       ! Sea level fields are filled in the SELEN routines
 # endif
     ELSE
-      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
+      CALL crash('unknown choice_regional_sealevel_model "' // TRIM(C%choice_regional_sealevel_model) // '"!')
     END IF
 
     ! Run all four model regions for 100 years
@@ -263,14 +265,14 @@ PROGRAM IMAU_ICE_program
     IF (C%do_ANT) global_data%GMSL_ANT = ANT%GMSL_contribution
 
     ! Determine global mean sea level
-    IF     (C%choice_sealevel_model == 'fixed') THEN
+    IF     (C%choice_global_sealevel_model == 'fixed') THEN
       global_data%GMSL = C%fixed_sealevel
-    ELSEIF (C%choice_sealevel_model == 'eustatic' .OR. C%choice_sealevel_model == 'SELEN') THEN
+    ELSEIF (C%choice_global_sealevel_model == 'eustatic' .OR. C%choice_global_sealevel_model == 'SELEN') THEN
       global_data%GMSL = global_data%GMSL_NAM + global_data%GMSL_EAS + global_data%GMSL_GRL + global_data%GMSL_ANT
-    ELSEIF (C%choice_sealevel_model == 'prescribed') THEN
+    ELSEIF (C%choice_global_sealevel_model == 'prescribed') THEN
       global_data%GMSL = forcing%sealevel_obs
     ELSE
-      CALL crash('unknown choice_sealevel_model "' // TRIM(C%choice_sealevel_model) // '"!')
+      CALL crash('unknown choice_global_sealevel_model "' // TRIM(C%choice_global_sealevel_model) // '"!')
     END IF
 
     ! Calculate contributions to global mean sea level and benthic d18O from the different ice sheets
