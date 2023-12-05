@@ -788,7 +788,7 @@ MODULE configuration_module
 
   LOGICAL             :: do_ocean_floodfill_config                   = .TRUE.                           ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
   CHARACTER(LEN=256)  :: choice_global_sealevel_model_config         = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
-  CHARACTER(LEN=256)  :: choice_regional_sealevel_model_config       = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic"
+  CHARACTER(LEN=256)  :: choice_regional_sealevel_model_config       = 'eustatic'                       ! Can be "fixed", "prescribed", "eustatic", "SELEN", or "geoid"
   REAL(dp)            :: fixed_sealevel_config                       = 0._dp                            ! Height of fixed sealevel w.r.t. PD
   CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
