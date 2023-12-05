@@ -416,6 +416,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
+  REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config   = 500.0_dp                          ! Maximum distance for flowline extrapolation (km)
 
   ! Basal inversion
   LOGICAL             :: do_BIVgeo_config                            = .FALSE.                          ! Whether or not to perform a geometry-based basal inversion (following Pollard & DeConto, 2012)
@@ -1247,6 +1248,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: basal_roughness_filename
     LOGICAL                             :: do_smooth_phi_restart
     REAL(dp)                            :: r_smooth_phi_restart
+    REAL(dp)                            :: porenudge_H_dHdt_flowline_dist_max
 
     ! Basal inversion
     LOGICAL                             :: do_BIVgeo
@@ -2180,6 +2182,7 @@ CONTAINS
                      basal_roughness_filename_config,                 &
                      do_smooth_phi_restart_config,                    &
                      r_smooth_phi_restart_config,                     &
+                     porenudge_H_dHdt_flowline_dist_max_config,       &
                      do_BIVgeo_config,                                &
                      BIVgeo_t_start_config,                           &
                      BIVgeo_t_end_config,                             &
@@ -3042,6 +3045,7 @@ CONTAINS
     C%basal_roughness_filename                 = basal_roughness_filename_config
     C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
     C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
+    C%porenudge_H_dHdt_flowline_dist_max       = porenudge_H_dHdt_flowline_dist_max_config
 
     ! Basal inversion
     C%do_BIVgeo                                = do_BIVgeo_config
