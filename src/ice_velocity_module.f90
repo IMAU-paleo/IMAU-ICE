@@ -246,6 +246,7 @@ CONTAINS
 
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
+    IF (par%master) print*, 'uabs_surf_a = ',SUM(ice%uabs_surf_a)!CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -3116,14 +3117,20 @@ CONTAINS
       time_to_restart_from = C%time_to_restart_from_ANT
     END IF
 
-    CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
+    IF (C%do_restart_from_previous_timestep) THEN
+      CALL read_field_from_file_0D(   filename_restart, 'dt',          region%dt,          time_to_restart_from)
+    END IF ! (C%do_read_velocities_from_spinup) THEN
 
     IF (C%choice_ice_dynamics == 'SIA') THEN
-      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+      IF (C%do_restart_from_previous_timestep) THEN
+        CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+        CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
+      END IF ! (C%do_restart_from_previous_timestep) THEN
     ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
-      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
+      IF (C%do_restart_from_previous_timestep) THEN
+        CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+        CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
+      END IF ! (C%do_restart_from_previous_timestep) THEN
       u_SSA_cx_a = 0._dp
       v_SSA_cy_a = 0._dp
       CALL read_field_from_file_2D(   filename_restart, 'u_SSA_cx', grid,  u_SSA_cx_a,  region_name, time_to_restart_from)
@@ -3143,10 +3150,12 @@ CONTAINS
         ice%v_SSA_cy = v_SSA_cy_a(1:grid%ny-1, :)
       END IF
       CALL sync
-      CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA', region%dt_crit_SIA, time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA', region%dt_crit_SSA, time_to_restart_from)
+      IF (C%do_restart_from_previous_timestep) THEN
+        CALL read_field_from_file_0D(   filename_restart, 't_next_SIA',          region%t_next_SIA,          time_to_restart_from)
+        CALL read_field_from_file_0D(   filename_restart, 't_next_SSA',          region%t_next_SSA,          time_to_restart_from)
+        CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SIA',         region%dt_crit_SIA, time_to_restart_from)
+        CALL read_field_from_file_0D(   filename_restart, 'dt_crit_SSA',         region%dt_crit_SSA, time_to_restart_from)
+      END IF ! (C%do_restart_from_previous_timestep) THEN
     ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
       CALL read_field_from_file_3D(   filename_restart, 'visc_eff_3D', grid,  ice%visc_eff_3D_a,  region_name, time_to_restart_from)
       taub_cx_a = 0._dp
@@ -3158,12 +3167,17 @@ CONTAINS
         ice%taub_cy = taub_cy_a(1:grid%ny-1, :)
       END IF
       CALL sync
-      CALL read_field_from_file_0D(   filename_restart, 't_next_DIVA',          region%t_next_DIVA,          time_to_restart_from)
+      IF (C%do_restart_from_previous_timestep) THEN
+        CALL read_field_from_file_0D(   filename_restart, 't_next_DIVA',          region%t_next_DIVA,          time_to_restart_from)
+      END IF ! (C%do_restart_from_previous_timestep) THEN
+
     END IF ! IF (C%choice_ice_dynamics == 'SIA') THEN
 
     IF (C%choice_timestepping == 'pc') THEN
       CALL read_field_from_file_2D(   filename_restart, 'dHidt_Hn_un', grid,  ice%dHidt_Hn_un,  region_name, time_to_restart_from)
-      CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
+      IF (C%do_restart_from_previous_timestep) THEN
+        CALL read_field_from_file_0D(   filename_restart, 'dt_crit_ice', region%dt_crit_ice, time_to_restart_from)
+      END IF ! (C%do_restart_from_previous_timestep) THEN
       CALL read_field_from_file_0D(   filename_restart, 'pc_eta',      ice%pc_eta,      time_to_restart_from)
       CALL read_field_from_file_0D(   filename_restart, 'pc_eta_prev', ice%pc_eta_prev, time_to_restart_from)
     ELSEIF (C%choice_timestepping == 'direct') THEN

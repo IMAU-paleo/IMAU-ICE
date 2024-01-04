@@ -330,7 +330,8 @@ MODULE configuration_module
   REAL(dp)            :: DIVA_SOR_omega_config                       = 1.3_dp                           ! DIVA SOR   solver - over-relaxation parameter
   REAL(dp)            :: DIVA_PETSc_rtol_config                      = 0.01_dp                          ! DIVA PETSc solver - stop criterion, relative difference (iteration stops if rtol OR abstol is reached)
   REAL(dp)            :: DIVA_PETSc_abstol_config                    = 2.5_dp                           ! DIVA PETSc solver - stop criterion, absolute difference
-  LOGICAL             :: do_read_velocities_from_restart_config      = .FALSE.                          ! Whether or not to read velocities from restart file to initialise model
+  LOGICAL             :: do_restart_config                           = .FALSE.                          ! Whether or not to restart from restart file to initialise model
+  LOGICAL             :: do_restart_from_previous_timestep_config    = .FALSE.                          ! Whether or not to read timesteps from restart file to initialise model
 
   ! Ice dynamics - time integration
   ! ===============================
@@ -1163,7 +1164,9 @@ MODULE configuration_module
     REAL(dp)                            :: DIVA_SOR_omega
     REAL(dp)                            :: DIVA_PETSc_rtol
     REAL(dp)                            :: DIVA_PETSc_abstol
-    LOGICAL                             :: do_read_velocities_from_restart
+    LOGICAL                             :: do_restart
+    LOGICAL                             :: do_restart_from_previous_timestep
+
     ! Ice dynamics - time integration
     ! ===============================
 
@@ -2117,7 +2120,8 @@ CONTAINS
                      DIVA_SOR_omega_config,                           &
                      DIVA_PETSc_rtol_config,                          &
                      DIVA_PETSc_abstol_config,                        &
-                     do_read_velocities_from_restart_config,          &
+                     do_restart_config,                               &
+                     do_restart_from_previous_timestep_config,        &
                      choice_timestepping_config,                      &
                      choice_ice_integration_method_config,            &
                      dHi_choice_matrix_solver_config,                 &
@@ -2959,7 +2963,8 @@ CONTAINS
     C%DIVA_SOR_omega                           = DIVA_SOR_omega_config
     C%DIVA_PETSc_rtol                          = DIVA_PETSc_rtol_config
     C%DIVA_PETSc_abstol                        = DIVA_PETSc_abstol_config
-    C%do_read_velocities_from_restart          = do_read_velocities_from_restart_config
+    C%do_restart                               = do_restart_config
+    C%do_restart_from_previous_timestep        = do_restart_from_previous_timestep_config
 
     ! Ice dynamics - time integration
     ! ===============================

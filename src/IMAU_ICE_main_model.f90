@@ -96,6 +96,8 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
       CALL determine_actions( region)
+      IF (par%master) print*, 'time = ',region%time !cvc
+      IF (par%master) print*, 'dt = ',region%dt !cvc
 
     ! GIA
     ! ===
@@ -451,7 +453,7 @@ CONTAINS
     CALL run_isotopes_model( region)
 
     ! GIA
-    IF (C%do_read_velocities_from_restart) THEN
+    IF (C%do_restart) THEN
       ! Do nothing
     ELSE
       IF     (C%choice_GIA_model == 'none') THEN
@@ -468,10 +470,10 @@ CONTAINS
       ELSE
         CALL crash('unknown choice_GIA_model "' // TRIM(C%choice_GIA_model) // '"!')
       END IF
-    END IF ! (C%do_read_velocities_from_restart) THEN
+    END IF ! (C%do_restart) THEN
 
-    ! Set do_read_velocities_from_restart to false so that velocities will be computed after initialisation of the restart
-    C%do_read_velocities_from_restart = .FAlSE.
+    ! Set do_restart to false so that velocities will be computed after initialisation of the restart
+    C%do_restart = .FAlSE.
 
     ! ===== Scalar output (regionally integrated ice volume, SMB components, etc.)
     ! ============================================================================
@@ -594,13 +596,23 @@ CONTAINS
       region%dt                    = C%dt_min
       region%dt_prev               = C%dt_min
 
-      region%t_last_SIA            = C%start_time_of_run
-      region%t_next_SIA            = C%start_time_of_run
-      region%do_SIA                = .TRUE.
+      IF (.NOT. C%do_restart_from_previous_timestep) THEN
+        region%t_last_SIA            = C%start_time_of_run
+        region%t_next_SIA            = C%start_time_of_run + C%dt_min
+        region%do_SIA                = .TRUE.
 
-      region%t_last_SSA            = C%start_time_of_run
-      region%t_next_SSA            = C%start_time_of_run
-      region%do_SSA                = .TRUE.
+        region%t_last_SSA            = C%start_time_of_run
+        region%t_next_SSA            = C%start_time_of_run + C%dt_min
+        region%do_SSA                = .TRUE.
+      ELSE
+        region%t_last_SIA            = C%start_time_of_run
+        region%t_next_SIA            = C%start_time_of_run
+        region%do_SIA                = .TRUE.
+
+        region%t_last_SSA            = C%start_time_of_run
+        region%t_next_SSA            = C%start_time_of_run
+        region%do_SSA                = .TRUE.
+      END IF
 
       region%t_last_DIVA           = C%start_time_of_run
       region%t_next_DIVA           = C%start_time_of_run
