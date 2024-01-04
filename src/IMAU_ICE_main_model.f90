@@ -96,8 +96,6 @@ CONTAINS
       IF (par%master) dt_ave = dt_ave + region%dt
       CALL sync
       CALL determine_actions( region)
-      IF (par%master) print*, 'time = ',region%time !cvc
-      IF (par%master) print*, 'dt = ',region%dt !cvc
 
     ! GIA
     ! ===

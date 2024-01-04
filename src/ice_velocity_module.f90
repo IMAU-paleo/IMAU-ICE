@@ -246,7 +246,6 @@ CONTAINS
 
     ! Calculate secondary velocities (surface, base, etc.)
     CALL calc_secondary_velocities( grid, ice)
-    IF (par%master) print*, 'uabs_surf_a = ',SUM(ice%uabs_surf_a)!CvC
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
