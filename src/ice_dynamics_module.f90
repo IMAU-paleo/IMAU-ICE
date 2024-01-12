@@ -125,7 +125,7 @@ CONTAINS
 
     ! Calculate ice velocities with the selected ice-dynamical approximation
     ! ======================================================================
-    IF (C%do_read_velocities_from_restart) THEN
+    IF (C%do_restart) THEN
     ! Do nothing, velocities are read from the restart file
     ELSE
       IF     (C%choice_ice_dynamics == 'none') THEN
@@ -288,7 +288,7 @@ CONTAINS
     ! Determine whether or not we need to update ice velocities
     do_update_ice_velocity = .FALSE.
 
-    IF (C%do_read_velocities_from_restart) THEN
+    IF (C%do_restart) THEN
       ! If restart, do not update ice_velocity but only the timers. Velocities are read from the restart file.
       IF     (C%choice_ice_dynamics == 'SIA') THEN
         IF (par%master) region%t_last_SIA = region%time
@@ -1032,7 +1032,7 @@ CONTAINS
       t_next = MIN( t_next, region%t_next_output_regional_scalar)
 
       ! Set time step so that we move forward to the next action
-      IF (C%do_read_velocities_from_restart) THEN
+      IF (C%do_restart) THEN
         ! do nothing, dt is read from restart file
       ELSE
         region%dt = t_next - region%time
@@ -1195,7 +1195,7 @@ CONTAINS
     CALL sync
 
     ! if restart, intialise dHi_dt and dHb_dt from restart file.
-    IF (C%do_read_velocities_from_restart) THEN
+    IF (C%do_restart) THEN
       CALL initialise_changing_geometry_from_restart_file( grid, ice, region_name)
     END IF
 
@@ -1246,7 +1246,7 @@ CONTAINS
     IF (is_ISMIP_HOM) CALL initialise_ice_velocity_ISMIP_HOM( grid, ice)
 
     ! Read velocity fields from restart data
-    IF (C%do_read_velocities_from_restart) THEN
+    IF (C%do_restart) THEN
       CALL initialise_velocities_from_restart_file( region, grid, ice, region_name)
     END IF
 
