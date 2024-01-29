@@ -27,6 +27,7 @@ CONTAINS
   SUBROUTINE run_ELRA_model( region)
     ! Use the ELRA model to update bedrock elevation. Once every (dt_bedrock_ELRA) years,
     ! update deformation rates. In all other time steps, just incrementally add deformation.
+    ! Test
 
     IMPLICIT NONE
 
