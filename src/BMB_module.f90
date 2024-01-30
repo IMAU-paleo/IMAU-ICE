@@ -72,7 +72,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
-      CALL run_BMB_model_LADDIE(               grid, BMB, region_name)
+      CALL run_BMB_model_LADDIEv2(               grid, BMB, region_name) ! FJFJ test new laddie coupling
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_PD)
     ELSE
@@ -182,8 +182,8 @@ CONTAINS
 
     ! Shelf
     IF     (C%choice_BMB_shelf_model == 'uniform' .OR. &
-            C%choice_BMB_shelf_model == 'idealised' .OR. &
-            C%choice_BMB_shelf_model == 'LADDIE') THEN
+            C%choice_BMB_shelf_model == 'idealised') THEN! .OR. &
+            !C%choice_BMB_shelf_model == 'LADDIE') THEN
       ! Nothing else needs to be done
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
       CALL initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
@@ -197,6 +197,8 @@ CONTAINS
       CALL initialise_BMB_model_PICO(  grid, ice, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL initialise_BMB_model_PICOP( grid, ice, BMB)
+    ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
+      CALL initialise_BMB_model_LADDIE( grid,  BMB, region_name)
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       BMB%BMB_shelf( :,grid%i1:grid%i2) = C%BMB_shelf_uniform
       CALL sync
@@ -2968,6 +2970,144 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model_LADDIE
+
+! == The LADDIE model v2
+! ================================================================
+  SUBROUTINE run_BMB_model_LADDIEv2(         grid,  BMB, region_name)
+    ! Read basal melt field from NetCDF computed by LADDIE
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)     :: grid
+    TYPE(type_BMB_model),                INTENT(INOUT)  :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)     :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIEv2'
+    CHARACTER(LEN=256)                                  :: filename_BMB_laddie
+    CHARACTER(LEN=256)                                  :: output_dir_IMAUICE
+    REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
+    INTEGER                                             :: wBMB_LADDIE
+    LOGICAL                                             :: found_laddie_file
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate temporary storage LADDIE data
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
+
+    ! Initialise basal melt field
+    BMB_LADDIE = 0._dp
+
+    ! Select filename from config file
+    filename_BMB_laddie = C%filename_BMB_laddie
+    output_dir_IMAUICE = C%fixed_output_dir
+
+    ! Run LADDIE
+    IF (par%master) THEN
+      !CALL system('echo hello '// output_dir_IMAUICE)
+      CALL system('rm /Users/5941962/surfdrive/AA_COUPLING_V2/laddie_melt.nc') ! Remove old file laddie_melt.nc
+      CALL system('./run_laddie.sh')
+    END IF 
+    CALL sync
+
+    ! Check whether new LADDIE file is available, if not sleep
+    found_laddie_file = .FALSE.
+ 
+    DO WHILE (.NOT. found_laddie_file) ! Start sleep loop
+      IF (par%master) THEN
+        print*, 'Looking for LADDIE file...'
+      END IF 
+      CALL sync
+
+      INQUIRE( EXIST = found_laddie_file, FILE = filename_BMB_laddie)
+ 
+      CALL SLEEP(5)
+ 
+    END DO ! End sleep loop
+
+    IF (found_laddie_file) THEN
+      CALL read_field_from_file_2D(filename_BMB_laddie, 'melt', grid, BMB_LADDIE, region_name)
+    END IF
+
+    ! Multiply by -1 to get correct sign for melt
+    IF (par%master) THEN
+      BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
+    END IF
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wBMB_LADDIE)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_BMB_model_LADDIEv2
+
+  SUBROUTINE initialise_BMB_model_LADDIE(         grid,  BMB, region_name)
+    ! Read basal melt field from NetCDF computed by LADDIE
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                     INTENT(IN)     :: grid
+    TYPE(type_BMB_model),                INTENT(INOUT)  :: BMB
+    CHARACTER(LEN=3),                    INTENT(IN)     :: region_name
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIEv2'
+    CHARACTER(LEN=256)                                  :: filename_BMB_laddie_ini_meltfield
+    CHARACTER(LEN=256)                                  :: filename_BMB_laddie_ini_restartfile
+    CHARACTER(LEN=256)                                  :: filename_refgeo_init_ANT
+    CHARACTER(LEN=256)                                  :: output_dir_IMAUICE
+    REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
+    INTEGER                                             :: wBMB_LADDIE
+    LOGICAL                                             :: found_laddie_file
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Allocate temporary storage LADDIE data
+    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
+
+    ! Initialise basal melt field
+    BMB_LADDIE = 0._dp
+
+    ! Select filename from config file
+    filename_BMB_laddie_ini_meltfield    = C%filename_BMB_laddie_ini_meltfield
+    filename_BMB_laddie_ini_restartfile  = C%filename_BMB_laddie_ini_restartfile
+    filename_refgeo_init_ANT             = C%filename_refgeo_init_ANT
+
+    CALL read_field_from_file_2D(filename_BMB_laddie_ini_meltfield, 'melt', grid, BMB_LADDIE, region_name)
+
+    ! Multiply by -1 to get correct sign for melt
+    IF (par%master) THEN
+      BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
+    END IF
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
+
+    ! Copy restart file to laddie_restart.nc --> such that laddie can find it during run_BMB_model_LADDIEv2
+    IF (par%master) THEN
+      CALL system('cp ' // filename_BMB_laddie_ini_restartfile // ' ../AA_COUPLING_V2/laddie_restart.nc')  
+      CALL system('cp ' // filename_refgeo_init_ANT // ' ../AA_COUPLING_V2/imauice_output.nc')  
+
+    END IF
+    CALL sync
+
+    ! Clean up after yourself
+    CALL deallocate_shared( wBMB_LADDIE)
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_BMB_model_LADDIE
 
 ! == Some generally useful tools
 ! ==============================
