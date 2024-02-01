@@ -2990,6 +2990,7 @@ CONTAINS
     REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
     INTEGER                                             :: wBMB_LADDIE
     LOGICAL                                             :: found_laddie_file
+    CHARACTER(LEN=256)                                  :: coupling_dir_BMB_laddie
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -2999,16 +3000,16 @@ CONTAINS
 
     ! Initialise basal melt field
     BMB_LADDIE = 0._dp
-
-    ! Select filename from config file
-    filename_BMB_laddie = C%filename_BMB_laddie
-    output_dir_IMAUICE = C%fixed_output_dir
+    
+    ! Specify local variables, paths 
+    output_dir_IMAUICE      = TRIM(C%fixed_output_dir)
+    filename_BMB_laddie     = TRIM(C%fixed_output_dir) // '/' // TRIM(C%filename_BMB_laddie)
+    coupling_dir_BMB_laddie = C%coupling_dir_BMB_laddie
 
     ! Run LADDIE
     IF (par%master) THEN
-      !CALL system('echo hello '// output_dir_IMAUICE)
-      CALL system('rm /Users/5941962/surfdrive/AA_COUPLING_V2/laddie_melt.nc') ! Remove old file laddie_melt.nc
-      CALL system('./run_laddie.sh')
+      CALL system('rm ' // TRIM(filename_BMB_laddie)) ! Remove old file laddie_melt.nc
+      CALL system('cd ' // TRIM(coupling_dir_BMB_laddie) // '; ./run_laddie_run.sh')
     END IF 
     CALL sync
 
@@ -3063,10 +3064,14 @@ CONTAINS
     CHARACTER(LEN=256)                                  :: filename_BMB_laddie_ini_meltfield
     CHARACTER(LEN=256)                                  :: filename_BMB_laddie_ini_restartfile
     CHARACTER(LEN=256)                                  :: filename_refgeo_init_ANT
-    CHARACTER(LEN=256)                                  :: output_dir_IMAUICE
     REAL(dp), DIMENSION(:,:), POINTER                   :: BMB_LADDIE
     INTEGER                                             :: wBMB_LADDIE
-    LOGICAL                                             :: found_laddie_file
+
+    CHARACTER(LEN=256)                                  :: output_dir_IMAUICE
+    CHARACTER(LEN=256)                                  :: configfile_BMB_laddie
+    CHARACTER(LEN=256)                                  :: experiment_name_BMB_laddie
+    CHARACTER(LEN=256)                                  :: coupling_dir_BMB_laddie
+    CHARACTER(LEN=256)                                  :: model_dir_BMB_laddie
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -3077,14 +3082,40 @@ CONTAINS
     ! Initialise basal melt field
     BMB_LADDIE = 0._dp
 
-    ! Select filename from config file
+    ! Define all local variables
     filename_BMB_laddie_ini_meltfield    = C%filename_BMB_laddie_ini_meltfield
     filename_BMB_laddie_ini_restartfile  = C%filename_BMB_laddie_ini_restartfile
     filename_refgeo_init_ANT             = C%filename_refgeo_init_ANT
+    output_dir_IMAUICE                   = C%fixed_output_dir
+    coupling_dir_BMB_laddie              = C%coupling_dir_BMB_laddie     
+    model_dir_BMB_laddie                 = C%model_dir_BMB_laddie       
+    configfile_BMB_laddie                = C%configfile_BMB_laddie      
+    experiment_name_BMB_laddie           = C%experiment_name_BMB_laddie
 
+    ! Create directory for coupling files, copy restart file to laddie_restart.nc and initial IMAU_ICE helpfields to imauice_output.nc
+    IF (par%master) THEN
+      CALL system('mkdir ' // TRIM(output_dir_IMAUICE) // '/coupling_files')
+      CALL system('cp ' // filename_BMB_laddie_ini_restartfile // ' ' // TRIM(output_dir_IMAUICE) // '/coupling_files/laddie_restart.nc')  
+      CALL system('cp ' // filename_refgeo_init_ANT // ' ' // TRIM(output_dir_IMAUICE) // '/coupling_files/imauice_output.nc')  
+    END IF
+    CALL sync
+
+    ! =====================!
+    ! To fill in run_laddie.sh script
+    ! Prepair runladdie.sh:
+    CALL system('cp ' // TRIM(coupling_dir_BMB_laddie) // TRIM('/run_laddie_template.sh') // ' ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+
+    ! Fill in paths / files
+    CALL system('sed -i s,@COUPLING_DIRECTORY,'// TRIM(coupling_dir_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+    CALL system('sed -i s,@EXPERIMENT_NAME_laddie,'// TRIM(experiment_name_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+    CALL system('sed -i s,@IMAUICE_DIRECTORY,'// TRIM(output_dir_IMAUICE) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+    CALL system('sed -i s,@laddie_CONFIG,'// TRIM(configfile_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+    CALL system('sed -i s,@laddie_DIRECTORY,'// TRIM(model_dir_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
+
+    ! Read initial laddie melt from file
     CALL read_field_from_file_2D(filename_BMB_laddie_ini_meltfield, 'melt', grid, BMB_LADDIE, region_name)
 
-    ! Multiply by -1 to get correct sign for melt
+    ! Multiply by -1 to get correct sign for melt !FJFJ can be left out with new laddie update
     IF (par%master) THEN
       BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
     END IF
@@ -3092,14 +3123,6 @@ CONTAINS
 
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
-
-    ! Copy restart file to laddie_restart.nc --> such that laddie can find it during run_BMB_model_LADDIEv2
-    IF (par%master) THEN
-      CALL system('cp ' // filename_BMB_laddie_ini_restartfile // ' ../AA_COUPLING_V2/laddie_restart.nc')  
-      CALL system('cp ' // filename_refgeo_init_ANT // ' ../AA_COUPLING_V2/imauice_output.nc')  
-
-    END IF
-    CALL sync
 
     ! Clean up after yourself
     CALL deallocate_shared( wBMB_LADDIE)
