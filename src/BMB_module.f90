@@ -72,7 +72,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
-      CALL run_BMB_model_LADDIEv2(               grid, BMB, region_name) ! FJFJ test new laddie coupling
+      CALL run_BMB_model_LADDIEv2(               grid, BMB, region_name, time) ! FJFJ test new laddie coupling
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_PD)
     ELSE
@@ -2973,7 +2973,7 @@ CONTAINS
 
 ! == The LADDIE model v2
 ! ================================================================
-  SUBROUTINE run_BMB_model_LADDIEv2(         grid,  BMB, region_name)
+  SUBROUTINE run_BMB_model_LADDIEv2(         grid,  BMB, region_name, time)
     ! Read basal melt field from NetCDF computed by LADDIE
 
     IMPLICIT NONE
@@ -2982,6 +2982,7 @@ CONTAINS
     TYPE(type_grid),                     INTENT(IN)     :: grid
     TYPE(type_BMB_model),                INTENT(INOUT)  :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)     :: region_name
+    REAL(dp),                            INTENT(IN)     :: time
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'run_BMB_model_LADDIEv2'
@@ -2991,58 +2992,75 @@ CONTAINS
     INTEGER                                             :: wBMB_LADDIE
     LOGICAL                                             :: found_laddie_file
     CHARACTER(LEN=256)                                  :: coupling_dir_BMB_laddie
+    CHARACTER(LEN=256)                                  :: laddie_ready
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    ! Allocate temporary storage LADDIE data
-    CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
+    ! Only run laddie if time is beyond start_time_run
+    IF (time == C%start_time_of_run)THEN
+      IF (par%master) THEN 
+        print *, ('Do not run LADDIE as time == start_time_of_run')
+      END IF
+    ELSE
+      ! Allocate temporary storage LADDIE data
+      CALL allocate_shared_dp_2D(  grid%ny, grid%nx,  BMB_LADDIE, wBMB_LADDIE)
 
-    ! Initialise basal melt field
-    BMB_LADDIE = 0._dp
+      ! Initialise basal melt field
+      BMB_LADDIE = 0._dp
     
-    ! Specify local variables, paths 
-    output_dir_IMAUICE      = TRIM(C%fixed_output_dir)
-    filename_BMB_laddie     = TRIM(C%fixed_output_dir) // '/' // TRIM(C%filename_BMB_laddie)
-    coupling_dir_BMB_laddie = C%coupling_dir_BMB_laddie
+      ! Specify local variables, paths 
+      output_dir_IMAUICE      = TRIM(C%fixed_output_dir)
+      filename_BMB_laddie     = TRIM(C%fixed_output_dir) // '/' // TRIM(C%filename_BMB_laddie)
+      coupling_dir_BMB_laddie = C%coupling_dir_BMB_laddie
+      laddie_ready      = TRIM(C%fixed_output_dir) // '/' // TRIM(C%experiment_name_BMB_laddie) // '/laddieready'
 
-    ! Run LADDIE
-    IF (par%master) THEN
-      CALL system('rm ' // TRIM(filename_BMB_laddie)) ! Remove old file laddie_melt.nc
-      CALL system('cd ' // TRIM(coupling_dir_BMB_laddie) // '; ./run_laddie_run.sh')
-    END IF 
-    CALL sync
-
-    ! Check whether new LADDIE file is available, if not sleep
-    found_laddie_file = .FALSE.
- 
-    DO WHILE (.NOT. found_laddie_file) ! Start sleep loop
+      ! Run LADDIE
       IF (par%master) THEN
-        print*, 'Looking for LADDIE file...'
+        CALL system('cd ' // TRIM(coupling_dir_BMB_laddie) // '; ./run_laddie_run.sh')
       END IF 
       CALL sync
 
-      INQUIRE( EXIST = found_laddie_file, FILE = filename_BMB_laddie)
+      ! Check whether laddie is ready, if not sleep
+      found_laddie_file = .FALSE.
  
-      CALL SLEEP(5)
+      DO WHILE (.NOT. found_laddie_file) ! Start looking for laddie
+
+        IF (par%master) THEN
+          print*, 'Looking for LADDIE file...'
+        END IF 
+
+        CALL sync
+
+        INQUIRE( EXIST = found_laddie_file, FILE = laddie_ready)
  
-    END DO ! End sleep loop
+        CALL SLEEP(5)
+ 
+      END DO ! End sleep loop
 
-    IF (found_laddie_file) THEN
-      CALL read_field_from_file_2D(filename_BMB_laddie, 'melt', grid, BMB_LADDIE, region_name)
+      ! If found, read in BMB from LADDIE
+      IF (found_laddie_file) THEN
+        CALL read_field_from_file_2D(filename_BMB_laddie, 'BMB', grid, BMB_LADDIE, region_name)
+      END IF
+
+      ! Convert to m.i.e./yr
+      IF (par%master) THEN
+        BMB%BMB_shelf = 31557600._dp * BMB_LADDIE(1:grid%ny, 1:grid%nx) / 918._dp
+        END IF
+      CALL sync
+
+      IF (par%master) THEN
+        CALL system('rm ' // TRIM(laddie_ready)) ! Remove old file laddie_melt.nc
+      END IF 
+      CALL sync
+
+      ! Safety
+      CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
+
+      ! Clean up after yourself
+      CALL deallocate_shared( wBMB_LADDIE)
+
     END IF
-
-    ! Multiply by -1 to get correct sign for melt
-    IF (par%master) THEN
-      BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
-    END IF
-    CALL sync
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')
-
-    ! Clean up after yourself
-    CALL deallocate_shared( wBMB_LADDIE)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -3094,15 +3112,13 @@ CONTAINS
 
     ! Create directory for coupling files, copy restart file to laddie_restart.nc and initial IMAU_ICE helpfields to imauice_output.nc
     IF (par%master) THEN
-      CALL system('mkdir ' // TRIM(output_dir_IMAUICE) // '/coupling_files')
-      CALL system('cp ' // filename_BMB_laddie_ini_restartfile // ' ' // TRIM(output_dir_IMAUICE) // '/coupling_files/laddie_restart.nc')  
-      CALL system('cp ' // filename_refgeo_init_ANT // ' ' // TRIM(output_dir_IMAUICE) // '/coupling_files/imauice_output.nc')  
+      CALL system('mkdir ' // TRIM(output_dir_IMAUICE) // '/' // TRIM(experiment_name_BMB_laddie))
+      CALL system('cp ' // filename_BMB_laddie_ini_restartfile // ' ' // TRIM(output_dir_IMAUICE) // '/' // TRIM(experiment_name_BMB_laddie) // '/restart_latest.nc')  
     END IF
     CALL sync
 
     ! =====================!
-    ! To fill in run_laddie.sh script
-    ! Prepair runladdie.sh:
+    ! Prepair run_laddie_run.sh:
     CALL system('cp ' // TRIM(coupling_dir_BMB_laddie) // TRIM('/run_laddie_template.sh') // ' ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
 
     ! Fill in paths / files
@@ -3112,14 +3128,24 @@ CONTAINS
     CALL system('sed -i s,@laddie_CONFIG,'// TRIM(configfile_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
     CALL system('sed -i s,@laddie_DIRECTORY,'// TRIM(model_dir_BMB_laddie) // ', ' // TRIM(coupling_dir_BMB_laddie) // '/run_laddie_run.sh')
 
-    ! Read initial laddie melt from file
-    CALL read_field_from_file_2D(filename_BMB_laddie_ini_meltfield, 'melt', grid, BMB_LADDIE, region_name)
+    ! =====================!
+    ! Prepair configfile laddie (exp name, output dir, xxx:
+    CALL system('cp ' // TRIM(model_dir_BMB_laddie) // TRIM('/config_test_template.toml') // ' ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
 
-    ! Multiply by -1 to get correct sign for melt !FJFJ can be left out with new laddie update
-    IF (par%master) THEN
-      BMB%BMB_shelf = -1*BMB_LADDIE(1:grid%ny, 1:grid%nx)
-    END IF
-    CALL sync
+    ! Fill in paths / files
+    CALL system('sed -i s,@EXPERIMENT_NAME_laddie,'// TRIM(experiment_name_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+    CALL system('sed -i s,@IMAUICE_DIRECTORY,'// TRIM(output_dir_IMAUICE) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+    CALL system('sed -i s,@COUPLING_DIRECTORY,'// TRIM(coupling_dir_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+
+    ! =====================!
+    ! Read initial laddie melt from file
+    CALL read_field_from_file_2D(filename_BMB_laddie_ini_meltfield, 'BMB', grid, BMB_LADDIE, region_name)
+
+    ! Convert to m.i.e./yr
+      IF (par%master) THEN
+        BMB%BMB_shelf = 31557600._dp * BMB_LADDIE(1:grid%ny, 1:grid%nx) / 918._dp
+        END IF
+      CALL sync
 
     ! Safety
     CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%wBMB_shelf')

@@ -542,13 +542,13 @@
   BMB_PICO_GammaTstar_config                  = 3.6131E-05     ! 2.0E-5          ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
 
   ! Parameters for the LADDIE BMB model
-  filename_BMB_laddie_config                  = 'coupling_files/laddie_melt.nc'                      ! File name of basal melt provided by LADDIE
-  filename_BMB_laddie_ini_meltfield_config    = '/Users/5941962/surfdrive/AA_COUPLING_V2/Initialise/laddie_melt_ini.nc'       ! File name of basal melt provided by LADDIE
-  filename_BMB_laddie_ini_restartfile_config  = '/Users/5941962/surfdrive/AA_COUPLING_V2/Initialise/restart_WARM_000040.nc'   ! File name of basal melt provided by LADDIE
+  filename_BMB_laddie_config                  = 'testv2/BMB_latest.nc'                                                                       ! File name of basal melt provided by LADDIE
+  filename_BMB_laddie_ini_meltfield_config    = '/Users/5941962/surfdrive/AA_Coupling/coupling_input/LADDIE_WARM_MISMIP/BMB_latest.nc'       ! File name of basal melt provided by LADDIE
+  filename_BMB_laddie_ini_restartfile_config  = '/Users/5941962/surfdrive/AA_Coupling/coupling_input/LADDIE_WARM_MISMIP/restart_latest.nc'   ! File name of basal melt provided by LADDIE
   
   coupling_dir_BMB_laddie_config              = '/Users/5941962/surfdrive/AA_COUPLING_V2'
   model_dir_BMB_laddie_config                 = '/Users/5941962/surfdrive/laddie' 
-  configfile_BMB_laddie_config                = 'config_testv2.toml'                      ! make sure this file is located in model_dir_BMB_laddie folder
+  configfile_BMB_laddie_config                = 'config_testv3.toml'                      ! make sure this file is located in model_dir_BMB_laddie folder
   experiment_name_BMB_laddie_config           = 'testv2'                                  ! make sure this is identical to experiment name in laddie config file
   
   ! Parameters for the ANICE_legacy sub-shelf melt model
