@@ -3087,9 +3087,14 @@ CONTAINS
 
     CHARACTER(LEN=256)                                  :: output_dir_IMAUICE
     CHARACTER(LEN=256)                                  :: configfile_BMB_laddie
+    CHARACTER(LEN=256)                                  :: configtmpl_BMB_laddie
+
     CHARACTER(LEN=256)                                  :: experiment_name_BMB_laddie
     CHARACTER(LEN=256)                                  :: coupling_dir_BMB_laddie
     CHARACTER(LEN=256)                                  :: model_dir_BMB_laddie
+
+    CHARACTER(LEN=256) :: run_days_BMB_laddie
+    CHARACTER(LEN=256) :: T1_BMB_laddie
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -3106,9 +3111,12 @@ CONTAINS
     filename_refgeo_init_ANT             = C%filename_refgeo_init_ANT
     output_dir_IMAUICE                   = C%fixed_output_dir
     coupling_dir_BMB_laddie              = C%coupling_dir_BMB_laddie     
-    model_dir_BMB_laddie                 = C%model_dir_BMB_laddie       
+    model_dir_BMB_laddie                 = C%model_dir_BMB_laddie    
+    configtmpl_BMB_laddie                = C%configtmpl_BMB_laddie        
     configfile_BMB_laddie                = C%configfile_BMB_laddie      
     experiment_name_BMB_laddie           = C%experiment_name_BMB_laddie
+    run_days_BMB_laddie                  = C%run_days_BMB_laddie
+    T1_BMB_laddie                        = C%T1_BMB_laddie
 
     ! Create directory for coupling files, copy restart file to laddie_restart.nc and initial IMAU_ICE helpfields to imauice_output.nc
     IF (par%master) THEN
@@ -3130,12 +3138,14 @@ CONTAINS
 
     ! =====================!
     ! Prepair configfile laddie (exp name, output dir, xxx:
-    CALL system('cp ' // TRIM(model_dir_BMB_laddie) // TRIM('/config_test_template.toml') // ' ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+    CALL system('cp ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configtmpl_BMB_laddie) // ' ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
 
     ! Fill in paths / files
     CALL system('sed -i s,@EXPERIMENT_NAME_laddie,'// TRIM(experiment_name_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
     CALL system('sed -i s,@IMAUICE_DIRECTORY,'// TRIM(output_dir_IMAUICE) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
     CALL system('sed -i s,@COUPLING_DIRECTORY,'// TRIM(coupling_dir_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+    CALL system('sed -i s,@RUN_DAYS_laddie,'// TRIM(run_days_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
+    CALL system('sed -i s,@T1,'// TRIM(T1_BMB_laddie) // ', ' // TRIM(model_dir_BMB_laddie) // '/' // TRIM(configfile_BMB_laddie))
 
     ! =====================!
     ! Read initial laddie melt from file

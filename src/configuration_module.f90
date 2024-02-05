@@ -733,7 +733,10 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: coupling_dir_BMB_laddie_config              = ''                               ! Path to a netcdf file containing melt pattern computed by LADDIE
   CHARACTER(LEN=256)  :: model_dir_BMB_laddie_config                 = ''                               ! Path to a netcdf file containing initial pattern computed by LADDIE in spinup
   CHARACTER(LEN=256)  :: configfile_BMB_laddie_config                = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
+  CHARACTER(LEN=256)  :: configtmpl_BMB_laddie_config                = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
   CHARACTER(LEN=256)  :: experiment_name_BMB_laddie_config           = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
+  CHARACTER(LEN=256)  :: run_days_BMB_laddie_config                  = ''                              ! Path to a netcdf file containing restart file computed by LADDIE in spinup
+  CHARACTER(LEN=256)  :: T1_BMB_laddie_config                        = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
 
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -1550,7 +1553,10 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: coupling_dir_BMB_laddie
     CHARACTER(LEN=256)                  :: model_dir_BMB_laddie
     CHARACTER(LEN=256)                  :: configfile_BMB_laddie
+    CHARACTER(LEN=256)                  :: configtmpl_BMB_laddie
     CHARACTER(LEN=256)                  :: experiment_name_BMB_laddie
+    CHARACTER(LEN=256)                             :: run_days_BMB_laddie
+    CHARACTER(LEN=256)                            :: T1_BMB_laddie
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -2406,7 +2412,10 @@ CONTAINS
                      coupling_dir_BMB_laddie_config,                  &
                      model_dir_BMB_laddie_config,                     &
                      configfile_BMB_laddie_config,                    &
+                     configtmpl_BMB_laddie_config,                    &
                      experiment_name_BMB_laddie_config,               &
+                     run_days_BMB_laddie_config,               &
+                     T1_BMB_laddie_config,               &
                      T_ocean_mean_PD_NAM_config,                      &
                      T_ocean_mean_PD_EAS_config,                      &
                      T_ocean_mean_PD_GRL_config,                      &
@@ -3362,7 +3371,10 @@ CONTAINS
     C%coupling_dir_BMB_laddie                  = coupling_dir_BMB_laddie_config
     C%model_dir_BMB_laddie                     = model_dir_BMB_laddie_config
     C%configfile_BMB_laddie                    = configfile_BMB_laddie_config
+    C%configtmpl_BMB_laddie                    = configtmpl_BMB_laddie_config
     C%experiment_name_BMB_laddie               = experiment_name_BMB_laddie_config
+    C%run_days_BMB_laddie                      = run_days_BMB_laddie_config
+    C%T1_BMB_laddie                            = T1_BMB_laddie_config
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
