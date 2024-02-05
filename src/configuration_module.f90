@@ -726,17 +726,16 @@ MODULE configuration_module
   REAL(dp)            :: BMB_PICO_GammaTstar_config                  = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
 
   ! File path for the LADDIE model output
-  CHARACTER(LEN=256)  :: filename_BMB_laddie_config                  = ''                               ! Path to a netcdf file containing melt pattern computed by LADDIE
-  CHARACTER(LEN=256)  :: filename_BMB_laddie_ini_meltfield_config    = ''                               ! Path to a netcdf file containing initial pattern computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: filename_BMB_laddie_ini_restartfile_config  = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
+  CHARACTER(LEN=256)  :: BMB_laddie_filename_output_BMB_config       = ''                               ! Path to a netcdf file containing BMB [kg m^-2 s^-1] computed by laddie
+  CHARACTER(LEN=256)  :: BMB_laddie_filename_initial_BMB_config      = ''                               ! Path to a netcdf file containing initial BMB [kg m^-2 s^-1] from laddie spinup
+  CHARACTER(LEN=256)  :: BMB_laddie_filename_initial_restart_config  = ''                               ! Path to a netcdf file containing restart file for laddie from laddie spinup
   
-  CHARACTER(LEN=256)  :: coupling_dir_BMB_laddie_config              = ''                               ! Path to a netcdf file containing melt pattern computed by LADDIE
-  CHARACTER(LEN=256)  :: model_dir_BMB_laddie_config                 = ''                               ! Path to a netcdf file containing initial pattern computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: configfile_BMB_laddie_config                = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: configtmpl_BMB_laddie_config                = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: experiment_name_BMB_laddie_config           = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: run_days_BMB_laddie_config                  = ''                              ! Path to a netcdf file containing restart file computed by LADDIE in spinup
-  CHARACTER(LEN=256)  :: T1_BMB_laddie_config                        = ''                               ! Path to a netcdf file containing restart file computed by LADDIE in spinup
+  CHARACTER(LEN=256)  :: BMB_laddie_coupling_foldername_config       = ''                               ! Path to directory with laddie executable template run_laddie_template.sh and laddie_configtemplate_XXX.toml
+  CHARACTER(LEN=256)  :: BMB_laddie_model_foldername_config          = ''                               ! Path to laddie directory
+  CHARACTER(LEN=256)  :: BMB_laddie_configfile_config                = ''                               ! Configfile name of this laddie run
+  CHARACTER(LEN=256)  :: BMB_laddie_configtemplate_config            = ''                               ! Config template laddie - should be stored in coupling folder
+  CHARACTER(LEN=256)  :: BMB_laddie_run_days_config                  = ''                               ! Number of days to run laddie 
+  CHARACTER(LEN=256)  :: BMB_laddie_T1_config                        = ''                               ! T1 in laddie config, temperature at depth, values used in FJ P1: [Warm: '1.5', MEDIUM: '0.0', COLD: '-1.9']
 
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -1546,17 +1545,16 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_PICO_GammaTstar
 
     ! Parameters for the LADDIE model
-    CHARACTER(LEN=256)                  :: filename_BMB_laddie
-    CHARACTER(LEN=256)                  :: filename_BMB_laddie_ini_meltfield
-    CHARACTER(LEN=256)                  :: filename_BMB_laddie_ini_restartfile
+    CHARACTER(LEN=256)                  :: BMB_laddie_filename_output_BMB
+    CHARACTER(LEN=256)                  :: BMB_laddie_filename_initial_BMB
+    CHARACTER(LEN=256)                  :: BMB_laddie_filename_initial_restart
 
-    CHARACTER(LEN=256)                  :: coupling_dir_BMB_laddie
-    CHARACTER(LEN=256)                  :: model_dir_BMB_laddie
-    CHARACTER(LEN=256)                  :: configfile_BMB_laddie
-    CHARACTER(LEN=256)                  :: configtmpl_BMB_laddie
-    CHARACTER(LEN=256)                  :: experiment_name_BMB_laddie
-    CHARACTER(LEN=256)                             :: run_days_BMB_laddie
-    CHARACTER(LEN=256)                            :: T1_BMB_laddie
+    CHARACTER(LEN=256)                  :: BMB_laddie_coupling_foldername
+    CHARACTER(LEN=256)                  :: BMB_laddie_model_foldername
+    CHARACTER(LEN=256)                  :: BMB_laddie_configfile
+    CHARACTER(LEN=256)                  :: BMB_laddie_configtemplate
+    CHARACTER(LEN=256)                  :: BMB_laddie_run_days
+    CHARACTER(LEN=256)                  :: BMB_laddie_T1
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -2406,16 +2404,15 @@ CONTAINS
                      BMB_Lazeroms2018_find_GL_scheme_config,          &
                      BMB_PICO_nboxes_config,                          &
                      BMB_PICO_GammaTstar_config,                      &
-                     filename_BMB_LADDIE_config,                      &
-                     filename_BMB_laddie_ini_meltfield_config,        &
-                     filename_BMB_laddie_ini_restartfile_config,      &
-                     coupling_dir_BMB_laddie_config,                  &
-                     model_dir_BMB_laddie_config,                     &
-                     configfile_BMB_laddie_config,                    &
-                     configtmpl_BMB_laddie_config,                    &
-                     experiment_name_BMB_laddie_config,               &
-                     run_days_BMB_laddie_config,               &
-                     T1_BMB_laddie_config,               &
+                     BMB_laddie_filename_output_BMB_config,           &
+                     BMB_laddie_filename_initial_BMB_config,          &
+                     BMB_laddie_filename_initial_restart_config,      &
+                     BMB_laddie_coupling_foldername_config,           &
+                     BMB_laddie_model_foldername_config,              &
+                     BMB_laddie_configfile_config,                    &
+                     BMB_laddie_configtemplate_config,                &
+                     BMB_laddie_run_days_config,                      &
+                     BMB_laddie_T1_config,                            &
                      T_ocean_mean_PD_NAM_config,                      &
                      T_ocean_mean_PD_EAS_config,                      &
                      T_ocean_mean_PD_GRL_config,                      &
@@ -3364,17 +3361,16 @@ CONTAINS
     C%BMB_PICO_GammaTstar                      = BMB_PICO_GammaTstar_config
 
     ! Parameters for the LADDIE model
-    C%filename_BMB_laddie                      = filename_BMB_laddie_config
-    C%filename_BMB_laddie_ini_meltfield        = filename_BMB_laddie_ini_meltfield_config
-    C%filename_BMB_laddie_ini_restartfile      = filename_BMB_laddie_ini_restartfile_config
+    C%BMB_laddie_filename_output_BMB           = BMB_laddie_filename_output_BMB_config
+    C%BMB_laddie_filename_initial_BMB          = BMB_laddie_filename_initial_BMB_config
+    C%BMB_laddie_filename_initial_restart      = BMB_laddie_filename_initial_restart_config
 
-    C%coupling_dir_BMB_laddie                  = coupling_dir_BMB_laddie_config
-    C%model_dir_BMB_laddie                     = model_dir_BMB_laddie_config
-    C%configfile_BMB_laddie                    = configfile_BMB_laddie_config
-    C%configtmpl_BMB_laddie                    = configtmpl_BMB_laddie_config
-    C%experiment_name_BMB_laddie               = experiment_name_BMB_laddie_config
-    C%run_days_BMB_laddie                      = run_days_BMB_laddie_config
-    C%T1_BMB_laddie                            = T1_BMB_laddie_config
+    C%BMB_laddie_coupling_foldername           = BMB_laddie_coupling_foldername_config
+    C%BMB_laddie_model_foldername              = BMB_laddie_model_foldername_config
+    C%BMB_laddie_configfile                    = BMB_laddie_configfile_config
+    C%BMB_laddie_configtemplate                = BMB_laddie_configtemplate_config
+    C%BMB_laddie_run_days                      = BMB_laddie_run_days_config
+    C%BMB_laddie_T1                            = BMB_laddie_T1_config
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
