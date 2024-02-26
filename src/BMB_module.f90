@@ -29,7 +29,7 @@ CONTAINS
 ! == The main routines that should be called from the main ice model/program
 ! ==========================================================================
 
-  SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time, refgeo_PD)
+  SUBROUTINE run_BMB_model( grid, ice, ocean, BMB, region_name, time, refgeo_PD, climate)
     ! Run the selected BMB model
 
     IMPLICIT NONE
@@ -42,6 +42,7 @@ CONTAINS
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
     REAL(dp),                             INTENT(IN)    :: time
     TYPE(type_reference_geometry),        INTENT(IN)    :: refgeo_PD
+    TYPE(type_climate_model),             INTENT(IN)    :: climate
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_model'
@@ -58,7 +59,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'idealised') THEN
       CALL run_BMB_model_idealised(            grid, ice,        BMB, time)
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
-      CALL run_BMB_model_ANICE_legacy(         grid, ice,        BMB, region_name, time)
+      CALL run_BMB_model_ANICE_legacy(         grid, ice, climate, BMB, region_name, time)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_lin') THEN
       CALL run_BMB_model_Favier2019_linear(    grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'Favier2019_quad') THEN
@@ -420,7 +421,7 @@ CONTAINS
 ! == The ANICE_legacy sub-shelf melt model
 ! ========================================
 
-  SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, BMB, region_name, time)
+  SUBROUTINE run_BMB_model_ANICE_legacy( grid, ice, climate, BMB, region_name, time)
     ! Calculate sub-shelf melt with the ANICE_legacy model, which is based on the glacial-interglacial
     ! parameterisation by Pollard & DeConto (2012), the distance-to-open-ocean + subtended-angle parameterisation
     ! by Pollard & DeConto (2012), and the linear temperature-melt relation by Martin et al. (2011).
@@ -430,6 +431,7 @@ CONTAINS
     ! In/output variables
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(IN)    :: ice
+    TYPE(type_climate_model),            INTENT(IN)    :: climate
     TYPE(type_BMB_model),                INTENT(INOUT) :: BMB
     CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
     REAL(dp),                            INTENT(IN)    :: time
@@ -446,8 +448,8 @@ CONTAINS
     REAL(dp)                                           :: water_depth
     REAL(dp), PARAMETER                                :: cp0        = 3974._dp                 ! specific heat capacity of the ocean mixed layer (J kg-1 K-1)
     REAL(dp), PARAMETER                                :: gamma_T    = 1.0E-04_dp               ! Thermal exchange velocity (m s-1)
-
-    ! Add routine to path
+	
+   ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Initialise
@@ -488,6 +490,21 @@ CONTAINS
     T_ocean_mean = 0._dp
 
     ! Determine mean ocean temperature and basal melt rates for deep ocean and exposed shelves
+    
+    ! Use weight from  matrix method directly
+    IF (C%choice_climate_model_config == 'matrix_warm_cold') THEN  	
+      ! Use average of the domain (insolation + CO2 + albedo)
+      w_PD   = SUM(climate%matrix%w_tot_T)/(grid%nx * grid%ny)
+       	 
+      IF (w_PD > 1._dp) THEN  ! Climate is warmer than present day
+      	w_PD   = 2._dp - w_PD 
+      	w_warm = 1._dp - w_PD 
+        w_cold = 0._dp
+      ELSE					  ! Climate is colder than present day
+        w_cold = 1._dp - w_PD
+        w_warm = 0
+      END IF     
+     
     IF (C%choice_forcing_method == 'CO2_direct') THEN
 
       ! Use the prescribed CO2 record as a glacial index
@@ -562,7 +579,7 @@ CONTAINS
 
         ! Sub-shelf melt rate for non-exposed shelves (Martin, TC, 2011) - melt values, when T_ocean > T_freeze.
         BMB_shelf   = seawater_density * cp0 * sec_per_year * gamma_T * BMB%subshelf_melt_factor * &
-                   (T_ocean_mean - T_freeze) / (L_fusion * ice_density)
+                   ( T_freeze - T_ocean_mean) / (L_fusion * ice_density)
 
       ELSE
         BMB_shelf = 0._dp

@@ -167,7 +167,7 @@ CONTAINS
 
       ! Run the BMB model
       IF (region%do_BMB) THEN
-        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
+        CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD, region%climate)
       END IF
 
       t2 = MPI_WTIME()
@@ -429,7 +429,7 @@ CONTAINS
 
     ! Run ocean and BMB models once so that Hi can be computed at the beginning of the main model loop
     CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
-    CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD)
+    CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD, region%climate)
 
     ! Initialise the ice temperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
