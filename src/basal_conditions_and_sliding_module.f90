@@ -445,7 +445,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    filename = C%basal_roughness_filename
+    IF (    region_name == 'NAM') THEN
+      filename = C%basal_roughness_filename_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename = C%basal_roughness_filename_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename = C%basal_roughness_filename_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename = C%basal_roughness_filename_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
@@ -483,7 +493,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    filename = C%basal_roughness_filename
+    IF (    region_name == 'NAM') THEN
+      filename = C%basal_roughness_filename_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename = C%basal_roughness_filename_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename = C%basal_roughness_filename_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename = C%basal_roughness_filename_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
@@ -535,7 +555,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    filename = C%basal_roughness_filename
+    IF (    region_name == 'NAM') THEN
+      filename = C%basal_roughness_filename_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename = C%basal_roughness_filename_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename = C%basal_roughness_filename_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename = C%basal_roughness_filename_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
@@ -572,7 +602,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    filename = C%basal_roughness_filename
+    IF (    region_name == 'NAM') THEN
+      filename = C%basal_roughness_filename_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename = C%basal_roughness_filename_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename = C%basal_roughness_filename_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename = C%basal_roughness_filename_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync
@@ -611,7 +651,17 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Determine filename
-    filename = C%basal_roughness_filename
+    IF (    region_name == 'NAM') THEN
+      filename = C%basal_roughness_filename_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      filename = C%basal_roughness_filename_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      filename = C%basal_roughness_filename_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      filename = C%basal_roughness_filename_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
 
     IF (par%master) WRITE(0,*) '  Initialising basal roughness from file ', TRIM( filename), '...'
     CALL sync

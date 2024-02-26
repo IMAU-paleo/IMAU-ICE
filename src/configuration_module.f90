@@ -414,7 +414,10 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_NAM_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_EAS_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_GRL_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_ANT_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
   REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config   = 500.0_dp                          ! Maximum distance for flowline extrapolation (km)
@@ -1248,7 +1251,10 @@ MODULE configuration_module
     REAL(dp)                            :: Martin2011till_phi_Hb_max
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
-    CHARACTER(LEN=256)                  :: basal_roughness_filename
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_NAM
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_EAS
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_GRL
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_ANT
     LOGICAL                             :: do_smooth_phi_restart
     REAL(dp)                            :: r_smooth_phi_restart
     REAL(dp)                            :: porenudge_H_dHdt_flowline_dist_max
@@ -2183,7 +2189,10 @@ CONTAINS
                      Martin2011till_phi_Hb_max_config,                &
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
-                     basal_roughness_filename_config,                 &
+                     basal_roughness_filename_NAM_config,             &
+                     basal_roughness_filename_EAS_config,             &
+                     basal_roughness_filename_GRL_config,             &
+                     basal_roughness_filename_ANT_config,             &
                      do_smooth_phi_restart_config,                    &
                      r_smooth_phi_restart_config,                     &
                      porenudge_H_dHdt_flowline_dist_max_config,       &
@@ -3047,7 +3056,10 @@ CONTAINS
     C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
-    C%basal_roughness_filename                 = basal_roughness_filename_config
+    C%basal_roughness_filename_NAM             = basal_roughness_filename_NAM_config
+    C%basal_roughness_filename_EAS			   = basal_roughness_filename_EAS_config
+    C%basal_roughness_filename_GRL			   = basal_roughness_filename_GRL_config
+    C%basal_roughness_filename_ANT			   = basal_roughness_filename_ANT_config
     C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
     C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
     C%porenudge_H_dHdt_flowline_dist_max       = porenudge_H_dHdt_flowline_dist_max_config
