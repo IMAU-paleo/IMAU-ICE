@@ -469,7 +469,10 @@ MODULE configuration_module
   ! Thermodynamics and rheology
   ! ===========================
 
-  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_NAM_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_EAS_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_GRL_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_ANT_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   REAL(dp)            :: uniform_ice_temperature_config              = 270._dp                          ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   CHARACTER(LEN=256)  :: choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
   CHARACTER(LEN=256)  :: choice_ice_rheology_config                  = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -1306,7 +1309,10 @@ MODULE configuration_module
     ! Thermodynamics and rheology
     ! ===========================
 
-    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_NAM
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_EAS
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_GRL
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_ANT
     REAL(dp)                            :: uniform_ice_temperature
     CHARACTER(LEN=256)                  :: choice_thermo_model
     CHARACTER(LEN=256)                  :: choice_ice_rheology
@@ -2234,7 +2240,10 @@ CONTAINS
                      remove_shelves_larger_than_PD_config,            &
                      continental_shelf_calving_config,                &
                      continental_shelf_min_height_config,             &
-                     choice_initial_ice_temperature_config,           &
+                     choice_initial_ice_temperature_NAM_config,       &
+                     choice_initial_ice_temperature_EAS_config,       &
+                     choice_initial_ice_temperature_GRL_config,       &
+                     choice_initial_ice_temperature_ANT_config,       &
                      uniform_ice_temperature_config,                  &
                      choice_thermo_model_config,                      &
                      choice_ice_rheology_config,                      &
@@ -3111,7 +3120,10 @@ CONTAINS
     ! Thermodynamics and rheology
     ! ===========================
 
-    C%choice_initial_ice_temperature           = choice_initial_ice_temperature_config
+    C%choice_initial_ice_temperature_NAM       = choice_initial_ice_temperature_NAM_config
+    C%choice_initial_ice_temperature_EAS       = choice_initial_ice_temperature_EAS_config
+    C%choice_initial_ice_temperature_GRL       = choice_initial_ice_temperature_GRL_config
+    C%choice_initial_ice_temperature_ANT       = choice_initial_ice_temperature_ANT_config
     C%uniform_ice_temperature                  = uniform_ice_temperature_config
     C%choice_thermo_model                      = choice_thermo_model_config
     C%choice_ice_rheology                      = choice_ice_rheology_config
