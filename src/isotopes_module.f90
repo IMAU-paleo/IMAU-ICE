@@ -227,6 +227,27 @@ CONTAINS
            
            ! Check the source areas:
            left  = 0._dp
+           right = 0._dp
+           up    = 0._dp
+           down  = 0._dp
+
+           ! Compare the ice that is being added to calculate a weighted average
+           IF (region%ice%mask_ice_a( j,i-1) == 1) left   = ABS(MAX(0._dp,region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a( j,  i-1)))
+           IF (region%ice%mask_ice_a( j,i+1) == 1) right  = ABS(MIN(0._dp,region%ice%U_vav_cx( j  ,i  ) * region%ice%Hi_a( j,  i+1)))
+           IF (region%ice%mask_ice_a( j+1,i) == 1) up     = ABS(MIN(0._dp,region%ice%V_vav_cy( j  ,i  ) * region%ice%Hi_a( j+1,i  )))
+           IF (region%ice%mask_ice_a( j-1,i) == 1) down   = ABS(MAX(0._dp,region%ice%V_vav_cy( j-1,i  ) * region%ice%Hi_a( j-1,i  )))
+
+           ! Calculate the weighted average of the ice sources
+           IsoIce_new( j,i) = (region%ice%IsoIce( j,i-1) * left + region%ice%IsoIce( j,i+1) * right + &
+                               region%ice%IsoIce( j+1,i) * up   + region%ice%IsoIce( j-1,i) * down) / &
+                               (left + right + up + down)
+
+           ! Only a very small amount of ice is being transported to the calving front. Use IsoSurf instead 
+           IF ((left + right + up + down) < 0.001) THEN
+             IsoIce_new( j,i) = region%ice%IsoSurf( j,i)
+           END IF 
+
+        END IF !  (region%ice%float_margin_frac_a( j,i) < 0.99_dp)
       END IF ! IF (ice%mask_ice_a( j,i) == 1) THEN
     END DO
     END DO
@@ -430,7 +451,7 @@ CONTAINS
 
         region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                 + 0.35_dp              * (Ts - Ts_ref    &
-                                + C%constant_lapserate * (Hs - Hs_ref))  &
+                                - C%constant_lapserate * (Hs - Hs_ref))  &
                                 - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
 
       ELSE
