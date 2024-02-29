@@ -84,6 +84,7 @@ CONTAINS
 
     REAL(dp)                                           :: dIso_xl, dIso_xr, dIso_yd, dIso_yu, VIso
     REAL(dp), DIMENSION(:,:), POINTER                  ::  dIso_dt,  IsoIce_new
+    REAL(dp)                                           :: left, right, up, down
     INTEGER                                            :: wdIso_dt, wIsoIce_new
 
     ! Add routine to path
@@ -112,7 +113,7 @@ CONTAINS
 
         region%ice%IsoSurf( j,i) = region%ice%IsoRef( j,i)                &
                                  + 0.35_dp              * (Ts - Ts_ref    &
-                                 + C%constant_lapserate * (Hs - Hs_ref))  &
+                                 - C%constant_lapserate * (Hs - Hs_ref))  &
                                  - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
 
         IsoMax = MAX( IsoMax, region%ice%IsoSurf( j,i))
@@ -126,8 +127,17 @@ CONTAINS
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, IsoMax, 1, MPI_DOUBLE_PRECISION, MPI_MAX, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, IsoMin, 1, MPI_DOUBLE_PRECISION, MPI_MIN, MPI_COMM_WORLD, ierr)
 
-    ! Calculate the mass gain/loss of d18O
+    ! Some regions may have undergone calving, but these regions contain no ice, but do contain Iso Ice.
+    ! That should not cause problems, but still it is better to make sure IsoIce is 0. 
+    DO i = region%grid%i1, region%grid%i2
+    DO j = 1, region%grid%ny
+      IF (region%ice%mask_ice_a( j,i) == 0) THEN
+        region%ice%IsoIce( j,i) = 0._dp ! Remove Iso Ice were there is no ice anymore
+      END IF
+    END DO
+    END DO
 
+    ! Calculate the mass gain/loss of d18O
     region%ice%MB_iso( :,region%grid%i1:region%grid%i2) = 0._dp
 
     DO i = region%grid%i1, region%grid%i2
@@ -147,12 +157,10 @@ CONTAINS
 
       ! In case more ice is removed by melt than physically possible, set IsoIce to 0 and Mb to 0 just to be sure.
       ! Therefore, all Iso is removed. All ice has melted, but some may have been transported from neighbouring cells.
-      ! To reflect this, set IsoIce to 0.
-      IF (((region%BMB%BMB(     j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
-         ((region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%dt) < -region%ice%Hi_a( j,i)) .OR. &
-         (((region%BMB%BMB(     j,i) + region%SMB%SMB_year(            j,i))  * region%ice%float_margin_frac_a( j,i) * region%dt)  < -region%ice%Hi_a( j,i))) THEN
-           region%ice%IsoIce( j,i) = 0._dp
-           region%ice%MB_iso( j,i) = 0._dp
+      ! To reflect this, set MB_iso to the remaining chunk of Iso
+      IF (((region%BMB%BMB(     j,i) + region%SMB%SMB_year(            j,i))  * region%ice%float_margin_frac_a( j,i) * region%dt)  < -region%ice%Hi_a( j,i)) THEN
+           region%ice%IsoIce( j,i) = 0._dp ! Reset Iso Ice to be sure
+           region%ice%MB_iso( j,i) = 0._dp ! After resetting Iso Ice there does not need to be a MB flux for this cell
       END IF
       
     END DO
@@ -178,16 +186,19 @@ CONTAINS
         ELSE
           dIso_xl = region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a( j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
         END IF
+      
         IF (region%ice%U_vav_cx( j  ,i  ) > 0._dp) THEN
           dIso_xr = region%ice%U_vav_cx( j  ,i  ) * region%ice%Hi_a( j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
         ELSE
           dIso_xr = region%ice%U_vav_cx( j  ,i  ) * region%ice%Hi_a( j  ,i+1) * region%ice%IsoIce( j  ,i+1) * region%grid%dx
         END IF
+
         IF (region%ice%V_vav_cy( j-1,i  ) > 0._dp) THEN
           dIso_yd = region%ice%V_vav_cy( j-1,i  ) * region%ice%Hi_a( j-1,i  ) * region%ice%IsoIce( j-1,i  ) * region%grid%dx
         ELSE
           dIso_yd = region%ice%V_vav_cy( j-1,i  ) * region%ice%Hi_a( j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
         END IF
+        
         IF (region%ice%V_vav_cy( j  ,i  ) > 0._dp) THEN
           dIso_yu = region%ice%V_vav_cy( j  ,i  ) * region%ice%Hi_a( j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
         ELSE
@@ -199,14 +210,23 @@ CONTAINS
 
         ! Update vertically averaged ice isotope content
         VIso = region%ice%IsoIce( j,i) * region%ice%Hi_a( j,i) * region%grid%dx * region%grid%dx
+        
+        ! First, scale dIso_dt so more cannot leave than 
         VIso = VIso + dIso_dt( j,i) * region%dt
 
+        ! Calcualte the new IsoIce and limit it between IsoMin and IsoMax
         IsoIce_new( j,i) = MIN( IsoMax, MAX( IsoMin, VIso / (region%grid%dx * region%grid%dx * region%ice%Hi_tplusdt_a( j,i)) ))
+       
+        ! FAIL SAVE: For very thin ice this calculation does not work. So assume IsoIce is 0.
+        IF (region%ice%Hi_tplusdt_a( j,i) < 0.1_dp) THEN
+          IsoIce_new( j,i) = 0._dp
+        END IF
 
-        ! Fail save: If the ice will be extremely thin after the next time-step, IsoIce should be 0. This is to prevent
-        ! VIso from being divided by a small number, creating a strongly negative IsoIce at the margin.
-        IF (region%ice%Hi_tplusdt_a( j,i) < 0.1_dp) IsoIce_new( j,i) = 0._dp
-
+        ! FAIL SAVE: Calving front take the IsoIce from the source of advected ice
+        IF (region%ice%float_margin_frac_a( j,i) < 0.99_dp) THEN
+           
+           ! Check the source areas:
+           left  = 0._dp
       END IF ! IF (ice%mask_ice_a( j,i) == 1) THEN
     END DO
     END DO
@@ -441,7 +461,7 @@ CONTAINS
 
           region%ice%IsoIce( j,i) = region%ice%IsoRef( j,i)                &
                                   + 0.35_dp              * (Ts - Ts_ref    &
-                                  + C%constant_lapserate * (Hs - Hs_ref))  &
+                                  - C%constant_lapserate * (Hs - Hs_ref))  &
                                   - 0.0062_dp            * (Hs - Hs_ref)   ! from Clarke et al., 2005
                                   
 
