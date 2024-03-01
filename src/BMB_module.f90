@@ -72,7 +72,7 @@ CONTAINS
     ELSEIF (C%choice_BMB_shelf_model == 'PICOP') THEN
       CALL run_BMB_model_PICOP(                grid, ice, ocean, BMB)
     ELSEIF (C%choice_BMB_shelf_model == 'LADDIE') THEN
-      CALL run_BMB_model_LADDIE(               grid, BMB, region_name, time) ! FJFJ test new laddie coupling
+      CALL run_BMB_model_LADDIE(               grid, BMB, region_name, time)
     ELSEIF (C%choice_BMB_shelf_model == 'inverse_shelf_geometry') THEN
       CALL inverse_BMB_shelf_geometry(         grid, ice,        BMB, refgeo_PD)
     ELSE
@@ -182,8 +182,7 @@ CONTAINS
 
     ! Shelf
     IF     (C%choice_BMB_shelf_model == 'uniform' .OR. &
-            C%choice_BMB_shelf_model == 'idealised') THEN! .OR. &
-            !C%choice_BMB_shelf_model == 'LADDIE') THEN
+            C%choice_BMB_shelf_model == 'idealised') THEN
       ! Nothing else needs to be done
     ELSEIF (C%choice_BMB_shelf_model == 'ANICE_legacy') THEN
       CALL initialise_BMB_model_ANICE_legacy( grid, BMB, region_name)
@@ -2951,12 +2950,12 @@ CONTAINS
     IF (time == C%start_time_of_run)THEN
       
       IF (par%master) THEN 
-        print *, ('  Do not run LADDIE because time == start_time_of_run')
+        print *, ('  Do not run LADDIE during initialisation. Read BMB from laddie spinup file:' // TRIM(C%BMB_laddie_filename_initial_BMB))
       END IF
 
     ELSE ! if time > C%start_time_of_run 
 
-      ! Define local variables, paths to BMB_latest.nc, the resulting melt pattern from laddie, and to laddieready, the file indicating whether laddie is ready
+      ! Define local variables, paths to resulting melt pattern from laddie (BMB_latest.nc), and to file indicating whether laddie is ready (laddieready)
       BMB_laddie_filename_output_BMB  = TRIM(C%fixed_output_dir) // '/laddie_output/BMB_latest.nc'
       laddieready                     = TRIM(C%fixed_output_dir) // '/laddie_output/laddieready'
 
@@ -2965,16 +2964,34 @@ CONTAINS
 
       ! Initialise basal melt field at zero
       BMB_LADDIE = 0._dp
-    
+      CALL sync
+      
       ! Run LADDIE
       IF (par%master) THEN
-        CALL system('cd ' // TRIM(C%fixed_output_dir) // '; ./run_laddie_run.sh')
+
+        ! Different commands are needed to run laddie on different systems. local_mac or slurm_HPC (the latter is used for snellius)
+        IF (C%BMB_laddie_system == 'local_mac') THEN
+          CALL system('cd ' // TRIM(C%BMB_laddie_model_foldername) // '; source /Users/5941962/opt/anaconda3/etc/profile.d/conda.sh; conda activate ; python3 runladdie.py ' // TRIM(C%BMB_laddie_configfile) // '; conda deactivate')
+        
+        ELSEIF (C%BMB_laddie_system == 'slurm_HPC') THEN
+          CALL system('cd ' // TRIM(C%BMB_laddie_model_foldername) // ' ; srun --ntasks=1 --cpus-per-task=1 --cpu-bind=verbose python3 runladdie.py ' // TRIM(C%BMB_laddie_configfile))
+        
+        ELSE
+          CALL crash('C%BMB_laddie_system not recognized, should be "mac" or "HPC_slurm".')
+        
+        END IF 
+
+      ELSE
+        ! other cores do nothing
+
       END IF 
-      CALL sync
+
+      ! Other cores wait for master core to finish
+      CALL sync 
 
       ! Set found_laddie_file to FALSE
       found_laddie_file = .FALSE.
- 
+
       DO WHILE (.NOT. found_laddie_file) ! Start looking for laddieready
 
         IF (par%master) THEN
@@ -3049,19 +3066,6 @@ CONTAINS
 
       ! Copy initial restart file to restart_latest.nc
       CALL system('cp ' // TRIM(C%BMB_laddie_filename_initial_restart) // ' ' // TRIM(C%fixed_output_dir) // '/laddie_output/restart_latest.nc')  
-
-      ! Create a copy of help_fields_ANT.nc which will be used for laddy input (can not read from active netcdf file)
-      CALL system('ln -s '// TRIM(C%fixed_output_dir) // '/help_fields_ANT.nc ' // TRIM(C%fixed_output_dir) // '/help_fields_ANT_copy.nc ')
-
-      ! Copy run_laddie_template to run_laddie_run.sh and fill in path to configfile and laddie src code
-      CALL system('cp ' // TRIM(C%BMB_laddie_coupling_foldername) // TRIM('/run_laddie_template.sh') // ' ' // TRIM(C%fixed_output_dir) // '/run_laddie_run.sh')
-      CALL system('sed -i s,@laddie_CONFIG,'// TRIM(C%BMB_laddie_configfile) // ', ' // TRIM(C%fixed_output_dir) // '/run_laddie_run.sh')
-      CALL system('sed -i s,@laddie_DIRECTORY,'// TRIM(C%BMB_laddie_model_foldername) // ', ' // TRIM(C%fixed_output_dir) // '/run_laddie_run.sh')
-
-      ! Ensure that the laddie config gives the correct output, restart, and geometry paths !FJFJ: this can be done in a more elegant way
-      CALL system('sed -i s,@geometry_laddie,'// TRIM(C%fixed_output_dir) // '/help_fields_ANT_copy.nc, ' // TRIM(C%BMB_laddie_configfile))
-      CALL system('sed -i s,@restart_laddie,'// TRIM(C%fixed_output_dir) // '/laddie_output/restart_latest.nc, ' // TRIM(C%BMB_laddie_configfile))
-      CALL system('sed -i s,@results_laddie_DIRECTORY,'// TRIM(C%fixed_output_dir) // ', ' // TRIM(C%BMB_laddie_configfile))
 
     END IF
     CALL sync

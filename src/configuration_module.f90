@@ -731,6 +731,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: BMB_laddie_coupling_foldername_config       = ''                               ! Path to directory with laddie executable template run_laddie_template.sh and laddie_configtemplate_XXX.toml
   CHARACTER(LEN=256)  :: BMB_laddie_model_foldername_config          = ''                               ! Path to laddie directory
   CHARACTER(LEN=256)  :: BMB_laddie_configfile_config                = ''                               ! Configfile name of this laddie run
+  CHARACTER(LEN=256)  :: BMB_laddie_system_config                    = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
 
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -1545,6 +1546,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: BMB_laddie_coupling_foldername
     CHARACTER(LEN=256)                  :: BMB_laddie_model_foldername
     CHARACTER(LEN=256)                  :: BMB_laddie_configfile
+    CHARACTER(LEN=256)                  :: BMB_laddie_system
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -2399,6 +2401,7 @@ CONTAINS
                      BMB_laddie_coupling_foldername_config,           &
                      BMB_laddie_model_foldername_config,              &
                      BMB_laddie_configfile_config,                    &
+                     BMB_laddie_system_config,                        &
                      T_ocean_mean_PD_NAM_config,                      &
                      T_ocean_mean_PD_EAS_config,                      &
                      T_ocean_mean_PD_GRL_config,                      &
@@ -3352,6 +3355,7 @@ CONTAINS
     C%BMB_laddie_coupling_foldername           = BMB_laddie_coupling_foldername_config
     C%BMB_laddie_model_foldername              = BMB_laddie_model_foldername_config
     C%BMB_laddie_configfile                    = BMB_laddie_configfile_config
+    C%BMB_laddie_system                        = BMB_laddie_system_config
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
