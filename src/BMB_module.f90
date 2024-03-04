@@ -3008,7 +3008,7 @@ CONTAINS
 
       ! If laddieready is found, read in BMB data from LADDIE
       IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D(BMB_laddie_filename_output_BMB, 'BMB', grid, BMB_LADDIE, region_name)
+        CALL read_field_from_file_2D(BMB_laddie_filename_output_BMB, 'BMBext', grid, BMB_LADDIE, region_name)
       END IF
 
       ! Convert to m.i.e./yr
