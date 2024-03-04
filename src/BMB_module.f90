@@ -3071,7 +3071,7 @@ CONTAINS
     CALL sync
 
     ! Set initial melt from initial file
-    CALL read_field_from_file_2D(C%BMB_laddie_filename_initial_BMB, 'BMB', grid, BMB_LADDIE, region_name)
+    CALL read_field_from_file_2D(C%BMB_laddie_filename_initial_BMB, 'BMBext', grid, BMB_LADDIE, region_name)
 
     ! Convert to m.i.e./yr
     IF (par%master) THEN
