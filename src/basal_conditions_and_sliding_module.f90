@@ -30,7 +30,7 @@ MODULE basal_conditions_and_sliding_module
 CONTAINS
 
   ! The main routine, to be called from the ice_velocity_module
-  SUBROUTINE calc_basal_conditions( grid, ice)
+  SUBROUTINE calc_basal_conditions( grid, ice, region_name)
     ! Determine the basal conditions underneath the ice
 
     IMPLICIT NONE
@@ -38,6 +38,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_conditions'
@@ -46,7 +47,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Basal hydrology
-    CALL calc_basal_hydrology( grid, ice)
+    CALL calc_basal_hydrology( grid, ice, region_name)
 
     ! Bed roughness
     CALL calc_bed_roughness( grid, ice)
@@ -90,7 +91,7 @@ CONTAINS
 ! == Basal hydrology
 ! ==================
 
-  SUBROUTINE calc_basal_hydrology( grid, ice)
+  SUBROUTINE calc_basal_hydrology( grid, ice, region_name)
     ! Calculate the pore water pressure and effective basal pressure
 
     IMPLICIT NONE
@@ -98,6 +99,7 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_basal_hydrology'
@@ -117,7 +119,7 @@ CONTAINS
       CALL calc_pore_water_pressure_saturated( grid, ice)
     ELSEIF (C%choice_basal_hydrology == 'Martin2011') THEN
       ! The Martin et al. (2011) parameterisation of pore water pressure
-      CALL calc_pore_water_pressure_Martin2011( grid, ice)
+      CALL calc_pore_water_pressure_Martin2011( grid, ice, region_name)
     ELSE
       CALL crash('unknown choice_basal_hydrology' // TRIM(C%choice_basal_hydrology))
     END IF
@@ -203,7 +205,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE calc_pore_water_pressure_saturated
-  SUBROUTINE calc_pore_water_pressure_Martin2011( grid, ice)
+  SUBROUTINE calc_pore_water_pressure_Martin2011( grid, ice, region_name)
     ! Calculate the pore water pressure
     !
     ! Use the parameterisation from Martin et al. (2011)
@@ -213,14 +215,21 @@ CONTAINS
     ! Input variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_pore_water_pressure_Martin2011'
     INTEGER                                            :: i,j
     REAL(dp)                                           :: lambda_p
+    REAL(dp)                                           :: Martin2011_hydro_N_lim
 
     ! Add routine to path
     CALL init_routine( routine_name)
+
+    IF (region_name == 'NAM') Martin2011_hydro_N_lim = C%Martin2011_hydro_N_lim_NAM
+    IF (region_name == 'EAS') Martin2011_hydro_N_lim = C%Martin2011_hydro_N_lim_EAS
+    IF (region_name == 'GRL') Martin2011_hydro_N_lim = C%Martin2011_hydro_N_lim_GRL
+    IF (region_name == 'ANT') Martin2011_hydro_N_lim = C%Martin2011_hydro_N_lim_ANT
 
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
@@ -229,7 +238,7 @@ CONTAINS
       lambda_p = MIN( 1._dp, MAX( 0._dp, 1._dp - (ice%Hb_a( j,i) - ice%SL_a( j,i) - C%Martin2011_hydro_Hb_min) / (C%Martin2011_hydro_Hb_max - C%Martin2011_hydro_Hb_min) ))
 
       ! Pore water pressure (Martin et al., 2011, Eq. 11)
-      ice%pore_water_pressure_a( j,i) = C%Martin2011_hydro_N_lim * ice_density * grav * ice%Hi_a( j,i) * lambda_p
+      ice%pore_water_pressure_a( j,i) = Martin2011_hydro_N_lim * ice_density * grav * ice%Hi_a( j,i) * lambda_p
 
     END DO
     END DO

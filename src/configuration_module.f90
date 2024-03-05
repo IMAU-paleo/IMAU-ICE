@@ -397,7 +397,10 @@ MODULE configuration_module
 
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
-  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_NAM_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_EAS_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_GRL_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_ANT_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
@@ -1237,7 +1240,10 @@ MODULE configuration_module
 
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
-    REAL(dp)                            :: Martin2011_hydro_N_lim
+    REAL(dp)                            :: Martin2011_hydro_N_lim_NAM
+    REAL(dp)                            :: Martin2011_hydro_N_lim_EAS
+    REAL(dp)                            :: Martin2011_hydro_N_lim_GRL
+    REAL(dp)                            :: Martin2011_hydro_N_lim_ANT
     REAL(dp)                            :: Martin2011_hydro_Hb_min
     REAL(dp)                            :: Martin2011_hydro_Hb_max
 
@@ -2180,7 +2186,10 @@ CONTAINS
                      deltaT_basal_freezing_config,                    &
                      subgrid_friction_exponent_config,                &
                      choice_basal_hydrology_config,                   &
-                     Martin2011_hydro_N_lim_config,                   &
+                     Martin2011_hydro_N_lim_NAM_config,               &
+                     Martin2011_hydro_N_lim_EAS_config,               &
+                     Martin2011_hydro_N_lim_GRL_config,               &
+                     Martin2011_hydro_N_lim_ANT_config,               &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
                      choice_basal_roughness_config,                   &
@@ -3048,7 +3057,10 @@ CONTAINS
 
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
-    C%Martin2011_hydro_N_lim                   = Martin2011_hydro_N_lim_config
+    C%Martin2011_hydro_N_lim_NAM               = Martin2011_hydro_N_lim_NAM_config
+    C%Martin2011_hydro_N_lim_EAS               = Martin2011_hydro_N_lim_EAS_config
+    C%Martin2011_hydro_N_lim_GRL               = Martin2011_hydro_N_lim_GRL_config
+    C%Martin2011_hydro_N_lim_ANT               = Martin2011_hydro_N_lim_ANT_config
     C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
 
@@ -3066,9 +3078,9 @@ CONTAINS
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
     C%basal_roughness_filename_NAM             = basal_roughness_filename_NAM_config
-    C%basal_roughness_filename_EAS			   = basal_roughness_filename_EAS_config
-    C%basal_roughness_filename_GRL			   = basal_roughness_filename_GRL_config
-    C%basal_roughness_filename_ANT			   = basal_roughness_filename_ANT_config
+    C%basal_roughness_filename_EAS             = basal_roughness_filename_EAS_config
+    C%basal_roughness_filename_GRL             = basal_roughness_filename_GRL_config
+    C%basal_roughness_filename_ANT             = basal_roughness_filename_ANT_config
     C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
     C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
     C%porenudge_H_dHdt_flowline_dist_max       = porenudge_H_dHdt_flowline_dist_max_config

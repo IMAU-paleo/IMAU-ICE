@@ -437,7 +437,10 @@ CONTAINS
     ! Initialise the rheology
     CALL calc_ice_rheology( region%grid, region%ice, C%start_time_of_run)
 
-    IF (C%choice_initial_ice_temperature == 'restart') THEN
+    IF ((region%name == 'NAM' .AND. C%choice_initial_ice_temperature_NAM == 'restart') .OR. &
+       ( region%name == 'EAS' .AND. C%choice_initial_ice_temperature_EAS == 'restart') .OR. &
+       ( region%name == 'GRL' .AND. C%choice_initial_ice_temperature_GRL == 'restart') .OR. &
+       ( region%name == 'ANT' .AND. C%choice_initial_ice_temperature_ANT == 'restart')) THEN
       ! Do nothing
     ELSE
       ! Run thermodynamics
@@ -495,7 +498,7 @@ CONTAINS
 
     IF (C%choice_ice_dynamics == 'none') THEN
       C%choice_ice_dynamics = 'DIVA'
-      CALL solve_DIVA( region%grid, region%ice)
+      CALL solve_DIVA( region%grid, region%ice, region%name)
       C%choice_ice_dynamics = 'none'
     END IF
 

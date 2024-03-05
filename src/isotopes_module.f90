@@ -180,11 +180,11 @@ CONTAINS
     DO j = 2, region%grid%ny-1
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
 
-        ! Calculate advective isotope fluxes
+        ! Calculate IsoIce advection
         IF (region%ice%U_vav_cx( j  ,i-1) > 0._dp) THEN
-          dIso_xl = region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a( j  ,i-1) * region%ice%IsoIce( j  ,i-1) * region%grid%dx
+          dIso_xl = region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a(        j  ,i-1) * region%ice%IsoIce( j  ,i-1) * region%grid%dx
         ELSE
-          dIso_xl = region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a( j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
+          dIso_xl = region%ice%U_vav_cx( j  ,i-1) * region%ice%Hi_a(        j  ,i  ) * region%ice%IsoIce( j  ,i  ) * region%grid%dx
         END IF
       
         IF (region%ice%U_vav_cx( j  ,i  ) > 0._dp) THEN
@@ -217,12 +217,12 @@ CONTAINS
         ! Calcualte the new IsoIce and limit it between IsoMin and IsoMax
         IsoIce_new( j,i) = MIN( IsoMax, MAX( IsoMin, VIso / (region%grid%dx * region%grid%dx * region%ice%Hi_tplusdt_a( j,i)) ))
        
-        ! FAIL SAVE: For very thin ice this calculation does not work. So assume IsoIce is 0.
+        ! FAIL SAVE: For very thin ice (e.g., <1E-50) this calculation does not work. So assume IsoIce is 0.
         IF (region%ice%Hi_tplusdt_a( j,i) < 0.1_dp) THEN
           IsoIce_new( j,i) = 0._dp
         END IF
 
-        ! FAIL SAVE: Calving front take the IsoIce from the source of advected ice
+        ! FAIL SAVE: Calving front take over IsoIce from neighbouring cell!
         IF (region%ice%float_margin_frac_a( j,i) < 0.99_dp) THEN
            
            ! Check the source areas:
