@@ -1236,7 +1236,7 @@ CONTAINS
       climate%matrix%GCM_bias_Wind_LR,  climate%matrix%GCM_bias_Wind_DU, region_name)
 
     ! Apply bias correction on warm snapshot
-    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction(   grid, climate%matrix%GCM_warm, &
+    IF (C%climate_matrix_biascorrect_warm) CALL initialise_matrix_apply_bias_correction_PI(   grid, climate%matrix%GCM_warm, &
       climate%matrix%GCM_bias_T2m, climate%matrix%GCM_bias_Precip, climate%matrix%GCM_bias_Hs, &
       climate%matrix%GCM_bias_Wind_LR,  climate%matrix%GCM_bias_Wind_DU )
 
@@ -1350,8 +1350,51 @@ CONTAINS
 
   END SUBROUTINE initialise_matrix_calc_GCM_bias
 
-   SUBROUTINE initialise_matrix_apply_bias_correction( grid, snapshot, bias_T2m, bias_Precip, bias_Hs, bias_Wind_LR, bias_Wind_DU)
+  SUBROUTINE initialise_matrix_apply_bias_correction_PI( grid, snapshot, bias_T2m, bias_Precip, bias_Hs, bias_Wind_LR, bias_Wind_DU)
     ! Apply a bias correction to this (GCM) snapshot
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_climate_snapshot),          INTENT(INOUT) :: snapshot
+    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_T2m
+    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_Precip
+    REAL(dp), DIMENSION(:,:  ),           INTENT(IN)    :: bias_Hs
+    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_Wind_LR
+    REAL(dp), DIMENSION(:,:,:),           INTENT(IN)    :: bias_Wind_DU
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'initialise_matrix_apply_bias_correction_PI'
+    INTEGER                                             :: i,j,m
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    !  IF (C%climate_matrix_biascorrect_cold) CALL crash('climate_matrix_biascorrect_cold  = .TRUE.: The bias correction in its current state should only be applied to PI/PD')
+
+    ! Apply bias correction
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+    snapshot%Hs( j,i) = snapshot%Hs( j,i) - bias_Hs( j,i)
+    DO m = 1, 12
+      snapshot%T2m(     m,j,i) = snapshot%T2m(     m,j,i) - bias_T2m(     m,j,i)
+      snapshot%Precip(  m,j,i) = snapshot%Precip(  m,j,i) / bias_Precip(  m,j,i)
+      snapshot%Wind_LR( m,j,i) = snapshot%Wind_LR( m,j,i) - bias_Wind_LR( m,j,i)
+      snapshot%Wind_DU( m,j,i) = snapshot%Wind_DU( m,j,i) - bias_Wind_DU( m,j,i)
+    END DO
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_matrix_apply_bias_correction_PI
+
+  SUBROUTINE initialise_matrix_apply_bias_correction( grid, snapshot, bias_T2m, bias_Precip, bias_Hs, bias_Wind_LR, bias_Wind_DU)
+    ! Apply a bias correction to this (GCM) snapshot
+    ! Specifically made for snapshots with very different topography. 
 
     IMPLICIT NONE
 
@@ -1371,17 +1414,14 @@ CONTAINS
     ! Add routine to path
     CALL init_routine( routine_name)
 
-    IF (C%climate_matrix_biascorrect_cold) CALL crash('climate_matrix_biascorrect_cold  = .TRUE.: The bias correction in its current state should only be applied to PI/PD')
-
     ! Apply bias correction
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-    snapshot%Hs( j,i) = snapshot%Hs( j,i) - bias_Hs( j,i)
     DO m = 1, 12
       snapshot%T2m(     m,j,i) = snapshot%T2m(     m,j,i) - bias_T2m(     m,j,i)
       snapshot%Precip(  m,j,i) = snapshot%Precip(  m,j,i) / bias_Precip(  m,j,i)
-      snapshot%Wind_LR( m,j,i) = snapshot%Wind_LR( m,j,i) - bias_Wind_LR( m,j,i)
-      snapshot%Wind_DU( m,j,i) = snapshot%Wind_DU( m,j,i) - bias_Wind_DU( m,j,i)
+    !  snapshot%Wind_LR( m,j,i) = snapshot%Wind_LR( m,j,i) - bias_Wind_LR( m,j,i)
+    !  snapshot%Wind_DU( m,j,i) = snapshot%Wind_DU( m,j,i) - bias_Wind_DU( m,j,i)
     END DO
     END DO
     END DO
