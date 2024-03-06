@@ -22,7 +22,7 @@ MODULE scalar_data_output_module
 
 CONTAINS
 
-  SUBROUTINE write_regional_scalar_data( region, time)
+  SUBROUTINE update_regional_scalar_data( region, time)
     ! Write some regionally integrated scalar values to the NetCDF output file
 
     IMPLICIT NONE
@@ -32,7 +32,7 @@ CONTAINS
     REAL(dp),                            INTENT(IN)    :: time
 
     ! Local variables:
-    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_regional_scalar_data'
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'update_regional_scalar_data'
     INTEGER                                            :: i,j,m
     REAL(dp)                                           :: T2m_mean
     REAL(dp)                                           :: total_snowfall
@@ -40,9 +40,10 @@ CONTAINS
     REAL(dp)                                           :: total_melt
     REAL(dp)                                           :: total_refreezing
     REAL(dp)                                           :: total_runoff
-    REAL(dp)                                           :: total_SMB
-    REAL(dp)                                           :: total_BMB
+    REAL(dp)                                           :: total_SMB, local_SMB
+    REAL(dp)                                           :: total_BMB, local_BMB
     REAL(dp)                                           :: total_MB
+    REAL(dp)                                           :: total_Calving
 
     ! Add routine to path
     CALL init_routine( routine_name)
@@ -52,6 +53,7 @@ CONTAINS
       RETURN
     END IF
 
+    ! ======= Temperature =======
     ! Region-wide annual mean surface temperature
     IF (C%choice_climate_model == 'none') THEN
       ! In this case, no surface temperature is calculated at all
@@ -61,7 +63,9 @@ CONTAINS
 
       DO i = region%grid%i1, region%grid%i2
       DO j = 1, region%grid%ny
-        T2m_mean = T2m_mean + SUM( region%climate%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny)
+        ! Calculate annual mean temperature
+        ! NOTE: region%dt here is used to calculate the mean temperature over two write_regional_scalar time-steps
+        T2m_mean = T2m_mean + SUM( region%climate%T2m( :,j,i)) / (12._dp * region%grid%nx * region%grid%ny) * region%dt
       END DO
       END DO
       CALL sync
@@ -69,12 +73,34 @@ CONTAINS
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
       IF (par%master) THEN
-        region%int_T2m = T2m_mean
+        region%int_T2m = region%int_T2m + T2m_mean
       END IF
       CALL sync
 
     END IF ! IF (C%choice_climate_model == 'none') THEN
 
+    ! ======= MB and Calving =======
+    total_MB      = 0._dp
+    total_Calving = 0._dp
+
+    DO i = region%grid%i1, region%grid%i2
+    DO j = 1, region%grid%ny
+        ! Add MB and Calving together
+        total_MB      = total_MB      + ( region%ice%MB( j,i)      * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_Calving = total_Calving + ( region%ice%Calving( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+    END DO
+    END DO
+    CALL sync
+    
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_MB,      1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_Calving, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
+
+    IF (par%master) THEN
+      region%int_MB      = region%int_MB      + total_MB
+      region%int_Calving = region%int_Calving + total_Calving
+    END IF
+
+    ! ======= SMB and BMB =======
     ! Ice-sheet-integrated surface/basal mass balance
     total_SMB = 0._dp
     total_BMB = 0._dp
@@ -82,25 +108,46 @@ CONTAINS
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
-        total_SMB = total_SMB + (region%SMB%SMB_year( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-        total_BMB = total_BMB + (region%BMB%BMB(      j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+
+        ! First: Check if SMB + BMB exceeds ice thickness
+        local_SMB = (region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%dt )
+        local_BMB = (region%BMB%BMB(      j,i) * region%ice%float_margin_frac_a( j,i) * region%dt )
+
+        ! Check if melt exceeds current ice thickness 
+        ! (and make sure SMB and BMB are negative, but not too small to prevent dividing by small numbers)
+        !IF (region%ice%Hi_a( j,i) < 0.001_dp .OR. ABS(local_SMB + local_BMB) < 0.001_dp ) THEN
+        !  ! Very thin ice, mass balance fluxes may be wrong (dividing by small number)
+        !  local_SMB = 0._dp
+        !  local_BMB = 0._dp
+        IF (region%ice%Hi_a( j,i) < -(local_SMB + local_BMB)) THEN
+
+           ! Scale SMB with respect to the remaining Hi
+           local_SMB = -region%ice%Hi_a( j,i) * ( local_SMB / (local_SMB + local_BMB))
+           
+           ! The rest should be BMB
+           local_BMB = -local_SMB - region%ice%Hi_a( j,i)
+
+        END IF
+       
+        ! Add the mass balance components 
+        total_SMB = total_SMB + (local_SMB * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_BMB = total_BMB + (local_BMB * region%grid%dx * region%grid%dx / 1E9_dp)
+
       END IF
     END DO
     END DO
     CALL sync
 
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, T2m_mean , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_SMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
-    total_MB = total_SMB + total_BMB
-
     IF (par%master) THEN
-      region%int_SMB = total_SMB
-      region%int_BMB = total_BMB
-      region%int_MB  = total_MB
+      region%int_SMB = region%int_SMB + total_SMB
+      region%int_BMB = region%int_BMB + total_BMB
     END IF
     CALL sync
+
+   ! ======= SMB components =======
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
@@ -125,11 +172,11 @@ CONTAINS
         IF (region%ice%Hi_a( j,i) > 0._dp) THEN
 
           DO m = 1, 12
-            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
           END DO
 
         END IF
@@ -145,11 +192,11 @@ CONTAINS
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
       IF (par%master) THEN
-        region%int_snowfall   = total_snowfall
-        region%int_rainfall   = total_rainfall
-        region%int_melt       = total_melt
-        region%int_refreezing = total_refreezing
-        region%int_runoff     = total_runoff
+        region%int_snowfall   = region%int_snowfall   + total_snowfall
+        region%int_rainfall   = region%int_rainfall   + total_rainfall
+        region%int_melt       = region%int_melt       + total_melt
+        region%int_refreezing = region%int_refreezing + total_refreezing
+        region%int_runoff     = region%int_runoff     + total_runoff
       END IF
       CALL sync
 
@@ -157,13 +204,102 @@ CONTAINS
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
 
-    ! Write to NetCDF file
-    CALL write_to_regional_scalar_file( region%scalar_filename, region)
+    ! Keep track of the total time elapsed between two regional_scalar time-steps
+    IF (par%master) THEN
+      region%int_dt = region%int_dt + region%dt
+    END IF
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
+  END SUBROUTINE update_regional_scalar_data
+
+
+  SUBROUTINE write_regional_scalar_data( region, time)
+
+    ! Write some regionally integrated scalar values to the NetCDF output file
+
+    IMPLICIT NONE
+
+    ! Input variables:
+    TYPE(type_model_region),             INTENT(INOUT) :: region
+    REAL(dp),                            INTENT(IN)    :: time
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'write_regional_scalar_data'
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (.NOT. C%do_write_regional_scalar_output) THEN
+      CALL finalise_routine( routine_name)
+      RETURN
+    END IF
+
+    ! Average the components based on the elapsed time between scalar output writing
+    
+    IF (par%master) THEN
+      ! ======= Temperature =======
+      ! Region-wide annual mean surface temperature
+      IF (C%choice_climate_model == 'none') THEN
+        ! In this case, no surface temperature is calculated at all
+      ELSE
+        region%int_T2m = region%int_T2m / region%int_dt
+      END IF ! IF (C%choice_climate_model == 'none') THEN
+
+      ! ======= MB and Calving =======
+      region%int_MB      = region%int_MB      / region%int_dt
+      region%int_Calving = region%int_Calving / region%int_dt
+
+      ! ======= SMB and BMB  ========
+      region%int_SMB = region%int_SMB / region%int_dt
+      region%int_BMB = region%int_BMB / region%int_dt
+      
+      ! Individual SMB components
+      IF     (C%choice_SMB_model == 'uniform' .OR. &
+              C%choice_SMB_model == 'idealised' .OR. &
+              C%choice_SMB_model == 'direct_global' .OR. &
+              C%choice_SMB_model == 'direct_regional' .OR. &
+              C%choice_SMB_model == 'snapshot' .OR. &
+              C%choice_SMB_model == 'ISMIP_style') THEN
+        ! Do nothing
+      ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+              C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN   
+        region%int_snowfall   = region%int_snowfall   / region%int_dt
+        region%int_rainfall   = region%int_rainfall   / region%int_dt
+        region%int_melt       = region%int_melt       / region%int_dt
+        region%int_refreezing = region%int_refreezing / region%int_dt
+        region%int_runoff     = region%int_runoff     / region%int_dt
+      ELSE
+        CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
+      END IF
+    END IF ! (par%master)
+    CALL sync
+
+    ! Write to NetCDF file
+    CALL write_to_regional_scalar_file( region%scalar_filename, region)
+
+    ! Set the elapsed time after the previous write_scalar to 0.
+    region%int_dt = 0._dp
+
+    ! Set all other variables to 0.
+    region%int_T2m        = 0._dp
+    region%int_MB         = 0._dp
+    region%int_Calving    = 0._dp
+    region%int_SMB        = 0._dp
+    region%int_BMB        = 0._dp
+    region%int_snowfall   = 0._dp
+    region%int_rainfall   = 0._dp
+    region%int_melt       = 0._dp
+    region%int_refreezing = 0._dp
+    region%int_runoff     = 0._dp 
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+
   END SUBROUTINE write_regional_scalar_data
+
   SUBROUTINE write_global_scalar_data( global_data, NAM, EAS, GRL, ANT, forcing, time)
     ! Collect some global scalar data values and write to the NetCDF output file
 

@@ -38,7 +38,7 @@ MODULE IMAU_ICE_main_model
 # if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
 # endif
-  USE scalar_data_output_module,           ONLY: write_regional_scalar_data
+  USE scalar_data_output_module,           ONLY: update_regional_scalar_data, write_regional_scalar_data
   USE basal_conditions_and_sliding_module, ONLY: basal_inversion_geo, write_inverted_bed_roughness_to_file
 
   USE netcdf_debug_module,                 ONLY: save_variable_as_netcdf_int_1D, save_variable_as_netcdf_int_2D, save_variable_as_netcdf_int_3D, &
@@ -236,8 +236,11 @@ CONTAINS
       ! used for writing to text output and in the inverse routine
       CALL calculate_icesheet_volume_and_area(region)
 
+      ! Update the regional output data every model time-step 
+      CALL update_regional_scalar_data( region, region%time)
+
       IF (region%do_output_regional_scalar) THEN
-        ! Save regional scalar every model time-step
+        ! Save regional scalar
         CALL write_regional_scalar_data( region, region%time)
       END IF
 
@@ -431,7 +434,7 @@ CONTAINS
     CALL run_ocean_model( region%grid, region%ice, region%ocean_matrix, region%climate, region%name, C%start_time_of_run, region%refgeo_PD)
     CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, C%start_time_of_run, region%refgeo_PD, region%climate)
 
-    ! Initialise the ice temperature field
+    ! Initialise the ice temiperature field
     CALL initialise_ice_temperature( region%grid, region%ice, region%climate, region%ocean_matrix%applied, region%SMB, region%name)
 
     ! Initialise the rheology
@@ -485,6 +488,7 @@ CONTAINS
     ! Calculate and write the first entry (ice volume and area, GMSL contribution, isotope stuff)
     CALL calculate_PD_sealevel_contribution( region)
     CALL calculate_icesheet_volume_and_area(region)
+    CALL update_regional_scalar_data( region, region%time)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
     ! Write the first entry to the help fields and restart files
@@ -681,6 +685,8 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%int_SMB                      , region%wint_SMB                      )
     CALL allocate_shared_dp_0D( region%int_BMB                      , region%wint_BMB                      )
     CALL allocate_shared_dp_0D( region%int_MB                       , region%wint_MB                       )
+    CALL allocate_shared_dp_0D( region%int_calving                  , region%wint_Calving                  )
+    CALL allocate_shared_dp_0D( region%int_dt                       , region%wint_dt                       )
 
     ! Englacial isotope content
     CALL allocate_shared_dp_0D( region%GMSL_contribution            , region%wGMSL_contribution            )
@@ -1006,8 +1012,8 @@ CONTAINS
     DO j = 1, region%grid%ny
 
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
-        ice_volume = ice_volume + (region%ice%Hi_a(j,i) * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area))
-        ice_area   = ice_area   + region%grid%dx * region%grid%dx * 1.0E-06_dp ! [km^3]
+        ice_volume = ice_volume + (region%ice%Hi_a(j,i)                * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area))
+        ice_area   = ice_area   + region%ice%float_margin_frac_a( j,i) * region%grid%dx * region%grid%dx * 1.0E-06_dp ! [km^3]
 
         ! Thickness above flotation
         thickness_above_flotation = MAX(0._dp, region%ice%Hi_a( j,i) - MAX(0._dp, (region%ice%SL_a( j,i) - region%ice%Hb_a( j,i) * (seawater_density / ice_density))))
