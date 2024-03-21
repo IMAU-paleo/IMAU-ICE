@@ -1390,12 +1390,29 @@ SUBROUTINE get_insolation_at_time( grid, time, Q_TOA)
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                 :: routine_name = 'initialise_geoid'
+    INTEGER                                       :: i,j
 
     ! Add routine to path
     CALL init_routine( routine_name)
 
     ! Read geoid
-    CALL read_field_from_file_2D(   C%filename_geoid_baseline, 'Geoid', grid, ice%SL_a, region_name)
+    ! CALL read_field_from_file_2D(   C%filename_geoid_baseline, 'Geoid', grid, ice%SL_a, region_name)
+
+    IF (par%master) THEN
+      open (91, file = C%filename_geoid_baseline, status = 'old')
+        do i = 1,grid%NX
+          read(91,*) (ice%SL_a(j,i),j=1,grid%NY)
+        enddo
+      close(91)
+    END IF
+    CALL SYNC
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dSL_dt_a(j,i) = ice%SL_a(j,i) / (C%end_time_of_run - C%start_time_of_run)
+    END DO
+    END DO
+    CALL SYNC
 
     ! Safety
     CALL check_for_NaN_dp_2D( ice%SL_a, 'ice%wSL_a')
