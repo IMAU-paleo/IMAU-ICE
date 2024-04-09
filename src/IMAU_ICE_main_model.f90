@@ -488,6 +488,10 @@ CONTAINS
     ! Calculate and write the first entry (ice volume and area, GMSL contribution, isotope stuff)
     CALL calculate_PD_sealevel_contribution( region)
     CALL calculate_icesheet_volume_and_area(region)
+    
+    ! Calculate MB once. For now, calving cannot be calculated during initialisation
+    region%ice%MB( :, region%grid%i1:region%grid%i2)      = (MAX( 0._dp, region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)) - region%ice%Hi_a( :,region%grid%i1:region%grid%i2)) * region%dt
+
     CALL update_regional_scalar_data( region, region%time)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
