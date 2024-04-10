@@ -236,10 +236,10 @@ CONTAINS
       ! used for writing to text output and in the inverse routine
       CALL calculate_icesheet_volume_and_area(region)
 
-      ! Update the regional output data every model time-step 
-      CALL update_regional_scalar_data( region, region%time)
-
       IF (region%do_output_regional_scalar) THEN
+        ! Update the regional output data every model time-step 
+        CALL update_regional_scalar_data( region, region%time)
+      
         ! Save regional scalar
         CALL write_regional_scalar_data( region, region%time)
       END IF
