@@ -104,6 +104,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: fixed_output_dir_config                        = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
+  LOGICAL             :: do_write_regional_scalar_output_average_config = .FALSE.                          ! Write the running average to scalar output file
   LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
   LOGICAL             :: do_write_resource_tracking_output_config       = .TRUE.
 
@@ -397,7 +398,10 @@ MODULE configuration_module
 
   ! Basal hydrology
   CHARACTER(LEN=256)  :: choice_basal_hydrology_config               = 'Martin2011'                     ! Choice of basal conditions: "saturated", "Martin2011"
-  REAL(dp)            :: Martin2011_hydro_N_lim_config               = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_NAM_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_EAS_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_GRL_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
+  REAL(dp)            :: Martin2011_hydro_N_lim_ANT_config           = 0.96_dp                          ! Martin et al. (2011) basal hydrology model: limit pore water pressure w.r.t. overburden [1=100% allowed; 0=no hydrology; 0.96 used in ref. paper]
   REAL(dp)            :: Martin2011_hydro_Hb_min_config              = 0._dp                            ! Martin et al. (2011) basal hydrology model: low-end  Hb  value of bedrock-dependent pore-water pressure
   REAL(dp)            :: Martin2011_hydro_Hb_max_config              = 1000._dp                         ! Martin et al. (2011) basal hydrology model: high-end Hb  value of bedrock-dependent pore-water pressure
 
@@ -414,7 +418,10 @@ MODULE configuration_module
   REAL(dp)            :: Martin2011till_phi_Hb_max_config            = 0._dp                            ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_min_config               = 5._dp                            ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   REAL(dp)            :: Martin2011till_phi_max_config               = 20._dp                           ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  CHARACTER(LEN=256)  :: basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_NAM_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_EAS_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_GRL_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
+  CHARACTER(LEN=256)  :: basal_roughness_filename_ANT_config         = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   LOGICAL             :: do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   REAL(dp)            :: r_smooth_phi_restart_config                 = 0.5_dp                           ! Prescribed bed roughness smoothing radius (in number of grid cells)
   REAL(dp)            :: porenudge_H_dHdt_flowline_dist_max_config   = 500.0_dp                          ! Maximum distance for flowline extrapolation (km)
@@ -466,7 +473,10 @@ MODULE configuration_module
   ! Thermodynamics and rheology
   ! ===========================
 
-  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_config       = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_NAM_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_EAS_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_GRL_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  CHARACTER(LEN=256)  :: choice_initial_ice_temperature_ANT_config   = 'Robin'                          ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   REAL(dp)            :: uniform_ice_temperature_config              = 270._dp                          ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   CHARACTER(LEN=256)  :: choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
   CHARACTER(LEN=256)  :: choice_ice_rheology_config                  = 'Huybrechts1992'                 ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -958,6 +968,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
+    LOGICAL                             :: do_write_regional_scalar_output_average
     LOGICAL                             :: do_write_global_scalar_output
     LOGICAL                             :: do_write_resource_tracking_output
 
@@ -1231,7 +1242,10 @@ MODULE configuration_module
 
     ! Basal hydrology
     CHARACTER(LEN=256)                  :: choice_basal_hydrology
-    REAL(dp)                            :: Martin2011_hydro_N_lim
+    REAL(dp)                            :: Martin2011_hydro_N_lim_NAM
+    REAL(dp)                            :: Martin2011_hydro_N_lim_EAS
+    REAL(dp)                            :: Martin2011_hydro_N_lim_GRL
+    REAL(dp)                            :: Martin2011_hydro_N_lim_ANT
     REAL(dp)                            :: Martin2011_hydro_Hb_min
     REAL(dp)                            :: Martin2011_hydro_Hb_max
 
@@ -1248,7 +1262,10 @@ MODULE configuration_module
     REAL(dp)                            :: Martin2011till_phi_Hb_max
     REAL(dp)                            :: Martin2011till_phi_min
     REAL(dp)                            :: Martin2011till_phi_max
-    CHARACTER(LEN=256)                  :: basal_roughness_filename
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_NAM
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_EAS
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_GRL
+    CHARACTER(LEN=256)                  :: basal_roughness_filename_ANT
     LOGICAL                             :: do_smooth_phi_restart
     REAL(dp)                            :: r_smooth_phi_restart
     REAL(dp)                            :: porenudge_H_dHdt_flowline_dist_max
@@ -1300,7 +1317,10 @@ MODULE configuration_module
     ! Thermodynamics and rheology
     ! ===========================
 
-    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_NAM
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_EAS
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_GRL
+    CHARACTER(LEN=256)                  :: choice_initial_ice_temperature_ANT
     REAL(dp)                            :: uniform_ice_temperature
     CHARACTER(LEN=256)                  :: choice_thermo_model
     CHARACTER(LEN=256)                  :: choice_ice_rheology
@@ -1975,6 +1995,7 @@ CONTAINS
                      fixed_output_dir_config,                         &
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
+                     do_write_regional_scalar_output_average_config,  &
                      do_write_global_scalar_output_config,            &
                      do_write_resource_tracking_output_config,        &
                      do_check_for_NaN_config,                         &
@@ -2168,7 +2189,10 @@ CONTAINS
                      deltaT_basal_freezing_config,                    &
                      subgrid_friction_exponent_config,                &
                      choice_basal_hydrology_config,                   &
-                     Martin2011_hydro_N_lim_config,                   &
+                     Martin2011_hydro_N_lim_NAM_config,               &
+                     Martin2011_hydro_N_lim_EAS_config,               &
+                     Martin2011_hydro_N_lim_GRL_config,               &
+                     Martin2011_hydro_N_lim_ANT_config,               &
                      Martin2011_hydro_Hb_min_config,                  &
                      Martin2011_hydro_Hb_max_config,                  &
                      choice_basal_roughness_config,                   &
@@ -2183,7 +2207,10 @@ CONTAINS
                      Martin2011till_phi_Hb_max_config,                &
                      Martin2011till_phi_min_config,                   &
                      Martin2011till_phi_max_config,                   &
-                     basal_roughness_filename_config,                 &
+                     basal_roughness_filename_NAM_config,             &
+                     basal_roughness_filename_EAS_config,             &
+                     basal_roughness_filename_GRL_config,             &
+                     basal_roughness_filename_ANT_config,             &
                      do_smooth_phi_restart_config,                    &
                      r_smooth_phi_restart_config,                     &
                      porenudge_H_dHdt_flowline_dist_max_config,       &
@@ -2225,7 +2252,10 @@ CONTAINS
                      remove_shelves_larger_than_PD_config,            &
                      continental_shelf_calving_config,                &
                      continental_shelf_min_height_config,             &
-                     choice_initial_ice_temperature_config,           &
+                     choice_initial_ice_temperature_NAM_config,       &
+                     choice_initial_ice_temperature_EAS_config,       &
+                     choice_initial_ice_temperature_GRL_config,       &
+                     choice_initial_ice_temperature_ANT_config,       &
                      uniform_ice_temperature_config,                  &
                      choice_thermo_model_config,                      &
                      choice_ice_rheology_config,                      &
@@ -2755,6 +2785,7 @@ CONTAINS
     C%fixed_output_dir                         = fixed_output_dir_config
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
+    C%do_write_regional_scalar_output_average  = do_write_regional_scalar_output_average_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
     C%do_write_resource_tracking_output        = do_write_resource_tracking_output_config
     ! Debugging
@@ -3030,7 +3061,10 @@ CONTAINS
 
     ! Basal hydrology
     C%choice_basal_hydrology                   = choice_basal_hydrology_config
-    C%Martin2011_hydro_N_lim                   = Martin2011_hydro_N_lim_config
+    C%Martin2011_hydro_N_lim_NAM               = Martin2011_hydro_N_lim_NAM_config
+    C%Martin2011_hydro_N_lim_EAS               = Martin2011_hydro_N_lim_EAS_config
+    C%Martin2011_hydro_N_lim_GRL               = Martin2011_hydro_N_lim_GRL_config
+    C%Martin2011_hydro_N_lim_ANT               = Martin2011_hydro_N_lim_ANT_config
     C%Martin2011_hydro_Hb_min                  = Martin2011_hydro_Hb_min_config
     C%Martin2011_hydro_Hb_max                  = Martin2011_hydro_Hb_max_config
 
@@ -3047,7 +3081,10 @@ CONTAINS
     C%Martin2011till_phi_Hb_max                = Martin2011till_phi_Hb_max_config
     C%Martin2011till_phi_min                   = Martin2011till_phi_min_config
     C%Martin2011till_phi_max                   = Martin2011till_phi_max_config
-    C%basal_roughness_filename                 = basal_roughness_filename_config
+    C%basal_roughness_filename_NAM             = basal_roughness_filename_NAM_config
+    C%basal_roughness_filename_EAS             = basal_roughness_filename_EAS_config
+    C%basal_roughness_filename_GRL             = basal_roughness_filename_GRL_config
+    C%basal_roughness_filename_ANT             = basal_roughness_filename_ANT_config
     C%do_smooth_phi_restart                    = do_smooth_phi_restart_config
     C%r_smooth_phi_restart                     = r_smooth_phi_restart_config
     C%porenudge_H_dHdt_flowline_dist_max       = porenudge_H_dHdt_flowline_dist_max_config
@@ -3099,7 +3136,10 @@ CONTAINS
     ! Thermodynamics and rheology
     ! ===========================
 
-    C%choice_initial_ice_temperature           = choice_initial_ice_temperature_config
+    C%choice_initial_ice_temperature_NAM       = choice_initial_ice_temperature_NAM_config
+    C%choice_initial_ice_temperature_EAS       = choice_initial_ice_temperature_EAS_config
+    C%choice_initial_ice_temperature_GRL       = choice_initial_ice_temperature_GRL_config
+    C%choice_initial_ice_temperature_ANT       = choice_initial_ice_temperature_ANT_config
     C%uniform_ice_temperature                  = uniform_ice_temperature_config
     C%choice_thermo_model                      = choice_thermo_model_config
     C%choice_ice_rheology                      = choice_ice_rheology_config

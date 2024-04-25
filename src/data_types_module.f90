@@ -292,7 +292,8 @@ MODULE data_types_module
     ! Ice dynamics - calving
     REAL(dp), DIMENSION(:,:  ), POINTER     :: float_margin_frac_a   ! Ice-covered fraction for calving front pixels
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Hi_eff_cf_a           ! Effective ice thickness at calving front pixels (= Hi of thinnest non-calving-front neighbour)
-    INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: Calving               ! Total calving rate (m)
+    INTEGER :: wfloat_margin_frac_a, wHi_eff_cf_a, wCalving
 
     ! Ice dynamics - predictor/corrector ice thickness update
     REAL(dp),                   POINTER     :: pc_zeta
@@ -339,7 +340,8 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a                  ! Surface elevation difference w.r.t. PD reference
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_dt_target          ! Target dHi_dt during model spinup
-    INTEGER :: wdHi_a, wdHs_a, wdHi_dt_target
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: MB                            ! Annual MB   (m)
+    INTEGER :: wdHi_a, wdHs_a, wdHi_dt_target, wMB
 
   END TYPE type_ice_model
 
@@ -711,6 +713,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: Albedo_year                   ! Yearly albedo
     REAL(dp), DIMENSION(:,:,:), POINTER     :: SMB                           ! Monthly SMB (m)
     REAL(dp), DIMENSION(:,:  ), POINTER     :: SMB_year                      ! Yearly  SMB (m)
+
     INTEGER :: wAlbedoSUrf, wMeltPreviousYear, wFirnDepth, wMeltPreviousYearforrestart, wFirnDepthforrestart, wRainfall, wSnowfall, wAddedFirn, wMelt
     INTEGER :: wRefreezing, wRefreezing_year, wRunoff, wAlbedo, wAlbedo_year, wSMB, wSMB_year
 
@@ -1212,7 +1215,9 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: int_SMB
     REAL(dp), POINTER                       :: int_BMB
     REAL(dp), POINTER                       :: int_MB
-    INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB
+    REAL(dp), POINTER                       :: int_Calving
+    REAL(dp), POINTER                       :: int_dt
+    INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB, wint_Calving, wint_dt
 
     ! Variables related to the englacial isotope content
     REAL(dp), POINTER                       :: mean_isotope_content
