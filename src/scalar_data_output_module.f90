@@ -91,7 +91,7 @@ CONTAINS
     END DO
     END DO
     CALL sync
-    
+
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_MB,      1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_Calving, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
@@ -113,7 +113,7 @@ CONTAINS
         local_SMB = (region%SMB%SMB_year( j,i) * region%ice%float_margin_frac_a( j,i) * region%dt )
         local_BMB = (region%BMB%BMB(      j,i) * region%ice%float_margin_frac_a( j,i) * region%dt )
 
-        ! Check if melt exceeds current ice thickness 
+        ! Check if melt exceeds current ice thickness
         ! (and make sure SMB and BMB are negative, but not too small to prevent dividing by small numbers)
         !IF (region%ice%Hi_a( j,i) < 0.001_dp .OR. ABS(local_SMB + local_BMB) < 0.001_dp ) THEN
         !  ! Very thin ice, mass balance fluxes may be wrong (dividing by small number)
@@ -123,13 +123,13 @@ CONTAINS
 
            ! Scale SMB with respect to the remaining Hi
            local_SMB = -region%ice%Hi_a( j,i) * ( local_SMB / (local_SMB + local_BMB))
-           
+
            ! The rest should be BMB
            local_BMB = -local_SMB - region%ice%Hi_a( j,i)
 
         END IF
-       
-        ! Add the mass balance components 
+
+        ! Add the mass balance components
         total_SMB = total_SMB + (local_SMB * region%grid%dx * region%grid%dx / 1E9_dp)
         total_BMB = total_BMB + (local_BMB * region%grid%dx * region%grid%dx / 1E9_dp)
 
@@ -236,45 +236,46 @@ CONTAINS
       RETURN
     END IF
 
-    ! Average the components based on the elapsed time between scalar output writing
-    
-    IF (par%master) THEN
-      ! ======= Temperature =======
-      ! Region-wide annual mean surface temperature
-      IF (C%choice_climate_model == 'none') THEN
-        ! In this case, no surface temperature is calculated at all
-      ELSE
-        region%int_T2m = region%int_T2m / region%int_dt
-      END IF ! IF (C%choice_climate_model == 'none') THEN
+    IF (C%do_write_regional_scalar_output_average) THEN
+      ! Average the components based on the elapsed time between scalar output writing
+      IF (par%master) THEN
+        ! ======= Temperature =======
+        ! Region-wide annual mean surface temperature
+        IF (C%choice_climate_model == 'none') THEN
+          ! In this case, no surface temperature is calculated at all
+        ELSE
+          region%int_T2m = region%int_T2m / region%int_dt
+        END IF ! IF (C%choice_climate_model == 'none') THEN
 
-      ! ======= MB and Calving =======
-      region%int_MB      = region%int_MB      / region%int_dt
-      region%int_Calving = region%int_Calving / region%int_dt
+        ! ======= MB and Calving =======
+        region%int_MB      = region%int_MB      / region%int_dt
+        region%int_Calving = region%int_Calving / region%int_dt
 
-      ! ======= SMB and BMB  ========
-      region%int_SMB = region%int_SMB / region%int_dt
-      region%int_BMB = region%int_BMB / region%int_dt
-      
-      ! Individual SMB components
-      IF     (C%choice_SMB_model == 'uniform' .OR. &
-              C%choice_SMB_model == 'idealised' .OR. &
-              C%choice_SMB_model == 'direct_global' .OR. &
-              C%choice_SMB_model == 'direct_regional' .OR. &
-              C%choice_SMB_model == 'snapshot' .OR. &
-              C%choice_SMB_model == 'ISMIP_style') THEN
-        ! Do nothing
-      ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
-              C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN   
-        region%int_snowfall   = region%int_snowfall   / region%int_dt
-        region%int_rainfall   = region%int_rainfall   / region%int_dt
-        region%int_melt       = region%int_melt       / region%int_dt
-        region%int_refreezing = region%int_refreezing / region%int_dt
-        region%int_runoff     = region%int_runoff     / region%int_dt
-      ELSE
-        CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
-      END IF
-    END IF ! (par%master)
-    CALL sync
+        ! ======= SMB and BMB  ========
+        region%int_SMB = region%int_SMB / region%int_dt
+        region%int_BMB = region%int_BMB / region%int_dt
+
+        ! Individual SMB components
+        IF     (C%choice_SMB_model == 'uniform' .OR. &
+                C%choice_SMB_model == 'idealised' .OR. &
+                C%choice_SMB_model == 'direct_global' .OR. &
+                C%choice_SMB_model == 'direct_regional' .OR. &
+                C%choice_SMB_model == 'snapshot' .OR. &
+                C%choice_SMB_model == 'ISMIP_style') THEN
+          ! Do nothing
+        ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+                C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+          region%int_snowfall   = region%int_snowfall   / region%int_dt
+          region%int_rainfall   = region%int_rainfall   / region%int_dt
+          region%int_melt       = region%int_melt       / region%int_dt
+          region%int_refreezing = region%int_refreezing / region%int_dt
+          region%int_runoff     = region%int_runoff     / region%int_dt
+        ELSE
+          CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
+        END IF
+      END IF ! (par%master)
+      CALL sync
+    END IF
 
     ! Write to NetCDF file
     CALL write_to_regional_scalar_file( region%scalar_filename, region)
@@ -292,7 +293,7 @@ CONTAINS
     region%int_rainfall   = 0._dp
     region%int_melt       = 0._dp
     region%int_refreezing = 0._dp
-    region%int_runoff     = 0._dp 
+    region%int_runoff     = 0._dp
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
@@ -431,8 +432,8 @@ CONTAINS
       ! Temperature (surface and deep-water)
       CALL allocate_shared_dp_0D( global_data%dT_glob       , global_data%wdT_glob       )
       CALL allocate_shared_dp_0D( global_data%dT_dw         , global_data%wdT_dw         )
-    
-      ! d18O      
+
+      ! d18O
       CALL allocate_shared_dp_0D( global_data%d18O_obs      , global_data%wd18O_obs      )
       CALL allocate_shared_dp_0D( global_data%d18O_mod      , global_data%wd18O_mod      )
       CALL allocate_shared_dp_0D( global_data%d18O_ice      , global_data%wd18O_ice      )

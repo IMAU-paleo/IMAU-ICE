@@ -104,6 +104,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: fixed_output_dir_config                        = 'results_IMAU_ICE'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   CHARACTER(LEN=256)  :: fixed_output_dir_suffix_config                 = ''                               ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   LOGICAL             :: do_write_regional_scalar_output_config         = .TRUE.
+  LOGICAL             :: do_write_regional_scalar_output_average_config = .FALSE.                          ! Write the running average to scalar output file
   LOGICAL             :: do_write_global_scalar_output_config           = .TRUE.
   LOGICAL             :: do_write_resource_tracking_output_config       = .TRUE.
 
@@ -967,6 +968,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: fixed_output_dir
     CHARACTER(LEN=256)                  :: fixed_output_dir_suffix
     LOGICAL                             :: do_write_regional_scalar_output
+    LOGICAL                             :: do_write_regional_scalar_output_average
     LOGICAL                             :: do_write_global_scalar_output
     LOGICAL                             :: do_write_resource_tracking_output
 
@@ -1993,6 +1995,7 @@ CONTAINS
                      fixed_output_dir_config,                         &
                      fixed_output_dir_suffix_config,                  &
                      do_write_regional_scalar_output_config,          &
+                     do_write_regional_scalar_output_average_config,  &
                      do_write_global_scalar_output_config,            &
                      do_write_resource_tracking_output_config,        &
                      do_check_for_NaN_config,                         &
@@ -2782,6 +2785,7 @@ CONTAINS
     C%fixed_output_dir                         = fixed_output_dir_config
     C%fixed_output_dir_suffix                  = fixed_output_dir_suffix_config
     C%do_write_regional_scalar_output          = do_write_regional_scalar_output_config
+    C%do_write_regional_scalar_output_average  = do_write_regional_scalar_output_average_config
     C%do_write_global_scalar_output            = do_write_global_scalar_output_config
     C%do_write_resource_tracking_output        = do_write_resource_tracking_output_config
     ! Debugging
