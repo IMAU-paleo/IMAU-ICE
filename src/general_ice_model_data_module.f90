@@ -237,56 +237,56 @@ CONTAINS
     ice%mask_cf_a(     :,grid%i1:grid%i2) = 0
     CALL sync
 
-    ! Determine coast, grounding line and calving front
-    DO i = MAX(2,grid%i1), MIN(grid%nx-1,grid%i2)
-    DO j = 2, grid%ny-1
+    !Determine coast, grounding line and calving front
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
 
       ! Ice-free land bordering ocean equals coastline
       IF (ice%mask_land_a( j,i) == 1 .AND. ice%mask_ice_a( j,i) == 0) THEN
-        IF (ice%mask_ocean_a( j-1,i  ) == 1 .OR. &
-            ice%mask_ocean_a( j+1,i  ) == 1 .OR. &
-            ice%mask_ocean_a( j  ,i-1) == 1 .OR. &
-            ice%mask_ocean_a( j  ,i+1) == 1) THEN
+        IF (ice%mask_ocean_a( MAX(j-1,1)        ,i  ) == 1 .OR. &
+            ice%mask_ocean_a( MIN(j+1,grid%ny)  ,i  ) == 1 .OR. &
+            ice%mask_ocean_a( j  , MAX(i-1, grid%i1)) == 1 .OR. &
+            ice%mask_ocean_a( j  , MIN(i+1, grid%i2)) == 1) THEN
           ice%mask_coast_a( j,i) = 1
         END IF
       END IF
 
       ! Ice bordering non-ice equals margin
       IF (ice%mask_ice_a( j,i) == 1) THEN
-        IF (ice%mask_ice_a( j-1,i  ) == 0 .OR. &
-            ice%mask_ice_a( j+1,i  ) == 0 .OR. &
-            ice%mask_ice_a( j  ,i-1) == 0 .OR. &
-            ice%mask_ice_a( j  ,i+1) == 0) THEN
+        IF (ice%mask_ice_a( MAX(j-1,1)        ,i  ) == 0 .OR. &
+            ice%mask_ice_a( MIN(j+1,grid%ny)  ,i  ) == 0 .OR. &
+            ice%mask_ice_a( j  , MAX(i-1, grid%i1)) == 0 .OR. &
+            ice%mask_ice_a( j  , MIN(i+1, grid%i2)) == 0) THEN
           ice%mask_margin_a( j,i) = 1
         END IF
       END IF
 
       ! Sheet bordering shelf equals grounding line (grounded side)
       IF (ice%mask_sheet_a( j,i) == 1) THEN
-        IF (ice%mask_shelf_a( j-1,i  ) == 1 .OR. &
-            ice%mask_shelf_a( j+1,i  ) == 1 .OR. &
-            ice%mask_shelf_a( j  ,i-1) == 1 .OR. &
-            ice%mask_shelf_a( j  ,i+1) == 1) THEN
+        IF (ice%mask_shelf_a( MAX(j-1,1)        ,i  ) == 1 .OR. &
+            ice%mask_shelf_a( MIN(j+1,grid%ny)  ,i  ) == 1 .OR. &
+            ice%mask_shelf_a( j  , MAX(i-1, grid%i1)) == 1 .OR. &
+            ice%mask_shelf_a( j  , MIN(i+1, grid%i2)) == 1) THEN
           ice%mask_gl_a( j,i) = 1
         END IF
       END IF
 
       ! Shelf bordering sheet equals grounding line (floating side)
       IF (ice%mask_shelf_a( j,i) == 1) THEN
-        IF (ice%mask_sheet_a( j-1,i  ) == 1 .OR. &
-            ice%mask_sheet_a( j+1,i  ) == 1 .OR. &
-            ice%mask_sheet_a( j  ,i-1) == 1 .OR. &
-            ice%mask_sheet_a( j  ,i+1) == 1) THEN
+        IF (ice%mask_sheet_a( MAX(j-1,1)        ,i  ) == 1 .OR. &
+            ice%mask_sheet_a( MIN(j+1,grid%ny)  ,i  ) == 1 .OR. &
+            ice%mask_sheet_a( j  , MAX(i-1, grid%i1)) == 1 .OR. &
+            ice%mask_sheet_a( j  , MIN(i+1, grid%i2)) == 1) THEN
           ice%mask_glf_a( j,i) = 1
         END IF
       END IF
 
       ! Ice (sheet or shelf) bordering open ocean equals calvingfront
       IF (ice%mask_ice_a( j,i) == 1) THEN
-        IF ((ice%mask_ocean_a( j-1,i  ) == 1 .AND. ice%mask_ice_a( j-1,i  ) == 0) .OR. &
-            (ice%mask_ocean_a( j+1,i  ) == 1 .AND. ice%mask_ice_a( j+1,i  ) == 0) .OR. &
-            (ice%mask_ocean_a( j  ,i-1) == 1 .AND. ice%mask_ice_a( j  ,i-1) == 0) .OR. &
-            (ice%mask_ocean_a( j  ,i+1) == 1 .AND. ice%mask_ice_a( j  ,i+1) == 0)) THEN
+        IF ((ice%mask_ocean_a( MAX(j-1,1)        ,i  ) == 1 .AND. ice%mask_ice_a( MAX(j-1,1)        ,i  ) == 0) .OR. &
+            (ice%mask_ocean_a( MIN(j+1,grid%ny)  ,i  ) == 1 .AND. ice%mask_ice_a( MIN(j+1,grid%ny)  ,i  ) == 0) .OR. &
+            (ice%mask_ocean_a( j  , MAX(i-1, grid%i1)) == 1 .AND. ice%mask_ice_a( j  , MAX(i-1, grid%i1)) == 0) .OR. &
+            (ice%mask_ocean_a( j  , MIN(i+1, grid%i2)) == 1 .AND. ice%mask_ice_a( j  , MIN(i+1, grid%i2)) == 0)) THEN
           ice%mask_cf_a( j,i) = 1
         END IF
       END IF
@@ -815,7 +815,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     DO i = grid%i1, grid%i2
-    DO j = 2, grid%ny-1
+    DO j = 1, grid%ny
 
       ! Initialise
       IF (ice%mask_ice_a( j,i) == 1) THEN
@@ -831,9 +831,11 @@ CONTAINS
         ! First check if any non-calving-front neighbours actually exist
         has_noncf_neighbours = .FALSE.
         DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) has_noncf_neighbours = .TRUE.
+          IF (ice%mask_ice_a( j,ii) == 1 .AND. ice%mask_cf_a( j,ii) == 0) has_noncf_neighbours = .TRUE.
         END DO
+
+        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+          IF (ice%mask_ice_a( jj,i) == 1 .AND. ice%mask_cf_a( jj,i) == 0) has_noncf_neighbours = .TRUE.
         END DO
 
         ! If not, then the floating fraction is defined as 1
@@ -845,12 +847,17 @@ CONTAINS
 
         ! If so, find the ice thickness the thickest non-calving-front neighbour
         Hi_neighbour_max = 0._dp
+       
         DO ii = MAX( 1, i-1), MIN( grid%nx, i+1)
-        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
-          IF (ice%mask_ice_a( jj,ii) == 1 .AND. ice%mask_cf_a( jj,ii) == 0) THEN
-            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( jj,ii))
+          IF (ice%mask_ice_a( j,ii) == 1 .AND. ice%mask_cf_a( j,ii) == 0) THEN
+            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( j,ii))
           END IF
         END DO
+
+        DO jj = MAX( 1, j-1), MIN( grid%ny, j+1)
+          IF (ice%mask_ice_a( jj,i) == 1 .AND. ice%mask_cf_a( jj,i) == 0) THEN
+            Hi_neighbour_max = MAX( Hi_neighbour_max, ice%Hi_a( jj,i))
+          END IF
         END DO
 
         ! If the thickest non-calving-front neighbour has thinner ice, define the fraction as 1
