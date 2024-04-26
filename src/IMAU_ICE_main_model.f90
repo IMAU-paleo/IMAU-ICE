@@ -30,7 +30,7 @@ MODULE IMAU_ICE_main_model
   USE ocean_module,                        ONLY: initialise_ocean_model_regional,   run_ocean_model, ocean_temperature_inversion, write_inverted_ocean_temperature_to_file
   USE climate_module,                      ONLY: initialise_climate_model,          run_climate_model
   USE SMB_module,                          ONLY: initialise_SMB_model,              run_SMB_model
-  USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model
+  USE BMB_module,                          ONLY: initialise_BMB_model,              run_BMB_model, run_BMB_subgridmeltscheme_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
   USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   calculate_initial_relative_ice_load, &
                                                  update_Hb_with_external_GIA_model_output, read_external_GIA_file, calculate_relative_ice_load, &
@@ -170,6 +170,11 @@ CONTAINS
         CALL run_BMB_model( region%grid, region%ice, region%ocean_matrix%applied, region%BMB, region%name, region%time, region%refgeo_PD)
       END IF
 
+      ! Run FCMP/PMP/NMP update
+      IF (C%do_update_subgrid_every_dt) THEN
+        CALL run_BMB_subgridmeltscheme_model(region%grid, region%ice, region%BMB)
+      END IF
+      
       t2 = MPI_WTIME()
       IF (par%master) region%tcomp_climate = region%tcomp_climate + t2 - t1
 

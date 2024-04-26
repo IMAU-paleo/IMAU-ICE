@@ -688,6 +688,7 @@ MODULE configuration_module
   REAL(dp)            :: BMB_shelf_uniform_config                    = 0._dp                            ! Uniform shelf BMB, applied when choice_BMB_shelf_model = "uniform" [mie/yr]
   REAL(dp)            :: BMB_sheet_uniform_config                    = 0._dp                            ! Uniform sheet BMB, applied when choice_BMB_sheet_model = "uniform" [mie/yr]
   CHARACTER(LEN=256)  :: choice_BMB_subgrid_config                   = 'FCMP'                           ! Choice of sub-grid BMB scheme: "FCMP", "PMP", "NMP" (following Leguy et al., 2021)
+  LOGICAL             :: do_update_subgrid_every_dt_config           = .FALSE.                          ! Whether or not to update the sub-grid BMB every ice dynamics time step (if so, recompute every time step, if not, only compute right after BMB is computed)
   LOGICAL             :: do_asynchronous_BMB_config                  = .FALSE.                          ! Whether or not to run the BMB asynchronously from the ice dynamics (if so, run it at dt_BMB; if not, run it in every ice dynamics time step)
   REAL(dp)            :: BMB_max_config                              = 50._dp                           ! Maximum amount of allowed basal melt     [mie/yr]
   REAL(dp)            :: BMB_min_config                              = 5._dp                            ! Maximum amount of allowed basal freezing [mie/yr]
@@ -1506,6 +1507,7 @@ MODULE configuration_module
     REAL(dp)                            :: BMB_shelf_uniform
     REAL(dp)                            :: BMB_sheet_uniform
     CHARACTER(LEN=256)                  :: choice_BMB_subgrid
+    LOGICAL                             :: do_update_subgrid_every_dt
     LOGICAL                             :: do_asynchronous_BMB
     REAL(dp)                            :: BMB_max
     REAL(dp)                            :: BMB_min
@@ -2371,6 +2373,7 @@ CONTAINS
                      BMB_shelf_uniform_config,                        &
                      BMB_sheet_uniform_config,                        &
                      choice_BMB_subgrid_config,                       &
+                     do_update_subgrid_every_dt_config,               &
                      do_asynchronous_BMB_config,                      &
                      BMB_max_config,                                  &
                      BMB_min_config,                                  &
@@ -3313,6 +3316,7 @@ CONTAINS
     C%BMB_shelf_uniform                        = BMB_shelf_uniform_config
     C%BMB_sheet_uniform                        = BMB_sheet_uniform_config
     C%choice_BMB_subgrid                       = choice_BMB_subgrid_config
+    C%do_update_subgrid_every_dt               = do_update_subgrid_every_dt_config
     C%do_asynchronous_BMB                      = do_asynchronous_BMB_config
     C%BMB_max                                  = BMB_max_config
     C%BMB_min                                  = BMB_min_config

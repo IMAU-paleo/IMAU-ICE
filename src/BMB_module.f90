@@ -116,46 +116,13 @@ CONTAINS
     CALL sync
 
     ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
-    ! (see Leguy et al. 2021 for explanations of the three schemes)
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-
-      ! No sub-grid scaling for sub-sheet melt yet
-      BMB%BMB( j,i) = 0._dp
-      IF (ice%mask_sheet_a( j,i) == 1._dp) BMB%BMB( j,i) = BMB%BMB_sheet( j,i)
-
-      ! Different sub-grid schemes for sub-shelf melt
-      IF     (C%choice_BMB_subgrid == 'FCMP') THEN
-        IF (ice%mask_shelf_a( j,i) == 1) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
-      ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
-        BMB%BMB( j,i) = BMB%BMB( j,i) + (1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i)
-      ELSEIF (C%choice_BMB_subgrid == 'NMP') THEN
-        IF (ice%f_grnd_a( j,i) == 0._dp) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
-      ELSE
-        CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
-      END IF
-
-    END DO
-    END DO
-    CALL sync
-
-    ! Limit basal melt
-    DO i = grid%i1, grid%i2
-    DO j = 1, grid%ny
-      BMB%BMB( j,i) = MIN( C%BMB_min, MAX( -C%BMB_max, BMB%BMB( j,i) ))
-    END DO
-    END DO
-    CALL sync
-
-    ! Safety
-    CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet')
-    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf')
-    CALL check_for_NaN_dp_2D( BMB%BMB,       'BMB%BMB'      )
+    CALL run_BMB_subgridmeltscheme_model( grid, ice, BMB)
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE run_BMB_model
+
   SUBROUTINE initialise_BMB_model( grid, ice, BMB, region_name)
     ! Allocate memory for the data fields of the SMB model.
 
@@ -217,6 +184,64 @@ CONTAINS
 
   END SUBROUTINE initialise_BMB_model
 
+  SUBROUTINE run_BMB_subgridmeltscheme_model( grid, ice, BMB)
+    ! Add sheet and shelf melt rates together, applying the selected scheme for sub-grid shelf melt
+    ! (see Leguy et al. 2021 for explanations of the three schemes)
+
+    IMPLICIT NONE
+
+    ! In/output variables
+    TYPE(type_grid),                      INTENT(IN)    :: grid
+    TYPE(type_ice_model),                 INTENT(IN)    :: ice
+    TYPE(type_BMB_model),                 INTENT(INOUT) :: BMB
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_BMB_subgridmeltscheme_model'
+    INTEGER                                            :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! No sub-grid scaling for sub-sheet melt yet
+      BMB%BMB( j,i) = 0._dp
+      IF (ice%mask_sheet_a( j,i) == 1._dp) BMB%BMB( j,i) = BMB%BMB_sheet( j,i)
+
+      ! Different sub-grid schemes for sub-shelf melt
+      IF     (C%choice_BMB_subgrid == 'FCMP') THEN
+        IF (ice%mask_shelf_a( j,i) == 1) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'PMP') THEN
+        BMB%BMB( j,i) = BMB%BMB( j,i) + (1._dp - ice%f_grnd_a( j,i)) * BMB%BMB_shelf( j,i)
+      ELSEIF (C%choice_BMB_subgrid == 'NMP') THEN
+        IF (ice%f_grnd_a( j,i) == 0._dp) BMB%BMB( j,i) = BMB%BMB( j,i) + BMB%BMB_shelf( j,i)
+      ELSE
+        CALL crash('unknown choice_BMB_subgrid "' // TRIM(C%choice_BMB_subgrid) // '"!')
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Limit basal melt
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      BMB%BMB( j,i) = MIN( C%BMB_min, MAX( -C%BMB_max, BMB%BMB( j,i) ))
+    END DO
+    END DO
+    CALL sync
+
+    ! Safety
+    CALL check_for_NaN_dp_2D( BMB%BMB_sheet, 'BMB%BMB_sheet')
+    CALL check_for_NaN_dp_2D( BMB%BMB_shelf, 'BMB%BMB_shelf')
+    CALL check_for_NaN_dp_2D( BMB%BMB,       'BMB%BMB'      )
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_BMB_subgridmeltscheme_model
+  
 ! == Idealised BMB schemes
 ! ========================
 
@@ -295,7 +320,7 @@ CONTAINS
         DO i = grid%i1, grid%i2
         DO j = 1, grid%ny
 
-          zd = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+          zd = ice%Hs_a( j,i) - ice%Hi_eff_cf_a( j,i)
           cavity_thickness = MAX( 0._dp, zd - ice%Hb_a( j,i))
 
           ! Cornford et al. (2020), Eq. 7
@@ -333,7 +358,7 @@ CONTAINS
         DO i = grid%i1, grid%i2
         DO j = 1, grid%ny
 
-          zd = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+          zd = ice%Hs_a( j,i) - ice%Hi_eff_cf_a( j,i)
           cavity_thickness = MAX( 0._dp, zd - ice%Hb_a( j,i))
 
           ! Cornford et al. (2020), Eq. 7
@@ -559,7 +584,7 @@ CONTAINS
         ! Sub-shelf melt
 
         ! Freezing temperature at the bottom of the ice shelves, scaling with depth below water level
-        T_freeze = 0.0939_dp - 0.057_dp * 35._dp - 7.64E-04_dp * ice%Hi_a( j,i) * ice_density / seawater_density
+        T_freeze = 0.0939_dp - 0.057_dp * 35._dp - 7.64E-04_dp * ice%Hi_eff_cf_a( j,i) * ice_density / seawater_density
 
         ! Sub-shelf melt rate for non-exposed shelves (Martin, TC, 2011) - melt values, when T_ocean > T_freeze.
         BMB_shelf   = seawater_density * cp0 * sec_per_year * gamma_T * BMB%subshelf_melt_factor * &
@@ -1509,7 +1534,7 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
 
         ! Calculate depth
-        depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
+        depth = MAX( 0.1_dp, ice%Hi_eff_cf_a( j,i) * ice_density / seawater_density)
 
         ! Find ocean temperature at this depth
         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%T_ocean_corr_ext( :,j,i)+ocean%dT_ocean( j,i), depth, BMB%T_ocean_base( j,i))
@@ -1557,7 +1582,7 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
 
         ! Calculate depth
-        depth = MAX( 0.1_dp, ice%Hi_a( j,i) * ice_density / seawater_density)
+        depth = MAX( 0.1_dp, ice%Hi_eff_cf_a( j,i) * ice_density / seawater_density)
 
         ! Find salinity at this depth
         CALL interpolate_ocean_depth( C%nz_ocean, C%z_ocean, ocean%S_ocean_corr_ext( :,j,i), depth, S0)
@@ -1665,7 +1690,7 @@ CONTAINS
       IF (ice%mask_shelf_a( j,i) == 1) THEN
 
         ! Calculate the depth of the shelf base
-        depth = MAX( 0.1_dp, ice%Hi_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
+        depth = MAX( 0.1_dp, ice%Hi_eff_cf_a( j,i) - ice%Hs_a( j,i))   ! Depth is positive when below the sea surface!
 
         ! Find ambient temperature and salinity at the ice-shelf base
         IF (C%choice_BMB_shelf_model == 'Lazeroms2018_plume') THEN
@@ -1863,7 +1888,7 @@ CONTAINS
     sum_basal_slopes        = 0._dp
 
     ! Calculate the shelf base depth (draft)
-    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_eff_cf_a( j,i)
 
     ! Investigate all 16 search directions
     DO n = 1, 16
@@ -1882,7 +1907,7 @@ CONTAINS
       IF (ip2 < 1 .OR. ip2 > grid%nx .OR. jp2 < 1 .OR. jp2 > grid%ny) CYCLE
 
       ! Calculate the basal slope in this direction (Lazeroms et al. (2018), Eq. 12)
-      zb_dp = ice%Hs_a( jp2,ip2) - ice%Hi_a( jp2,ip2)
+      zb_dp = ice%Hs_a( jp2,ip2) - ice%Hi_eff_cf_a( jp2,ip2)
       dist  = SQRT( REAL(dpi,dp)**2 + REAL(dpj,dp)**2) * grid%dx
       basal_slope = (zb_shelf - zb_dp) / dist
 
@@ -1988,7 +2013,7 @@ CONTAINS
     CALL init_routine( routine_name)
 
     ! Calculate the shelf base depth (draft)
-    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_eff_cf_a( j,i)
 
     ! Track a tracer upstream along the ice flow field until grounded ice is found
     t1     = [grid%x( i), grid%y( j)]
@@ -2026,7 +2051,7 @@ CONTAINS
 
       ! Interpolate data to new tracer location
       TAF2   = interp_bilin_2D( ice%TAF_a, grid%x, grid%y, t2( 1), t2( 2))
-      Hi2    = interp_bilin_2D( ice%Hi_a,  grid%x, grid%y, t2( 1), t2( 2))
+      Hi2    = interp_bilin_2D( ice%Hi_eff_cf_a,  grid%x, grid%y, t2( 1), t2( 2))
       Hs2    = interp_bilin_2D( ice%Hs_a,  grid%x, grid%y, t2( 1), t2( 2))
       depth2 = Hs2 - Hi2
 
@@ -2099,7 +2124,7 @@ CONTAINS
     sum_w                   = 0._dp
 
     ! Calculate the shelf base depth (draft)
-    zb_shelf = ice%Hs_a( j,i) - ice%Hi_a( j,i)
+    zb_shelf = ice%Hs_a( j,i) - ice%Hi_eff_cf_a( j,i)
 
     ! Average over all grounding-line cells
     DO n = 1, n_GL
