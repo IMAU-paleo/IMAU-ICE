@@ -163,7 +163,7 @@ CONTAINS
         IF (region%time == region%t_next_SSA) THEN
 
           ! Calculate new ice velocities
-          CALL solve_SSA( region%grid, region%ice)
+          CALL solve_SSA( region%grid, region%ice, region%name)
 
           ! Calculate critical time step
           CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
@@ -213,7 +213,7 @@ CONTAINS
         IF (region%time == region%t_next_SSA) THEN
           ! Calculate new ice velocities
 
-          CALL solve_SSA( region%grid, region%ice)
+          CALL solve_SSA( region%grid, region%ice, region%name)
 
           ! Calculate critical time step
           CALL calc_critical_timestep_adv( region%grid, region%ice, dt_crit_SSA)
@@ -420,7 +420,7 @@ CONTAINS
       ELSEIF (C%choice_ice_dynamics == 'SSA') THEN
 
         ! Calculate velocities
-        CALL solve_SSA(  region%grid, region%ice)
+        CALL solve_SSA(  region%grid, region%ice, region%name)
 
         ! Update timer
         IF (par%master) region%t_last_SSA = region%time
@@ -431,7 +431,7 @@ CONTAINS
 
         ! Calculate velocities
         CALL solve_SIA(  region%grid, region%ice)
-        CALL solve_SSA(  region%grid, region%ice)
+        CALL solve_SSA(  region%grid, region%ice, region%name)
 
         ! Update timer
         IF (par%master) region%t_last_SIA = region%time
@@ -443,7 +443,7 @@ CONTAINS
       ELSEIF (C%choice_ice_dynamics == 'DIVA') THEN
 
         ! Calculate velocities
-        CALL solve_DIVA( region%grid, region%ice)
+        CALL solve_DIVA( region%grid, region%ice, region%name)
 
         ! Update timer
         IF (par%master) region%t_last_DIVA = region%time
@@ -521,6 +521,14 @@ CONTAINS
 
     CALL alter_ice_thickness( grid, ice, refgeo_PD, time)
 
+    ! Keep track of the change in mass balance
+    ice%MB( :, grid%i1:grid%i2)      = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2)) - ice%Hi_a( :,grid%i1:grid%i2)
+    CALL sync
+
+    ! Reset calving
+    ice%Calving( :, grid%i1:grid%i2) = 0._dp
+    CALL sync
+
     ! Set ice thickness to new value
     ice%Hi_a( :,grid%i1:grid%i2) = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2))
     CALL sync
@@ -558,6 +566,7 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       IF (mask_noice( j,i) == 1) THEN
+        ice%MB(   j,i) = ice%MB(   j,i) - ice%Hi_a( j,i) ! This ice should not be incorporated in the mass balance
         ice%Hi_a( j,i) = 0._dp
       END IF
     END DO
@@ -569,7 +578,8 @@ CONTAINS
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         IF (is_floating( ice%Hi_a( j,i), ice%Hb_a( j,i), ice%SL_a( j,i))) THEN
-        ice%Hi_a( j,i) = 0._dp
+        ice%Calving( j,i) = ice%Calving( j,i) - ice%Hi_a( j,i) 
+        ice%Hi_a( j,i)    = 0._dp
         END IF
       END DO
       END DO
@@ -581,6 +591,7 @@ CONTAINS
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         IF (refgeo_PD%Hi( j,i) == 0._dp .AND. refgeo_PD%Hb( j,i) < 0._dp) THEN
+          ice%Calving( j,i) = ice%Calving( j,i) - ice%Hi_a( j,i) 
           ice%Hi_a( j,i) = 0._dp
         END IF
       END DO
@@ -593,7 +604,8 @@ CONTAINS
       DO i = grid%i1, grid%i2
       DO j = 1, grid%ny
         IF (refgeo_GIAeq%Hi( j,i) == 0._dp .AND. refgeo_GIAeq%Hb( j,i) < C%continental_shelf_min_height) THEN
-          ice%Hi_a( j,i) = 0._dp
+          ice%Calving( j,i) = ice%Calving( j,i) - ice%Hi_a( j,i) 
+          ice%Hi_a( j,i)    = 0._dp
         END IF
       END DO
       END DO
@@ -630,6 +642,10 @@ CONTAINS
       ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), 0._dp)
     END DO
     END DO
+    CALL sync
+
+    ! Add calving
+    ice%MB( :, grid%i1:grid%i2)      = ice%MB( :, grid%i1:grid%i2) + ice%Calving( :, grid%i1:grid%i2)
     CALL sync
 
     ! Finalise routine path
@@ -1488,6 +1504,7 @@ CONTAINS
     ! Ice dynamics - calving
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%float_margin_frac_a  , ice%wfloat_margin_frac_a  )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Hi_eff_cf_a          , ice%wHi_eff_cf_a          )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%Calving              , ice%wCalving              )
 
     ! Ice dynamics - predictor/corrector ice thickness update
     CALL allocate_shared_dp_0D(                              ice%pc_zeta              , ice%wpc_zeta              )
@@ -1514,6 +1531,7 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_dt_target        , ice%wdHi_dt_target        )
+    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%MB                   , ice%wMB                   )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

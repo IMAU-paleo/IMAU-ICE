@@ -769,28 +769,43 @@ CONTAINS
     TYPE(type_SMB_model),                 INTENT(IN)    :: SMB
     CHARACTER(LEN=3),                     INTENT(IN)    :: region_name
 
+
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_ice_temperature'
+    CHARACTER(LEN=256)				                   :: choice_initial_ice_temperature
 
     ! Add routine to path
     CALL init_routine( routine_name)
+    
+    ! Get the right initial ice temperature method
+    IF (    region_name == 'NAM') THEN
+      choice_initial_ice_temperature = C%choice_initial_ice_temperature_NAM
+    ELSEIF (region_name == 'EAS') THEN
+      choice_initial_ice_temperature = C%choice_initial_ice_temperature_EAS
+    ELSEIF (region_name == 'GRL') THEN
+      choice_initial_ice_temperature = C%choice_initial_ice_temperature_GRL
+    ELSEIF (region_name == 'ANT') THEN
+      choice_initial_ice_temperature = C%choice_initial_ice_temperature_ANT
+    ELSE
+      CALL crash('region_name "'//TRIM(region_name)//'" not found!')
+    END IF
+    
+    IF (par%master) WRITE (0,*) '  Initialising ice temperature profile "', TRIM(choice_initial_ice_temperature), '"...'
 
-    IF (par%master) WRITE (0,*) '  Initialising ice temperature profile "', TRIM(C%choice_initial_ice_temperature), '"...'
-
-    IF     (C%choice_initial_ice_temperature == 'uniform') THEN
+    IF     (choice_initial_ice_temperature == 'uniform') THEN
       ! Simple uniform temperature
       CALL initialise_ice_temperature_uniform( grid, ice)
-    ELSEIF (C%choice_initial_ice_temperature == 'linear') THEN
+    ELSEIF (choice_initial_ice_temperature == 'linear') THEN
       ! Simple linear temperature profile
       CALL initialise_ice_temperature_linear( grid, ice, climate)
-    ELSEIF (C%choice_initial_ice_temperature == 'Robin') THEN
+    ELSEIF (choice_initial_ice_temperature == 'Robin') THEN
       ! Initialise with the Robin solution
       CALL initialise_ice_temperature_Robin( grid, ice, climate, ocean, SMB)
-    ELSEIF (C%choice_initial_ice_temperature == 'restart') THEN
+    ELSEIF (choice_initial_ice_temperature == 'restart') THEN
       ! Initialise with the temperature field from the provided restart file
       CALL initialise_ice_temperature_restart( grid, ice, region_name)
     ELSE
-      CALL crash('unknown choice_initial_ice_temperature "' // TRIM( C%choice_initial_ice_temperature) // '"!')
+      CALL crash('unknown choice_initial_ice_temperature "' // TRIM( Choice_initial_ice_temperature) // '"!')
     END IF
 
     ! Finalise routine path

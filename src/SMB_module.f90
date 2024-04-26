@@ -415,11 +415,18 @@ CONTAINS
       ! Calculate refrezzing for the whole year, divide equally over the 12 months, then calculate resulting runoff and SMB.
       ! This resolves the problem with refreezing, where liquid water is mostly available in summer
       ! but "refreezing potential" mostly in winter, and there is no proper meltwater retention.
+      !
+      ! Additionally, refreezing is limited to the porosity of the firn layer. If there is no firn,
+      ! there will be little or no refreezing. We implement this by limiting the refreezing to 
+      ! 50% of the firn depth, representing a 50% porosity.
 
       sup_imp_wat  = SMB%C_refr * MAX(0._dp, T0 - SUM(climate%T2m( :,j,i))/12._dp)
       liquid_water = SUM(SMB%Rainfall( :,j,i)) + SUM(SMB%Melt( :,j,i))
 
-      SMB%Refreezing_year( j,i) = MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,j,i)))
+      ! NOTE: Refreezing is limited by the ability of the firn layer to store melt water. Currently a ten meter firn layer can store
+      ! 2.5 m of water. However, this is based on expert judgement, NOT empircal evidence. 
+      SMB%Refreezing_year( j,i) = MIN( MIN( MIN( sup_imp_wat, liquid_water), SUM(climate%Precip( :,j,i))), 0.25_dp * SUM(SMB%FirnDepth( :,j,i)/12._dp))
+
       IF (ice%mask_ice_a( j,i)==0) SMB%Refreezing_year( j,i) = 0._dp
 
       DO m = 1, 12
@@ -427,6 +434,7 @@ CONTAINS
         SMB%Runoff(     m,j,i) = SMB%Melt( m,j,i) + SMB%Rainfall( m,j,i) - SMB%Refreezing( m,j,i)
         SMB%SMB(        m,j,i) = SMB%Snowfall( m,j,i) + SMB%Refreezing( m,j,i) - SMB%Melt( m,j,i)
       END DO
+
 
       SMB%SMB_year( j,i) = SUM(SMB%SMB( :,j,i))
 

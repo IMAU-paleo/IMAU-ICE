@@ -116,7 +116,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_SIA
-  SUBROUTINE solve_SSA(  grid, ice)
+  SUBROUTINE solve_SSA(  grid, ice, region_name)
     ! Calculate ice velocities using the SSA. Velocities are calculated on the staggered
     ! cx/cy-grids, using the discretisation scheme adopted from Yelmo/SICOPOLIS.
 
@@ -125,6 +125,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_SSA'
@@ -168,7 +169,7 @@ CONTAINS
     CALL sync
 
     ! Calculate the basal yield stress tau_c
-    CALL calc_basal_conditions( grid, ice)
+    CALL calc_basal_conditions( grid, ice, region_name)
 
     ! Determine sub-grid grounded fractions for scaling the basal friction
     CALL determine_grounded_fractions( grid, ice)
@@ -251,7 +252,7 @@ CONTAINS
     CALL finalise_routine( routine_name)
 
   END SUBROUTINE solve_SSA
-  SUBROUTINE solve_DIVA( grid, ice)
+  SUBROUTINE solve_DIVA( grid, ice, region_name)
     ! Calculate ice velocities using the DIVA. Velocities are calculated on the staggered
     ! cx/cy-grids, using the discretisation scheme adopted from Yelmo/SICOPOLIS.
 
@@ -260,6 +261,7 @@ CONTAINS
     ! In- and output variables:
     TYPE(type_grid),                     INTENT(IN)    :: grid
     TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    CHARACTER(LEN=3),                    INTENT(IN)    :: region_name
 
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'solve_DIVA'
@@ -299,7 +301,7 @@ CONTAINS
     CALL sync
 
     ! Calculate the basal yield stress tau_c
-    CALL calc_basal_conditions( grid, ice)
+    CALL calc_basal_conditions( grid, ice, region_name)
 
     ! Determine sub-grid grounded fractions for scaling the basal friction
     CALL determine_grounded_fractions( grid, ice)
