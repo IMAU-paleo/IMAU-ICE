@@ -82,7 +82,7 @@ CONTAINS
     ! Local variables:
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calc_dHi_dt_explicit'
     INTEGER                                            :: i,j
-    REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor
+    REAL(dp)                                           :: dVi_in, dVi_out, Vi_available, rescale_factor, Vi_fill
     REAL(dp), DIMENSION(:,:), POINTER                  :: dVi_MB
     INTEGER                                            :: wdVi_MB
 
@@ -152,25 +152,64 @@ CONTAINS
     ! Correct fluxes at the calving front to account for partially-filled grid cells
     ! ==============================================================================
 
+    ! Flow from floating ice to open ocean is only allowed once the floating pixel is filled. 
+    ! The flux at the calving front is first used to fill the source grid cell itself. The remaining flux (if any) is allowed to flow into the next ocean cell.
+
     ! x-direction
     DO i = grid%i1, MIN(grid%nx-1,grid%i2)
     DO j = 1, grid%ny
 
-      IF     (ice%u_vav_cx( j,i) > 0._dp  .AND. ice%mask_shelf_a( j,i) == 1 .AND. &  ! Western source grid cell is shelf
-              ice%mask_ice_a( j,i+1) == 0 .AND. ice%mask_ocean_a( j,i+1) == 1) THEN  ! Eastern destination grid cell is open ocean
+      ! Flow from West (i) to East (i+1)
+      IF     (ice%u_vav_cx( j,i) > 0._dp  .AND. ice%mask_shelf_a( j,i) == 1 .AND. &   ! Western source grid cell is shelf
+              ice%mask_ice_a( j,i+1) == 0 .AND. ice%mask_ocean_a( j,i+1) == 1) THEN   ! Eastern destination grid cell is open ocean
 
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j,i) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
+        ! Compute empty volume in source cell
+        Vi_fill = (ice%Hi_eff_cf_a( j,i) - ice%Hi_a( j,i)) * grid%dx * grid%dx
+        
+        ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
+        ! If the flux is smaller than Vi_fill, the outflux is zero
+        ice%Qx_cx( j,i) = MAX(0._dp, ice%Qx_cx( j,i) - Vi_fill)
+
+        ! Check if there is also a y-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
+        IF (j < grid%ny ) THEN    ! Not possible for cells at upper y-boundary
+          IF (ice%Qy_cy( j,i) > 0._dp .AND. ice%mask_ocean_a( j+1,i) == 1)  THEN      ! Southern source grid cell, Northern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j,i)))
+            ice%Qx_cx( j,i) = MAX(0._dp, ice%Qx_cx( j,i) - Vi_fill)
+          END IF
+        END IF 
+
+        IF (j > 1 ) THEN          ! Not possible for cells at lower y-boundary
+          IF (ice%Qy_cy( j-1,i) < 0._dp .AND. ice%mask_ocean_a( j-1,i) == 1) THEN     ! Northern source grid cell, Southern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j-1,i)))
+            ice%Qx_cx( j,i) = MAX(0._dp, ice%Qx_cx( j,i) - Vi_fill)
+          END IF 
         END IF
 
-      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j,i+1) == 1 .AND. & ! Eastern source grid cell is shelf
-              ice%mask_ice_a( j,i) == 0  .AND. ice%mask_ocean_a( j,i) == 1) THEN     ! Western destination grid cell is open ocean
+      ! Flow from East (i+1) to West (i)
+      ELSEIF (ice%u_vav_cx( j,i) < 0._dp .AND. ice%mask_shelf_a( j,i+1) == 1 .AND. &  ! Eastern source grid cell is shelf
+              ice%mask_ice_a( j,i) == 0  .AND. ice%mask_ocean_a( j,i) == 1) THEN      ! Western destination grid cell is open ocean
 
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j,i+1) < 0.99_dp) THEN
-          ice%Qx_cx( j,i) = 0._dp
-        END IF
+        ! Compute empty volume in source cell
+        Vi_fill = (ice%Hi_eff_cf_a( j,i+1) - ice%Hi_a( j,i+1)) * grid%dx * grid%dx
+        
+        ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
+        ! If the flux is smaller than Vi_fill, the outflux is zero
+        ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+
+        ! Check if there is also a y-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
+        IF (j < grid%ny ) THEN    ! Not possible for cells at upper y-boundary
+          IF (ice%Qy_cy( j,i+1) > 0._dp .AND. ice%mask_ocean_a( j+1,i+1) == 1)  THEN  ! Southern source grid cell, Northern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j,i+1)))
+            ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+          END IF 
+        END IF 
+
+        IF (j > 1 ) THEN          ! Not possible for cells at lower y-boundary
+          IF (ice%Qy_cy( j-1,i+1) < 0._dp .AND. ice%mask_ocean_a( j-1,i+1) == 1) THEN ! Northern source grid cell, Southern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j-1,i+1)))
+            ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+          END IF 
+        END IF 
 
       END IF
 
@@ -182,20 +221,56 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny-1
 
-      IF     (ice%v_vav_cy( j,i) > 0._dp  .AND. ice%mask_shelf_a( j,i) == 1 .AND. &  ! Southern source grid cell is shelf
-              ice%mask_ice_a( j+1,i) == 0 .AND. ice%mask_ocean_a( j+1,i) == 1) THEN  ! Northern destination grid cell is open ocean
+      ! Flow from South (j) to North (j+1)
+      IF     (ice%v_vav_cy( j,i) > 0._dp  .AND. ice%mask_shelf_a( j,i) == 1 .AND. &   ! Southern source grid cell is shelf
+              ice%mask_ice_a( j+1,i) == 0 .AND. ice%mask_ocean_a( j+1,i) == 1) THEN   ! Northern destination grid cell is open ocean
 
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j,i) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
+        ! Compute empty volume in source cell
+        Vi_fill = (ice%Hi_eff_cf_a( j,i) - ice%Hi_a( j,i)) * grid%dx * grid%dx
+        
+        ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
+        ! If the flux is smaller than Vi_fill, the outflux is zero
+        ice%Qy_cy( j,i) = MAX(0._dp, ice%Qy_cy( j,i) - Vi_fill)
+
+        ! Check if there is also an x-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
+        IF (i < grid%nx) THEN   ! Not possible for cells at right x-boundary
+          IF (ice%Qx_cx( j,i) > 0._dp .AND. ice%mask_ocean_a( j,i+1) == 1)  THEN      ! Western source grid cell, Eastern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j,i)))
+            ice%Qy_cy( j,i) = MAX(0._dp, ice%Qy_cy( j,i) - Vi_fill)
+          END IF 
+        END IF 
+
+        IF (i > 1 ) THEN        ! Not possible for cells at left x-boundary
+          IF (ice%Qx_cx( j,i-1) < 0._dp .AND. ice%mask_ocean_a( j,i-1) == 1) THEN     ! Eastern source grid cell, Western destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j,i-1)) + ABS(ice%Qy_cy( j,i)))
+            ice%Qy_cy( j,i) = MAX(0._dp, ice%Qy_cy( j,i) - Vi_fill)
+          END IF
         END IF
 
-      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i) == 1 .AND. & ! Northern source grid cell is shelf
-              ice%mask_ice_a( j,i) == 0  .AND. ice%mask_ocean_a( j,i) == 1) THEN     ! Southern destination grid cell is open ocean
+      ! Flow from North (j+1) to South (j)
+      ELSEIF (ice%v_vav_cy( j,i) < 0._dp .AND. ice%mask_shelf_a( j+1,i) == 1 .AND. &  ! Northern source grid cell is shelf
+              ice%mask_ice_a( j,i) == 0  .AND. ice%mask_ocean_a( j,i) == 1) THEN      ! Southern destination grid cell is open ocean
+        
+        ! Compute empty volume in source cell
+        Vi_fill = (ice%Hi_eff_cf_a( j+1,i) - ice%Hi_a( j+1,i)) * grid%dx * grid%dx
+        
+        ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
+        ! If the flux is smaller than Vi_fill, the outflux is zero
+        ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
 
-        ! Flow from floating ice to open ocean is only allowed once the floating pixel is completely filled
-        IF (ice%float_margin_frac_a( j+1,i) < 0.99_dp) THEN
-          ice%Qy_cy( j,i) = 0._dp
+        ! Check if there is also an x-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
+        IF (i < grid%nx) THEN   ! Not possible for cells at right x-boundary
+          IF (ice%Qx_cx( j+1,i) > 0._dp .AND. ice%mask_ocean_a( j+1,i+1) == 1)  THEN  ! Western source grid cell, Eastern destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j+1,i)) + ABS(ice%Qy_cy( j,i)))
+            ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
+          END IF 
+        END IF 
+
+        IF (i > 1 ) THEN        ! Not possible for cells at left x-boundary
+          IF (ice%Qx_cx( j+1,i-1) < 0._dp .AND. ice%mask_ocean_a( j+1,i-1) == 1) THEN ! Eastern source grid cell, Western destination grid cell
+            Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j+1,i-1)) + ABS(ice%Qy_cy( j,i)))
+            ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
+          END IF
         END IF
 
       END IF
