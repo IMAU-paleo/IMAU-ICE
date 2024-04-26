@@ -804,6 +804,10 @@ CONTAINS
       CALL add_field_grid_dp_2D( filename, 'TAF', long_name = 'Ice thickness above floatation', units = 'm')
     ELSEIF (field_name == 'TAF_rel') THEN
       CALL add_field_grid_dp_2D( filename, 'TAF_rel', long_name = 'Ice thickness above floatation relative to present day', units = 'm')
+    ELSEIF (field_name == 'Hi_eff_cf') THEN
+      CALL add_field_grid_dp_2D( filename, 'Hi_eff_cf', long_name = 'Effective ice thickness calving front', units = 'm')
+    ELSEIF (field_name == 'float_margin_frac') THEN
+      CALL add_field_grid_dp_2D( filename, 'float_margin_frac', long_name = 'float_margin_frac_a', units = '%')
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
@@ -1341,6 +1345,10 @@ CONTAINS
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'TAF', region%ice%TAF_a)
     ELSEIF (field_name == 'TAF_rel') THEN
       CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'TAF_rel', region%ice%TAF_rel)
+    ELSEIF (field_name == 'Hi_eff_cf') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'Hi_eff_cf', region%ice%Hi_eff_cf_a)
+    ELSEIF (field_name == 'float_margin_frac') THEN
+      CALL write_to_field_multiple_options_grid_dp_2D( filename, region%grid, 'float_margin_frac', region%ice%float_margin_frac_a)
 
     ! Thermal properties
     ELSEIF (field_name == 'Ti') THEN
