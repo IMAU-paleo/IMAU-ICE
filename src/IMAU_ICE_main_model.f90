@@ -244,6 +244,18 @@ CONTAINS
         CALL write_regional_scalar_data( region, region%time)
       END IF
 
+      ! Write inverted bed roughness field to file
+      IF (C%do_BIVgeo .AND. region%time > C%BIVgeo_t_end) THEN
+        CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
+        C%do_BIVgeo = .FALSE.
+      END IF
+
+      ! Write inverted ocean temperature field to file
+      IF (C%do_ocean_temperature_inversion .AND. region%time > C%ocean_temperature_inv_t_end) THEN
+        CALL write_inverted_ocean_temperature_to_file( region%grid, region%ocean_matrix%applied)
+        C%do_ocean_temperature_inversion = .FALSE.
+      END IF
+
       ! DENK DROM
       ! region%time = t_end
 
@@ -252,16 +264,6 @@ CONTAINS
   ! ===========================================
   ! ===== End of the main model time loop =====
   ! ===========================================
-
-    ! Write inverted bed roughness field to file
-    IF (C%do_BIVgeo) THEN
-      CALL write_inverted_bed_roughness_to_file( region%grid, region%ice)
-    END IF
-
-    ! Write inverted ocean temperature field to file
-    IF (C%do_ocean_temperature_inversion) THEN
-      CALL write_inverted_ocean_temperature_to_file( region%grid, region%ocean_matrix%applied)
-    END IF
 
     ! Keep track of the GMSL contribution
     IF (par%master) WRITE(0,'(A,A3,A,F9.3,A)') '  - ',TRIM( region%name), ' GMSL contribution:', region%GMSL_contribution, ' m'
