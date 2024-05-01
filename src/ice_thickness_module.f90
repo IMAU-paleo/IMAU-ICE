@@ -149,6 +149,7 @@ CONTAINS
     END DO
     CALL sync
 
+
     ! Correct fluxes at the calving front to account for partially-filled grid cells
     ! ==============================================================================
 
@@ -194,20 +195,20 @@ CONTAINS
         
         ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
         ! If the flux is smaller than Vi_fill, the outflux is zero
-        ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+        ice%Qx_cx( j,i) = MIN(0._dp, -(ABS(ice%Qx_cx( j,i)) - Vi_fill))
 
         ! Check if there is also a y-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
         IF (j < grid%ny ) THEN    ! Not possible for cells at upper y-boundary
           IF (ice%Qy_cy( j,i+1) > 0._dp .AND. ice%mask_ocean_a( j+1,i+1) == 1)  THEN  ! Southern source grid cell, Northern destination grid cell
             Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j,i+1)))
-            ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+            ice%Qx_cx( j,i) = MIN(0._dp, -(ABS(ice%Qx_cx( j,i)) - Vi_fill))
           END IF 
         END IF 
 
         IF (j > 1 ) THEN          ! Not possible for cells at lower y-boundary
           IF (ice%Qy_cy( j-1,i+1) < 0._dp .AND. ice%mask_ocean_a( j-1,i+1) == 1) THEN ! Northern source grid cell, Southern destination grid cell
             Vi_fill = Vi_fill * ABS(ice%Qx_cx( j,i)) / (ABS(ice%Qx_cx( j,i)) + ABS(ice%Qy_cy( j-1,i+1)))
-            ice%Qx_cx( j,i) = MIN(0._dp, -ABS(ice%Qx_cx( j,i)) - Vi_fill)
+            ice%Qx_cx( j,i) = MIN(0._dp, -(ABS(ice%Qx_cx( j,i)) - Vi_fill))
           END IF 
         END IF 
 
@@ -256,24 +257,25 @@ CONTAINS
         
         ! Compute which part of the outflux actually leaves cell first part of flux is used to grow the floating fraction
         ! If the flux is smaller than Vi_fill, the outflux is zero
-        ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
+        ice%Qy_cy( j,i) = MIN(0._dp, -(ABS(ice%Qy_cy( j,i)) - Vi_fill))
 
         ! Check if there is also an x-directed outflux to ocean, if so: correct Vi_fill for the ratio Qx/Qy
         IF (i < grid%nx) THEN   ! Not possible for cells at right x-boundary
           IF (ice%Qx_cx( j+1,i) > 0._dp .AND. ice%mask_ocean_a( j+1,i+1) == 1)  THEN  ! Western source grid cell, Eastern destination grid cell
             Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j+1,i)) + ABS(ice%Qy_cy( j,i)))
-            ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
+            ice%Qy_cy( j,i) = MIN(0._dp, -(ABS(ice%Qy_cy( j,i)) - Vi_fill))
           END IF 
         END IF 
 
         IF (i > 1 ) THEN        ! Not possible for cells at left x-boundary
           IF (ice%Qx_cx( j+1,i-1) < 0._dp .AND. ice%mask_ocean_a( j+1,i-1) == 1) THEN ! Eastern source grid cell, Western destination grid cell
             Vi_fill = Vi_fill * ABS(ice%Qy_cy( j,i)) / (ABS(ice%Qx_cx( j+1,i-1)) + ABS(ice%Qy_cy( j,i)))
-            ice%Qy_cy( j,i) = MIN(0._dp, -ABS(ice%Qy_cy( j,i)) - Vi_fill)
+            ice%Qy_cy( j,i) = MIN(0._dp, -(ABS(ice%Qy_cy( j,i)) - Vi_fill))
           END IF
         END IF
 
       END IF
+
 
     END DO
     END DO
