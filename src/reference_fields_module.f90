@@ -357,6 +357,12 @@ CONTAINS
     ELSEIF (choice_refgeo_idealised == 'MISMIP+') THEN
       ! The MISMIP+ fjord geometry
       CALL initialise_reference_geometry_idealised_MISMIPplus( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'CalvingMIP_circular') THEN
+      ! The CalvingMIP 'circular' geometry
+      CALL initialise_reference_geometry_idealised_CalvingMIP_circular( grid, refgeo)
+    ELSEIF (choice_refgeo_idealised == 'CalvingMIP_thule') THEN
+      ! The CalvingMIP 'Thule' geometry
+      CALL initialise_reference_geometry_idealised_CalvingMIP_thule( grid, refgeo)
     ELSE
       CALL crash('unknown choice_refgeo_idealised "' // TRIM( choice_refgeo_idealised) // '"!')
     END IF
@@ -740,6 +746,112 @@ CONTAINS
 
   END SUBROUTINE initialise_reference_geometry_idealised_MISMIPplus
 
+  SUBROUTINE initialise_reference_geometry_idealised_CalvingMIP_circular( grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The CalvingMIP 'circular' geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),               INTENT(IN)    :: grid
+    TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'initialise_reference_geometry_idealised_CalvingMIP_circular'
+    INTEGER                                      :: i,j
+    REAL(dp)                                     :: x, y, radius, theta, rc
+    REAL(dp), PARAMETER                          :: R  = 800000._dp
+    REAL(dp), PARAMETER                          :: Bc = 900._dp
+    REAL(dp), PARAMETER                          :: Bl = -2000._dp
+    REAL(dp), PARAMETER                          :: Ba = 1100._dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Center of the circular domain
+      rc = 0._dp
+
+      ! Radius of the circle
+      radius = sqrt( grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j))
+
+      ! Something
+      theta = atan2( grid%y(j), grid%x(i))
+
+      ! Bedrock elevation
+      refgeo%Hb( j,i) = Bc - (Bc-Bl) * (radius-rc)**2._dp / (R-rc)**2._dp
+      ! Initial ice thickness
+      refgeo%Hi( j,i) = 0._dp
+      ! Initial surface elevation
+      refgeo%Hs( j,i) = surface_elevation( refgeo%Hi( j,i), refgeo%Hb( j,i), 0._dp)
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_reference_geometry_idealised_CalvingMIP_circular
+
+  SUBROUTINE initialise_reference_geometry_idealised_CalvingMIP_thule( grid, refgeo)
+    ! Initialise reference geometry according to an idealised world
+    !
+    ! The CalvingMIP 'Thule' geometry
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),               INTENT(IN)    :: grid
+    TYPE(type_reference_geometry), INTENT(INOUT) :: refgeo
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                :: routine_name = 'initialise_reference_geometry_idealised_CalvingMIP_thule'
+    INTEGER                                      :: i,j
+    REAL(dp)                                     :: x, y, radius, theta, rc, l, a
+    REAL(dp), PARAMETER                          :: R  = 800000._dp
+    REAL(dp), PARAMETER                          :: Bc = 900._dp
+    REAL(dp), PARAMETER                          :: Bl = -2000._dp
+    REAL(dp), PARAMETER                          :: Ba = 1100._dp
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Center of the circular domain
+      rc = 0._dp
+
+      ! Radius of the circle
+      radius = sqrt( grid%x(i)*grid%x(i) + grid%y(j)*grid%y(j))
+
+      ! Something
+      theta = atan2( grid%y(j), grid%x(i))
+
+      l = R - cos(2._dp*theta) * R/2._dp
+
+      a = Bc - (Bc - Bl) * (radius - rc)**2._dp / (R - rc)**2._dp
+
+      ! Bedrock elevation
+      refgeo%Hb( j,i) = Ba * cos( 3._dp * pi * radius / l) + a
+      ! Initial ice thickness
+      refgeo%Hi( j,i) = 0._dp
+      ! Initial surface elevation
+      refgeo%Hs( j,i) = surface_elevation( refgeo%Hi( j,i), refgeo%Hb( j,i), 0._dp)
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_reference_geometry_idealised_CalvingMIP_thule
+  
   ! Apply some light smoothing to the initial geometry to improve numerical stability
   SUBROUTINE smooth_model_geometry( grid, Hi, Hb, Hs)
     ! Apply some light smoothing to the initial geometry to improve numerical stability
