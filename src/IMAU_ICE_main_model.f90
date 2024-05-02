@@ -237,17 +237,20 @@ CONTAINS
         CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
       END IF
 
-      ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
-      ! used for writing to text output and in the inverse routine
-      CALL calculate_icesheet_volume_and_area(region)
+      ! Regional scalar output
+      ! ===================
+
+      ! Update the regional output data every model time-step
+      CALL update_regional_scalar_data( region, region%time)
 
       IF (region%do_output_regional_scalar) THEN
-        ! Update the regional output data every model time-step 
-        CALL update_regional_scalar_data( region, region%time)
-      
         ! Save regional scalar
         CALL write_regional_scalar_data( region, region%time)
       END IF
+
+      ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
+      ! used for writing to text output and in the inverse routine
+      CALL calculate_icesheet_volume_and_area(region)
 
       ! Write inverted bed roughness field to file
       IF (C%do_BIVgeo .AND. region%time > C%BIVgeo_t_end) THEN
@@ -496,9 +499,6 @@ CONTAINS
     CALL calculate_PD_sealevel_contribution( region)
     CALL calculate_icesheet_volume_and_area(region)
     
-    ! Calculate MB once. For now, calving cannot be calculated during initialisation
-    region%ice%MB( :, region%grid%i1:region%grid%i2)      = (MAX( 0._dp, region%ice%Hi_tplusdt_a( :,region%grid%i1:region%grid%i2)) - region%ice%Hi_a( :,region%grid%i1:region%grid%i2)) * region%dt
-
     CALL update_regional_scalar_data( region, region%time)
     CALL write_regional_scalar_data( region, C%start_time_of_run)
 
@@ -682,11 +682,13 @@ CONTAINS
     ! Ice-sheet volume and area
     CALL allocate_shared_dp_0D( region%ice_area                     , region%wice_area                     )
     CALL allocate_shared_dp_0D( region%ice_volume                   , region%wice_volume                   )
+    CALL allocate_shared_dp_0D( region%ice_volume_prev              , region%wice_volume_prev                   )
+    CALL allocate_shared_dp_0D( region%ice_volume_rate              , region%wice_volume_rate                   )    
     CALL allocate_shared_dp_0D( region%ice_volume_PD                , region%wice_volume_PD                )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation   , region%wice_volume_above_flotation   )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation_PD, region%wice_volume_above_flotation_PD)
 
-    ! Regionally integrated SMB components
+    ! Regionally integrated MB components
     CALL allocate_shared_dp_0D( region%int_T2m                      , region%wint_T2m                      )
     CALL allocate_shared_dp_0D( region%int_snowfall                 , region%wint_snowfall                 )
     CALL allocate_shared_dp_0D( region%int_rainfall                 , region%wint_rainfall                 )
@@ -698,6 +700,32 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%int_MB                       , region%wint_MB                       )
     CALL allocate_shared_dp_0D( region%int_calving                  , region%wint_Calving                  )
     CALL allocate_shared_dp_0D( region%int_dt                       , region%wint_dt                       )
+    
+    ! Regionally integrated cumulative MB components
+    CALL allocate_shared_dp_0D( region%int_SMB_dV                   , region%wint_SMB_dV                   )
+    CALL allocate_shared_dp_0D( region%int_BMB_dV                   , region%wint_BMB_dV                   )
+    CALL allocate_shared_dp_0D( region%int_MB_dV                    , region%wint_MB_dV                    )
+    CALL allocate_shared_dp_0D( region%int_Calving_dV               , region%wint_Calving_dV               )
+    
+    ! Make sure the scalar output values are 0 at the start of the simulation
+    region%ice_volume_prev = 0._dp
+    region%int_T2m         = 0._dp
+    region%int_snowfall    = 0._dp
+    region%int_rainfall    = 0._dp
+    region%int_melt        = 0._dp
+    region%int_refreezing  = 0._dp
+    region%int_runoff      = 0._dp
+    region%int_SMB         = 0._dp
+    region%int_BMB         = 0._dp
+    region%int_MB          = 0._dp
+    region%int_Calving     = 0._dp
+    region%int_dt          = 0._dp
+    
+    region%int_SMB_dV     = 0._dp
+    region%int_BMB_dV     = 0._dp
+    region%int_MB_dV      = 0._dp
+    region%int_Calving_dV = 0._dp
+
 
     ! Englacial isotope content
     CALL allocate_shared_dp_0D( region%GMSL_contribution            , region%wGMSL_contribution            )
@@ -1040,6 +1068,13 @@ CONTAINS
     CALL MPI_REDUCE( ice_volume,                 region%ice_volume,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
+    ! Calculate ice volume rate (Gt/yr)
+    IF (par%master) region%ice_volume_rate = ((region%ice_volume - region%ice_volume_prev)/ 1E9_dp) / region%dt 
+    CALL sync
+    
+    ! Get ice volume previous time-step
+    region%ice_volume_prev = region%ice_volume
+    
     ! Calculate GMSL contribution
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
     CALL sync
@@ -1066,6 +1101,7 @@ CONTAINS
     ice_volume                 = 0._dp
     ice_volume_above_flotation = 0._dp
 
+
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
 
@@ -1085,7 +1121,7 @@ CONTAINS
 
     CALL MPI_REDUCE( ice_volume                , region%ice_volume_PD,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation_PD, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-
+        
     ! Finalise routine path
     CALL finalise_routine( routine_name)
 
