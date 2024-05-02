@@ -1198,13 +1198,11 @@ MODULE data_types_module
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area
     REAL(dp), POINTER                       :: ice_volume
-    REAL(dp), POINTER                       :: ice_volume_prev
-    REAL(dp), POINTER                       :: ice_volume_rate
     REAL(dp), POINTER                       :: ice_volume_PD
     REAL(dp), POINTER                       :: ice_volume_above_flotation
     REAL(dp), POINTER                       :: ice_volume_above_flotation_PD
     REAL(dp), POINTER                       :: GMSL_contribution
-    INTEGER :: wice_area, wice_volume, wice_volume_prev, wice_volume_rate, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
+    INTEGER :: wice_area, wice_volume, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
      
     ! Regionally integrated mass balance components
     REAL(dp), POINTER                       :: int_T2m

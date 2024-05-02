@@ -118,7 +118,7 @@ CONTAINS
     DO j = 1, region%grid%ny
         ! Add Calving together
         ! NOTE: Calving has may have an implicit dt
-        total_Calving = total_Calving + ( region%ice%Calving( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_Calving = total_Calving + ( region%ice%Calving( j,i) * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
     END DO
     END DO
     CALL sync
@@ -165,8 +165,8 @@ CONTAINS
 
 
         ! Add the mass balance components
-        total_SMB = total_SMB + (local_SMB * region%grid%dx * region%grid%dx / 1E9_dp)
-        total_BMB = total_BMB + (local_BMB * region%grid%dx * region%grid%dx / 1E9_dp)
+        total_SMB = total_SMB + (local_SMB * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
+        total_BMB = total_BMB + (local_BMB * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
 
       END IF
     END DO
@@ -213,11 +213,11 @@ CONTAINS
         IF (region%ice%Hi_a( j,i) > 0._dp) THEN
 
           DO m = 1, 12
-            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
-            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx / 1E9_dp)
+            total_snowfall   = total_snowfall   + (region%SMB%Snowfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
+            total_rainfall   = total_rainfall   + (region%SMB%Rainfall(   m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
+            total_melt       = total_melt       + (region%SMB%Melt(       m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
+            total_refreezing = total_refreezing + (region%SMB%Refreezing( m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
+            total_runoff     = total_runoff     + (region%SMB%Runoff(     m,j,i) * region%ice%float_margin_frac_a( j,i) * region%dt * region%grid%dx * region%grid%dx * ice_density / 1E12_dp)
           END DO
 
         END IF

@@ -46,6 +46,7 @@ MODULE netcdf_output_module
                                              check_xy_grid_field_int_2D, check_xy_grid_field_dp_2D, check_xy_grid_field_dp_2D_monthly, check_xy_grid_field_dp_3D, &
                                              check_lonlat_grid_field_int_2D, check_lonlat_grid_field_dp_2D, check_lonlat_grid_field_dp_2D_monthly, check_lonlat_grid_field_dp_3D, &
                                              inquire_xy_grid, inquire_lonlat_grid, get_first_option_from_list, check_month, check_time, check_time_history, check_xy_grid_field_dp_3D_ocean
+  USE parameters_module
 
   IMPLICIT NONE
 
@@ -76,13 +77,13 @@ CONTAINS
     ! ================
     CALL write_to_field_dp_0D( filename, 'ice_volume',      region%ice_volume)
     CALL write_to_field_dp_0D( filename, 'ice_volume_af',   region%ice_volume_above_flotation)
-    CALL write_to_field_dp_0D( filename, 'ice_volume_rate', region%ice_volume_rate)
+    CALL write_to_field_dp_0D( filename, 'ice_mass',        region%ice_volume*(seawater_density * ocean_area)/1E12_dp)
     CALL write_to_field_dp_0D( filename, 'ice_area',        region%ice_area)
     CALL write_to_field_dp_0D( filename, 'T2m',             region%int_T2m)
-    CALL write_to_field_dp_0D( filename, 'SMB',             region%int_SMB)
-    CALL write_to_field_dp_0D( filename, 'BMB',             region%int_BMB)
-    CALL write_to_field_dp_0D( filename, 'MB',              region%int_MB)
-    CALL write_to_field_dp_0D( filename, 'Calving',         region%int_Calving)
+    CALL write_to_field_dp_0D( filename, 'SMB_flux',        region%int_SMB)
+    CALL write_to_field_dp_0D( filename, 'BMB_flux',        region%int_BMB)
+    CALL write_to_field_dp_0D( filename, 'MB_flux',         region%int_MB)
+    CALL write_to_field_dp_0D( filename, 'Calving_flux',    region%int_Calving)
 
     ! Cumulative MB components 
     CALL write_to_field_dp_0D( filename, 'SMB_dV',     region%int_SMB_dV)
@@ -267,21 +268,21 @@ CONTAINS
 
     ! Create region variables
     ! ================
-    CALL add_field_dp_0D( filename, 'ice_volume',       long_name='Ice volume',                units='m.s.l.e')
-    CALL add_field_dp_0D( filename, 'ice_volume_af',   long_name='Ice volume above flotation', units='m.s.l.e')
-    CALL add_field_dp_0D( filename, 'ice_volume_rate', long_name='Ice volume rate',            units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'ice_area',        long_name='Ice area', units='km^2')
-    CALL add_field_dp_0D( filename, 'T2m',             long_name='Regionally averaged annual mean surface temperature', units='K')
-    CALL add_field_dp_0D( filename, 'SMB',             long_name='Ice-sheet integrated surface mass balance',           units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'BMB',             long_name='Ice-sheet integrated basal mass balance',             units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'MB',              long_name='Ice-sheet integrated mass balance',                   units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'Calving',         long_name='Ice-sheet integrated calving',                        units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'ice_volume',      long_name='Ice volume',                                              units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_volume_af',   long_name='Ice volume above flotation',                              units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_mass',        long_name='Ice mass',                                                units='Gigaton')
+    CALL add_field_dp_0D( filename, 'ice_area',        long_name='Ice area',                                                units='km^2')
+    CALL add_field_dp_0D( filename, 'T2m',             long_name='Regionally averaged annual mean surface temperature',     units='K')
+    CALL add_field_dp_0D( filename, 'SMB_flux',        long_name='Ice-sheet spatially integrated surface mass balance',     units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'BMB_flux',        long_name='Ice-sheet spatially integrated basal mass balance',       units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'MB_flux',         long_name='Ice-sheet spatially integrated mass balance',             units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'Calving_flux',    long_name='Ice-sheet spatially integrated calving',                  units='Gigaton yr^-1')
 
     ! Cumulative
-    CALL add_field_dp_0D( filename, 'SMB_dV',             long_name='Ice-sheet integrated cumulative surface mass balance',           units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'BMB_dV',             long_name='Ice-sheet integrated cumulative basal mass balance',             units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'MB_dV',              long_name='Ice-sheet integrated cumulative mass balance',                   units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'Calving_dV',         long_name='Ice-sheet integrated cumulative calving',                        units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'SMB_dV',          long_name='Ice-sheet spatially integrated cumulative surface mass balance',  units='Gigaton')
+    CALL add_field_dp_0D( filename, 'BMB_dV',          long_name='Ice-sheet spatially integrated cumulative basal mass balance',    units='Gigaton')
+    CALL add_field_dp_0D( filename, 'MB_dV',           long_name='Ice-sheet spatially integrated cumulative mass balance',          units='Gigaton')
+    CALL add_field_dp_0D( filename, 'Calving_dV',      long_name='Ice-sheet spatially integrated cumulative calving',               units='Gigaton')
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
@@ -292,11 +293,11 @@ CONTAINS
       ! Do nothing
     ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
             C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
-       CALL add_field_dp_0D( filename, 'snowfall',   long_name='Ice-sheet integrated snowfall', units='Gigaton yr^-1')
-       CALL add_field_dp_0D( filename, 'rainfall',   long_name='Ice-sheet integrated rainfall', units='Gigaton yr^-1')
-       CALL add_field_dp_0D( filename, 'melt',       long_name='Ice-sheet integrated melt', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'snowfall',   long_name='Ice-sheet integrated snowfall',   units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'rainfall',   long_name='Ice-sheet integrated rainfall',   units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'melt',       long_name='Ice-sheet integrated melt',       units='Gigaton yr^-1')
        CALL add_field_dp_0D( filename, 'refreezing', long_name='Ice-sheet integrated refreezing', units='Gigaton yr^-1')
-       CALL add_field_dp_0D( filename, 'runoff',     long_name='Ice-sheet integrated runoff', units='Gigaton yr^-1')
+       CALL add_field_dp_0D( filename, 'runoff',     long_name='Ice-sheet integrated runoff',     units='Gigaton yr^-1')
     ELSE
       CALL crash('unknown choice_SMB_model "' // TRIM(C%choice_SMB_model) // '"!')
     END IF
@@ -345,11 +346,11 @@ CONTAINS
 
     ! Create global variables
     ! ================
-    CALL add_field_dp_0D( filename, 'GMSL',     long_name='Global mean sea level change', units='m')
+    CALL add_field_dp_0D( filename, 'GMSL',     long_name='Global mean sea level change',                           units='m')
     CALL add_field_dp_0D( filename, 'GMSL_NAM', long_name='Global mean sea level change from ice in North America', units='m')
     CALL add_field_dp_0D( filename, 'GMSL_EAS', long_name='Global mean sea level change from ice in Eurasia',       units='m')
-    CALL add_field_dp_0D( filename, 'GMSL_GRL', long_name='Global mean sea level change from ice in Greenland',       units='m')
-    CALL add_field_dp_0D( filename, 'GMSL_ANT', long_name='Global mean sea level change from ice in Antarctica',       units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_GRL', long_name='Global mean sea level change from ice in Greenland',     units='m')
+    CALL add_field_dp_0D( filename, 'GMSL_ANT', long_name='Global mean sea level change from ice in Antarctica',    units='m')
 
     ! CO2
     IF     (C%choice_forcing_method == 'none') THEN
@@ -365,23 +366,23 @@ CONTAINS
 
     ! d18O
     IF     (C%do_calculate_benthic_d18O) THEN
-      CALL add_field_dp_0D( filename, 'dT_glob',  long_name='Global annual mean surface temperature change', units='K')
-      CALL add_field_dp_0D( filename, 'dT_dw',    long_name='Deep-water temperature change', units='K')
-      CALL add_field_dp_0D( filename, 'd18O_mod', long_name='Modelled benthic d18O', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_ice', long_name='Modelled benthic d18O from global ice volume', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_Tdw', long_name='Modelled benthic d18O from deep-water temperature', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_NAM', long_name='Modelled benthic d18O from ice in North America', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_EAS', long_name='Modelled benthic d18O from ice in Eurasia', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_GRL', long_name='Modelled benthic d18O from ice in Greenland', units='per mil')
-      CALL add_field_dp_0D( filename, 'd18O_ANT', long_name='Modelled benthic d18O from ice in Antarctica', units='per mil')
+      CALL add_field_dp_0D( filename, 'dT_glob',  long_name='Global annual mean surface temperature change',      units='K')
+      CALL add_field_dp_0D( filename, 'dT_dw',    long_name='Deep-water temperature change',                      units='K')
+      CALL add_field_dp_0D( filename, 'd18O_mod', long_name='Modelled benthic d18O',                              units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_ice', long_name='Modelled benthic d18O from global ice volume',       units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_Tdw', long_name='Modelled benthic d18O from deep-water temperature',  units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_NAM', long_name='Modelled benthic d18O from ice in North America',    units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_EAS', long_name='Modelled benthic d18O from ice in Eurasia',          units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_GRL', long_name='Modelled benthic d18O from ice in Greenland',        units='per mil')
+      CALL add_field_dp_0D( filename, 'd18O_ANT', long_name='Modelled benthic d18O from ice in Antarctica',       units='per mil')
     END IF
 
     ! Computation time for different model components
-    CALL add_field_dp_0D( filename, 'tcomp_total',   long_name='Total computation time', units='s')
-    CALL add_field_dp_0D( filename, 'tcomp_ice',     long_name='Total computation time for ice dynamics', units='s')
-    CALL add_field_dp_0D( filename, 'tcomp_thermo',  long_name='Total computation time for thermodynamics', units='s')
-    CALL add_field_dp_0D( filename, 'tcomp_climate', long_name='Total computation time for climate+SMB+BMB', units='s')
-    CALL add_field_dp_0D( filename, 'tcomp_GIA',     long_name='Total computation time for GIA', units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_total',   long_name='Total computation time',                          units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_ice',     long_name='Total computation time for ice dynamics',         units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_thermo',  long_name='Total computation time for thermodynamics',       units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_climate', long_name='Total computation time for climate+SMB+BMB',      units='s')
+    CALL add_field_dp_0D( filename, 'tcomp_GIA',     long_name='Total computation time for GIA',                  units='s')
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

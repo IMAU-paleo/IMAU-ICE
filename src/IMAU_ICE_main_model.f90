@@ -682,8 +682,6 @@ CONTAINS
     ! Ice-sheet volume and area
     CALL allocate_shared_dp_0D( region%ice_area                     , region%wice_area                     )
     CALL allocate_shared_dp_0D( region%ice_volume                   , region%wice_volume                   )
-    CALL allocate_shared_dp_0D( region%ice_volume_prev              , region%wice_volume_prev                   )
-    CALL allocate_shared_dp_0D( region%ice_volume_rate              , region%wice_volume_rate                   )    
     CALL allocate_shared_dp_0D( region%ice_volume_PD                , region%wice_volume_PD                )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation   , region%wice_volume_above_flotation   )
     CALL allocate_shared_dp_0D( region%ice_volume_above_flotation_PD, region%wice_volume_above_flotation_PD)
@@ -708,7 +706,6 @@ CONTAINS
     CALL allocate_shared_dp_0D( region%int_Calving_dV               , region%wint_Calving_dV               )
     
     ! Make sure the scalar output values are 0 at the start of the simulation
-    region%ice_volume_prev = 0._dp
     region%int_T2m         = 0._dp
     region%int_snowfall    = 0._dp
     region%int_rainfall    = 0._dp
@@ -1051,7 +1048,7 @@ CONTAINS
     DO j = 1, region%grid%ny
 
       IF (region%ice%mask_ice_a( j,i) == 1) THEN
-        ice_volume = ice_volume + (region%ice%Hi_a(j,i)                * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area))
+        ice_volume = ice_volume + (region%ice%Hi_a(j,i)                * region%grid%dx * region%grid%dx * ice_density / (seawater_density * ocean_area)) 
         ice_area   = ice_area   + region%ice%float_margin_frac_a( j,i) * region%grid%dx * region%grid%dx * 1.0E-06_dp ! [km^3]
 
         ! Thickness above flotation
@@ -1067,13 +1064,6 @@ CONTAINS
     CALL MPI_REDUCE( ice_area,                   region%ice_area,                   1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume,                 region%ice_volume,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
-
-    ! Update the ice volume rate (Gt/yr)
-    IF (par%master) region%ice_volume_rate = (((region%ice_volume - region%ice_volume_prev)*ocean_area)/ (1E9_dp)) / region%dt
-    CALL sync
-
-    ! Get ice volume previous time-step
-    region%ice_volume_prev = region%ice_volume
 
     ! Calculate GMSL contribution
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
