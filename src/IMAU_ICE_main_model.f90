@@ -122,6 +122,17 @@ CONTAINS
     ! ===================
       CALL update_ice_thickness( region%grid, region%ice, region%mask_noice, region%refgeo_PD, region%refgeo_GIAeq, region%time)
 
+    ! Regional scalar output
+    ! ===================
+
+    ! Update the regional output data every model time-step
+    CALL update_regional_scalar_data( region, region%time)
+
+    IF (region%do_output_regional_scalar) THEN
+      ! Save regional scalar
+      CALL write_regional_scalar_data( region, region%time)
+    END IF
+
     ! == Time display
     ! ===============
 
@@ -235,17 +246,6 @@ CONTAINS
       ! Write to restart file
       IF (region%do_output_restart) THEN
         CALL write_to_restart_file_grid( region%restart_filename, region, forcing)
-      END IF
-
-      ! Regional scalar output
-      ! ===================
-
-      ! Update the regional output data every model time-step
-      CALL update_regional_scalar_data( region, region%time)
-
-      IF (region%do_output_regional_scalar) THEN
-        ! Save regional scalar
-        CALL write_regional_scalar_data( region, region%time)
       END IF
 
       ! Determine total ice sheet area, volume, volume-above-flotation and GMSL contribution,
@@ -1068,13 +1068,13 @@ CONTAINS
     CALL MPI_REDUCE( ice_volume,                 region%ice_volume,                 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
     CALL MPI_REDUCE( ice_volume_above_flotation, region%ice_volume_above_flotation, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
-    ! Calculate ice volume rate (Gt/yr)
-    IF (par%master) region%ice_volume_rate = ((region%ice_volume - region%ice_volume_prev)/ 1E9_dp) / region%dt 
+    ! Update the ice volume rate (Gt/yr)
+    IF (par%master) region%ice_volume_rate = (((region%ice_volume - region%ice_volume_prev)*ocean_area)/ (1E9_dp)) / region%dt
     CALL sync
-    
+
     ! Get ice volume previous time-step
     region%ice_volume_prev = region%ice_volume
-    
+
     ! Calculate GMSL contribution
     IF (par%master) region%GMSL_contribution = -1._dp * (region%ice_volume_above_flotation - region%ice_volume_above_flotation_PD)
     CALL sync
