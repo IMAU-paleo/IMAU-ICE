@@ -53,7 +53,16 @@ CONTAINS
       RETURN
     END IF
 
-    ! 
+    ! First, check if the time-step way too small
+    IF (region%dt < C%dt_min) THEN
+           ! If the time-step is too small, do not update the regional scalar output
+           
+           ! Finalise routine path
+           CALL finalise_routine( routine_name)
+           RETURN
+    END IF
+    
+    ! Reset the value 
     IF (.NOT. C%do_write_regional_scalar_output_average) THEN
       ! Resetting the regional scalar output to plot only output the current time-step
     
@@ -72,6 +81,7 @@ CONTAINS
       region%int_refreezing = 0._dp
       region%int_runoff     = 0._dp
     END IF
+    CALL sync 
     ! When outputting a running mean, resetting only needs to happen when writing the output
 
     ! ======= Temperature =======
@@ -107,7 +117,7 @@ CONTAINS
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
         ! Add Calving together
-        ! NOTE: Calving has may have an implicit dt that corresponds to the previous time-step rather than the current one.
+        ! NOTE: Calving has may have an implicit dt
         total_Calving = total_Calving + ( region%ice%Calving( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
     END DO
     END DO
@@ -121,8 +131,8 @@ CONTAINS
       
       ! Cumulative
       region%int_Calving_dv = region%int_Calving_dv + total_Calving
-      
     END IF
+    CALL sync
 
     ! ======= SMB and BMB =======
     ! Ice-sheet-integrated surface/basal mass balance
@@ -139,11 +149,7 @@ CONTAINS
 
         ! Check if melt exceeds current ice thickness
         ! (and make sure SMB and BMB are negative, but not too small to prevent dividing by small numbers)
-        !IF (region%ice%Hi_a( j,i) < 0.001_dp .OR. ABS(local_SMB + local_BMB) < 0.001_dp ) THEN
-        !  ! Very thin ice, mass balance fluxes may be wrong (dividing by small number)
-        !  local_SMB = 0._dp
-        !  local_BMB = 0._dp
-        IF (region%ice%Hi_a( j,i) < -(local_SMB + local_BMB)) THEN
+        IF (region%ice%Hi_a( j,i) < -(local_SMB + local_BMB) .AND. region%ice%Hi_a( j,i) > 0._dp) THEN
 
            ! Scale SMB with respect to the remaining Hi
            local_SMB = -region%ice%Hi_a( j,i) * ( local_SMB / (local_SMB + local_BMB))
@@ -151,7 +157,12 @@ CONTAINS
            ! The rest should be BMB
            local_BMB = -local_SMB - region%ice%Hi_a( j,i)
 
+           IF (ABS(local_SMB) > 50._dp) THEN
+                PRINT*,local_SMB, local_BMB, region%ice%Hi_a( j,i), region%dt
+           END IF
+
         END IF
+
 
         ! Add the mass balance components
         total_SMB = total_SMB + (local_SMB * region%grid%dx * region%grid%dx / 1E9_dp)
@@ -237,15 +248,19 @@ CONTAINS
     END IF
 
     ! Calculate mass balance from the components
-    region%int_MB = region%int_MB + region%int_Calving + region%int_SMB + region%int_BMB
+    IF (par%master) THEN
+      region%int_MB = region%int_MB + region%int_Calving + region%int_SMB + region%int_BMB
     
-    ! Calculate cumulative MB
-    region%int_MB_dV = region%int_MB_dV + region%int_Calving + region%int_SMB + region%int_BMB
+      ! Calculate cumulative MB
+      region%int_MB_dV = region%int_MB_dV + region%int_Calving + region%int_SMB + region%int_BMB
+    END IF 
+    CALL sync 
     
     ! Keep track of the total time elapsed between two regional_scalar time-steps
     IF (par%master) THEN
       region%int_dt = region%int_dt + region%dt
     END IF
+    CALL sync
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)
