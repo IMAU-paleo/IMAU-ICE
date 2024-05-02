@@ -53,6 +53,27 @@ CONTAINS
       RETURN
     END IF
 
+    ! 
+    IF (.NOT. C%do_write_regional_scalar_output_average) THEN
+      ! Resetting the regional scalar output to plot only output the current time-step
+    
+      ! Set the elapsed time after the previous write_scalar to 0.
+      region%int_dt = 0._dp
+
+      ! Set all other variables to 0.
+      region%int_T2m        = 0._dp
+      region%int_MB         = 0._dp
+      region%int_Calving    = 0._dp
+      region%int_SMB        = 0._dp
+      region%int_BMB        = 0._dp
+      region%int_snowfall   = 0._dp
+      region%int_rainfall   = 0._dp
+      region%int_melt       = 0._dp
+      region%int_refreezing = 0._dp
+      region%int_runoff     = 0._dp
+    END IF
+    ! When outputting a running mean, resetting only needs to happen when writing the output
+
     ! ======= Temperature =======
     ! Region-wide annual mean surface temperature
     IF (C%choice_climate_model == 'none') THEN
@@ -85,19 +106,22 @@ CONTAINS
 
     DO i = region%grid%i1, region%grid%i2
     DO j = 1, region%grid%ny
-        ! Add MB and Calving together
-        total_MB      = total_MB      + ( region%ice%MB( j,i)      * region%grid%dx * region%grid%dx / 1E9_dp)
+        ! Add Calving together
+        ! NOTE: Calving has may have an implicit dt that corresponds to the previous time-step rather than the current one.
         total_Calving = total_Calving + ( region%ice%Calving( j,i) * region%grid%dx * region%grid%dx / 1E9_dp)
     END DO
     END DO
     CALL sync
 
-    CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_MB,      1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_Calving, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     IF (par%master) THEN
-      region%int_MB      = region%int_MB      + total_MB
+      ! Current time-step
       region%int_Calving = region%int_Calving + total_Calving
+      
+      ! Cumulative
+      region%int_Calving_dv = region%int_Calving_dv + total_Calving
+      
     END IF
 
     ! ======= SMB and BMB =======
@@ -142,8 +166,14 @@ CONTAINS
     CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_BMB, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
     IF (par%master) THEN
+      ! Current rates
       region%int_SMB = region%int_SMB + total_SMB
       region%int_BMB = region%int_BMB + total_BMB
+
+      ! Cumulative
+      region%int_SMB_dv = region%int_SMB_dv + total_SMB
+      region%int_BMB_dv = region%int_BMB_dv + total_BMB
+      
     END IF
     CALL sync
 
@@ -191,7 +221,9 @@ CONTAINS
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_refreezing, 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
       CALL MPI_ALLREDUCE( MPI_IN_PLACE, total_runoff    , 1, MPI_DOUBLE_PRECISION, MPI_SUM, MPI_COMM_WORLD, ierr)
 
+
       IF (par%master) THEN
+        ! Current rates
         region%int_snowfall   = region%int_snowfall   + total_snowfall
         region%int_rainfall   = region%int_rainfall   + total_rainfall
         region%int_melt       = region%int_melt       + total_melt
@@ -204,6 +236,12 @@ CONTAINS
       CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
     END IF
 
+    ! Calculate mass balance from the components
+    region%int_MB = region%int_MB + region%int_Calving + region%int_SMB + region%int_BMB
+    
+    ! Calculate cumulative MB
+    region%int_MB_dV = region%int_MB_dV + region%int_Calving + region%int_SMB + region%int_BMB
+    
     ! Keep track of the total time elapsed between two regional_scalar time-steps
     IF (par%master) THEN
       region%int_dt = region%int_dt + region%dt
@@ -236,46 +274,45 @@ CONTAINS
       RETURN
     END IF
 
-    IF (C%do_write_regional_scalar_output_average) THEN
-      ! Average the components based on the elapsed time between scalar output writing
-      IF (par%master) THEN
-        ! ======= Temperature =======
-        ! Region-wide annual mean surface temperature
-        IF (C%choice_climate_model == 'none') THEN
-          ! In this case, no surface temperature is calculated at all
-        ELSE
-          region%int_T2m = region%int_T2m / region%int_dt
-        END IF ! IF (C%choice_climate_model == 'none') THEN
+    
+    ! Average the components based on the elapsed time between scalar output writing
+    IF (par%master) THEN
+      ! ======= Temperature =======
+      ! Region-wide annual mean surface temperature
+      IF (C%choice_climate_model == 'none') THEN
+        ! In this case, no surface temperature is calculated at all
+      ELSE
+        region%int_T2m = region%int_T2m / region%int_dt
+      END IF ! IF (C%choice_climate_model == 'none') THEN
 
-        ! ======= MB and Calving =======
-        region%int_MB      = region%int_MB      / region%int_dt
-        region%int_Calving = region%int_Calving / region%int_dt
+      ! ======= MB and Calving =======
+      region%int_MB      = region%int_MB      / region%int_dt
+      region%int_Calving = region%int_Calving / region%int_dt
 
-        ! ======= SMB and BMB  ========
-        region%int_SMB = region%int_SMB / region%int_dt
-        region%int_BMB = region%int_BMB / region%int_dt
+      ! ======= SMB and BMB  ========
+      region%int_SMB = region%int_SMB / region%int_dt
+      region%int_BMB = region%int_BMB / region%int_dt
 
-        ! Individual SMB components
-        IF     (C%choice_SMB_model == 'uniform' .OR. &
-                C%choice_SMB_model == 'idealised' .OR. &
-                C%choice_SMB_model == 'direct_global' .OR. &
-                C%choice_SMB_model == 'direct_regional' .OR. &
-                C%choice_SMB_model == 'snapshot' .OR. &
-                C%choice_SMB_model == 'ISMIP_style') THEN
-          ! Do nothing
-        ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
-                C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
-          region%int_snowfall   = region%int_snowfall   / region%int_dt
-          region%int_rainfall   = region%int_rainfall   / region%int_dt
-          region%int_melt       = region%int_melt       / region%int_dt
-          region%int_refreezing = region%int_refreezing / region%int_dt
-          region%int_runoff     = region%int_runoff     / region%int_dt
-        ELSE
-          CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
-        END IF
-      END IF ! (par%master)
-      CALL sync
-    END IF
+      ! Individual SMB components
+      IF     (C%choice_SMB_model == 'uniform' .OR. &
+              C%choice_SMB_model == 'idealised' .OR. &
+              C%choice_SMB_model == 'direct_global' .OR. &
+              C%choice_SMB_model == 'direct_regional' .OR. &
+              C%choice_SMB_model == 'snapshot' .OR. &
+              C%choice_SMB_model == 'ISMIP_style') THEN
+        ! Do nothing
+      ELSEIF (C%choice_SMB_model == 'IMAU-ITM' .OR. &
+              C%choice_SMB_model == 'IMAU-ITM_wrongrefreezing') THEN
+        region%int_snowfall   = region%int_snowfall   / region%int_dt
+        region%int_rainfall   = region%int_rainfall   / region%int_dt
+        region%int_melt       = region%int_melt       / region%int_dt
+        region%int_refreezing = region%int_refreezing / region%int_dt
+        region%int_runoff     = region%int_runoff     / region%int_dt
+      ELSE
+        CALL crash('unknown choice_SMB_model "' // TRIM( C%choice_SMB_model) // '"!')
+      END IF
+    END IF ! (par%master)
+    CALL sync
 
     ! Write to NetCDF file
     CALL write_to_regional_scalar_file( region%scalar_filename, region)

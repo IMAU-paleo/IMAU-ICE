@@ -521,10 +521,6 @@ CONTAINS
 
     CALL alter_ice_thickness( grid, ice, refgeo_PD, time)
 
-    ! Keep track of the change in mass balance
-    ice%MB( :, grid%i1:grid%i2)      = MAX( 0._dp, ice%Hi_tplusdt_a( :,grid%i1:grid%i2)) - ice%Hi_a( :,grid%i1:grid%i2)
-    CALL sync
-
     ! Reset calving
     ice%Calving( :, grid%i1:grid%i2) = 0._dp
     CALL sync
@@ -566,7 +562,6 @@ CONTAINS
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
       IF (mask_noice( j,i) == 1) THEN
-        ice%MB(   j,i) = ice%MB(   j,i) - ice%Hi_a( j,i) ! This ice should not be incorporated in the mass balance
         ice%Hi_a( j,i) = 0._dp
       END IF
     END DO
@@ -642,10 +637,6 @@ CONTAINS
       ice%dHs_a( j,i) = ice%Hs_a( j,i) - surface_elevation( refgeo_PD%Hi( j,i), refgeo_PD%Hb( j,i), 0._dp)
     END DO
     END DO
-    CALL sync
-
-    ! Add calving
-    ice%MB( :, grid%i1:grid%i2)      = ice%MB( :, grid%i1:grid%i2) + ice%Calving( :, grid%i1:grid%i2)
     CALL sync
 
     ! Finalise routine path
@@ -1531,7 +1522,6 @@ CONTAINS
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_a                , ice%wdHi_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHs_a                , ice%wdHs_a                )
     CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%dHi_dt_target        , ice%wdHi_dt_target        )
-    CALL allocate_shared_dp_2D(        grid%ny  , grid%nx  , ice%MB                   , ice%wMB                   )
 
     ! Finalise routine path
     CALL finalise_routine( routine_name)

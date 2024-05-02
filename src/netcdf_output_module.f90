@@ -74,14 +74,21 @@ CONTAINS
 
     ! Write model data
     ! ================
-    CALL write_to_field_dp_0D( filename, 'ice_volume',    region%ice_volume)
-    CALL write_to_field_dp_0D( filename, 'ice_volume_af', region%ice_volume_above_flotation)
-    CALL write_to_field_dp_0D( filename, 'ice_area',      region%ice_area)
-    CALL write_to_field_dp_0D( filename, 'T2m',           region%int_T2m)
-    CALL write_to_field_dp_0D( filename, 'SMB',           region%int_SMB)
-    CALL write_to_field_dp_0D( filename, 'BMB',           region%int_BMB)
-    CALL write_to_field_dp_0D( filename, 'MB',            region%int_MB)
-    CALL write_to_field_dp_0D( filename, 'Calving',       region%int_Calving)
+    CALL write_to_field_dp_0D( filename, 'ice_volume',      region%ice_volume)
+    CALL write_to_field_dp_0D( filename, 'ice_volume_af',   region%ice_volume_above_flotation)
+    CALL write_to_field_dp_0D( filename, 'ice_volume_rate', region%ice_volume_rate)
+    CALL write_to_field_dp_0D( filename, 'ice_area',        region%ice_area)
+    CALL write_to_field_dp_0D( filename, 'T2m',             region%int_T2m)
+    CALL write_to_field_dp_0D( filename, 'SMB',             region%int_SMB)
+    CALL write_to_field_dp_0D( filename, 'BMB',             region%int_BMB)
+    CALL write_to_field_dp_0D( filename, 'MB',              region%int_MB)
+    CALL write_to_field_dp_0D( filename, 'Calving',         region%int_Calving)
+
+    ! Cumulative MB components 
+    CALL write_to_field_dp_0D( filename, 'SMB_dV',     region%int_SMB_dV)
+    CALL write_to_field_dp_0D( filename, 'BMB_dV',     region%int_BMB_dV)
+    CALL write_to_field_dp_0D( filename, 'MB_dV',      region%int_MB_dV)
+    CALL write_to_field_dp_0D( filename, 'Calving_dV', region%int_Calving_dV)
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &
@@ -260,14 +267,21 @@ CONTAINS
 
     ! Create region variables
     ! ================
-    CALL add_field_dp_0D( filename, 'ice_volume',    long_name='Ice volume', units='m.s.l.e')
-    CALL add_field_dp_0D( filename, 'ice_volume_af', long_name='Ice volume above flotation', units='m.s.l.e')
-    CALL add_field_dp_0D( filename, 'ice_area',      long_name='Ice volume', units='km^2')
-    CALL add_field_dp_0D( filename, 'T2m',           long_name='Regionally averaged annual mean surface temperature', units='K')
-    CALL add_field_dp_0D( filename, 'SMB',           long_name='Ice-sheet integrated surface mass balance',           units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'BMB',           long_name='Ice-sheet integrated basal mass balance',             units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'MB',            long_name='Ice-sheet integrated mass balance',                   units='Gigaton yr^-1')
-    CALL add_field_dp_0D( filename, 'Calving',       long_name='Ice-sheet integrated calving',                        units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'ice_volume',       long_name='Ice volume',                units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_volume_af',   long_name='Ice volume above flotation', units='m.s.l.e')
+    CALL add_field_dp_0D( filename, 'ice_volume_rate', long_name='Ice volume rate',            units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'ice_area',        long_name='Ice area', units='km^2')
+    CALL add_field_dp_0D( filename, 'T2m',             long_name='Regionally averaged annual mean surface temperature', units='K')
+    CALL add_field_dp_0D( filename, 'SMB',             long_name='Ice-sheet integrated surface mass balance',           units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'BMB',             long_name='Ice-sheet integrated basal mass balance',             units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'MB',              long_name='Ice-sheet integrated mass balance',                   units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'Calving',         long_name='Ice-sheet integrated calving',                        units='Gigaton yr^-1')
+
+    ! Cumulative
+    CALL add_field_dp_0D( filename, 'SMB_dV',             long_name='Ice-sheet integrated cumulative surface mass balance',           units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'BMB_dV',             long_name='Ice-sheet integrated cumulative basal mass balance',             units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'MB_dV',              long_name='Ice-sheet integrated cumulative mass balance',                   units='Gigaton yr^-1')
+    CALL add_field_dp_0D( filename, 'Calving_dV',         long_name='Ice-sheet integrated cumulative calving',                        units='Gigaton yr^-1')
 
     ! Individual SMB components
     IF     (C%choice_SMB_model == 'uniform' .OR. &

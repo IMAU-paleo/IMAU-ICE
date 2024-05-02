@@ -340,8 +340,7 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHs_a                  ! Surface elevation difference w.r.t. PD reference
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_dt_target          ! Target dHi_dt during model spinup
-    REAL(dp), DIMENSION(:,:  ), POINTER     :: MB                            ! Annual MB   (m)
-    INTEGER :: wdHi_a, wdHs_a, wdHi_dt_target, wMB
+    INTEGER :: wdHi_a, wdHs_a, wdHi_dt_target
 
   END TYPE type_ice_model
 
@@ -1199,12 +1198,14 @@ MODULE data_types_module
     ! The region's ice sheet's volume and volume above flotation (in mSLE, so the second one is the ice sheets GMSL contribution)
     REAL(dp), POINTER                       :: ice_area
     REAL(dp), POINTER                       :: ice_volume
+    REAL(dp), POINTER                       :: ice_volume_prev
+    REAL(dp), POINTER                       :: ice_volume_rate
     REAL(dp), POINTER                       :: ice_volume_PD
     REAL(dp), POINTER                       :: ice_volume_above_flotation
     REAL(dp), POINTER                       :: ice_volume_above_flotation_PD
     REAL(dp), POINTER                       :: GMSL_contribution
-    INTEGER :: wice_area, wice_volume, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
-
+    INTEGER :: wice_area, wice_volume, wice_volume_prev, wice_volume_rate, wice_volume_PD, wice_volume_above_flotation, wice_volume_above_flotation_PD, wGMSL_contribution
+     
     ! Regionally integrated mass balance components
     REAL(dp), POINTER                       :: int_T2m
     REAL(dp), POINTER                       :: int_snowfall
@@ -1218,6 +1219,13 @@ MODULE data_types_module
     REAL(dp), POINTER                       :: int_Calving
     REAL(dp), POINTER                       :: int_dt
     INTEGER :: wint_T2m, wint_snowfall, wint_rainfall, wint_melt, wint_refreezing, wint_runoff, wint_SMB, wint_BMB, wint_MB, wint_Calving, wint_dt
+
+    ! Regionally integrated cumulative mass balance components
+    REAL(dp), POINTER                       :: int_SMB_dV
+    REAL(dp), POINTER                       :: int_BMB_dV
+    REAL(dp), POINTER                       :: int_MB_dV
+    REAL(dp), POINTER                       :: int_Calving_dV
+    INTEGER :: wint_SMB_dV, wint_BMB_dV, wint_MB_dV, wint_Calving_dV
 
     ! Variables related to the englacial isotope content
     REAL(dp), POINTER                       :: mean_isotope_content
