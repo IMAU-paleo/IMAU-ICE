@@ -49,7 +49,7 @@
   ! =======================================================================
 
   create_procedural_output_dir_config         = .FALSE.                           ! Automatically create an output directory with a procedural name (e.g. results_20210720_001/)
-  fixed_output_dir_config                     = 'EISMINT_DIVA_31Okt_petsc_high_newDIVA_test1'   ! If not, create a directory with this name instead (stops the program if this directory already exists)
+  fixed_output_dir_config                     = 'EISMINT_DIVA_test'               ! If not, create a directory with this name instead (stops the program if this directory already exists)
   fixed_output_dir_suffix_config              = ''                                ! Suffix to put after the fixed output directory name, useful when doing ensemble runs with the template+variation set-up
   do_write_regional_scalar_output_config      = .FALSE.
   do_write_global_scalar_output_config        = .TRUE.
@@ -128,8 +128,7 @@
   filename_refgeo_init_NAM_config             = 'data/ETOPO1/NorthAmerica_ETOPO1_5km.nc'
   filename_refgeo_init_EAS_config             = 'data/ETOPO1/Eurasia_ETOPO1_5km.nc'
   filename_refgeo_init_GRL_config             = 'data/Bedmachine_Greenland_v4/BedMachineGreenland-2021-04-20.nc'
-  filename_refgeo_init_ANT_config             = '/Users/5941962/surfdrive/P1_OUTPUT/spinup/MISMIPplus_2km_Hybrid_Schoof_tuneGL_spinup_32_01_petsc_new/restart_ANT.nc'
-  do_read_velocities_from_restart_config      = .FALSE.
+  filename_refgeo_init_ANT_config             = ''
 
   ! Present-day geometry
   choice_refgeo_PD_NAM_config                 = 'realistic'                      ! Choice of present-day geometry for North America; can be "idealised", "realistic", or "restart"
@@ -310,7 +309,6 @@
   Martin2011till_phi_Hb_max_config            = 0.0                              ! Martin et al. (2011) bed roughness model: high-end Hb  value of bedrock-dependent till friction angle
   Martin2011till_phi_min_config               = 5.0                              ! Martin et al. (2011) bed roughness model: low-end  phi value of bedrock-dependent till friction angle
   Martin2011till_phi_max_config               = 20.0                             ! Martin et al. (2011) bed roughness model: high-end phi value of bedrock-dependent till friction angle
-  basal_roughness_filename_config             = ''                               ! NetCDF file containing a basal roughness field for the chosen sliding law
   do_smooth_phi_restart_config                = .FALSE.                          ! Whether or not to smooth the prescribed bed roughness once (crucial for downscaling runs)
   r_smooth_phi_restart_config                 = 0.5                              ! Prescribed bed roughness smoothing radius (in number of grid cells)
 
@@ -354,7 +352,7 @@
   ! Thermodynamics and rheology
   ! ===========================
 
-  choice_initial_ice_temperature_config       = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
+  choice_initial_ice_temperature_ANT_config   = 'uniform'                        ! Choice of initial ice temperature profile: "uniform", "linear", "Robin", "restart"
   uniform_ice_temperature_config              = 270.0                            ! Uniform ice temperature (applied when choice_initial_ice_temperature_config = "uniform")
   choice_thermo_model_config                  = '3D_heat_equation'               ! Choice of thermodynamical model: "none", "3D_heat_equation"
   choice_ice_rheology_config                  = 'uniform'                        ! Choice of ice rheology model: "uniform", "Huybrechts1992", "MISMIP_mod"
@@ -541,9 +539,6 @@
   BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
   BMB_PICO_GammaTstar_config                  = 3.6131E-05     ! 2.0E-5          ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
 
-  ! Parameters for the LADDIE BMB model
-  filename_BMB_laddie_config                  = ''                               ! File name of basal melt provided by LADDIE
-
   ! Parameters for the ANICE_legacy sub-shelf melt model
   T_ocean_mean_PD_NAM_config                  = -1.7                             ! Present day temperature of the ocean beneath the shelves [Celcius]
   T_ocean_mean_PD_EAS_config                  = -1.7
@@ -604,7 +599,6 @@
   ! =================
 
   do_ocean_floodfill_config                   = .FALSE.                          ! Use a flood-fill to determine the ocean mask, so that (pro-/sub-glacial) lakes dont exist
-  choice_sealevel_model_config                = 'fixed'                          ! Can be "fixed", "prescribed", "eustatic", or "SELEN"
   fixed_sealevel_config                       = 0.0                              ! Height of fixed sealevel w.r.t. PD
   filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   sealevel_record_length_config               = 1
