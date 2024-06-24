@@ -794,6 +794,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: filename_sealevel_record_config             = 'name_of_file.dat'               ! Name of a file containing a sealevel record (in years)
   INTEGER             :: sealevel_record_length_config               = 1
   CHARACTER(LEN=256)  :: filename_geoid_baseline_config              = 'name_of_file.dat'               ! Name of a file containing a geoid
+  CHARACTER(LEN=256)  :: filename_LVELRA_bedrock_relaxation_time_config = 'name_of_file.dat'               ! Name of a file containing a field with laterally varying relaxation times
 
   CHARACTER(LEN=256)  :: choice_GIA_model_config                     = 'ELRA'                           ! Can be "none", "ELRA", or "SELEN"
   REAL(dp)            :: dx_GIA_config                               = 100000._dp                       ! Horizontal resolution of the square grid used for the GIA model
@@ -1604,6 +1605,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: filename_sealevel_record
     INTEGER                             :: sealevel_record_length
     CHARACTER(LEN=256)                  :: filename_geoid_baseline
+    CHARACTER(LEN=256)                  :: filename_LVELRA_bedrock_relaxation_time
     CHARACTER(LEN=256)                  :: choice_GIA_model
     REAL(dp)                            :: dx_GIA
     REAL(dp)                            :: ELRA_lithosphere_flex_rigidity
@@ -2435,11 +2437,12 @@ CONTAINS
                      uniform_ice_d18O_config,                         &
                      do_ocean_floodfill_config,                       &
                      choice_global_sealevel_model_config,             &
-                     choice_regional_sealevel_model_config,                  &
+                     choice_regional_sealevel_model_config,           &
                      fixed_sealevel_config,                           &
                      filename_sealevel_record_config,                 &
                      sealevel_record_length_config,                   &
                      filename_geoid_baseline_config,                  &
+                     filename_LVELRA_bedrock_relaxation_time_config,  &
                      choice_GIA_model_config,                         &
                      dx_GIA_config,                                   &
                      ELRA_lithosphere_flex_rigidity_config,           &
@@ -3403,6 +3406,7 @@ CONTAINS
     C%filename_sealevel_record                 = filename_sealevel_record_config
     C%sealevel_record_length                   = sealevel_record_length_config
     C%filename_geoid_baseline                  = filename_geoid_baseline_config
+    C%filename_LVELRA_bedrock_relaxation_time  = filename_LVELRA_bedrock_relaxation_time_config
     C%choice_GIA_model                         = choice_GIA_model_config
     C%dx_GIA                                   = dx_GIA_config
     C%ELRA_lithosphere_flex_rigidity           = ELRA_lithosphere_flex_rigidity_config

@@ -34,7 +34,7 @@ MODULE IMAU_ICE_main_model
   USE isotopes_module,                     ONLY: initialise_isotopes_model,         run_isotopes_model
   USE bedrock_module,                      ONLY: initialise_ELRA_model,             run_ELRA_model,   calculate_initial_relative_ice_load, &
                                                  update_Hb_with_external_GIA_model_output, read_external_GIA_file, calculate_relative_ice_load, &
-                                                 calculate_elra_bedrock_deformation_rate
+                                                 calculate_elra_bedrock_deformation_rate, initialise_LVELRA_model, run_LVELRA_model
 # if (defined(DO_SELEN))
   USE SELEN_main_module,                   ONLY: apply_SELEN_bed_geoid_deformation_rates
 # endif
@@ -105,6 +105,8 @@ CONTAINS
         ! Nothing to be done
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
         CALL run_ELRA_model( region)
+      ELSEIF (C%choice_GIA_model == 'LVELRA') THEN
+        CALL run_LVELRA_model( region)
 # if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL crash('SELEN is your chosen GIA model but the current code never calls to run SELEN, this should be fixed!')
@@ -396,6 +398,9 @@ CONTAINS
     ELSEIF (C%choice_GIA_model == 'ELRA') THEN
       CALL initialise_GIA_model_grid( region)
       CALL initialise_ELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+    ELSEIF (C%choice_GIA_model == 'LVELRA') THEN
+      CALL initialise_GIA_model_grid( region)
+      CALL initialise_LVELRA_model( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
 # if (defined(DO_SELEN))
     ELSEIF (C%choice_GIA_model == 'SELEN') THEN
       CALL initialise_GIA_model_grid( region)
@@ -461,6 +466,9 @@ CONTAINS
       ELSEIF (C%choice_GIA_model == 'ELRA') THEN
           ! CALL calculate_ELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
           CALL run_ELRA_model( region)
+      ELSEIF (C%choice_GIA_model == 'LVELRA') THEN
+          ! CALL calculate_LVELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+          CALL run_LVELRA_model( region)
 # if (defined(DO_SELEN))
       ELSEIF (C%choice_GIA_model == 'SELEN') THEN
         CALL apply_SELEN_bed_geoid_deformation_rates( region) ! It should be checked wheter SELEN initialises correctly according to the current structure of IMAU-ICE

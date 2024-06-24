@@ -333,7 +333,9 @@ MODULE data_types_module
     REAL(dp), DIMENSION(:,:  ), POINTER     :: surface_load_rel_ext
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_eq
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHb_external
-    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_grid_GIA, wsurface_load_rel_ext, wdHb_eq, wdHb_external
+    REAL(dp), DIMENSION(:,:  ), POINTER     :: LVELRA_bedrock_relaxation_time
+
+    INTEGER :: wflex_prof_rad, wflex_prof, wsurface_load_topo, wsurface_load, wsurface_load_rel, wsurface_load_rel_grid_GIA, wsurface_load_rel_ext, wdHb_eq, wdHb_external, wLVELRA_bedrock_relaxation_time
 
     ! Useful stuff
     REAL(dp), DIMENSION(:,:  ), POINTER     :: dHi_a                  ! Ice thickness difference w.r.t. PD reference

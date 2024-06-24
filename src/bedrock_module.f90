@@ -254,6 +254,266 @@ CONTAINS
 
   END SUBROUTINE initialise_ELRA_model
 
+  ! The LV-ELRA model
+  SUBROUTINE run_LVELRA_model( region)
+    ! Use the ELRA model to update bedrock elevation. Once every (dt_bedrock_ELRA) years,
+    ! update deformation rates. In all other time steps, just incrementally add deformation.
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_model_region),         INTENT(INOUT)     :: region
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_LVELRA_model'
+    INTEGER                                            :: i,j
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! If needed, update the bedrock deformation rate
+    IF (region%do_ELRA) THEN
+      CALL calculate_LVELRA_bedrock_deformation_rate( region%grid, region%grid_GIA, region%ice, region%refgeo_GIAeq)
+    END IF
+
+    ! Update bedrock with last calculated deformation rate
+    DO i = region%grid%i1, region%grid%i2
+    DO j = 1, region%grid%ny
+      region%ice%Hb_a(  j,i) = region%ice%Hb_a( j,i) + region%ice%dHb_dt_a( j,i) * region%dt
+      region%ice%dHb_a( j,i) = region%ice%Hb_a( j,i) - region%refgeo_GIAeq%Hb( j,i)
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE run_LVELRA_model
+  SUBROUTINE calculate_LVELRA_bedrock_deformation_rate( grid, grid_GIA, ice, refgeo_GIAeq)
+    ! Use the ELRA model to update bedrock deformation rates.
+
+    IMPLICIT NONE
+
+   ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'calculate_LVELRA_bedrock_deformation_rate'
+    REAL(dp), DIMENSION(:,:  ), POINTER                ::  surface_load_icemodel_grid,  dHb_eq_GIA_grid
+    INTEGER                                            :: wsurface_load_icemodel_grid, wdHb_eq_GIA_grid
+    INTEGER                                            :: i,j,n,k,l
+    REAL(dp)                                           :: Lr
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    ! Influence radius of the lithospheric rigidity
+    Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
+
+    ! Calculate the surface load on the ice model grid
+
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, surface_load_icemodel_grid, wsurface_load_icemodel_grid)
+
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+
+      ! Absolute surface load
+      IF (ice%mask_ocean_a( j,i) == 1) THEN
+        surface_load_icemodel_grid( j,i) = (ice%SL_a( j,i) - ice%Hb_a( j,i)) * seawater_density * grid%dx**2
+      ELSE
+        surface_load_icemodel_grid( j,i) = ice%Hi_tplusdt_a( j,i) * ice_density * grid%dx**2
+      END IF
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Calculate the relative surface load on the ice model grid
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%surface_load_rel( j,i) = surface_load_icemodel_grid( j,i) - ice%surface_load_topo( j,i)
+    END DO
+    END DO
+    CALL sync
+
+    CALL deallocate_shared( wsurface_load_icemodel_grid)
+    ! Map the relative surface load from the ice model grid to the GIA grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid%nx, grid%ny, grid%x, grid%y, grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, ice%surface_load_rel, ice%surface_load)
+
+    ! Surface load is in Newton, integrated over entire grid cells, so must correct for the difference in resolution
+    ice%surface_load( :,grid_GIA%i1:grid_GIA%i2) = ice%surface_load( :,grid_GIA%i1:grid_GIA%i2) * (grid_GIA%dx / grid%dx)**2
+
+    ! Fill in the "extended" relative surface load (extrapolating the domain so we can do the 2D convolution) on the GIA grid
+    n = ice%flex_prof_rad
+    DO i = grid_GIA%i1, grid_GIA%i2
+    DO j = 1, grid_GIA%ny
+      ! ice%surface_load_rel_ext( j+n,i+n) = ice%surface_load_rel( j,i)
+        ice%surface_load_rel_ext( j+n,i+n) = ice%surface_load( j,i)
+    END DO
+    END DO
+    CALL sync
+
+    DO i = grid_GIA%i1, grid_GIA%i2
+      ice%surface_load_rel_ext(               1:              n, i) = ice%surface_load_rel( 1          ,i)
+      ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n, i) = ice%surface_load_rel( grid_GIA%ny,i)
+    END DO
+    CALL sync
+    DO j = grid_GIA%j1, grid_GIA%j2
+      ice%surface_load_rel_ext( j,               1:              n) = ice%surface_load_rel( j,1          )
+      ice%surface_load_rel_ext( j, grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( j,grid_GIA%nx)
+    END DO
+    CALL sync
+
+    IF (par%master) THEN
+      ice%surface_load_rel_ext(               1:n              ,              1:n              ) = ice%surface_load_rel( 1          ,1          )
+      ice%surface_load_rel_ext(               1:n              ,grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( 1          ,grid_GIA%nx)
+      ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n,              1:n              ) = ice%surface_load_rel( grid_GIA%ny,1          )
+      ice%surface_load_rel_ext( grid_GIA%ny+n+1:grid_GIA%ny+2*n,grid_GIA%nx+n+1:grid_GIA%nx+2*n) = ice%surface_load_rel( grid_GIA%ny,grid_GIA%nx)
+    END IF
+    CALL sync
+
+    ! Calculate the equilibrium bedrock deformation for this surface load on the GIA grid
+    ! ( = convolute([surface load],[flexural profile]))
+
+    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, dHb_eq_GIA_grid, wdHb_eq_GIA_grid)
+
+    DO i = grid_GIA%i1, grid_GIA%i2
+    DO j = 1, grid_GIA%ny
+
+      dHb_eq_GIA_grid( j,i) = 0._dp
+
+      DO k = -n,n
+      DO l = -n,n
+        dHb_eq_GIA_grid( j,i) = dHb_eq_GIA_grid( j,i) + &
+          (0.5_dp * grav * Lr**2 /(pi * C%ELRA_lithosphere_flex_rigidity) * ice%surface_load_rel_ext( j+n+l, i+n+k) * ice%flex_prof( l+n+1,k+n+1))
+      END DO
+      END DO
+
+    END DO
+    END DO
+    CALL sync
+
+    ! Map the equilibrium bedrock deformation back to the ice model grid
+    CALL map_square_to_square_cons_2nd_order_2D( grid_GIA%nx, grid_GIA%ny, grid_GIA%x, grid_GIA%y, grid%nx, grid%ny, grid%x, grid%y, dHb_eq_GIA_grid, ice%dHb_eq)
+    CALL deallocate_shared( wdHb_eq_GIA_grid)
+
+    ! Calculate the bedrock deformation rate on the ice model grid
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      ice%dHb_dt_a( j,i) = (refgeo_GIAeq%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE calculate_LVELRA_bedrock_deformation_rate
+  SUBROUTINE initialise_LVELRA_model( grid, grid_GIA, ice, refgeo_GIAeq)
+    ! Allocate and initialise the ELRA GIA model
+
+    IMPLICIT NONE
+
+    ! In/output variables:
+    TYPE(type_grid),                     INTENT(IN)    :: grid
+    TYPE(type_grid),                     INTENT(IN)    :: grid_GIA
+    TYPE(type_ice_model),                INTENT(INOUT) :: ice
+    TYPE(type_reference_geometry),       INTENT(IN)    :: refgeo_GIAeq
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'initialise_LVELRA_model'
+    ! REAL(dp), DIMENSION(:,:  ), POINTER                ::  Hi_topo_grid_GIA,  Hb_topo_grid_GIA
+    ! INTEGER                                            :: wHi_topo_grid_GIA, wHb_topo_grid_GIA
+    INTEGER                                            :: i,j,n,k,l
+    REAL(dp)                                           :: Lr, r
+
+    ! Add routine to path
+    CALL init_routine( routine_name)
+
+    IF (par%master) WRITE (0,*) '  Initialising LVELRA GIA model...'
+
+    ! Allocate shared memory
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%surface_load_topo,    ice%wsurface_load_topo   )
+    CALL allocate_shared_dp_2D( grid_GIA%ny, grid_GIA%nx, ice%surface_load,         ice%wsurface_load        )
+    CALL allocate_shared_dp_2D( grid%ny, grid%nx, ice%surface_load_rel,     ice%wsurface_load_rel    )
+    CALL allocate_shared_dp_2D( grid%ny,     grid%nx,     ice%dHb_eq,               ice%wdHb_eq              )
+
+    ! Fill in the 2D flexural profile (= Kelvin function), with which a surface load is convoluted to find surface deformation
+
+    ! Influence radius of the lithospheric rigidity
+    Lr = (C%ELRA_lithosphere_flex_rigidity / (C%ELRA_mantle_density * grav))**0.25_dp
+
+    ! Calculate radius (in number of grid_GIA cells) of the flexural profile
+    CALL allocate_shared_int_0D( ice%flex_prof_rad, ice%wflex_prof_rad)
+    IF (par%master) ice%flex_prof_rad = MIN( CEILING(grid_GIA%dx/2._dp), MAX(1, INT(6._dp * Lr / grid_GIA%dx) - 1))
+    CALL sync
+
+    n = 2 * ice%flex_prof_rad + 1
+    CALL allocate_shared_dp_2D( n, n, ice%flex_prof, ice%wflex_prof)
+    CALL allocate_shared_dp_2D( grid_GIA%ny+n, grid_GIA%nx+n, ice%surface_load_rel_ext, ice%wsurface_load_rel_ext)
+
+    ! Calculate flexural profile
+    IF (par%master) THEN
+    DO i = -ice%flex_prof_rad, ice%flex_prof_rad
+    DO j = -ice%flex_prof_rad, ice%flex_prof_rad
+      l = i+ice%flex_prof_rad+1
+      k = j+ice%flex_prof_rad+1
+      r = grid_GIA%dx * SQRT( (REAL(i,dp))**2 + (REAL(j,dp))**2)
+      ice%flex_prof( l,k) = kelvin(r / Lr)
+    END DO
+    END DO
+    END IF
+    CALL sync
+
+     ! Calculate refgeo_GIAeq reference load
+    DO i = grid%i1, grid%i2
+    DO j = 1, grid%ny
+      IF (is_floating( refgeo_GIAeq%Hi( j,i), refgeo_GIAeq%Hb( j,i), 0._dp)) THEN
+        ice%surface_load_topo( j,i) = -refgeo_GIAeq%Hb( j,i) * grid%dx**2 * seawater_density
+      ELSEIF (refgeo_GIAeq%Hi( j,i) > 0._dp) THEN
+        ice%surface_load_topo( j,i) = refgeo_GIAeq%Hi( j,i) * grid%dx**2 * ice_density
+      END IF
+    END DO
+    END DO
+    CALL sync
+
+    ! Finalise routine path
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE initialise_LVELRA_model
+  SUBROUTINE read_LVELRA_bedrock_relaxation_time_file( grid, ice)
+  ! Caroline van Calcar 08/2022
+
+    IMPLICIT NONE
+
+    ! in/output variables:
+    TYPE(type_grid),                  INTENT(IN)        :: grid
+    TYPE(type_ice_model),             INTENT(INOUT)     :: ice
+
+    ! Local variables:
+    CHARACTER(LEN=256), PARAMETER                       :: routine_name = 'read_LVELRA_bedrock_relaxation_time_file'
+    INTEGER                                             :: i,j
+
+    CALL init_routine( routine_name)
+
+    CALL allocate_shared_dp_2D(        grid%ny, grid%nx, ice%dHb_external, ice%wdHb_external)
+
+    IF (par%master) THEN
+        open (91, file = C%filename_LVELRA_bedrock_relaxation_time, status = 'old')
+        do i = 1,grid%NX
+          read(91,*) (ice%LVELRA_bedrock_relaxation_time(j,i),j=1,grid%NY)
+        enddo
+      close(91)
+    END IF
+    CALL SYNC
+
+    CALL finalise_routine( routine_name)
+
+  END SUBROUTINE read_LVELRA_bedrock_relaxation_time_file
+
   ! External GIA model
   SUBROUTINE read_external_GIA_file( grid, ice)
   ! Caroline van Calcar 08/2022
