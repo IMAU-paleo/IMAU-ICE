@@ -403,7 +403,7 @@ CONTAINS
     ! Calculate the bedrock deformation rate on the ice model grid
     DO i = grid%i1, grid%i2
     DO j = 1, grid%ny
-      ice%dHb_dt_a( j,i) = (refgeo_GIAeq%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / C%ELRA_bedrock_relaxation_time
+      ice%dHb_dt_a( j,i) = (refgeo_GIAeq%Hb( j,i) - ice%Hb_a( j,i) + ice%dHb_eq( j,i)) / ice%LVELRA_bedrock_relaxation_time( j,i)
     END DO
     END DO
     CALL sync
@@ -499,7 +499,7 @@ CONTAINS
 
     CALL init_routine( routine_name)
 
-    CALL allocate_shared_dp_2D(        grid%ny, grid%nx, ice%dHb_external, ice%wdHb_external)
+    CALL allocate_shared_dp_2D(        grid%ny, grid%nx, ice%LVELRA_bedrock_relaxation_time, ice%wLVELRA_bedrock_relaxation_time)
 
     IF (par%master) THEN
         open (91, file = C%filename_LVELRA_bedrock_relaxation_time, status = 'old')
@@ -509,6 +509,8 @@ CONTAINS
       close(91)
     END IF
     CALL SYNC
+
+    CALL save_variable_as_netcdf_dp_2D(ice%LVELRA_bedrock_relaxation_time,'read_LVELRA') !CvC
 
     CALL finalise_routine( routine_name)
 
