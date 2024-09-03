@@ -2491,7 +2491,7 @@ CONTAINS
         s = Sk0 / (nu * lambda)
 
         ! Intermediary constants
-        Crbsa = C_overturn * rhostar * (beta * s - alpha)
+        Crbsa = C%BMB_PICO_C_overturn * rhostar * (beta * s - alpha)
 
         ! Reese et al. (2018), Eq. A12
         x = -g1 / (2._dp * Crbsa) + SQRT( (g1 / (2._dp * Crbsa))**2 - (g1 * Tstar / Crbsa))
@@ -2517,7 +2517,7 @@ CONTAINS
     CALL PICO_calc_box_average( grid, ice, BMB, BMB%PICO_m, basin_i, 1, BMB%PICO_mk( basin_i, 1))
 
     ! Calculate overturning strength (Reese et al. (2018), Eq. A9)
-    q = C_overturn * rhostar * (beta * (Sk0 - BMB%PICO_Sk( basin_i, 1)) - alpha * (Tk0 - BMB%PICO_Tk( basin_i, 1)))
+    q = C%BMB_PICO_C_overturn * rhostar * (beta * (Sk0 - BMB%PICO_Sk( basin_i, 1)) - alpha * (Tk0 - BMB%PICO_Tk( basin_i, 1)))
 
   ! Calculate solutions for subsequent boxes
   ! ========================================
@@ -3019,7 +3019,7 @@ CONTAINS
           CALL system('cd ' // TRIM(C%BMB_laddie_model_foldername) // ' ; srun --ntasks=1 --cpus-per-task=1 --cpu-bind=verbose python3 runladdie.py ' // TRIM(C%BMB_laddie_configfile))
         
         ELSE
-          CALL crash('C%BMB_laddie_system not recognized, should be "mac" or "HPC_slurm".')
+          CALL crash('C%BMB_laddie_system not recognized, should be "local_mac" or "slurm_HPC".')
         
         END IF 
 
@@ -3050,10 +3050,11 @@ CONTAINS
 
       ! If laddieready is found, read in BMB data from LADDIE
       IF (found_laddie_file) THEN
-        CALL read_field_from_file_2D(BMB_laddie_filename_output_BMB, 'BMBext', grid, BMB_LADDIE, region_name)
+        ! CALL read_field_from_file_2D(BMB_laddie_filename_output_BMB, 'BMBext', grid, BMB_LADDIE, region_name)
+        CALL read_field_from_file_2D(BMB_laddie_filename_output_BMB, C%BMB_laddie_output_field, grid, BMB_LADDIE, region_name)
       END IF
 
-      ! Convert to m.i.e./yr
+      ! Convert from kg/m^2/s to m.i.e./yr =>  31557600 seconds per year, divided by rhoice = 918 in laddie.
       IF (par%master) THEN
         BMB%BMB_shelf = 31557600._dp * BMB_LADDIE(1:grid%ny, 1:grid%nx) / 918._dp
         END IF
@@ -3113,7 +3114,7 @@ CONTAINS
     CALL sync
 
     ! Set initial melt from initial file
-    CALL read_field_from_file_2D(C%BMB_laddie_filename_initial_BMB, 'BMBext', grid, BMB_LADDIE, region_name)
+    CALL read_field_from_file_2D(C%BMB_laddie_filename_initial_BMB, C%BMB_laddie_output_field, grid, BMB_LADDIE, region_name)
 
     ! Convert to m.i.e./yr
     IF (par%master) THEN

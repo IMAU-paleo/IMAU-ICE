@@ -681,7 +681,7 @@ CONTAINS
     CHARACTER(LEN=256), PARAMETER                      :: routine_name = 'run_ocean_model_idealised_tanh_MEDIUM'
     INTEGER                                            :: i,j,k
     REAL(dp), PARAMETER                                :: Tzero     = -1.9_dp    ! Sea surface temperature [degC] (originally T0, but that name is already taken...)
-    REAL(dp), PARAMETER                                :: Tbot      =  0.0_dp    ! Sea floor   temperature [degC]
+    REAL(dp), PARAMETER                                :: Tbot      =  0.3_dp    ! Sea floor   temperature [degC]
     REAL(dp), PARAMETER                                :: Szero     = 34.0_dp    ! Sea surface salinity    [PSU]
     REAL(dp), PARAMETER                                :: depth_tc  = -450._dp    ! Scale depth thermo cline
     REAL(dp), PARAMETER                                :: depth_sc  = 250._dp    ! Scale thickness thermo cline

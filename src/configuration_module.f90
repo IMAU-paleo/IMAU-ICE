@@ -735,6 +735,7 @@ MODULE configuration_module
   ! Parameters for the PICO BMB model
   INTEGER             :: BMB_PICO_nboxes_config                      = 5                                ! Number of sub-shelf ocean boxes used by PICO
   REAL(dp)            :: BMB_PICO_GammaTstar_config                  = 3.6131E-05_dp  ! 2.0E-5_dp       ! Effective turbulent temperature exchange velocity [m s^-1]; tuned following ISOMIP+ protocol (Asay-Davis et al., 2016, Sect. 3.2.1), commented value from Reese et al. (2018)
+  REAL(dp)            :: BMB_PICO_C_overturn_config                  = 1.0E06_dp      ! 1.0E06_dp       ! Overturning strength [m^6 s^-1 kg^-1], commented value from Reese et al. (2018)
 
   ! File path for the LADDIE model output
   CHARACTER(LEN=256)  :: BMB_laddie_filename_initial_BMB_config      = ''                               ! Path to a netcdf file containing initial BMB [kg m^-2 s^-1] from laddie spinup
@@ -743,6 +744,7 @@ MODULE configuration_module
   CHARACTER(LEN=256)  :: BMB_laddie_model_foldername_config          = ''                               ! Path to laddie directory
   CHARACTER(LEN=256)  :: BMB_laddie_configfile_config                = ''                               ! Configfile name of this laddie run
   CHARACTER(LEN=256)  :: BMB_laddie_system_config                    = ''                               ! System on which the model is running: 'local_mac' or 'slurm_HPC'
+  CHARACTER(LEN=256)  :: BMB_laddie_output_field_config              = ''                               ! Which variable to read from laddie_output: 'BMBext' for extrapolated data or 'BMB' for raw data
 
   ! Parameters for the ANICE_legacy sub-shelf melt model
   REAL(dp)            :: T_ocean_mean_PD_NAM_config                  = -1.7_dp                          ! Present day temperature of the ocean beneath the shelves [Celcius]
@@ -1561,6 +1563,7 @@ MODULE configuration_module
     ! Parameters for the PICO BMB model
     INTEGER                             :: BMB_PICO_nboxes
     REAL(dp)                            :: BMB_PICO_GammaTstar
+    REAL(dp)                            :: BMB_PICO_C_overturn
 
     ! Parameters for the LADDIE model
     CHARACTER(LEN=256)                  :: BMB_laddie_filename_initial_BMB
@@ -1569,6 +1572,7 @@ MODULE configuration_module
     CHARACTER(LEN=256)                  :: BMB_laddie_model_foldername
     CHARACTER(LEN=256)                  :: BMB_laddie_configfile
     CHARACTER(LEN=256)                  :: BMB_laddie_system
+    CHARACTER(LEN=256)                  :: BMB_laddie_output_field
 
     ! Parameters for the ANICE_legacy sub-shelf melt model
     REAL(dp)                            :: T_ocean_mean_PD_NAM
@@ -2429,12 +2433,14 @@ CONTAINS
                      BMB_Lazeroms2018_find_GL_scheme_config,          &
                      BMB_PICO_nboxes_config,                          &
                      BMB_PICO_GammaTstar_config,                      &
+                     BMB_PICO_C_overturn_config,                      &
                      BMB_laddie_filename_initial_BMB_config,          &
                      BMB_laddie_filename_initial_restart_config,      &
                      BMB_laddie_coupling_foldername_config,           &
                      BMB_laddie_model_foldername_config,              &
                      BMB_laddie_configfile_config,                    &
                      BMB_laddie_system_config,                        &
+                     BMB_laddie_output_field_config,                  &
                      T_ocean_mean_PD_NAM_config,                      &
                      T_ocean_mean_PD_EAS_config,                      &
                      T_ocean_mean_PD_GRL_config,                      &
@@ -3392,6 +3398,7 @@ CONTAINS
     ! Parameters for the PICO BMB model
     C%BMB_PICO_nboxes                          = BMB_PICO_nboxes_config
     C%BMB_PICO_GammaTstar                      = BMB_PICO_GammaTstar_config
+    C%BMB_PICO_C_overturn                      = BMB_PICO_C_overturn_config
 
     ! Parameters for the LADDIE model
     C%BMB_laddie_filename_initial_BMB          = BMB_laddie_filename_initial_BMB_config
@@ -3400,7 +3407,8 @@ CONTAINS
     C%BMB_laddie_model_foldername              = BMB_laddie_model_foldername_config
     C%BMB_laddie_configfile                    = BMB_laddie_configfile_config
     C%BMB_laddie_system                        = BMB_laddie_system_config
-
+    C%BMB_laddie_output_field                  = BMB_laddie_output_field_config
+    
     ! Parameters for the ANICE_legacy sub-shelf melt model
     C%T_ocean_mean_PD_NAM                      = T_ocean_mean_PD_NAM_config
     C%T_ocean_mean_PD_EAS                      = T_ocean_mean_PD_EAS_config
